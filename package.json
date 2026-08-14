@@ -1,0 +1,46 @@
+{
+  "name": "eurovafliai",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -n next,pb -c cyan,magenta \"npm:dev:next\" \"npm:pb:serve\"",
+    "dev:next": "next dev -p 3007",
+    "dev:clean": "rm -rf .next && npm run dev",
+    "build": "next build",
+    "start": "next start -p 3007",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "pb:download": "./scripts/pb-download.sh",
+    "pb:serve": "./pb/pocketbase serve --http=127.0.0.1:8095 --dir=pb/pb_data --migrationsDir=pb/pb_migrations",
+    "worker:dev": "tsx watch src/worker/index.ts",
+    "worker:start": "tsx src/worker/index.ts"
+  },
+  "dependencies": {
+    "next": "16.3.1",
+    "pocketbase": "^0.27.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^10.0.4",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.20.6",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}

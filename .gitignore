@@ -1,0 +1,66 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (the real .env is ignored; .env.example is committed as documentation)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# PocketBase — the binary and local data are ignored, pb_migrations are COMMITTED
+# (schema as code: every collection change is a migration file in the PR).
+/pb/pocketbase
+/pb/pocketbase-*
+/pb/pb_data/
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Claude Code — project rules and our own skills are committed; installed
+# third-party packs and machine-local settings are not.
+/.claude/settings.local.json
+/.claude/skills/impeccable/
+/.claude/plugins/
+/.agents/
+
+# impeccable (design tooling) — config, tokens and critiques ARE committed;
+# generated screenshots and caches are not.
+/.impeccable/cache/
+/.impeccable/screenshots/
+/.impeccable/tmp/
