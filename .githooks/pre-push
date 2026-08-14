@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Refuse direct pushes to main.
+#
+# GitHub's own branch protection and rulesets require GitHub Pro on a private
+# repo, so this hook is the local stand-in: work goes to a branch, then through a
+# PR, then squash-merges. The repo's merge settings already force squash-only,
+# which keeps history linear.
+#
+# Enable once per clone:  npm run setup:hooks
+# Deliberate exception:   git push --no-verify  (say why in the PR or commit)
+
+set -euo pipefail
+
+PROTECTED="main"
+REMOTE_REF_PREFIX="refs/heads/"
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  branch="${remote_ref#"$REMOTE_REF_PREFIX"}"
+  if [[ "$branch" == "$PROTECTED" ]]; then
+    cat >&2 <<'MSG'
+✖ Direct push to main refused.
+
+  Push a branch and open a PR instead:
+
+    git switch -c <slice-name>
+    git push -u origin <slice-name>
+    gh pr create --fill
+
+  CI (lint, typecheck, unit tests, build) gates the merge, and merges are
+  squash-only so main stays linear.
+
+  Genuinely need to bypass? git push --no-verify
+MSG
+    exit 1
+  fi
+done
+
+exit 0
