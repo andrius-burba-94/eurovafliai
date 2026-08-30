@@ -1,8 +1,8 @@
 # Issue tracker: GitHub
 
 Issues and specs for this repo live as GitHub issues on
-`andrius-burba-94/eurovafliai` (private). Use the `gh` CLI for all operations —
-it infers the repo from `git remote -v` when run inside the clone.
+`andrius-burba-94/eurovafliai`. Use the `gh` CLI for all operations — it infers
+the repo from `git remote -v` when run inside the clone.
 
 ## Conventions
 
@@ -28,8 +28,17 @@ it infers the repo from `git remote -v` when run inside the clone.
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
 
-This is a private, single-maintainer repo with no external contributors, so PRs
-are the maintainer's own work and never enter the triage queue.
+The repository is **public**, but the project is not open to contributions: it
+is one friend group's private app, and the repo is public so that GitHub's
+branch protection, rulesets and secret scanning are available at all. There is
+no `LICENSE`, so the default applies — all rights reserved, look but do not
+reuse.
+
+Consequences for triage: every PR is the maintainer's own work and never enters
+the triage queue. An unsolicited external PR or issue is closed, not triaged.
+If that ever changes, flip the flag above to `yes` and add a `LICENSE` and a
+`CONTRIBUTING.md` in the same PR — `/triage` reads the flag, and contributors
+need to know the terms.
 
 ## When a skill says "publish to the issue tracker"
 
