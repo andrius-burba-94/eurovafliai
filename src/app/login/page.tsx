@@ -11,6 +11,8 @@ import { getSession } from "@/lib/auth/session";
  * produce has a message here rather than a dead end.
  */
 const ERRORS: Record<string, string> = {
+  server_unavailable:
+    "Can't reach the server right now. Try again in a moment.",
   provider_unavailable:
     "Google sign-in is not configured on the server yet. Tell the commissioner.",
   google_denied: "Google sign-in was cancelled.",
