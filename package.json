@@ -19,9 +19,10 @@
     "pb:download": "./scripts/pb-download.sh",
     "setup": "./scripts/pb-download.sh && npm run setup:hooks",
     "setup:hooks": "git config core.hooksPath .githooks",
-    "pb:serve": "./pb/pocketbase serve --http=127.0.0.1:8095 --dir=pb/pb_data --migrationsDir=pb/pb_migrations",
+    "pb:serve": "./scripts/pb-serve.sh",
     "worker:dev": "tsx watch src/worker/index.ts",
-    "worker:start": "tsx src/worker/index.ts"
+    "worker:start": "tsx src/worker/index.ts",
+    "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs"
   },
   "dependencies": {
     "next": "16.3.1",
