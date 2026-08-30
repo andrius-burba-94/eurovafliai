@@ -24,6 +24,21 @@ one of them is not a review.
   `@request.auth.record.role` (changed in 0.28).
 - Auth collections need an explicit `authRule` — `'id != ""'` for
   "any verified account may authenticate".
+- **An empty rule (`""`) means *anyone*; `null` means superusers only.** They
+  look interchangeable in a JSON dump and are opposites. A fresh auth collection
+  ships `createRule: ""`, i.e. public sign-up is open until you close it.
+- **`@request.context` distinguishes how a request arrived** — `default`,
+  `realtime`, `protectedFile`, `oauth2`. It exists because OAuth2 sign-in
+  creates its `users` record through an ordinary internal record-create that
+  **is** subject to `createRule`. So the way to close public sign-up on an
+  invite-only app without locking out first-time Google users is
+  `createRule = '@request.context = "oauth2"'` — not `null`, which would let
+  existing members in and refuse every new one. (Eurovafliai `users`; see
+  `pb/pb_migrations/1788124900_close_public_signup.js`.)
+- **Turning `passwordAuth` off breaks anything that calls `authWithPassword`.**
+  To act as a real user in a script or test, have a superuser call
+  `impersonate(recordId, duration)` — it returns a client already carrying that
+  user's token. `password` stays a required *field* on the record either way.
 - `username` is a custom field, not built-in.
 - Unset numbers are stored as `0`, never `null` → **never put a unique index
   on a numeric field alone** (false conflicts). Composite indexes that include
