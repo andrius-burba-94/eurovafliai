@@ -49,7 +49,11 @@ const nameById = new Map(collections.map((c) => [c.id, c.name]));
 const byName = (a, b) => a.name.localeCompare(b.name);
 
 const normaliseField = (field) => {
-  const { id: _id, ...rest } = field;
+  // Drop the generated field id by copying everything else, rather than
+  // destructuring it into an unused binding the linter then flags.
+  const rest = Object.fromEntries(
+    Object.entries(field).filter(([key]) => key !== "id"),
+  );
   if (rest.collectionId) {
     // A relation's target is meaningful; its generated id is not.
     rest.collectionRef = nameById.get(rest.collectionId) ?? "(unknown)";
