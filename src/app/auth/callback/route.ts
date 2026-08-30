@@ -54,10 +54,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .authWithOAuth2Code("google", code, codeVerifier, redirectUriFor(appOrigin));
 
     await setSessionCookie(authData.token);
-  } catch {
+  } catch (error) {
     // A bad code, a redirect_uri Google does not recognise, or PocketBase
-    // refusing the record. Details are logged by PocketBase; the user gets a
-    // generic failure rather than a leaked provider error.
+    // refusing the record. The user gets a generic failure rather than a leaked
+    // provider error — but it is logged here, because the one case that looks
+    // identical from the outside is a first-time sign-in whose record creation
+    // was refused by the `users` createRule, and that is worth being able to
+    // read off a log instead of guessing at it.
+    console.error("[auth] OAuth2 code exchange failed", error);
     await clearHandshakeCookies();
     return failTo("exchange_failed");
   }

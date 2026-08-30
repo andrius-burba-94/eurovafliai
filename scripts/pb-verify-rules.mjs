@@ -34,7 +34,6 @@ const check = (condition, message) => {
   console.log(`${condition ? "PASS" : "FAIL"}  ${message}`);
 };
 
-const PASSWORD = "verify-script-password-123";
 const stamp = Date.now();
 const created = { users: [], leagues: [], members: [] };
 
@@ -44,11 +43,15 @@ await su
   .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
 
 const makeUser = async (label) => {
+  // No password: `passwordAuth` is disabled on `users`, and these clients
+  // authenticate by superuser impersonation instead. PocketBase still requires
+  // the field on an auth record, so it gets a random one nothing ever uses.
+  const throwaway = crypto.randomUUID();
   const user = await su.collection("users").create(
     {
       email: `${label}.${stamp}@verify.invalid`,
-      password: PASSWORD,
-      passwordConfirm: PASSWORD,
+      password: throwaway,
+      passwordConfirm: throwaway,
       name: label,
       verified: true,
     },
@@ -82,11 +85,12 @@ const makeMember = async (league, user, teamName) => {
   return member;
 };
 
-const asUser = async (email) => {
-  const client = new PocketBase(url);
-  await client.collection("users").authWithPassword(email, PASSWORD);
-  return client;
-};
+// Authenticate as a real (non-superuser) user WITHOUT password auth: a
+// superuser mints a short-lived token for the record and the SDK hands back a
+// client already carrying it. This is the only way to exercise the read rules
+// as an end user now that `passwordAuth` is off — and it is closer to
+// production anyway, where every session token comes from Google.
+const asUser = async (userId) => su.collection("users").impersonate(userId, 600);
 
 const rejects = async (fn) => {
   try {
@@ -120,6 +124,20 @@ try {
     "league_members writes are superuser-only",
   );
   check(byName.users.authRule === 'id != ""', "users authRule is 'id != \"\"'");
+  // Public sign-up is closed. The rule is NOT null on purpose: PocketBase
+  // creates the `users` record for a first-time Google sign-in through an
+  // internal record-create that is subject to createRule, so null would let
+  // existing members in and lock every new member out. `@request.context`
+  // (v0.22.0+) distinguishes the two — `oauth2` is the sign-in path, `default`
+  // is a direct API POST.
+  check(
+    byName.users.createRule === '@request.context = "oauth2"',
+    "public sign-up is closed (only the oauth2 context may create a user)",
+  );
+  check(
+    byName.users.passwordAuth?.enabled === false,
+    "password auth is disabled on users (Google is the only door)",
+  );
   // Conditional: the Google provider is only configured when the credentials
   // were present when the migration was applied, so only assert it when this
   // environment actually has them.
@@ -185,8 +203,8 @@ try {
   );
 
   // --- read rules, as real users -------------------------------------------
-  const aliceClient = await asUser(alice.email);
-  const bobClient = await asUser(bob.email);
+  const aliceClient = await asUser(alice.id);
+  const bobClient = await asUser(bob.id);
 
   check(
     (await listCount(aliceClient, "leagues")) === 1,
@@ -227,6 +245,35 @@ try {
   check(
     (await listCount(bobClient, "league_members")) === 2,
     "a member of one league cannot see another league's members",
+  );
+
+  // Sign-up is closed in practice, not just on paper. Both of these run in the
+  // `default` request context, so the createRule refuses them.
+  const anonymous = new PocketBase(url);
+  const signUpPayload = () => {
+    const password = crypto.randomUUID();
+    return {
+      email: `intruder.${crypto.randomUUID()}@verify.invalid`,
+      password,
+      passwordConfirm: password,
+      name: "Intruder",
+    };
+  };
+  check(
+    await rejects(() =>
+      anonymous
+        .collection("users")
+        .create(signUpPayload(), { requestKey: null }),
+    ),
+    "an anonymous visitor cannot create an account",
+  );
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("users")
+        .create(signUpPayload(), { requestKey: null }),
+    ),
+    "a signed-in member cannot create an account for someone else",
   );
 
   check(
