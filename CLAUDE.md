@@ -38,11 +38,12 @@ npm run typecheck    # next typegen && tsc --noEmit
 npm run test         # vitest (unit only — E2E is excluded on purpose)
 npm run test:e2e     # playwright
 npm run build        # next build
+npm run pb:verify    # assert PB rules + unique indexes hold (PB must be running)
 ./scripts/pb-download.sh   # fetch the pinned PocketBase binary
 ```
 
-First run: `./scripts/pb-download.sh && npm i && cp .env.example .env`, fill in
-`.env`, then `npm run dev`.
+First run: `npm i && npm run setup && cp .env.example .env`, fill in `.env`, then
+`npm run dev`. (`setup` = PocketBase binary + git hooks.)
 
 ## Architecture in one screen
 
