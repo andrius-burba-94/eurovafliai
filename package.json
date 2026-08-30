@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "pb:download": "./scripts/pb-download.sh",
+    "pb:dump-schema": "tsx --env-file=.env scripts/pb-dump-schema.mjs",
     "setup": "./scripts/pb-download.sh && npm run setup:hooks",
     "setup:hooks": "git config core.hooksPath .githooks",
     "pb:serve": "./scripts/pb-serve.sh",
