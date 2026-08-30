@@ -39,6 +39,7 @@ npm run test         # vitest (unit only — E2E is excluded on purpose)
 npm run test:e2e     # playwright
 npm run build        # next build
 npm run pb:verify    # assert PB rules + unique indexes hold (PB must be running)
+npm run pb:verify:oauth2  # prove first-time Google sign-up still works (PB must be running)
 ./scripts/pb-download.sh   # fetch the pinned PocketBase binary
 ```
 
