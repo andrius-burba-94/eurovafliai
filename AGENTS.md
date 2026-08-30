@@ -69,5 +69,14 @@ those up plus `tests/unit/**`.
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so
   `pb-download.sh` verifies only our archive's line. Not a bug to fix.
+- **`localhost` and `127.0.0.1` are not interchangeable here.** Google treats them
+  as different redirect URIs, and only `http://localhost:3007/auth/callback` is
+  registered on the OAuth client — so anything that builds the app's own
+  browser-facing origin (the OAuth redirect above all) must say `localhost`.
+  PocketBase URLs are the exact opposite: keep them on `127.0.0.1`, because the
+  PB JS SDK fails against `localhost` on IPv6-first resolvers (its own error
+  message tells you to switch). Rule: **`localhost` for the app's public origin,
+  `127.0.0.1` for PocketBase.** Getting it backwards surfaces as
+  `redirect_uri_mismatch` from Google, or `ECONNREFUSED ::1` from the SDK.
 - **`next.config.ts` is fine on Next 16** — the old TS-config production caveat
   no longer applies.
