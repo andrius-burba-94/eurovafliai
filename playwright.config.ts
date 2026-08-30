@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3007;
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+// `localhost`, not 127.0.0.1: this is the app's canonical dev origin, the one
+// registered as an OAuth redirect URI on the Google client. Browsing the other
+// form would set auth cookies on a domain the real flow never uses.
+const BASE_URL = `http://localhost:${PORT}`;
 
 // E2E is local-first: it boots the Next dev server itself and reuses one that
 // is already running. PocketBase is NOT started here — specs that need data
