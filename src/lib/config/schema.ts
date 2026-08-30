@@ -15,6 +15,15 @@ export const publicEnvSchema = z.object({
    * which is bound to 127.0.0.1 and unreachable from a browser.
    */
   NEXT_PUBLIC_PB_URL: z.url(),
+  /**
+   * The app's own browser-facing origin, used to build the OAuth2 redirect URI.
+   *
+   * In development this must be `http://localhost:3007`, NOT `127.0.0.1`: Google
+   * treats the two as different redirect URIs and only the `localhost` form is
+   * registered on the OAuth client. PocketBase URLs above are the opposite case.
+   * See the gotcha list in AGENTS.md.
+   */
+  NEXT_PUBLIC_APP_URL: z.url(),
 });
 
 export const serverEnvSchema = z.object({

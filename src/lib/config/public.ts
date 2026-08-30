@@ -14,6 +14,7 @@ let cached: PublicEnv | undefined;
 export function publicConfig(): PublicEnv {
   cached ??= parsePublicEnv({
     NEXT_PUBLIC_PB_URL: process.env.NEXT_PUBLIC_PB_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   });
   return cached;
 }
