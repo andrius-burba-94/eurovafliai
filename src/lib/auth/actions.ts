@@ -20,9 +20,18 @@ import { buildAuthorizeUrl, redirectUriFor } from "./oauth";
  */
 export async function startGoogleLogin(): Promise<never> {
   const pb = createPbClient();
-  const methods = await pb.collection("users").listAuthMethods({
-    requestKey: null,
-  });
+
+  // PocketBase may simply be down — during a deploy, after a crash, or because
+  // someone stopped it locally. Unhandled, that surfaced as a raw
+  // ClientResponseError stack trace on the login page, which is no way to tell
+  // somebody the server is having a moment.
+  let methods;
+  try {
+    methods = await pb.collection("users").listAuthMethods({ requestKey: null });
+  } catch (error) {
+    console.error("[auth] could not reach PocketBase for auth methods", error);
+    redirect("/login?error=server_unavailable");
+  }
 
   const google = methods.oauth2.providers.find((p) => p.name === "google");
   if (!google) {
