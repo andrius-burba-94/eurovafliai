@@ -13,11 +13,22 @@ nightly stats, standings and trade-impact tracking for the rest of the season.
 ## Quick start
 
 ```bash
+fnm use || nvm use           # Node 24, from .nvmrc — npm refuses other versions
 npm install
 npm run setup                # PocketBase binary (SHA256-verified) + git hooks
 cp .env.example .env         # then fill it in
 npm run dev                  # Next on :3007 + PocketBase on :8095
 ```
+
+Node **24** is required, not suggested: `.npmrc` sets `engine-strict=true`, so
+npm stops rather than warns on another version. No version manager yet?
+
+```bash
+curl -fsSL https://fnm.vercel.app/install | bash   # then restart your shell
+```
+
+Open the app at **http://localhost:3007** — `localhost`, not `127.0.0.1`: only
+that origin is registered as a Google OAuth redirect URI.
 
 Create the PocketBase superuser once, using the credentials you put in `.env`:
 

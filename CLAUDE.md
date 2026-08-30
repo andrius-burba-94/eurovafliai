@@ -42,8 +42,10 @@ npm run pb:verify    # assert PB rules + unique indexes hold (PB must be running
 ./scripts/pb-download.sh   # fetch the pinned PocketBase binary
 ```
 
-First run: `npm i && npm run setup && cp .env.example .env`, fill in `.env`, then
-`npm run dev`. (`setup` = PocketBase binary + git hooks.)
+First run: `fnm use` (Node 24, enforced by `engine-strict`), then
+`npm i && npm run setup && cp .env.example .env`, fill in `.env`, then
+`npm run dev`. (`setup` = PocketBase binary + git hooks.) The app is at
+`http://localhost:3007` — `localhost`, not `127.0.0.1`, for Google's sake.
 
 ## Architecture in one screen
 
