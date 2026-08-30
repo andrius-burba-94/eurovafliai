@@ -17,13 +17,13 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "pb:download": "./scripts/pb-download.sh",
+    "pb:dump-schema": "tsx --env-file=.env scripts/pb-dump-schema.mjs",
     "setup": "./scripts/pb-download.sh && npm run setup:hooks",
     "setup:hooks": "git config core.hooksPath .githooks",
     "pb:serve": "./scripts/pb-serve.sh",
     "worker:dev": "tsx watch src/worker/index.ts",
     "worker:start": "tsx src/worker/index.ts",
-    "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs",
-    "pb:dump-schema": "tsx --env-file=.env scripts/pb-dump-schema.mjs"
+    "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs"
   },
   "dependencies": {
     "next": "16.3.1",

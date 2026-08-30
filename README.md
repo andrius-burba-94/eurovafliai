@@ -51,8 +51,8 @@ blocked at the proxy — reach it through an SSH tunnel.
 | `npm run build` · `start` | Production build · serve on `:3007` |
 | `./scripts/pb-download.sh` | Install the PocketBase version pinned in `pb/VERSION` |
 | `npm run pb:verify` | Check the PocketBase API rules and unique indexes still hold (needs PB running) |
-| `npm run --silent pb:dump-schema` | Print the schema as stable, secret-free JSON (used by CI to diff a rollback round-trip) |
 | `./scripts/google-oauth-wizard.sh` | Interactive walkthrough of the Google Cloud OAuth setup |
+| `npm run --silent pb:dump-schema` | Print the schema as stable, secret-free JSON (used by CI to diff a rollback round-trip) |
 
 `PB_TARGET=linux_amd64 ./scripts/pb-download.sh` fetches the VPS binary from any
 machine.
