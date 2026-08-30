@@ -34,7 +34,10 @@ one of them is not a review.
   invite-only app without locking out first-time Google users is
   `createRule = '@request.context = "oauth2"'` — not `null`, which would let
   existing members in and refuse every new one. (Eurovafliai `users`; see
-  `pb/pb_migrations/1788124900_close_public_signup.js`.)
+  `pb/pb_migrations/1788124900_close_public_signup.js`.) This is not folklore:
+  `npm run pb:verify:oauth2` drives PocketBase's real OAuth2 path against a
+  local OIDC issuer and asserts that the `oauth2` rule admits a never-seen
+  identity while `null` refuses it.
 - **Turning `passwordAuth` off breaks anything that calls `authWithPassword`.**
   To act as a real user in a script or test, have a superuser call
   `impersonate(recordId, duration)` — it returns a client already carrying that
