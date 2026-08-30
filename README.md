@@ -13,8 +13,8 @@ nightly stats, standings and trade-impact tracking for the rest of the season.
 ## Quick start
 
 ```bash
-./scripts/pb-download.sh     # fetch the pinned PocketBase binary (verifies SHA256)
 npm install
+npm run setup                # PocketBase binary (SHA256-verified) + git hooks
 cp .env.example .env         # then fill it in
 npm run dev                  # Next on :3007 + PocketBase on :8095
 ```
@@ -72,6 +72,10 @@ One vertical slice per PR, squash-merged, linear history. CI runs lint,
 typecheck, unit tests and a build on every PR. Schema changes ship as migration
 files in the same PR as the code that needs them. Multi-write server actions
 must state their failure-recovery story — PocketBase has no transactions.
+
+GitHub's branch protection needs a paid plan on a private repo, so the guard is
+local: `npm run setup:hooks` installs a `pre-push` hook that refuses direct
+pushes to `main`. Repo settings already allow squash merges only.
 
 Agent workflow, domain vocabulary and the non-negotiables are in
 [CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md) and [CONTEXT.md](CONTEXT.md).

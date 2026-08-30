@@ -17,6 +17,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "pb:download": "./scripts/pb-download.sh",
+    "setup": "./scripts/pb-download.sh && npm run setup:hooks",
+    "setup:hooks": "git config core.hooksPath .githooks",
     "pb:serve": "./pb/pocketbase serve --http=127.0.0.1:8095 --dir=pb/pb_data --migrationsDir=pb/pb_migrations",
     "worker:dev": "tsx watch src/worker/index.ts",
     "worker:start": "tsx src/worker/index.ts"
