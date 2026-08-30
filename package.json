@@ -22,7 +22,8 @@
     "pb:serve": "./scripts/pb-serve.sh",
     "worker:dev": "tsx watch src/worker/index.ts",
     "worker:start": "tsx src/worker/index.ts",
-    "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs"
+    "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs",
+    "pb:dump-schema": "tsx --env-file=.env scripts/pb-dump-schema.mjs"
   },
   "dependencies": {
     "next": "16.3.1",

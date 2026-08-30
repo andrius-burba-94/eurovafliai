@@ -25,6 +25,88 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  pocketbase:
+    # The API rules are the app's read-side authorization: they are what stops
+    # one league's members reading another league. A migration that widened one
+    # by accident used to pass CI, because pb:verify only ran when somebody
+    # remembered to. Kept as its own job so a PocketBase failure is
+    # distinguishable from a lint or type failure at a glance.
+    runs-on: ubuntu-latest
+    env:
+      PB_INTERNAL_URL: http://127.0.0.1:8095
+      NEXT_PUBLIC_PB_URL: http://127.0.0.1:8095
+      NEXT_PUBLIC_APP_URL: http://localhost:3007
+      SESSION_COOKIE_NAME: eurovafliai_session
+      PB_SUPERUSER_EMAIL: ci@eurovafliai.test
+      # Throwaway credentials for a PocketBase that exists for the length of
+      # this job and is thrown away with the runner. Not a secret.
+      PB_SUPERUSER_PASSWORD: ci-superuser-pass-1234
+      # Placeholders, but present on purpose: the OAuth2 migration configures the
+      # Google provider from the environment at apply time, so supplying them
+      # here is what lets pb:verify assert the provider is wired at all. They are
+      # never used to talk to Google.
+      GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Download the pinned PocketBase
+        run: ./scripts/pb-download.sh
+
+      - name: Write .env
+        # The pb:* scripts load it with --env-file, and PocketBase itself needs
+        # the Google values in its own environment (pb-serve.sh sources .env
+        # locally; here the job env already carries them).
+        run: env | grep -E '^(PB_|NEXT_PUBLIC_|SESSION_|GOOGLE_)' > .env
+
+      - name: Create the superuser
+        run: >-
+          ./pb/pocketbase superuser upsert
+          "$PB_SUPERUSER_EMAIL" "$PB_SUPERUSER_PASSWORD" --dir=pb/pb_data
+
+      - name: Boot PocketBase
+        # Applies every migration from an empty database, which is itself the
+        # first assertion: a fresh clone has to be able to build the schema.
+        run: |
+          ./pb/pocketbase serve --http=127.0.0.1:8095 \
+            --dir=pb/pb_data --migrationsDir=pb/pb_migrations &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8095/api/health >/dev/null && exit 0
+            sleep 1
+          done
+          echo "PocketBase did not become healthy" >&2
+          exit 1
+
+      - name: Rules and indexes behave
+        run: npm run pb:verify
+
+      - name: A full rollback and re-apply reproduces the same schema
+        # `migrate down` is the path that only ever runs on the day something has
+        # gone wrong, so it is the last place a surprise is welcome. Compares a
+        # normalised, secret-free dump either side of reverting everything and
+        # letting PocketBase re-apply it on the next boot.
+        run: |
+          npm run --silent pb:dump-schema > /tmp/schema-before.json
+          pkill -f 'pocketbase serve'
+          sleep 2
+          # printf, not `yes`: under pipefail a looping `yes` takes SIGPIPE when
+          # PocketBase exits and the non-zero status would fail the step.
+          printf 'y\n' | ./pb/pocketbase migrate down "$(ls pb/pb_migrations/*.js | wc -l)" \
+            --dir=pb/pb_data --migrationsDir=pb/pb_migrations
+          ./pb/pocketbase serve --http=127.0.0.1:8095 \
+            --dir=pb/pb_data --migrationsDir=pb/pb_migrations &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8095/api/health >/dev/null && break
+            sleep 1
+          done
+          npm run --silent pb:dump-schema > /tmp/schema-after.json
+          diff -u /tmp/schema-before.json /tmp/schema-after.json
+
   design-detect:
     # Non-blocking by design: impeccable's detector reports UI smells, it does
     # not gate merges. Read the output, act on it in an /impeccable pass.
