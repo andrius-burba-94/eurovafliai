@@ -63,6 +63,12 @@ those up plus `tests/unit/**`.
 - **`server-only` in plain Node** — importing `src/lib/config/server.ts` from the
   worker or a script throws. Use the pure `parseServerEnv` from
   `src/lib/config/schema.ts` there.
+- **Next memoizes identical GET fetches within one render pass**, and the
+  PocketBase SDK uses `fetch`. So read → repair → read-again *does not work*: the
+  second read returns the first one's stale result and the repair looks like it
+  failed silently. Repair before the read instead (see
+  `src/lib/leagues/queries.ts`). Cost us a real debugging session; the write was
+  landing in the database all along.
 - **React 19 resets uncontrolled inputs** after a server-action transition. Chat
   and pick forms must handle it; E2E specs must refill.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
