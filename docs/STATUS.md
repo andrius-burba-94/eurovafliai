@@ -175,9 +175,16 @@ sync, a player the feed no longer lists is marked `left` rather than deleted, an
 | `/pb/api/health` through the proxy | healthy |
 | `/pb/_/` (admin UI) | 403, as intended |
 | **SSE through the proxy** | `PB_CONNECT` in **0.1s**, unbuffered |
-| `npm run pb:verify` against the production database | 33 checks pass (last run before 2.1a; see the note below) |
-| 2.1a's three collections on production | present — `players`, `roster_imports`, `app_settings` all answer through the `/pb/` proxy |
-| The production player pool | **empty**. Ingestion is on-demand by design, so somebody has to run `npm run rosters:sync` on the box; it is not part of `deploy.sh` because the cadence of ingesting and the cadence of deploying are different, and the feed rate-limits |
+| `npm run pb:verify` against the production database | **55 checks pass** |
+| The production player pool | **324 players, 20 clubs**, ingested on the box. Re-running the sync there is a confirmed no-op, so it is safe to re-run before draft night |
+
+Ingestion stays **on demand** rather than part of `deploy.sh`: ingesting and
+deploying have different natural cadences, and the feed rate-limits (a sync is 21
+requests). Re-sync on the box with:
+
+```bash
+ssh hstgr 'cd /var/www/eurovafliai && export PATH=/root/.local/share/fnm/aliases/default/bin:$PATH && npm run rosters:sync'
+```
 | Sibling apps after our install | all 8 PM2 apps and 4 PocketBase units still up |
 
 CI is green on `main`. The `main` ruleset enforces linear history, squash-only
