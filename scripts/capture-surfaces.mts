@@ -49,16 +49,19 @@ try {
     await pb
       .collection("_superusers")
       .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
-    await pb.collection("league_members").create(
-      { league: league.id, user: member.id, team_name: `${label} Ballers` },
-      { requestKey: null },
-    );
+    await pb
+      .collection("league_members")
+      .create(
+        { league: league.id, user: member.id, team_name: `${label} Ballers` },
+        { requestKey: null },
+      );
   }
 
   const surfaces = [
     { name: "login", path: "/login", signedIn: false },
     { name: "home", path: "/", signedIn: true },
     { name: "lobby", path: `/leagues/${league.id}`, signedIn: true },
+    { name: "players", path: "/players", signedIn: true },
   ];
 
   for (const { name: sizeName, ...device } of VIEWPORTS) {

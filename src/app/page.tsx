@@ -53,22 +53,30 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     <>
       <TopRail
         action={
-          <form action={logout}>
-            <button
-              type="submit"
-              data-testid="logout"
+          <span className="flex items-baseline gap-4">
+            <Link
+              href="/players"
               className="slot-label whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
             >
-              Sign out
-              {/* The name is the part that has no room on a phone, and breaking
+              Pool
+            </Link>
+            <form action={logout}>
+              <button
+                type="submit"
+                data-testid="logout"
+                className="slot-label whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              >
+                Sign out
+                {/* The name is the part that has no room on a phone, and breaking
                   after the middot left it dangling at the end of a line. The
                   season stays; this goes. */}
-              <span className="hidden sm:inline">
-                {" "}
-                &middot; {session.user.name || session.user.email}
-              </span>
-            </button>
-          </form>
+                <span className="hidden sm:inline">
+                  {" "}
+                  &middot; {session.user.name || session.user.email}
+                </span>
+              </button>
+            </form>
+          </span>
         }
       />
       <Sheet testId="app-shell">
