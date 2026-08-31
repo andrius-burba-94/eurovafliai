@@ -58,7 +58,11 @@ export type TestUser = {
 };
 
 /** Everything created through these helpers, so a spec can clean up after itself. */
-const created: { users: string[]; leagues: string[] } = { users: [], leagues: [] };
+const created: { users: string[]; leagues: string[]; players: string[] } = {
+  users: [],
+  leagues: [],
+  players: [],
+};
 
 async function superuser(): Promise<PocketBase> {
   const pb = new PocketBase(env.PB_INTERNAL_URL);
@@ -144,9 +148,8 @@ export async function createLeagueFor(
   { withMembership = true }: { withMembership?: boolean } = {},
 ): Promise<{ id: string; code: string }> {
   const pb = await superuser();
-  const { generateInviteCode } = await import(
-    "../../../src/lib/leagues/invite-code"
-  );
+  const { generateInviteCode } =
+    await import("../../../src/lib/leagues/invite-code");
   const code = generateInviteCode();
   const league = await pb.collection("leagues").create(
     {
@@ -161,10 +164,12 @@ export async function createLeagueFor(
   );
   created.leagues.push(league.id);
   if (withMembership) {
-    await pb.collection("league_members").create(
-      { league: league.id, user: user.id, team_name: "" },
-      { requestKey: null },
-    );
+    await pb
+      .collection("league_members")
+      .create(
+        { league: league.id, user: user.id, team_name: "" },
+        { requestKey: null },
+      );
   }
   return { id: league.id, code };
 }
@@ -182,10 +187,12 @@ export async function addMemberTo(
   teamName = "",
 ): Promise<string> {
   const pb = await superuser();
-  const record = await pb.collection("league_members").create(
-    { league: leagueId, user: user.id, team_name: teamName },
-    { requestKey: null },
-  );
+  const record = await pb
+    .collection("league_members")
+    .create(
+      { league: leagueId, user: user.id, team_name: teamName },
+      { requestKey: null },
+    );
   return record.id;
 }
 
@@ -193,16 +200,69 @@ export async function addMemberTo(
  * Delete everything these helpers created. Leagues go first: their memberships
  * cascade, so deleting the users afterwards has nothing left to trip over.
  */
+/**
+ * A player in the pool.
+ *
+ * The pool is app-global rather than per-league, so a spec that asserted on
+ * whatever `npm run rosters:sync` last ingested would pass or fail depending on
+ * whether anyone had run it. This plants its own player and cleans it up.
+ */
+export async function createPlayer(
+  label: string,
+  over: Record<string, unknown> = {},
+): Promise<{ id: string; name: string; club_code: string }> {
+  const pb = await superuser();
+  const unique = `${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+  const record = await pb.collection("players").create(
+    {
+      // The unique suffix belongs in the DISPLAY name too, not just the match
+      // key. The pool is app-global and Playwright runs the chromium and mobile
+      // projects in parallel, so two workers planting "Locked, E2e" put two
+      // identical rows on the same page and every locator hit a strict-mode
+      // violation. Caught by exactly that failure.
+      name: `${label} ${unique}, E2e`,
+      name_normalized: `e2e ${label.toLowerCase()} ${unique}`,
+      club_code: "ZZZ",
+      club_name: "E2E Test Club",
+      position: "G",
+      status: "active",
+      source: "api",
+      dorsal: "99",
+      ...over,
+    },
+    { requestKey: null },
+  );
+  created.players.push(record.id);
+  return {
+    id: record.id,
+    name: record.name as string,
+    club_code: record.club_code as string,
+  };
+}
+
 export async function cleanupTestData(): Promise<void> {
   const pb = await superuser();
+  for (const id of created.players) {
+    await pb
+      .collection("players")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
+  }
   for (const id of created.leagues) {
-    await pb.collection("leagues").delete(id, { requestKey: null }).catch(() => {});
+    await pb
+      .collection("leagues")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   }
   for (const id of created.users) {
-    await pb.collection("users").delete(id, { requestKey: null }).catch(() => {});
+    await pb
+      .collection("users")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   }
   created.leagues.length = 0;
   created.users.length = 0;
+  created.players.length = 0;
 }
 
 /** Track a league the *app* created, so cleanup removes it too. */

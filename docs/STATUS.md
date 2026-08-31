@@ -15,9 +15,12 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.1** — roster ingestion, now that the Euroleague API is
-confirmed working for E2026 and the pool can be built from real players. Then
-**2.3**, draft setup and order determination.
+**Next up:** slice **2.1b** — the CSV front door, the authority switch and the
+`manual_lock` controls, which 2.1a deliberately left out (see its row below).
+Then **2.3**, draft setup and order determination.
+
+The pool exists: **324 E2026 players across 20 clubs** are ingested from the
+Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
 
 Two Phase 1 items are still open and both are listed under Open debt: a human
 two-device confirmation of the lobby, and nightly `pb_data` backups.
@@ -81,7 +84,8 @@ attempted.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
-| 2.1 Roster ingestion — API + CSV, one normalize→diff→apply pipeline | todo, **unblocked** | — | The Euroleague API is confirmed working for E2026 — 20 clubs, 324 players, positions already exactly G/F/C. **Build both front doors.** Findings, including the three that change the design, are in [research/euroleague-api.md](research/euroleague-api.md) |
+| 2.1a Roster ingestion — the shared pipeline and the API front door | **partial** | #24 | Landed: `players` / `roster_imports` / `app_settings` migrations, the pure normalize→diff pipeline (41 tests), the API sync (`npm run rosters:sync`, idempotent, rate-limit-resilient), the authority *gate*, and the `/players` pool page with source and lock badges. **Deferred to 2.1b, deliberately:** the CSV front door, the web diff preview, and any UI for flipping the authority or setting `manual_lock` — all three are commissioner controls, and the app has no app-global admin role yet (see Open debt). Both are settable in the database meanwhile |
+| 2.1b Roster ingestion — the CSV front door and the commissioner's controls | todo | — | Parse + preview + apply for a hand-made sheet, the `roster_authority` flip, `manual_lock` toggles. The pipeline they need already exists and is tested; what is missing is the answer to "who may do this" |
 | **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
 | 2.3 Draft setup & order determination — roll / manual / reverse_standings | todo | — | The engine takes `memberIds` already ordered, so this is the slice that decides that order |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | todo | — | Where pick-then-advance and the two unique indexes land. The engine already computes the rollback and detects the un-advanced state |
@@ -113,6 +117,7 @@ touch should be fixed by that slice rather than deferred again.
 | [#16](https://github.com/andrius-burba-94/eurovafliai/issues/16) | `createLeague` and `joinLeague` put finished prose in the query string and render it into a `role="alert"` — attacker-controllable text. The 1.3b lobby actions do **not** do this: they return their errors through `useActionState`, so the fix is a change to two older actions, not a new pattern to invent | Nothing; correctness debt in the leagues slice |
 | **Local PocketBase drifts from `main`** | A dev database only applies migrations on boot, so a checkout that has been running across a schema change silently tests the old shape. It cost a confusing run of lobby-spec failures. `npm run dev` after pulling is the whole fix; the symptom is `pb:verify` disagreeing with CI | Nothing; a time sink |
 | **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
+| **No app-global admin role** | Rosters are one canonical table shared by every league, but the only role the app knows is per-league commissioner. So slice 2.1a's ingestion is a *script* holding superuser credentials, which sidesteps the question entirely. 2.1b cannot: a CSV upload, an authority flip and a `manual_lock` toggle are all web actions that need an answer to "who may do this" | Slice 2.1b |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 Closed since the last update:
@@ -130,24 +135,35 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.2: **all green.**
+Last full local run, on slice 2.1a: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **238 passed** — 157 of them the engine |
+| `npm run test` | **279 passed** — 157 the engine, 41 the ingestion pipeline |
 | `npm run build` | pass |
-| `npm run test:e2e` | 50 passed (chromium + Pixel 7) |
-| `npm run pb:verify` | 33 checks pass |
+| `npm run test:e2e` | 56 passed (chromium + Pixel 7) |
+| `npm run pb:verify` | 55 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 
 > Running E2E from a git worktree? Pass `E2E_PORT` — Playwright's
 > `reuseExistingServer` will otherwise reuse a dev server from a *different*
 > checkout and silently test that working copy's code.
 
-A full `migrate down` of all seven migrations followed by a re-apply reproduces
+| `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
+
+A full `migrate down` of all **ten** migrations followed by a re-apply reproduces
 a byte-identical schema dump — checked locally as well as in CI.
+
+Verified by hand against a throwaway database during 2.1a, because these are the
+claims the pipeline's safety rests on: two players with no `person_code` are both
+accepted (a plain unique index would have admitted **one of the 43**), a
+duplicate code and a duplicate `(name_normalized, club_code)` are both refused,
+`app_settings` refuses a second row, a locked player's correction survives a
+sync, a player the feed no longer lists is marked `left` rather than deleted, an
+`injured` status is not healed by an incoming `active`, and an API run while
+`csv` holds authority writes nothing while still storing its drift report.
 
 **In production**, on the deployed box:
 

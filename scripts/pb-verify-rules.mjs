@@ -35,7 +35,7 @@ const check = (condition, message) => {
 };
 
 const stamp = Date.now();
-const created = { users: [], leagues: [], members: [] };
+const created = { users: [], leagues: [], members: [], players: [] };
 
 const su = new PocketBase(url);
 await su
@@ -90,7 +90,8 @@ const makeMember = async (league, user, teamName) => {
 // client already carrying it. This is the only way to exercise the read rules
 // as an end user now that `passwordAuth` is off — and it is closer to
 // production anyway, where every session token comes from Google.
-const asUser = async (userId) => su.collection("users").impersonate(userId, 600);
+const asUser = async (userId) =>
+  su.collection("users").impersonate(userId, 600);
 
 const rejects = async (fn) => {
   try {
@@ -102,7 +103,8 @@ const rejects = async (fn) => {
 };
 
 const listCount = async (client, collection) =>
-  (await client.collection(collection).getFullList({ requestKey: null })).length;
+  (await client.collection(collection).getFullList({ requestKey: null }))
+    .length;
 
 try {
   // --- schema shape ---------------------------------------------------------
@@ -169,7 +171,9 @@ try {
     draftPosition?.required === false && draftPosition?.onlyInt === true,
     "draft_position is an optional integer (PocketBase 0-value quirk)",
   );
-  const isReady = byName.league_members.fields.find((f) => f.name === "is_ready");
+  const isReady = byName.league_members.fields.find(
+    (f) => f.name === "is_ready",
+  );
   check(
     isReady?.type === "bool" && isReady?.required !== true,
     // `required: true` on a bool is a truthy test, so it would reject `false` —
@@ -188,7 +192,11 @@ try {
   // --- unique indexes are the physical backstop -----------------------------
   const alice = await makeUser("alice");
   const bob = await makeUser("bob");
-  const league = await makeLeague("Verify League", `V${stamp}`.slice(0, 16), alice.id);
+  const league = await makeLeague(
+    "Verify League",
+    `V${stamp}`.slice(0, 16),
+    alice.id,
+  );
   await makeMember(league.id, alice.id, "Alice AV");
 
   check(
@@ -361,14 +369,174 @@ try {
     ),
     "an authenticated user cannot create a league directly",
   );
+
+  // --- the player pool (slice 2.1) ------------------------------------------
+  check(!!byName.players, "players collection exists");
+  check(!!byName.roster_imports, "roster_imports collection exists");
+  check(!!byName.app_settings, "app_settings collection exists");
+
+  for (const name of ["players", "roster_imports", "app_settings"]) {
+    check(
+      byName[name].createRule === null &&
+        byName[name].updateRule === null &&
+        byName[name].deleteRule === null,
+      `${name} writes are superuser-only`,
+    );
+    check(
+      byName[name].listRule === '@request.auth.id != ""',
+      `${name} is readable by any signed-in member`,
+    );
+  }
+
+  check(
+    byName.players.indexes.some((i) =>
+      /UNIQUE.*`person_code`.*WHERE.*person_code.*!=/.test(i),
+    ),
+    "players.person_code is unique ONLY where it is set (43 of 324 are empty)",
+  );
+  check(
+    byName.players.indexes.some((i) =>
+      /UNIQUE.*`name_normalized`.*`club_code`/.test(i),
+    ),
+    "unique index on players(name_normalized, club_code) backs the fallback match",
+  );
+
+  const player = (over) => ({
+    name: "Verify, Player",
+    name_normalized: `verify player ${stamp}`,
+    club_code: "ZAL",
+    club_name: "Zalgiris Kaunas",
+    position: "G",
+    status: "active",
+    source: "api",
+    ...over,
+  });
+  const makePlayer = async (over) => {
+    const record = await su
+      .collection("players")
+      .create(player(over), { requestKey: null });
+    created.players.push(record.id);
+    return record;
+  };
+
+  // The whole reason the index is partial. A plain unique index would admit the
+  // first codeless player and refuse the other 42.
+  await makePlayer({ name_normalized: `codeless one ${stamp}` });
+  check(
+    !(await rejects(() =>
+      makePlayer({ name_normalized: `codeless two ${stamp}` }),
+    )),
+    "two players with no person_code are both accepted",
+  );
+
+  await makePlayer({
+    name_normalized: `coded a ${stamp}`,
+    person_code: `V${stamp}`,
+  });
+  check(
+    await rejects(() =>
+      makePlayer({
+        name_normalized: `coded b ${stamp}`,
+        person_code: `V${stamp}`,
+      }),
+    ),
+    "a duplicate person_code is refused by the index",
+  );
+
+  await makePlayer({ name_normalized: `same name ${stamp}` });
+  check(
+    await rejects(() => makePlayer({ name_normalized: `same name ${stamp}` })),
+    "a duplicate (name_normalized, club_code) is refused by the index",
+  );
+  check(
+    !(await rejects(() =>
+      makePlayer({ name_normalized: `same name ${stamp}`, club_code: "MAD" }),
+    )),
+    "the same name on a different club is fine",
+  );
+
+  check(
+    await rejects(() =>
+      makePlayer({ name_normalized: `bad bucket ${stamp}`, position: "PG" }),
+    ),
+    "a position outside G/F/C is refused",
+  );
+  check(
+    await rejects(() =>
+      makePlayer({
+        name_normalized: `bad status ${stamp}`,
+        status: "questionable",
+      }),
+    ),
+    "a status outside the four known values is refused",
+  );
+
+  check(
+    await rejects(() =>
+      su
+        .collection("app_settings")
+        .create(
+          { singleton: "app", roster_authority: "csv" },
+          { requestKey: null },
+        ),
+    ),
+    "app_settings stays a singleton — a second row is refused",
+  );
+
+  const settings = await su
+    .collection("app_settings")
+    .getFullList({ requestKey: null });
+  check(
+    settings.length === 1 &&
+      ["api", "csv"].includes(settings[0].roster_authority),
+    "the seeded roster_authority row exists and holds a valid value",
+  );
+
+  // Members read the pool with their own token; nobody writes it from a browser.
+  check(
+    (await listCount(bobClient, "players")) > 0,
+    "a signed-in member can read the player pool",
+  );
+  check(
+    await rejects(() =>
+      bobClient.collection("players").create(player({}), { requestKey: null }),
+    ),
+    "a signed-in member cannot create a player",
+  );
+  check(
+    await rejects(() =>
+      bobClient
+        .collection("app_settings")
+        .update(
+          settings[0].id,
+          { roster_authority: "csv" },
+          { requestKey: null },
+        ),
+    ),
+    "a signed-in member cannot flip the roster authority",
+  );
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.players)
+    await su
+      .collection("players")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.members)
-    await su.collection("league_members").delete(id, { requestKey: null }).catch(() => {});
+    await su
+      .collection("league_members")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.leagues)
-    await su.collection("leagues").delete(id, { requestKey: null }).catch(() => {});
+    await su
+      .collection("leagues")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.users)
-    await su.collection("users").delete(id, { requestKey: null }).catch(() => {});
+    await su
+      .collection("users")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
 }
 
 console.log(

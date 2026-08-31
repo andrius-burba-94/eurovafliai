@@ -23,6 +23,7 @@ src/lib/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
                   enforced by purity.test.ts, not just documented. Import
                   from its index.ts, not from the modules directly.
 src/components/   shared UI in the board's vocabulary (board.tsx) — see DESIGN.md
+src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door
 src/lib/config/   validated env: schema.ts (pure) + public.ts + server.ts
 src/worker/       PM2 worker: pick timers, autodraft, nightly stats (Phase 2.5)
 pb/VERSION        pinned PocketBase version — the download script reads it

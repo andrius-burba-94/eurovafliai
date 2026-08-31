@@ -20,8 +20,17 @@ https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/clubs/{CLUB}/peo
 
 - **v2 is current.** v3 is rejected outright with
   `UnsupportedApiVersion`, so do not reach for it.
-- **No authentication.** No key, no token, no referer check. ~50 requests
-  during this investigation, none refused.
+- **No authentication.** No key, no token, no referer check.
+- **There IS a rate limit.** This file originally said "~50 requests during this
+  investigation, none refused", and read that as no limit. There is one:
+  building slice 2.1 meant running the 21-request sync repeatedly, and somewhere
+  past ~100 requests in a few minutes the feed started answering **429 Too Many
+  Requests** — on `/clubs`, the very first call. It clears on its own after a
+  few minutes.
+  So the sync spaces its club requests (150ms) and retries 429 and 5xx with
+  backoff, honouring `Retry-After`. Do not treat an absence of refusals at low
+  volume as an absence of a limit — and note this makes a naive "sync on every
+  page load" design impossible, which is one more reason ingestion is a script.
 - `E2026` is the 2026-27 season. Every roster row confirms it in-band:
   `season.name` is literally `"EuroLeague 2026-27"`.
 - The `incrowdsports` feed (`feeds.incrowdsports.com/provider/euroleague-feeds/v2/…`)
@@ -58,10 +67,21 @@ A roster is a **bare JSON array**, not a `{data: […]}` envelope — unlike
 `person.code` is the `person_code` the blueprint wants for exact stats joins.
 
 **Filter by `type == "J"`.** Each club's response also carries its coach
-(`type: "T"`, `typeName: "Coach"`) — 20 coaches across the league. An ingest
-that skipped this filter would put 20 coaches in the draft pool.
+(`type: "E"`, `typeName: "Coach"`) — 20 coaches across the league, one per club.
+An ingest that skipped this filter would put 20 coaches in the draft pool.
+
+> Corrected on 2026-08-31 during slice 2.1: this file first recorded the coach
+> type as `"T"`. It is **`"E"`**. The prescribed filter — *include* `type == "J"`
+> — was right either way, which is why the error was harmless; an *exclusion*
+> filter written from the wrong code (`type !== "T"`) would have drafted twenty
+> coaches. Include, never exclude.
 
 ## The sweep — all 20 clubs, E2026
+
+**Re-verified 2026-08-31** at the start of slice 2.1, per the warning above.
+Every figure below still holds exactly: 344 rows, 324 players, 20 coaches, 43
+players without a `person_code`, no code on two clubs, positions still only
+Guard / Forward / Center, and the same per-club counts.
 
 | | |
 |---|---|
