@@ -12,6 +12,7 @@
  *
  * | file           | answers                                            |
  * |----------------|----------------------------------------------------|
+ * | `roll.ts`      | the seeded shuffle that decides the member order     |
  * | `order.ts`     | who drafts at each overall number, per format       |
  * | `clock.ts`     | whose turn is it, and is the draft finished         |
  * | `legality.ts`  | may this member take this player                    |
@@ -34,10 +35,17 @@ export type {
 } from "./types";
 export { rosterSize } from "./types";
 
+export { rollOrder } from "./roll";
+
 export { buildPickOrder, memberAt, roundAndSlot } from "./order";
 
 export type { OnClock } from "./clock";
-export { findUnadvancedPick, isDraftComplete, totalPicks, whoIsOnClock } from "./clock";
+export {
+  findUnadvancedPick,
+  isDraftComplete,
+  totalPicks,
+  whoIsOnClock,
+} from "./clock";
 
 export type { LegalityInput } from "./legality";
 export { countByPosition, isLegalPick, openPositions } from "./legality";

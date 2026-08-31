@@ -3,7 +3,14 @@
 import PocketBase from "pocketbase";
 import { useActionState, useEffect, useState } from "react";
 
-import { Bank, CardName, Correction, Slot, Slots, inputStyles } from "@/components/board";
+import {
+  Bank,
+  CardName,
+  Correction,
+  Slot,
+  Slots,
+  inputStyles,
+} from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { publicConfig } from "@/lib/config/public";
 import {
@@ -12,8 +19,15 @@ import {
   setReady,
   type LobbyResult,
 } from "@/lib/leagues/actions";
-import { MAX_TEAM_NAME_LENGTH, memberListQuery, toMember } from "@/lib/leagues/lobby";
+import {
+  MAX_TEAM_NAME_LENGTH,
+  memberListQuery,
+  toMember,
+} from "@/lib/leagues/lobby";
+import type { LeagueSettings } from "@/lib/leagues/settings";
 import type { Member, MemberRecord } from "@/lib/leagues/types";
+
+import { DraftSetup } from "./draft-setup";
 
 /**
  * The lobby's member list, live.
@@ -47,6 +61,7 @@ export function LiveLobby({
   initialMembers,
   justArrived,
   isCommissioner,
+  settings,
 }: {
   leagueId: string;
   authToken: string;
@@ -57,6 +72,7 @@ export function LiveLobby({
   initialMembers: Member[];
   justArrived: boolean;
   isCommissioner: boolean;
+  settings: LeagueSettings;
 }) {
   const [members, setMembers] = useState(initialMembers);
   // Starts true: the server-rendered list *was* current a moment ago, and
@@ -132,9 +148,7 @@ export function LiveLobby({
 
   return (
     <>
-      {you && inSetup ? (
-        <YourTeam leagueId={leagueId} you={you} />
-      ) : null}
+      {you && inSetup ? <YourTeam leagueId={leagueId} you={you} /> : null}
 
       <Bank
         label="Members"
@@ -175,6 +189,12 @@ export function LiveLobby({
           ))}
         </Slots>
       </Bank>
+
+      {/* Slice 2.3a. Only the commissioner sees it, and `updateDraftSettings`
+          checks that again server-side rather than trusting this render. */}
+      {isCommissioner && inSetup ? (
+        <DraftSetup leagueId={leagueId} settings={settings} members={members} />
+      ) : null}
     </>
   );
 }
@@ -187,7 +207,10 @@ function YourTeam({ leagueId, you }: { leagueId: string; you: Member }) {
   return (
     <Bank label="Your team">
       <div className="flex flex-col gap-3 border-b border-rule-strong px-3 py-4">
-        <form action={renameAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <form
+          action={renameAction}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
           <input type="hidden" name="leagueId" value={leagueId} />
           <input type="hidden" name="memberId" value={you.id} />
           <label className="flex flex-1 flex-col gap-1.5">
@@ -268,7 +291,19 @@ function MemberSlot({
       className={canManage && !member.isYou ? "flex-col items-stretch" : ""}
     >
       <span className="flex flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <CardName>{member.teamName || member.name}</CardName>
+        <span className="flex items-baseline gap-2.5">
+          {/* The slot the roll gave them. Tabular figures, so a column of them
+              is a column (DESIGN.md). */}
+          {member.draftPosition ? (
+            <span
+              data-testid="member-position"
+              className="slot-label tabular-nums text-live"
+            >
+              {String(member.draftPosition).padStart(2, "0")}
+            </span>
+          ) : null}
+          <CardName>{member.teamName || member.name}</CardName>
+        </span>
         <span className="flex flex-wrap items-baseline gap-x-3">
           {member.teamName ? (
             <span data-testid="member-name" className="text-sm text-ink-soft">
@@ -316,7 +351,10 @@ function CommissionerControls({
       </summary>
 
       <div className="mt-3 flex flex-col gap-3">
-        <form action={renameAction} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <form
+          action={renameAction}
+          className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        >
           <input type="hidden" name="leagueId" value={leagueId} />
           <input type="hidden" name="memberId" value={member.id} />
           <label className="flex flex-1 flex-col gap-1.5">

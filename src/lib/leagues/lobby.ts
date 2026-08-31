@@ -72,6 +72,10 @@ export function toMember(
     isCommissioner: record.user === context.commissionerUserId,
     isYou: record.user === context.viewerUserId,
     isReady: Boolean(record.is_ready),
+    // PocketBase stores an unset number as 0, never null — the trap
+    // `draft_position` was made optional for in 1788124600. 0 is not a slot, so
+    // it reads as "not positioned yet".
+    draftPosition: record.draft_position ? record.draft_position : null,
   };
 }
 

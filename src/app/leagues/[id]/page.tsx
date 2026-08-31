@@ -126,6 +126,7 @@ export default async function LobbyPage({
           initialMembers={members}
           justArrived={justArrived}
           isCommissioner={isCommissioner}
+          settings={settings}
         />
 
         {isCommissioner ? (
