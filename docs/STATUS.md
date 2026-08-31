@@ -15,9 +15,9 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.1b** — the CSV front door, the authority switch and the
-`manual_lock` controls, which 2.1a deliberately left out (see its row below).
-Then **2.3**, draft setup and order determination.
+**Next up:** slice **2.3b** — the live animated roll reveal — or **2.1b**, the
+CSV front door, whichever the league wants first. 2.1b is the one with an open
+question in front of it (see Open debt: there is no app-global admin role yet).
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -87,7 +87,8 @@ attempted.
 | 2.1a Roster ingestion — the shared pipeline and the API front door | **partial** | #24 | Landed: `players` / `roster_imports` / `app_settings` migrations, the pure normalize→diff pipeline (41 tests), the API sync (`npm run rosters:sync`, idempotent, rate-limit-resilient), the authority *gate*, and the `/players` pool page with source and lock badges. **Deferred to 2.1b, deliberately:** the CSV front door, the web diff preview, and any UI for flipping the authority or setting `manual_lock` — all three are commissioner controls, and the app has no app-global admin role yet (see Open debt). Both are settable in the database meanwhile |
 | 2.1b Roster ingestion — the CSV front door and the commissioner's controls | todo | — | Parse + preview + apply for a hand-made sheet, the `roster_authority` flip, `manual_lock` toggles. The pipeline they need already exists and is tested; what is missing is the answer to "who may do this" |
 | **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
-| 2.3 Draft setup & order determination — roll / manual / reverse_standings | todo | — | The engine takes `memberIds` already ordered, so this is the slice that decides that order |
+| 2.3a Draft setup & order determination — settings, the seeded roll, manual order | done | — | No new collection: settings live in `leagues.settings`, positions on `league_members.draft_position` (the field 1.1 created and left "unset until the roll"). `rollOrder` is pure and seeded, so a roll **replays identically** — which is what makes a half-written roll repairable by re-applying rather than re-rolling, and what 2.3b's reveal will replay from. `reverse_standings` is in the vocabulary and refused with its reason: it needs Phase 4's `standings_snapshots` |
+| 2.3b The roll, revealed live — one slot at a time | todo | — | The reveal only; the roll itself is done. Replays from the stored seed, so it needs no new state. Watch the `flushSync`-in-effect gotcha the blueprint flags for the Eurovision reveal pattern |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | todo | — | Where pick-then-advance and the two unique indexes land. The engine already computes the rollback and detects the un-advanced state |
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
 | 2.6 Minimal draft room | todo | — | Correctness before beauty; the flagship UI is Phase 3 |
@@ -135,15 +136,15 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.1a: **all green.**
+Last full local run, on slice 2.3a: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **279 passed** — 157 the engine, 41 the ingestion pipeline |
+| `npm run test` | **298 passed** — 173 the engine, 41 the ingestion pipeline |
 | `npm run build` | pass |
-| `npm run test:e2e` | 56 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 66 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 55 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 
@@ -174,7 +175,9 @@ sync, a player the feed no longer lists is marked `left` rather than deleted, an
 | `/pb/api/health` through the proxy | healthy |
 | `/pb/_/` (admin UI) | 403, as intended |
 | **SSE through the proxy** | `PB_CONNECT` in **0.1s**, unbuffered |
-| `npm run pb:verify` against the production database | 33 checks pass |
+| `npm run pb:verify` against the production database | 33 checks pass (last run before 2.1a; see the note below) |
+| 2.1a's three collections on production | present — `players`, `roster_imports`, `app_settings` all answer through the `/pb/` proxy |
+| The production player pool | **empty**. Ingestion is on-demand by design, so somebody has to run `npm run rosters:sync` on the box; it is not part of `deploy.sh` because the cadence of ingesting and the cadence of deploying are different, and the feed rate-limits |
 | Sibling apps after our install | all 8 PM2 apps and 4 PocketBase units still up |
 
 CI is green on `main`. The `main` ruleset enforces linear history, squash-only

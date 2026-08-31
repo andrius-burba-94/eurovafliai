@@ -43,4 +43,6 @@ export type Member = {
   isYou: boolean;
   /** Has said they are at their phone and ready to draft. */
   isReady: boolean;
+  /** Slot in the draft order, 1…N. Null until the order is rolled or set. */
+  draftPosition: number | null;
 };
