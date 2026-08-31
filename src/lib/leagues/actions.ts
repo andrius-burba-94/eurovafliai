@@ -1,11 +1,19 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireSession } from "@/lib/auth/session";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { generateInviteCode, isPlausibleInviteCode, normalizeInviteCode } from "./invite-code";
+import {
+  canKickMember,
+  canMarkReady,
+  canRenameTeam,
+  validateTeamName,
+  type LobbyActor,
+} from "./lobby";
 import { ensureCommissionerMembership } from "./repair";
 import { canAcceptMember, parseLeagueSettings, leagueSettingsSchema } from "./settings";
 import type { LeagueRecord, MemberRecord } from "./types";
@@ -155,4 +163,156 @@ export async function joinLeague(formData: FormData): Promise<never> {
   }
 
   redirect(`/leagues/${league.id}?arrived=1`);
+}
+
+// ── The lobby's three controls ──────────────────────────────────────────────
+//
+// Rename a team, say you are ready, remove somebody. All three are single
+// writes, so none of them has a torn-write story to tell: either the update
+// lands or it does not, and the next read shows the truth either way.
+//
+// They return their error instead of redirecting with it. The older actions
+// above put a finished sentence in the query string (issue #16) — these do not
+// extend that: the message travels back through `useActionState`, never through
+// a URL the user could be handed by someone else.
+
+/** What the lobby forms get back. `value` echoes the submitted team name. */
+export type LobbyResult = { error: string | null; value?: string };
+
+const OK: LobbyResult = { error: null };
+
+/**
+ * Everything a lobby action needs to decide, read before anything is written.
+ *
+ * The membership id comes from a form field, so it is attacker-controlled: the
+ * check that it actually belongs to `leagueId` is what stops a crafted post
+ * renaming or kicking somebody in a league the sender has nothing to do with.
+ * Being a member of the named league is required too — commissioning it counts,
+ * since `ensureCommissionerMembership` may not have run yet.
+ */
+async function loadLobbyContext(formData: FormData) {
+  const session = await requireSession();
+  const leagueId = String(formData.get("leagueId") ?? "");
+  const memberId = String(formData.get("memberId") ?? "");
+  if (!leagueId || !memberId) return null;
+
+  const pb = await getSuperuserClient();
+
+  let league: LeagueRecord;
+  let member: MemberRecord;
+  try {
+    league = await pb
+      .collection("leagues")
+      .getOne<LeagueRecord>(leagueId, { requestKey: null });
+    member = await pb
+      .collection("league_members")
+      .getOne<MemberRecord>(memberId, { requestKey: null });
+  } catch {
+    return null;
+  }
+
+  // The row must belong to the league the form claims it does.
+  if (member.league !== league.id) return null;
+
+  const actorIsCommissioner = league.commissioner === session.user.id;
+  if (!actorIsCommissioner) {
+    const own = await pb.collection("league_members").getFullList<MemberRecord>({
+      filter: `league = '${leagueId}' && user = '${session.user.id}'`,
+      requestKey: null,
+    });
+    if (own.length === 0) return null;
+  }
+
+  const actor: LobbyActor = {
+    actorUserId: session.user.id,
+    targetUserId: member.user,
+    actorIsCommissioner,
+    leagueStatus: league.status,
+  };
+
+  return { pb, league, member, actor };
+}
+
+/** The generic refusal. Deliberately vague — see `getLeagueWithMembers`. */
+const NOT_YOURS: LobbyResult = { error: "That is not yours to change." };
+
+export async function renameTeam(
+  _previous: LobbyResult,
+  formData: FormData,
+): Promise<LobbyResult> {
+  const raw = String(formData.get("teamName") ?? "");
+
+  const context = await loadLobbyContext(formData);
+  // Echo the submitted value back on every path: React 19 resets an
+  // uncontrolled input after a server-action transition, so a rejected name
+  // would otherwise vanish from the field the user is trying to fix.
+  if (!context) return { ...NOT_YOURS, value: raw };
+
+  const verdict = canRenameTeam(context.actor);
+  if (!verdict.ok) return { error: verdict.reason, value: raw };
+
+  const name = validateTeamName(raw);
+  if (!name.ok) return { error: name.reason, value: raw };
+
+  try {
+    await context.pb
+      .collection("league_members")
+      .update(context.member.id, { team_name: name.value }, { requestKey: null });
+  } catch {
+    return { error: "Could not save that name. Try again.", value: raw };
+  }
+
+  revalidatePath(`/leagues/${context.league.id}`);
+  return { error: null, value: name.value };
+}
+
+export async function setReady(
+  _previous: LobbyResult,
+  formData: FormData,
+): Promise<LobbyResult> {
+  const context = await loadLobbyContext(formData);
+  if (!context) return NOT_YOURS;
+
+  const verdict = canMarkReady(context.actor);
+  if (!verdict.ok) return { error: verdict.reason };
+
+  // The button posts the state it wants, not a "flip it" instruction: two taps
+  // racing each other then settle on the same value instead of toggling twice.
+  const ready = formData.get("ready") === "1";
+
+  try {
+    await context.pb
+      .collection("league_members")
+      .update(context.member.id, { is_ready: ready }, { requestKey: null });
+  } catch {
+    return { error: "Could not save that. Try again." };
+  }
+
+  revalidatePath(`/leagues/${context.league.id}`);
+  return OK;
+}
+
+export async function kickMember(
+  _previous: LobbyResult,
+  formData: FormData,
+): Promise<LobbyResult> {
+  const context = await loadLobbyContext(formData);
+  if (!context) return NOT_YOURS;
+
+  const verdict = canKickMember(context.actor);
+  if (!verdict.ok) return { error: verdict.reason };
+
+  try {
+    // A single delete. Nothing references a membership yet — picks and rosters
+    // arrive in Phase 2 — so this frees the slot and leaves nothing dangling.
+    // Their place is not held: they rejoin with the invite code like anyone.
+    await context.pb
+      .collection("league_members")
+      .delete(context.member.id, { requestKey: null });
+  } catch {
+    return { error: "Could not remove that member. Try again." };
+  }
+
+  revalidatePath(`/leagues/${context.league.id}`);
+  return OK;
 }

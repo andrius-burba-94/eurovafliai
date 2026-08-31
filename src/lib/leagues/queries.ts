@@ -2,14 +2,10 @@ import "server-only";
 
 import { createUserClient } from "@/lib/pb/server";
 import { getSession } from "@/lib/auth/session";
+import { memberListQuery, toMember } from "./lobby";
 import { ensureCommissionerMembership } from "./repair";
 import { parseLeagueSettings } from "./settings";
-import type {
-  LeagueRecord,
-  LeagueWithMembers,
-  Member,
-  MemberRecord,
-} from "./types";
+import type { LeagueRecord, LeagueWithMembers, MemberRecord } from "./types";
 
 /**
  * Reads, performed with the *user's* token so PocketBase's read rules apply.
@@ -18,22 +14,6 @@ import type {
  * rather than another league's data. Writes are the superuser's job
  * (`./actions.ts`); nothing here writes.
  */
-
-function toMember(
-  record: MemberRecord,
-  league: LeagueRecord,
-  viewerUserId: string,
-): Member {
-  const user = record.expand?.user;
-  return {
-    id: record.id,
-    userId: record.user,
-    name: user?.name || user?.email || "Unknown member",
-    teamName: record.team_name || "",
-    isCommissioner: record.user === league.commissioner,
-    isYou: record.user === viewerUserId,
-  };
-}
 
 /** Every league the signed-in user can see: ones they joined, or commission. */
 export async function listMyLeagues(): Promise<LeagueRecord[]> {
@@ -87,20 +67,19 @@ export async function getLeagueWithMembers(
     await ensureCommissionerMembership(leagueId);
   }
 
-  const members = await pb.collection("league_members").getFullList<MemberRecord>({
-    // Single-quoted filter value: PocketBase rejects double quotes.
-    filter: `league = '${leagueId}'`,
-    expand: "user",
-    // No `created` index on this collection, so sort by id — monotonic enough
-    // for a stable join order.
-    sort: "id",
-    requestKey: null,
-  });
+  const members = await pb
+    .collection("league_members")
+    .getFullList<MemberRecord>(memberListQuery(leagueId));
+
+  const context = {
+    commissionerUserId: league.commissioner,
+    viewerUserId: session.user.id,
+  };
 
   return {
     league,
     settings: parseLeagueSettings(league.settings),
-    members: members.map((m) => toMember(m, league, session.user.id)),
+    members: members.map((m) => toMember(m, context)),
     isCommissioner: league.commissioner === session.user.id,
   };
 }
