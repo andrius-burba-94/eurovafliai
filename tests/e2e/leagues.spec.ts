@@ -39,7 +39,7 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await page.getByTestId("create-league-name").fill("Vafliai Test League");
   await page.getByTestId("create-league").click();
 
-  await page.waitForURL(/\/leagues\/[^/]+$/);
+  await page.waitForURL(/\/leagues\/[^/?]+(\?|$)/);
   trackLeague(leagueIdFromUrl(page.url()));
 
   await expect(page.getByTestId("lobby")).toBeVisible();
@@ -65,7 +65,7 @@ test("a second person joins with the invite code", async ({ page, context }) => 
   await page.getByTestId("join-league-code").fill(code);
   await page.getByTestId("join-league").click();
 
-  await page.waitForURL(new RegExp(`/leagues/${id}$`));
+  await page.waitForURL(new RegExp(`/leagues/${id}(\\?|$)`));
   await expect(page.getByTestId("member")).toHaveCount(2);
 
   // And it now shows up on their own leagues list.
@@ -85,7 +85,7 @@ test("a lowercase, spaced code still joins", async ({ page, context }) => {
   await page.getByTestId("join-league-code").fill(messy);
   await page.getByTestId("join-league").click();
 
-  await page.waitForURL(new RegExp(`/leagues/${id}$`));
+  await page.waitForURL(new RegExp(`/leagues/${id}(\\?|$)`));
   await expect(page.getByTestId("member")).toHaveCount(2);
 });
 

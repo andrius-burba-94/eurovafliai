@@ -84,7 +84,7 @@ export async function createLeague(formData: FormData): Promise<never> {
   // discards a valid record over a retryable write.
   await ensureCommissionerMembership(league.id);
 
-  redirect(`/leagues/${league.id}`);
+  redirect(`/leagues/${league.id}?arrived=1`);
 }
 
 export async function joinLeague(formData: FormData): Promise<never> {
@@ -122,7 +122,7 @@ export async function joinLeague(formData: FormData): Promise<never> {
 
   // Already in? Joining again is not an error, it is a no-op with a redirect.
   if (members.some((m) => m.user === session.user.id)) {
-    redirect(`/leagues/${league.id}`);
+    redirect(`/leagues/${league.id}?arrived=1`);
   }
 
   const verdict = canAcceptMember(
@@ -151,8 +151,8 @@ export async function joinLeague(formData: FormData): Promise<never> {
   } catch {
     // The index refused it: either a double submit, or a genuine race. Either
     // way the user's place is already taken care of or the league is unchanged.
-    redirect(`/leagues/${league.id}`);
+    redirect(`/leagues/${league.id}?arrived=1`);
   }
 
-  redirect(`/leagues/${league.id}`);
+  redirect(`/leagues/${league.id}?arrived=1`);
 }

@@ -1,21 +1,16 @@
 import { redirect } from "next/navigation";
 
-import {
-  BoardButton,
-  BoardPlan,
-  Correction,
-  Sheet,
-  TopRail,
-} from "@/components/board";
+import { BoardPlan, Correction, Sheet, TopRail } from "@/components/board";
+import { SubmitButton } from "@/components/submit-button";
 import { startGoogleLogin } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 
 /**
  * Sign-in. Google is the only way in — there is no password form, by design.
  *
- * The board is empty here, so the surface says so: one waiting bay with the
- * only action in it. Every failure the callback can produce has a message
- * rather than a dead end.
+ * The board is empty here and the page says so: one waiting slot with the only
+ * action in it, over the board this league will fill. Every failure the
+ * callback can produce has a message rather than a dead end.
  */
 const ERRORS: Record<string, string> = {
   server_unavailable:
@@ -31,9 +26,7 @@ const ERRORS: Record<string, string> = {
   unauthorized: "Please sign in to continue.",
 };
 
-export default async function LoginPage({
-  searchParams,
-}: PageProps<"/login">) {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const session = await getSession();
   if (session) redirect("/");
 
@@ -45,8 +38,8 @@ export default async function LoginPage({
       <TopRail />
       <Sheet testId="login">
         <div className="flex max-w-md flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em]">
-            Take your bay
+          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+            Take your slot
           </h1>
           <p className="text-ink-soft">
             Invite only. Sign in, then join your league with its code.
@@ -57,16 +50,20 @@ export default async function LoginPage({
           <Correction testId="login-error">{message}</Correction>
         ) : null}
 
-        <div className="bay-waiting flex flex-col gap-4 px-3 py-5">
-          <p className="slot-label">Bay 01 &middot; waiting</p>
+        <div className="slot-waiting flex flex-col gap-4 px-3 py-5">
+          <p className="slot-label">Slot 01 &middot; waiting</p>
           <form action={startGoogleLogin}>
-            <BoardButton testId="login-google" tone="live">
+            <SubmitButton
+              testId="login-google"
+              tone="live"
+              pendingLabel="Redirecting to Google…"
+            >
               Continue with Google
-            </BoardButton>
+            </SubmitButton>
           </form>
         </div>
 
-        <BoardPlan />
+        <BoardPlan caption="13 rounds · up to 12 slots" />
       </Sheet>
     </>
   );

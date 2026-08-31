@@ -30,27 +30,33 @@ export const metadata: Metadata = {
 const DIRECTION_CONTRACT = `<!--
   DIRECTION CONTRACT — Phase 1.4 (seed 32792572)
 
-  THESIS: the app is the draft board wall, a grid of ruled bays that picks get
+  THESIS: the app is the draft board, a grid of ruled slots that picks get
   slotted into. It refuses the near-black surface with one glowing accent, and
   the metric-tile hero, that this category ships.
 
-  OWN-WORLD: cool card stock as the ground, the board's ruling as the ink, one
-  marker red striking only the live bay, muted G/F/C twill patches, Archivo in
+  OWN-WORLD: cool card stock as the ground, the board's ruling as the ink in
+  three weights (1px dashed waiting, 1px solid filled, 2px marker live), one
+  marker red striking only the live slot, muted G/F/C twill patches, Archivo in
   caps with tabular figures throughout. No cards inside cards.
 
   STORY: this is a real competition instrument, readable at a glance in a loud
-  room; you create or join a league and take your bay.
+  room; you create or join a league and take your slot.
 
-  FIRST VIEWPORT: top rail with wordmark and season in 11px caps; below it, bays
-  at full width, dashed while waiting and solid once filled; the primary action
-  sits inside the first empty bay, never in a floating card.
+  FIRST VIEWPORT: top rail with wordmark and season in 11px caps, on every
+  device; below it, slots at full width, dashed while waiting and solid once
+  filled; the primary action sits inside a slot, never in a floating card, and
+  carries the marker.
 
-  FORM: the draft board wall, first on the ordered list of grounded candidates.
+  FORM: the draft board, first on the ordered list of grounded candidates.
 
-  SIGNATURE INTERACTION: a card landing in its bay — 260ms ease-out travel and
-  the bay's rule going dashed to solid; under prefers-reduced-motion the state
-  changes without the travel. Only two things in this app animate: a card
-  landing, and the live rule advancing.
+  SIGNATURE INTERACTION: a card landing in its slot — 260ms ease-out travel on
+  the row that just arrived, keyed off the ?arrived=1 the create and join
+  actions set; under prefers-reduced-motion the state changes without the
+  travel. Only two things in this app animate: a card landing, and the live
+  rule advancing.
+
+  VOCABULARY: CONTEXT.md owns the words. A slot is a position on the board.
+  An earlier draft of this design invented "bay" and led a headline with it.
 
   FINISH: unreviewed and undocumented is unfinished; this build ends with the
   finish review, the verdict, and DESIGN.md

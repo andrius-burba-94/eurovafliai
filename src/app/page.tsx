@@ -3,16 +3,16 @@ import { redirect } from "next/navigation";
 
 import {
   Bank,
-  Bay,
-  Bays,
-  BoardButton,
   CardName,
   Correction,
   Field,
   Sheet,
+  Slot,
+  Slots,
   TopRail,
   inputStyles,
 } from "@/components/board";
+import { SubmitButton } from "@/components/submit-button";
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 import { createLeague, joinLeague } from "@/lib/leagues/actions";
@@ -22,17 +22,31 @@ import { listMyLeagues } from "@/lib/leagues/queries";
  * Your leagues: the signed-in home. Create one as commissioner, or join a
  * friend's with its invite code.
  *
- * Each league is a bay on the wall. A league still in setup is a waiting bay —
- * dashed rule — and one with its draft underway is struck in marker. The two
- * forms are bays too, so the primary action is never a floating card.
+ * Each league is a slot on the board, and the run continues into the free slots
+ * below it, so the surface shows the board's shape rather than a list that
+ * stops. A league still in setup is ruled dashed; one whose draft is underway
+ * is struck in the commissioner's marker.
  */
+
+/** How many free slots to show under the run. Enough to read as a board. */
+const FREE_SLOTS_SHOWN = 3;
+/** Extra free slots, desktop only: a wide viewport has the height for them. */
+const FREE_SLOTS_WIDE = 5;
+
 export default async function Home({ searchParams }: PageProps<"/">) {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
 
   const leagues = await listMyLeagues();
   const { error, code } = await searchParams;
-  const message = typeof error === "string" ? error : undefined;
+  // The league actions send finished sentences rather than codes (see
+  // `fail()` in src/lib/leagues/actions.ts), so this renders the server's own
+  // words. It is capped because the value arrives in a URL: a crafted link
+  // should not be able to put a paragraph of someone else's text in an alert.
+  const message =
+    typeof error === "string" && error.trim()
+      ? error.trim().slice(0, 160)
+      : undefined;
   const prefilledCode = typeof code === "string" ? code : "";
 
   return (
@@ -51,42 +65,62 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         }
       />
       <Sheet testId="app-shell">
-        {message ? <Correction testId="home-error">{message}</Correction> : null}
+        {message ? (
+          <Correction testId="home-error">{message}</Correction>
+        ) : null}
 
         <Bank
           label="Your leagues"
-          aside={leagues.length > 0 ? `${leagues.length} on the wall` : undefined}
+          aside={
+            leagues.length > 0 ? `${leagues.length} on the board` : "none yet"
+          }
         >
-          {leagues.length === 0 ? (
-            <div className="bay-waiting px-3 py-5">
-              <p data-testid="leagues-empty" className="text-sm text-ink-soft">
-                No bays taken yet. Start a league below, or join a
-                friend&rsquo;s with their invite code.
-              </p>
-            </div>
-          ) : (
-            <Bays testId="leagues-list">
-              {leagues.map((league) => (
-                <Bay
-                  key={league.id}
-                  state={league.status === "setup" ? "waiting" : "live"}
+          <Slots testId="leagues-list">
+            {leagues.map((league) => (
+              <Slot
+                key={league.id}
+                state={league.status === "setup" ? "filled" : "live"}
+              >
+                <Link
+                  href={`/leagues/${league.id}`}
+                  className="-mx-3 -my-3 flex flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                 >
-                  <Link
-                    href={`/leagues/${league.id}`}
-                    className="flex flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                  >
-                    <CardName>{league.name}</CardName>
-                    <span className="slot-label">
-                      {league.season} &middot; {league.status}
-                    </span>
-                  </Link>
-                </Bay>
-              ))}
-            </Bays>
-          )}
+                  <CardName>{league.name}</CardName>
+                  <span className="slot-label">
+                    {league.season} &middot; {league.status}
+                  </span>
+                </Link>
+              </Slot>
+            ))}
+            {leagues.length === 0 ? (
+              <Slot state="waiting">
+                <span
+                  data-testid="leagues-empty"
+                  className="text-sm text-ink-soft"
+                >
+                  No leagues yet. Start one below, or join a friend&rsquo;s with
+                  their invite code.
+                </span>
+              </Slot>
+            ) : null}
+            {Array.from(
+              { length: FREE_SLOTS_SHOWN + FREE_SLOTS_WIDE },
+              (_, index) => (
+                <Slot
+                  key={`free-${index}`}
+                  state="waiting"
+                  className={index >= FREE_SLOTS_SHOWN ? "hidden sm:flex" : ""}
+                >
+                  <span className="slot-label text-ink-faint">
+                    Slot {String(leagues.length + index + 1).padStart(2, "0")}
+                  </span>
+                </Slot>
+              ),
+            )}
+          </Slots>
         </Bank>
 
-        <div className="grid gap-bay sm:grid-cols-2 sm:gap-8">
+        <div className="grid gap-8 sm:grid-cols-2">
           <Bank label="Start a league">
             <form action={createLeague} className="flex flex-col gap-5">
               <Field label="League name">
@@ -100,9 +134,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   className={inputStyles}
                 />
               </Field>
-              <BoardButton testId="create-league">
+              {/* The primary: creating a league is the act this surface exists
+                  for, so it carries the marker and joining does not. */}
+              <SubmitButton
+                testId="create-league"
+                tone="live"
+                pendingLabel="Opening the board…"
+              >
                 Create as commissioner
-              </BoardButton>
+              </SubmitButton>
             </form>
           </Bank>
 
@@ -121,7 +161,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   className={`${inputStyles} text-lg uppercase tracking-[0.32em]`}
                 />
               </Field>
-              <BoardButton testId="join-league">Join</BoardButton>
+              <SubmitButton testId="join-league" pendingLabel="Taking a slot…">
+                Join
+              </SubmitButton>
             </form>
           </Bank>
         </div>
