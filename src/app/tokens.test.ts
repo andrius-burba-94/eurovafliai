@@ -105,6 +105,16 @@ describe("the board's ruling is perceivable", () => {
     );
   });
 
+  it("--color-rule-strong clears 3:1 on stock", () => {
+    // It was only ever asserted relative to `rule`, which would let both slide
+    // together. It is a boundary in its own right.
+    const ratio = contrast("rule-strong", "stock");
+    expect(
+      round(ratio),
+      `rule-strong was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
   it("--color-rule-strong is heavier than --color-rule", () => {
     // A board has a hierarchy: a frame and a filled slot read heavier than an
     // empty one. Same hue family, deliberately different weight.

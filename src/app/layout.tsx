@@ -35,9 +35,12 @@ const DIRECTION_CONTRACT = `<!--
   the metric-tile hero, that this category ships.
 
   OWN-WORLD: cool card stock as the ground, the board's ruling as the ink in
-  three weights (1px dashed waiting, 1px solid filled, 2px marker live), one
-  marker red striking only the live slot, muted G/F/C twill patches, Archivo in
-  caps with tabular figures throughout. No cards inside cards.
+  four weights (1px dashed waiting, 1px solid filled, 2px marker live, 2px ink
+  correction), muted G/F/C twill patches, Archivo in caps with tabular figures
+  throughout. No cards inside cards. Marker red has two jobs and no others:
+  state (the slot on the clock) and the one act (a surface's single primary
+  action, with the focus and caret affordances of acting). The double-weight
+  marker rule means one thing only — this slot is on the clock.
 
   STORY: this is a real competition instrument, readable at a glance in a loud
   room; you create or join a league and take your slot.
@@ -49,11 +52,12 @@ const DIRECTION_CONTRACT = `<!--
 
   FORM: the draft board, first on the ordered list of grounded candidates.
 
-  SIGNATURE INTERACTION: a card landing in its slot — 260ms ease-out travel on
-  the row that just arrived, keyed off the ?arrived=1 the create and join
-  actions set; under prefers-reduced-motion the state changes without the
-  travel. Only two things in this app animate: a card landing, and the live
-  rule advancing.
+  SIGNATURE INTERACTION: a card landing in its slot — 260ms on an ease-out
+  quart curve, on the row that just arrived, keyed off the ?arrived=1 the
+  create and join actions set; under prefers-reduced-motion the state changes
+  without the travel. This app gets a budget of two animations ever. The second,
+  the live rule advancing, has no code yet because there is no draft with a
+  clock — Phase 3 owns defining it, and that spends the budget.
 
   VOCABULARY: CONTEXT.md owns the words. A slot is a position on the board.
   An earlier draft of this design invented "bay" and led a headline with it.
