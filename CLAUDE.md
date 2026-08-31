@@ -79,7 +79,7 @@ Non-negotiables (details in the skills below):
 | Domain vocabulary (use these words) | `CONTEXT.md` |
 | Why the stack / realtime / no-transactions design | `docs/adr/` |
 | Product intent, users, principles | `PRODUCT.md` |
-| Design system (from Phase 1.4 onward) | `DESIGN.md` — written by `/impeccable` when the first real surface is built |
+| Design system: tokens, components, the state language | `DESIGN.md` (+ `.impeccable/design.json`) |
 | Next.js 16 specifics | `AGENTS.md` → `node_modules/next/dist/docs/` |
 
 ## Skills in this repo

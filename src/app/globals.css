@@ -1,26 +1,159 @@
 @import "tailwindcss";
 
+/*
+ * The Draft Board Wall — design tokens.
+ *
+ * The world is the physical draft board seen up close: card stock slotted into
+ * ruled bays, names in marker, the live bay struck in red. The value
+ * relationship of the real object is inverted on purpose — the card stock is
+ * the ground and the board's ruling is the ink — because draft night is a lit
+ * room with a TV on and months of daylight phone checks after it, and because a
+ * near-black surface with one glowing accent is the first thing this category
+ * reaches for.
+ *
+ * Written by Phase 1.4. DESIGN.md is the prose record; this file is the source
+ * of truth for values.
+ */
+
+@theme {
+  /* --- Ground and ink -----------------------------------------------------
+   * Card stock, cool and desaturated: office supply, not parchment. Neutrals
+   * are tinted toward the rail's blue so nothing is a dead grey, and neither
+   * end of the ramp is pure black or white.
+   */
+  --color-stock: oklch(0.943 0.004 240);
+  --color-ink: oklch(0.24 0.012 250);
+  --color-ink-soft: oklch(0.47 0.011 250);
+  /* 4.80:1 on stock. It was 2.96:1 and carried form labels, which is the text
+   * that tells somebody what to type. Solved, not eyeballed. */
+  --color-ink-faint: oklch(0.513 0.009 250);
+
+  /* --- The board's structure ---------------------------------------------
+   * The ruling IS the state language — dashed means waiting, solid means
+   * filled — so it has to be seen from across a lit room. `rule` was 1.36:1,
+   * which is not a boundary, it is a rounding error. Now 3.15:1, with a second
+   * heavier value so the board has the major/minor hierarchy a real one has:
+   * an empty slot is ruled, a filled slot is ruled harder.
+   */
+  --color-rule: oklch(0.614 0.008 240);
+  --color-rule-strong: oklch(0.533 0.01 240);
+  --color-rail: oklch(0.52 0.042 245);
+
+  /* --- The one accent ----------------------------------------------------
+   * The commissioner's marker. It marks exactly two things — who is on the
+   * clock, and a pick that just landed — and is never decoration. Kept cooler
+   * and more saturated than a terracotta so the surface cannot drift into the
+   * cream-and-clay cluster every generated interface lands in.
+   */
+  --color-live: oklch(0.548 0.198 27);
+  /* The live field locates the slot; the 2px marker rule above it is what
+   * actually carries the state. A light tint cannot reach a text-grade ratio
+   * without becoming a pink block that fights the rule sitting on it. */
+  --color-live-sunk: oklch(0.925 0.055 27);
+
+  /* --- Position patches --------------------------------------------------
+   * Guards, Forwards, Centers. Three hue families, muted enough to sit beside
+   * twenty club colours, dark enough to carry text on stock. Colour NEVER
+   * carries position alone: the letter is always present (PRODUCT.md).
+   */
+  --color-pos-g: oklch(0.505 0.082 235);
+  --color-pos-f: oklch(0.508 0.079 128);
+  --color-pos-c: oklch(0.505 0.093 305);
+
+  /* --- Type -------------------------------------------------------------
+   * One family, Archivo, the way a kit room has one label maker. Numbers are
+   * always tabular so a column of them is a column, and names set in caps are
+   * the honest translation of marker lettering on card stock.
+   */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+
+  --text-slot: 0.6875rem;
+  --text-slot--line-height: 1rem;
+  --text-slot--letter-spacing: 0.14em;
+
+  /* --- Spacing rhythm ---------------------------------------------------
+   * A bay is the board's unit. Everything vertical is a multiple of it, so a
+   * dense passage and a quiet one share one grid.
+   */
+  --spacing-slot: 2.75rem;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+::selection {
+  background-color: var(--color-live);
+  color: var(--color-stock);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-stock);
+  caret-color: var(--color-live);
+  color: var(--color-ink);
+  /* Every figure in this app is tabular. A number that changes width as it
+   * counts down makes a clock jitter, and a draft has a clock on it. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The board's ruling, in three weights. A slot that is waiting is ruled thin
+ * and dashed; a slot that has been filled is ruled solid and darker; the slot
+ * on the clock is struck in the commissioner's marker at double weight. The
+ * state is carried by the row's own material — never by a badge parked beside
+ * an otherwise normal row.
+ *
+ * `slot` is the word CONTEXT.md locks for a position on the board. */
+@utility slot-waiting {
+  border-top: 1px dashed var(--color-rule);
+}
+
+@utility slot-filled {
+  border-top: 1px solid var(--color-rule-strong);
+}
+
+@utility slot-live {
+  border-top: 2px solid var(--color-live);
+  background-color: var(--color-live-sunk);
+}
+
+/* A correction on the board: struck in ink, not in marker. The marker means
+ * one thing only — who is on the clock — so an error that borrowed it made a
+ * failure and an invite code look identical. */
+@utility slot-correction {
+  border-top: 2px solid var(--color-ink);
+}
+
+/* Slot labels: the board's own small caps, used for every column head, status
+ * and code. Tracking is wide because marker caps on card stock are. */
+@utility slot-label {
+  font-size: var(--text-slot);
+  line-height: var(--text-slot--line-height);
+  letter-spacing: var(--text-slot--letter-spacing);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+}
+
+/* Motion exists for exactly two events: a card landing in its bay, and the
+ * live rule advancing. Nothing else in this app animates. */
+@keyframes card-lands {
+  from {
+    opacity: 0;
+    transform: translateY(-0.375rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility card-lands {
+  animation: card-lands 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  /* Draft night is phones on a couch, and somebody's phone is set to reduce
+   * motion. The state change still lands; only the travel is dropped. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }

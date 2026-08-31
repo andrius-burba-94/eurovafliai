@@ -60,7 +60,11 @@ next-env.d.ts
 /.agents/
 
 # impeccable (design tooling) — config, tokens and critiques ARE committed;
-# generated screenshots and caches are not.
+# generated screenshots and caches are not. `review/` is regenerable with
+# `npm run capture`, so the PNGs stay out of the history.
 /.impeccable/cache/
 /.impeccable/screenshots/
+/.impeccable/review/
 /.impeccable/tmp/
+/.impeccable/mocks/
+/.impeccable/questions/
