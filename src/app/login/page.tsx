@@ -1,14 +1,21 @@
 import { redirect } from "next/navigation";
 
+import {
+  BoardButton,
+  BoardPlan,
+  Correction,
+  Sheet,
+  TopRail,
+} from "@/components/board";
 import { startGoogleLogin } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 
 /**
  * Sign-in. Google is the only way in — there is no password form, by design.
  *
- * Visual design lands in Phase 1.4; this is deliberately plain, but the states
- * are real: already-signed-in redirects away, and every failure the callback can
- * produce has a message here rather than a dead end.
+ * The board is empty here, so the surface says so: one waiting bay with the
+ * only action in it. Every failure the callback can produce has a message
+ * rather than a dead end.
  */
 const ERRORS: Record<string, string> = {
   server_unavailable:
@@ -34,39 +41,33 @@ export default async function LoginPage({
   const message = typeof error === "string" ? ERRORS[error] : undefined;
 
   return (
-    <main
-      data-testid="login"
-      className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-6 py-16"
-    >
-      <div className="flex flex-col gap-2">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-60">
-          Euroleague 2026&ndash;27
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Eurovafliai</h1>
-        <p className="opacity-70">
-          Invite only. Sign in, then join your league with its code.
-        </p>
-      </div>
+    <>
+      <TopRail />
+      <Sheet testId="login">
+        <div className="flex max-w-md flex-col gap-3">
+          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em]">
+            Take your bay
+          </h1>
+          <p className="text-ink-soft">
+            Invite only. Sign in, then join your league with its code.
+          </p>
+        </div>
 
-      {message ? (
-        <p
-          data-testid="login-error"
-          role="alert"
-          className="border border-current/20 px-4 py-3 text-sm"
-        >
-          {message}
-        </p>
-      ) : null}
+        {message ? (
+          <Correction testId="login-error">{message}</Correction>
+        ) : null}
 
-      <form action={startGoogleLogin}>
-        <button
-          type="submit"
-          data-testid="login-google"
-          className="w-full border border-current/25 px-4 py-3 text-sm font-medium transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          Continue with Google
-        </button>
-      </form>
-    </main>
+        <div className="bay-waiting flex flex-col gap-4 px-3 py-5">
+          <p className="slot-label">Bay 01 &middot; waiting</p>
+          <form action={startGoogleLogin}>
+            <BoardButton testId="login-google" tone="live">
+              Continue with Google
+            </BoardButton>
+          </form>
+        </div>
+
+        <BoardPlan />
+      </Sheet>
+    </>
   );
 }

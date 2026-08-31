@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "capture": "tsx --env-file=.env scripts/capture-surfaces.mts",
     "pb:download": "./scripts/pb-download.sh",
     "pb:dump-schema": "tsx --env-file=.env scripts/pb-dump-schema.mjs",
     "setup": "./scripts/pb-download.sh && npm run setup:hooks",
