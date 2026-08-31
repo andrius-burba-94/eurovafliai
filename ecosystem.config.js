@@ -25,10 +25,26 @@ const NODE_24 = "/root/.local/share/fnm/aliases/default/bin/node";
 
 const APP_DIR = "/var/www/eurovafliai";
 
-/** Shared by both apps. Neither carries secrets: those live in the VPS `.env`. */
+/**
+ * Shared by both apps. Neither carries secrets: those live in the VPS `.env`,
+ * which is mode 600 and never committed.
+ *
+ * ## Why `--env-file` is here
+ *
+ * PM2 does not read `.env`. Next.js loads it itself, so the web app survives
+ * without this — but the worker is plain Node under tsx, and its first act is
+ * `parseServerEnv(process.env)`, which threw on every one of the five required
+ * variables and put the process straight into a restart loop the first time
+ * this file was used.
+ *
+ * `--env-file-if-exists` rather than `--env-file`: when the file is genuinely
+ * missing, the app's own schema error naming each absent variable is far more
+ * useful than Node refusing to boot with an ENOENT.
+ */
 const common = {
   cwd: APP_DIR,
   interpreter: NODE_24,
+  interpreter_args: `--env-file-if-exists=${APP_DIR}/.env`,
   env: { NODE_ENV: "production" },
   time: true,
   autorestart: true,
