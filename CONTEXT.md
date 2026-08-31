@@ -34,6 +34,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **commissioner** | The admin of a league. Configures, rolls, pauses, rolls back, approves. | `leagues.commissioner` |
 | **member** | A participant in a league, with a team name and a draft position. | `league_members` |
 | **lobby** | The pre-draft room where members gather, get named, and are marked ready. | Phase 1.3 |
+| **ready** | A member's own signal that they are at their device and can start. Self-declared: nobody, commissioner included, marks anyone else ready. | `league_members.is_ready` |
 | **invite code** | The short string a commissioner shares out of band; entering it is how you join a league. Unique across leagues. | `leagues.invite_code` |
 | **league status** | A league's coarse lifecycle: `setup` (lobby open) → `drafting` (a draft is running) → `season` (drafted, tracking games) → `complete`. Distinct from the finer-grained `drafts.status`. | `leagues.status` |
 | **draft position** | A member's slot in the draft order, 1…N. Unset until the roll. | `league_members.draft_position` |
