@@ -7,8 +7,11 @@ nightly stats, standings and trade-impact tracking for the rest of the season.
 **Production:** `https://eurovafliai.labrium.online` · **Season:** Euroleague
 2026–27 · **Rosters:** 13 players (5G / 5F / 3C)
 
-> **Status: Phase 0 — repository bootstrap.** Nothing is deployed yet. The plan
-> is [docs/EUROVAFLIAI_BLUEPRINT.md](docs/EUROVAFLIAI_BLUEPRINT.md).
+> **Status: Phase 1 — walking skeleton, in progress.** Google sign-in, league
+> creation, join-by-code and the design foundation have landed; the lobby is
+> not finished and nothing is deployed yet. Slice-by-slice detail is in
+> [docs/STATUS.md](docs/STATUS.md); the plan is
+> [docs/EUROVAFLIAI_BLUEPRINT.md](docs/EUROVAFLIAI_BLUEPRINT.md).
 
 ## Quick start
 

@@ -28,6 +28,7 @@ pb/pb_migrations/ schema as code, COMMITTED
 pb/pb_data/       local database, gitignored
 scripts/          pb-download.sh (+ deploy tooling from Phase 1.5)
 tests/e2e/        Playwright. Excluded from Vitest on purpose.
+docs/STATUS.md    what is done, what is next — update it in the same PR
 docs/adr/         architecture decision records
 .claude/skills/   project skills: pocketbase-patterns, draft-engine-invariants, vps-deploy
 ```
@@ -37,12 +38,15 @@ those up plus `tests/unit/**`.
 
 ## Before you write code
 
-1. Read the blueprint section for the slice you are on, and the ADRs it cites.
-2. Invoke the skill that covers the surface you are touching —
+1. Read [docs/STATUS.md](docs/STATUS.md) first — it says which slices are done,
+   which is next, and what debt is being carried. Never infer that from git log
+   or from a merged PR description.
+2. Read the blueprint section for the slice you are on, and the ADRs it cites.
+3. Invoke the skill that covers the surface you are touching —
    `pocketbase-patterns`, `draft-engine-invariants` or `vps-deploy`.
-3. Use the vocabulary in [CONTEXT.md](CONTEXT.md). Names in code match names in
+4. Use the vocabulary in [CONTEXT.md](CONTEXT.md). Names in code match names in
    the league's chat.
-4. For Next.js APIs, check `node_modules/next/dist/docs/` rather than memory.
+5. For Next.js APIs, check `node_modules/next/dist/docs/` rather than memory.
 
 ## Non-negotiables
 

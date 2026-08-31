@@ -13,9 +13,14 @@ horizontal scale. Phases ship in order; nothing here is planned against a date.
 
 **Roster template:** 13 players — 5 Guards, 5 Forwards, 3 Centers → 13 rounds.
 
-> **Status: Phase 0 (repository bootstrap).** The master plan is
-> [docs/EUROVAFLIAI_BLUEPRINT.md](docs/EUROVAFLIAI_BLUEPRINT.md) — read it
-> before proposing work, and treat its decision log (§2) as locked.
+> **Where the project is right now: [docs/STATUS.md](docs/STATUS.md).** Read it
+> before proposing work — it is the only place that says which slices are done,
+> which are next, and what debt is being carried. Do not infer status from this
+> file or from git log.
+>
+> The master plan is [docs/EUROVAFLIAI_BLUEPRINT.md](docs/EUROVAFLIAI_BLUEPRINT.md)
+> — read it too, and treat its decision log (§2) as locked. The blueprint says
+> where we are going and does not move; STATUS.md says how far along we are.
 
 ## Stack
 
@@ -75,6 +80,7 @@ Non-negotiables (details in the skills below):
 
 | Topic | Read |
 |---|---|
+| **What is done and what is next** | **`docs/STATUS.md`** |
 | The whole plan, phase by phase | `docs/EUROVAFLIAI_BLUEPRINT.md` |
 | Domain vocabulary (use these words) | `CONTEXT.md` |
 | Why the stack / realtime / no-transactions design | `docs/adr/` |
@@ -119,6 +125,11 @@ The five canonical labels, unchanged: `needs-triage`, `needs-info`, `ready-for-a
 ## Working agreements
 
 - **One slice per PR**, granular commits, squash-merge, linear history on `main`.
+- **`docs/STATUS.md` is updated in the same PR as the work it describes.** A
+  slice is not finished when its code merges — it is finished when STATUS.md
+  says so and the claim is true. If a PR defers part of its scope, that
+  deferral is recorded in STATUS.md, not only in the PR description: the next
+  agent reads the repo, not your merged pull requests.
 - Schema changes ship as migration files in the same PR as the code needing them.
 - `.env.example` is updated in the same PR that introduces a new variable.
 - UI slices are mobile-first (draft night is phones on a couch), respect
