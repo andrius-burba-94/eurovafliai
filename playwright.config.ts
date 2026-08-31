@@ -1,6 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3007;
+// 3007 by default — the app's canonical dev port. Overridable because
+// `reuseExistingServer` will happily reuse a dev server started from a
+// *different checkout* of this repo: run the suite from a git worktree while
+// `npm run dev` is up in the main one and every spec silently tests the other
+// working copy's code. Passing `E2E_PORT` gives the worktree its own server.
+const PORT = Number(process.env.E2E_PORT ?? 3007);
 // `localhost`, not 127.0.0.1: this is the app's canonical dev origin, the one
 // registered as an OAuth redirect URI on the Google client. Browsing the other
 // form would set auth cookies on a domain the real flow never uses.
@@ -28,7 +33,7 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: "npm run dev:next",
+    command: `next dev -p ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
