@@ -1,0 +1,68 @@
+name: Deploy
+
+# Nothing reaches production without passing CI first.
+#
+# `workflow_run` rather than `on: push` is the whole point: a plain push
+# trigger races the CI workflow and would happily deploy a commit whose tests
+# are still running, or have already gone red. This waits for CI to finish on
+# main and only then acts — and only when it finished green.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  # An explicit button, for redeploying the current main after fixing something
+  # on the box itself.
+  workflow_dispatch:
+
+# One deploy at a time. Two overlapping runs would fight over `git pull` and
+# `pm2 reload` on the same directory. Not cancel-in-progress: a half-finished
+# deploy is worse than a queued one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # For workflow_run this is the CI conclusion; for workflow_dispatch there is
+    # no upstream run, so the second clause lets the manual button through.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Open an SSH session to the VPS
+        # The key is a deploy-only keypair; the maintainer's personal key is
+        # not in this repo's secrets. Revoking CI means removing one line from
+        # the box's authorized_keys.
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pin the host key rather than disabling the check: StrictHostKeyChecking=no
+          # would deploy happily into a machine-in-the-middle.
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run deploy.sh on the VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o BatchMode=yes \
+              -o ConnectTimeout=20 \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              '/var/www/eurovafliai/scripts/deploy.sh'
+
+      - name: Confirm the site is actually up
+        # deploy.sh smoke-tests from inside the box. This checks the public
+        # route too, which is what catches an nginx or certificate problem that
+        # localhost curl would never see.
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+                 https://eurovafliai.labrium.online/login)
+          echo "GET /login -> $code"
+          test "$code" = "200"
+
+      - name: Always discard the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

@@ -22,8 +22,8 @@
     "setup": "./scripts/pb-download.sh && npm run setup:hooks",
     "setup:hooks": "git config core.hooksPath .githooks",
     "pb:serve": "./scripts/pb-serve.sh",
-    "worker:dev": "tsx watch src/worker/index.ts",
-    "worker:start": "tsx src/worker/index.ts",
+    "worker:dev": "tsx watch --env-file=.env src/worker/index.ts",
+    "worker:start": "tsx --env-file=.env src/worker/index.ts",
     "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs",
     "pb:verify:oauth2": "tsx --env-file=.env scripts/pb-verify-oauth2-signup.mjs"
   },

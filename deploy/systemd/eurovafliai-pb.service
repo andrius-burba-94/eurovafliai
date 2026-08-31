@@ -1,0 +1,43 @@
+# PocketBase for Eurovafliai.
+#
+# systemd rather than PM2, deliberately: the database process must survive a
+# reboot on its own, independently of the Node apps, and a bad web deploy must
+# not be able to take it down. `scripts/deploy.sh` does not touch this service
+# except when a migration actually changed — see the comment there.
+#
+# Install:
+#   scp deploy/systemd/eurovafliai-pb.service hstgr:/etc/systemd/system/
+#   ssh hstgr systemctl daemon-reload
+#   ssh hstgr systemctl enable --now eurovafliai-pb
+#
+# Follows the pattern already established on this box by eurovision2026-pb,
+# flavorite-pb, centfolio-pb and spinventory-pb, with two additions those
+# lack: an EnvironmentFile, and 127.0.0.1 spelled out in the bind address.
+
+[Unit]
+Description=Eurovafliai PocketBase
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/eurovafliai/pb
+
+# PocketBase is a binary, so nothing loads .env for it — but the Google OAuth2
+# migration reads GOOGLE_CLIENT_ID / _SECRET from the environment at apply
+# time, and migrations apply on boot. Without this the provider silently ends
+# up unconfigured and nobody can sign in.
+EnvironmentFile=/var/www/eurovafliai/.env
+
+# 127.0.0.1 explicitly, never 0.0.0.0: the only way in is the Nginx /pb/ proxy.
+# 8095 is free on this box (8090-8094 belong to the sibling apps).
+ExecStart=/var/www/eurovafliai/pb/pocketbase serve \
+  --http=127.0.0.1:8095 \
+  --dir=/var/www/eurovafliai/pb/pb_data \
+  --migrationsDir=/var/www/eurovafliai/pb/pb_migrations
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
