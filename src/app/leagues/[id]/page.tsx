@@ -5,16 +5,14 @@ import {
   BackArrow,
   Bank,
   BoardPlan,
-  CardName,
   PositionPatch,
   Sheet,
-  Slot,
-  Slots,
   TopRail,
 } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { rosterSize } from "@/lib/leagues/settings";
+import { LiveLobby } from "./live-lobby";
 
 /**
  * The lobby: who is in, and the code that lets the rest in.
@@ -28,9 +26,10 @@ import { rosterSize } from "@/lib/leagues/settings";
  * signal like that the motion would either never play or play on every load,
  * and the second is decoration.
  *
- * The live member list arrives in the next slice (1.3b) via a PocketBase SSE
- * subscription. Today it renders server-side, so a friend joining shows up on
- * the next load rather than instantly.
+ * The member list itself is live — `./live-lobby.tsx` subscribes to
+ * `league_members` over PocketBase SSE using the viewer's own token. This page
+ * still renders the list once on the server, so the lobby is correct before any
+ * JavaScript runs and remains readable if the subscription never establishes.
  */
 export default async function LobbyPage({
   params,
@@ -114,50 +113,27 @@ export default async function LobbyPage({
           </Bank>
         ) : null}
 
-        <Bank
-          label="Members"
-          aside={`${members.length} of ${settings.max_members}`}
-        >
-          <Slots testId="member-list">
-            {members.map((member) => (
-              <Slot
-                key={member.id}
-                testId="member"
-                landed={justArrived && member.isYou}
-              >
-                <CardName>{member.teamName || member.name}</CardName>
-                <span className="flex flex-wrap items-baseline gap-x-3">
-                  {member.teamName ? (
-                    <span className="text-sm text-ink-soft">{member.name}</span>
-                  ) : null}
-                  <span className="slot-label">
-                    {[
-                      member.isCommissioner ? "commissioner" : null,
-                      member.isYou ? "you" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </span>
-              </Slot>
-            ))}
-            {/* The free places are part of the board, not a blank area below
-                it: a lobby that is half full should look half full. */}
-            {Array.from({ length: Math.max(slotsLeft, 0) }, (_, index) => (
-              <Slot key={`free-${index}`} state="waiting">
-                <span className="slot-label text-ink-faint">
-                  Slot {String(members.length + index + 1).padStart(2, "0")}
-                </span>
-              </Slot>
-            ))}
-          </Slots>
-          {isCommissioner ? (
-            <p className="text-sm text-ink-soft">
-              You run this league. Team names, kicking and the draft roll arrive
-              in the next slices.
-            </p>
-          ) : null}
-        </Bank>
+        {/* From here down the surface is live. The server render above is what
+            makes the page correct before any JavaScript runs; the subscription
+            keeps it correct afterwards. */}
+        <LiveLobby
+          leagueId={league.id}
+          authToken={session.token}
+          commissionerUserId={league.commissioner}
+          viewerUserId={session.user.id}
+          leagueStatus={league.status}
+          maxMembers={settings.max_members}
+          initialMembers={members}
+          justArrived={justArrived}
+          isCommissioner={isCommissioner}
+        />
+
+        {isCommissioner ? (
+          <p className="text-sm text-ink-soft">
+            You run this league. Open <em>Manage</em> on any row to rename or
+            remove a member. The draft roll arrives in Phase 2.
+          </p>
+        ) : null}
 
         {/* The board this lobby is filling, at its real width: one column per
             place in this league, thirteen rounds deep.

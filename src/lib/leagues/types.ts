@@ -19,6 +19,7 @@ export type MemberRecord = RecordModel & {
   team_name: string;
   draft_position?: number;
   autodraft_enabled: boolean;
+  is_ready: boolean;
   expand?: {
     user?: RecordModel & { name?: string; email?: string; avatar?: string };
   };
@@ -40,4 +41,6 @@ export type Member = {
   teamName: string;
   isCommissioner: boolean;
   isYou: boolean;
+  /** Has said they are at their phone and ready to draft. */
+  isReady: boolean;
 };

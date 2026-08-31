@@ -170,6 +170,26 @@ export async function createLeagueFor(
 }
 
 /**
+ * Add somebody to a league behind the UI's back.
+ *
+ * Used to make a change happen that the browser under test did not cause, which
+ * is the only honest way to prove the lobby's realtime subscription: if the
+ * watching page updates, it updated because PocketBase told it to.
+ */
+export async function addMemberTo(
+  leagueId: string,
+  user: TestUser,
+  teamName = "",
+): Promise<string> {
+  const pb = await superuser();
+  const record = await pb.collection("league_members").create(
+    { league: leagueId, user: user.id, team_name: teamName },
+    { requestKey: null },
+  );
+  return record.id;
+}
+
+/**
  * Delete everything these helpers created. Leagues go first: their memberships
  * cascade, so deleting the users afterwards has nothing left to trip over.
  */
