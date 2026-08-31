@@ -19,7 +19,9 @@ changing anything.
 
 ```
 src/app/          Next App Router — RSC pages, server actions
-src/lib/engine/   PURE draft logic. Zero PocketBase imports, zero I/O. (Phase 2)
+src/lib/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
+                  enforced by purity.test.ts, not just documented. Import
+                  from its index.ts, not from the modules directly.
 src/components/   shared UI in the board's vocabulary (board.tsx) — see DESIGN.md
 src/lib/config/   validated env: schema.ts (pure) + public.ts + server.ts
 src/worker/       PM2 worker: pick timers, autodraft, nightly stats (Phase 2.5)

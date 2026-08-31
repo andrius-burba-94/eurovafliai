@@ -15,9 +15,11 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** **Phase 2** — the draft engine, and the TDD phase. Two things are
-outstanding first; both are listed under Open debt: a human two-device
-confirmation of the lobby, and nightly `pb_data` backups.
+**Next up:** slice **2.3** — draft setup and order determination. The engine
+library (2.2) has landed; 2.3 is what decides the order it consumes.
+
+Two Phase 1 items are still open and both are listed under Open debt: a human
+two-device confirmation of the lobby, and nightly `pb_data` backups.
 
 ---
 
@@ -69,13 +71,28 @@ anything.
 | 1.4 Design foundation — tokens, app shell, the board's vocabulary | done | #17 | The Draft Board Wall. Contract recorded in `DESIGN.md` |
 | 1.5 Deploy — VPS, PM2 + systemd, SSE-safe Nginx, `deploy.sh`, auto-deploy | done | #20 | Live behind Certbot TLS. Node 24 is installed for this app alone via fnm, because the box runs Node 22 for eight other apps and this repo's `engine-strict` makes `npm ci` refuse it. **Realtime verified in production**, not just locally — `PB_CONNECT` through the `/pb/` proxy in 0.1s, unbuffered |
 
-## Phases 2–8
+## Phase 2 — Draft engine v1, the TDD phase
+
+**In progress.** DoD — *"a full 13-round mock draft on phone + PC with one member
+on autodraft, a mid-draft rollback, and the engine suite covering every format ×
+edge case"* — needs the pick pipeline and a draft room before it can be
+attempted.
+
+| Slice | State | Landed | Notes |
+|---|---|---|---|
+| 2.1 Roster ingestion — API + CSV, one normalize→diff→apply pipeline | todo | — | Needs a decision on the Euroleague API and an authority switch (`roster_authority`). Not a blocker for 2.2, which is why 2.2 went first |
+| **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
+| 2.3 Draft setup & order determination — roll / manual / reverse_standings | **next** | — | The engine takes `memberIds` already ordered, so this is the slice that decides that order |
+| 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | todo | — | Where pick-then-advance and the two unique indexes land. The engine already computes the rollback and detects the un-advanced state |
+| 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
+| 2.6 Minimal draft room | todo | — | Correctness before beauty; the flagship UI is Phase 3 |
+
+## Phases 3–8
 
 Not started. One line each; the detail lives in the blueprint.
 
 | Phase | State |
 |---|---|
-| 2 — Draft engine v1 (linear + snake + 3RR), the TDD phase | todo |
 | 3 — Draft-day experience (the flagship UI) | todo |
 | 4 — Player stats, projections, standings | todo |
 | 5 — Season mode: rosters, trades, impact tracking | todo |
@@ -93,26 +110,40 @@ touch should be fixed by that slice rather than deferred again.
 | # | What | Blocks |
 |---|---|---|
 | [#16](https://github.com/andrius-burba-94/eurovafliai/issues/16) | `createLeague` and `joinLeague` put finished prose in the query string and render it into a `role="alert"` — attacker-controllable text. The 1.3b lobby actions do **not** do this: they return their errors through `useActionState`, so the fix is a change to two older actions, not a new pattern to invent | Nothing; correctness debt in the leagues slice |
-| **Google redirect URI** | `https://eurovafliai.labrium.online/auth/callback` must be registered on the Google OAuth client, alongside the existing localhost one. Cannot be done from here — it is a Google Cloud Console change. Until it is, production sign-in fails with `redirect_uri_mismatch` | Signing in to production at all |
+| **Local PocketBase drifts from `main`** | A dev database only applies migrations on boot, so a checkout that has been running across a schema change silently tests the old shape. It cost a confusing run of lobby-spec failures. `npm run dev` after pulling is the whole fix; the symptom is `pb:verify` disagreeing with CI | Nothing; a time sink |
 | **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
-Closed since the last update: **#15** (the lobby's "Unknown member"), fixed in
-1.3b by `1788181100_users_read_co_members.js`.
+Closed since the last update:
+
+- **#15** (the lobby's "Unknown member"), fixed in 1.3b by
+  `1788181100_users_read_co_members.js`.
+- **The Google redirect URI.** `https://eurovafliai.labrium.online/auth/callback`
+  is registered on the OAuth client, so production sign-in is open. The wiring
+  is verified as far as it can be without a real Google account: the provider is
+  configured on production PocketBase, and `redirectUriFor` produces exactly
+  that URI from `NEXT_PUBLIC_APP_URL`.
+- **The front-door error box** (#21). Opening the site no longer renders an
+  alert; `unauthorized` is a note, and only genuine failures get the board's
+  correction voice.
 
 ## Verification status
 
-Last full local run, on slice 1.3b: **all green.**
+Last full local run, on slice 2.2: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | 81 passed |
+| `npm run test` | **238 passed** — 157 of them the engine |
 | `npm run build` | pass |
-| `npm run test:e2e` | 46 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 50 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 33 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
+
+> Running E2E from a git worktree? Pass `E2E_PORT` — Playwright's
+> `reuseExistingServer` will otherwise reuse a dev server from a *different*
+> checkout and silently test that working copy's code.
 
 A full `migrate down` of all seven migrations followed by a re-apply reproduces
 a byte-identical schema dump — checked locally as well as in CI.
