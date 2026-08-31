@@ -9,10 +9,43 @@ import { expect, test } from "@playwright/test";
  * redirect — protection, the login page, and each way the callback can fail.
  */
 
-test("an anonymous visitor is sent to the login page", async ({ page }) => {
+test("an anonymous visitor is sent to the login page, with nothing wrong", async ({
+  page,
+}) => {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/login\?error=unauthorized/);
+  await expect(page).toHaveURL(/\/login(\?|$)/);
   await expect(page.getByTestId("login")).toBeVisible();
+
+  // The front door is not an error. This used to redirect to
+  // `?error=unauthorized` and render a Correction, so the first thing anyone
+  // following an invite link saw was an alert — and a screen reader announced a
+  // failure — for merely opening the site.
+  await expect(page).not.toHaveURL(/error=/);
+  await expect(page.getByTestId("login-error")).toHaveCount(0);
+  await expect(page.getByTestId("login-note")).toHaveCount(0);
+  // Scoped to our own surface: `next dev` puts its overlay indicator in the
+  // page with role="alert", so a page-wide count would be asserting on Next's
+  // dev furniture rather than on anything this app renders.
+  await expect(page.getByTestId("login").getByRole("alert")).toHaveCount(0);
+});
+
+test("a deep link explains itself, but not as a failure", async ({ page }) => {
+  // Somebody who asked for a specific league IS owed a reason for landing on
+  // the login page. It just is not a correction.
+  await page.goto("/leagues/whatever");
+  await expect(page).toHaveURL(/\/login\?error=unauthorized/);
+  await expect(page.getByTestId("login-note")).toBeVisible();
+  await expect(page.getByTestId("login-error")).toHaveCount(0);
+  await expect(page.getByTestId("login").getByRole("alert")).toHaveCount(0);
+});
+
+test("a real failure still speaks in the board's correction voice", async ({
+  page,
+}) => {
+  await page.goto("/login?error=google_denied");
+  const correction = page.getByTestId("login-error");
+  await expect(correction).toBeVisible();
+  await expect(correction).toHaveAttribute("role", "alert");
 });
 
 test("the login page offers Google and nothing else", async ({ page }) => {

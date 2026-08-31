@@ -30,7 +30,18 @@ export default function proxy(request: NextRequest): NextResponse {
 
   if (!request.cookies.has(SESSION_COOKIE)) {
     const url = new URL("/login", request.url);
-    url.searchParams.set("error", "unauthorized");
+    // Opening the site is not an error, so the front door gets no message.
+    //
+    // This used to flag every cookieless request, which meant the first thing
+    // anyone following an invite link saw was an alert telling them something
+    // had gone wrong. Nothing had; they simply had not signed in yet.
+    //
+    // A deep link is different — somebody who asked for `/leagues/abc` and
+    // landed on the login page is owed an explanation of why — so that case
+    // still says so, just not in the board's error voice. See ./app/login.
+    if (pathname !== "/") {
+      url.searchParams.set("error", "unauthorized");
+    }
     return NextResponse.redirect(url);
   }
 
