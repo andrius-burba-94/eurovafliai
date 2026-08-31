@@ -169,6 +169,21 @@ try {
     draftPosition?.required === false && draftPosition?.onlyInt === true,
     "draft_position is an optional integer (PocketBase 0-value quirk)",
   );
+  const isReady = byName.league_members.fields.find((f) => f.name === "is_ready");
+  check(
+    isReady?.type === "bool" && isReady?.required !== true,
+    // `required: true` on a bool is a truthy test, so it would reject `false` —
+    // the very value that means "not ready yet".
+    "is_ready is an optional bool (a required bool cannot be false)",
+  );
+  // The read rule that fixed issue #15. Asserted as a shape, not just by
+  // behaviour, so a later migration that quietly reverts it is caught here and
+  // not by somebody noticing "Unknown member" in a lobby again.
+  check(
+    byName.users.listRule?.includes("league_members_via_user") === true &&
+      byName.users.listRule === byName.users.viewRule,
+    "users read rules admit league co-members (list and view agree)",
+  );
 
   // --- unique indexes are the physical backstop -----------------------------
   const alice = await makeUser("alice");
@@ -245,6 +260,60 @@ try {
   check(
     (await listCount(bobClient, "league_members")) === 2,
     "a member of one league cannot see another league's members",
+  );
+
+  // --- users: co-members have names, strangers do not (issue #15) -----------
+  //
+  // A membership row you can read is worth nothing if you cannot read who it
+  // belongs to. Before 1788181100 the `users` collection was still self-only,
+  // so `expand: "user"` came back empty and every other member in the lobby
+  // rendered as "Unknown member".
+  const carolClient = await asUser(carol.id);
+
+  const aliceSeesUsers = await aliceClient
+    .collection("users")
+    .getFullList({ requestKey: null });
+  check(
+    aliceSeesUsers.length === 2 &&
+      aliceSeesUsers.every((u) => u.id === alice.id || u.id === bob.id),
+    "a member sees exactly themselves and their league co-members",
+  );
+
+  const bobAsSeenByAlice = aliceSeesUsers.find((u) => u.id === bob.id);
+  check(
+    bobAsSeenByAlice?.name === "bob",
+    "a co-member's name is readable (this is what fixes 'Unknown member')",
+  );
+  // PocketBase withholds `email` from everyone but the record's owner and
+  // superusers unless `emailVisibility` is set. Widening the READ rule must not
+  // quietly have widened that too: a co-member's Google address is a bigger
+  // disclosure than their display name, and nothing in the app needs it.
+  check(
+    !bobAsSeenByAlice?.email,
+    "a co-member's email stays hidden (emailVisibility, not the read rule)",
+  );
+
+  check(
+    await rejects(() =>
+      aliceClient.collection("users").getOne(carol.id, { requestKey: null }),
+    ),
+    "a stranger's user record is not readable",
+  );
+
+  // The multi-hop case worth being paranoid about. Put bob in Carol's league as
+  // well: bob now shares a league with each of them, but Alice and Carol still
+  // share none. If the rule's hops were not bound to a single league, Alice
+  // would inherit Carol through bob.
+  await makeMember(other.id, bob.id, "Bob Abroad");
+  check(
+    await rejects(() =>
+      aliceClient.collection("users").getOne(carol.id, { requestKey: null }),
+    ),
+    "sharing a league with someone does not extend to THEIR other leagues",
+  );
+  check(
+    (await listCount(carolClient, "leagues")) === 1,
+    "and the same holds in the other direction, for leagues",
   );
 
   // Sign-up is closed in practice, not just on paper. Both of these run in the
