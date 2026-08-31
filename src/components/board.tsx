@@ -140,7 +140,7 @@ export function Slots({
 /** The name written on a card, in marker caps. */
 export function CardName({ children }: { children: ReactNode }) {
   return (
-    <span className="text-base font-semibold uppercase tracking-[0.06em] sm:text-[1.0625rem]">
+    <span className="text-base font-semibold uppercase tracking-[0.06em]">
       {children}
     </span>
   );

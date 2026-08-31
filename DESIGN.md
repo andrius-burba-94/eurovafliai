@@ -314,7 +314,7 @@ jitter and a draft has a clock on it.
   invite code, and only the invite code. Tracking this wide exists so six
   characters can be read aloud across a room without being mis-heard.
 - **Wordmark** (600, 1rem, caps, 0.16em): "Eurovafliai" in the top rail.
-- **Card name** (600, 1rem → 1.0625rem at `sm`, caps, 0.06em): the name written
+- **Card name** (600, 1rem, caps, 0.06em): the name written
   on a card — a member, a team, later a player. Rendered by `CardName`.
 - **Body** (400, 1rem/1.5rem): sentences. `body-small` (400, 0.875rem/1.25rem)
   for the line under a heading, an empty-state sentence, a correction's text.
@@ -505,7 +505,7 @@ stops is not a board.
 
 ### Card name — `CardName`
 
-The name written on a card: 600 caps at 0.06em, 1rem → 1.0625rem at `sm`. Use it
+The name written on a card: 600 caps at 0.06em, 1rem at every size. Use it
 for the thing that occupies a slot, never for a label about the thing.
 
 ### Position patch — `PositionPatch`
@@ -691,6 +691,9 @@ unresolved, not omissions from this document.
    asserts the patch *text* colours. The 55% borders, 10% washes and the
    35/60/80% button borders are eyeballed against stock; if a token moves, only
    the text assertions will catch it.
-8. **A few type values are one-offs, not tokens.** `sm:text-[1.0625rem]` on a
-   card name, `tracking-[0.32em]` on the code input, `tracking-[0.36em]` on the
-   displayed code. If a fourth surface needs them, promote them to `@theme`.
+8. **Two tracking values are one-offs, not tokens.** `tracking-[0.32em]` on the
+   code input and `tracking-[0.36em]` on the displayed code. Both are display
+   treatments of the same six characters and want to stay in sync; if a third
+   place needs them, promote them to `@theme`. (A third one-off, a 1.0625rem
+   card-name step, was removed rather than promoted: at 6% it was never a step,
+   and weight plus caps already separate a card name from body text.)
