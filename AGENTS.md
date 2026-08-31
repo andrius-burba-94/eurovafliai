@@ -32,6 +32,8 @@ scripts/          pb-download.sh (+ deploy tooling from Phase 1.5)
 tests/e2e/        Playwright. Excluded from Vitest on purpose.
 docs/STATUS.md    what is done, what is next — update it in the same PR
 docs/adr/         architecture decision records
+docs/research/    findings verified against the real thing, with the date
+docs/runbooks/    one-time operational procedures (VPS setup)
 .claude/skills/   project skills: pocketbase-patterns, draft-engine-invariants, vps-deploy
 ```
 

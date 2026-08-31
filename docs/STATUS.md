@@ -15,8 +15,9 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.3** — draft setup and order determination. The engine
-library (2.2) has landed; 2.3 is what decides the order it consumes.
+**Next up:** slice **2.1** — roster ingestion, now that the Euroleague API is
+confirmed working for E2026 and the pool can be built from real players. Then
+**2.3**, draft setup and order determination.
 
 Two Phase 1 items are still open and both are listed under Open debt: a human
 two-device confirmation of the lobby, and nightly `pb_data` backups.
@@ -80,9 +81,9 @@ attempted.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
-| 2.1 Roster ingestion — API + CSV, one normalize→diff→apply pipeline | todo | — | Needs a decision on the Euroleague API and an authority switch (`roster_authority`). Not a blocker for 2.2, which is why 2.2 went first |
+| 2.1 Roster ingestion — API + CSV, one normalize→diff→apply pipeline | todo, **unblocked** | — | The Euroleague API is confirmed working for E2026 — 20 clubs, 324 players, positions already exactly G/F/C. **Build both front doors.** Findings, including the three that change the design, are in [research/euroleague-api.md](research/euroleague-api.md) |
 | **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
-| 2.3 Draft setup & order determination — roll / manual / reverse_standings | **next** | — | The engine takes `memberIds` already ordered, so this is the slice that decides that order |
+| 2.3 Draft setup & order determination — roll / manual / reverse_standings | todo | — | The engine takes `memberIds` already ordered, so this is the slice that decides that order |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | todo | — | Where pick-then-advance and the two unique indexes land. The engine already computes the rollback and detects the un-advanced state |
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
 | 2.6 Minimal draft room | todo | — | Correctness before beauty; the flagship UI is Phase 3 |

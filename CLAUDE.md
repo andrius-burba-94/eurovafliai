@@ -84,6 +84,7 @@ Non-negotiables (details in the skills below):
 | The whole plan, phase by phase | `docs/EUROVAFLIAI_BLUEPRINT.md` |
 | Domain vocabulary (use these words) | `CONTEXT.md` |
 | Why the stack / realtime / no-transactions design | `docs/adr/` |
+| External APIs, checked against the real thing | `docs/research/` |
 | Product intent, users, principles | `PRODUCT.md` |
 | Design system: tokens, components, the state language | `DESIGN.md` (+ `.impeccable/design.json`) |
 | Next.js 16 specifics | `AGENTS.md` → `node_modules/next/dist/docs/` |
