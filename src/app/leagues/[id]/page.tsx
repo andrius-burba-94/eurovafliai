@@ -160,11 +160,18 @@ export default async function LobbyPage({
         </Bank>
 
         {/* The board this lobby is filling, at its real width: one column per
-            place in this league, thirteen rounds deep. */}
-        <BoardPlan
-          slots={settings.max_members}
-          caption={`13 rounds × ${settings.max_members} slots`}
-        />
+            place in this league, thirteen rounds deep.
+
+            Desktop only. On a phone it added a third to the scroll of the
+            mobile-first surface to restate the slot run immediately above it —
+            and this page already shows the board's shape in that run. The
+            login page, which has no run to restate, keeps it at every size. */}
+        <div className="hidden sm:block">
+          <BoardPlan
+            slots={settings.max_members}
+            caption={`13 rounds × ${settings.max_members} slots`}
+          />
+        </div>
       </Sheet>
     </>
   );

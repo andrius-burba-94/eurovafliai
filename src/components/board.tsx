@@ -183,10 +183,12 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      {/* A field label sits under a Bank label, so the two must differ — but by
-          tracking and weight, never by contrast. Making this fainter is what
-          put the text that tells somebody what to type at 2.96:1. */}
-      <span className="text-slot font-semibold uppercase tracking-[0.04em] text-ink-soft">
+      {/* A field label sits under a Bank label, so the two must differ — but
+          downward, and never by contrast. Semibold at tight tracking made
+          "LEAGUE NAME" outweigh its own heading "START A LEAGUE"; making it
+          fainter (the first attempt) put it at 2.96:1. So: same ink, lighter
+          weight, tighter tracking than the Bank's 0.14em. */}
+      <span className="text-slot font-normal uppercase tracking-[0.06em] text-ink-soft">
         {label}
       </span>
       {children}

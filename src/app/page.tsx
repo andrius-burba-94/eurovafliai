@@ -57,9 +57,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <button
               type="submit"
               data-testid="logout"
-              className="slot-label transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              className="slot-label whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
             >
-              Sign out &middot; {session.user.name || session.user.email}
+              Sign out
+              {/* The name is the part that has no room on a phone, and breaking
+                  after the middot left it dangling at the end of a line. The
+                  season stays; this goes. */}
+              <span className="hidden sm:inline">
+                {" "}
+                &middot; {session.user.name || session.user.email}
+              </span>
             </button>
           </form>
         }
