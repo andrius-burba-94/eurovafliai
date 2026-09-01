@@ -24,6 +24,17 @@ is visible to everyone else on their next load. Both land in 2.5 and 3.2.
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
 
+**Testing a draft on your own.** A league will not roll an order, reshuffle it
+or start a draft with fewer than **two members**. That is a product rule rather
+than a technical limit — the engine's `rollOrder` is happy with one — and it
+means a single developer cannot reach any of it. So:
+`npm run seed:members -- <invite-code> 3` adds stand-in members to a league, and
+`-- <invite-code> --undo` takes them away again. They are real users and real
+memberships rather than a special case inside the app, so the roll, the board
+and 2.5's autodraft see exactly what they will see on draft night — and you can
+sign in as one in a private window to watch from another member's side. The
+script refuses any PocketBase that is not local.
+
 Two Phase 1 items are still open and both are listed under Open debt: a human
 two-device confirmation of the lobby, and nightly `pb_data` backups.
 
@@ -81,8 +92,10 @@ anything.
 
 **In progress.** DoD — *"a full 13-round mock draft on phone + PC with one member
 on autodraft, a mid-draft rollback, and the engine suite covering every format ×
-edge case"* — needs the pick pipeline and a draft room before it can be
-attempted.
+edge case"*. Most of it is now reachable: the engine suite is done, and 2.4
+shipped the pick pipeline, the room and rollback. What is missing is
+**autodraft**, which needs 2.5's worker — so the mock draft itself is the thing
+to run once 2.5 lands, and running it is what closes this phase.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
@@ -122,6 +135,8 @@ touch should be fixed by that slice rather than deferred again.
 | **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
+| **The draft room does not update on its own** | Everything about the draft is server-authoritative and correct, but the room is rendered per request: a pick reaches the rest of the league on their *next load*, not as it happens. The lobby already subscribes over SSE with the viewer's token (1.3b) and the room is meant to copy that shape — blueprint 3.2. Until it does, the product's central promise, everyone watching one board move at once, is not yet true | Phase 3's draft-day experience |
+| **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 Closed since the last update:
@@ -145,20 +160,19 @@ Last full local run, on slice 2.4: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **318 passed** — 173 the engine, 55 the ingestion pipeline |
+| `npm run test` | **318 passed** — 173 the engine, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 config and helpers |
 | `npm run build` | pass |
 | `npm run test:e2e` | 108 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
+| `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
 
 > Running E2E from a git worktree? Pass `E2E_PORT` — Playwright's
 > `reuseExistingServer` will otherwise reuse a dev server from a *different*
 > checkout and silently test that working copy's code.
 
-| `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
-
-A full `migrate down` of all **ten** migrations followed by a re-apply reproduces
-a byte-identical schema dump — checked locally as well as in CI.
+A full `migrate down` of all **thirteen** migrations followed by a re-apply
+reproduces a byte-identical schema dump — checked locally as well as in CI.
 
 Verified by hand against a throwaway database during 2.1a, because these are the
 claims the pipeline's safety rests on: two players with no `person_code` are both
@@ -178,7 +192,8 @@ sync, a player the feed no longer lists is marked `left` rather than deleted, an
 | `/pb/api/health` through the proxy | healthy |
 | `/pb/_/` (admin UI) | 403, as intended |
 | **SSE through the proxy** | `PB_CONNECT` in **0.1s**, unbuffered |
-| `npm run pb:verify` against the production database | **55 checks pass** |
+| `npm run pb:verify` against the production database | **74 checks pass**, re-run on the box at `af1314a` — so the `drafts` and `picks` rules and indexes are known to hold in production, not only locally |
+| `npm run pb:verify:oauth2` against production | passes — first-time Google sign-up still works with public sign-up closed |
 | The production player pool | **324 players, 20 clubs**, ingested on the box. Re-running the sync there is a confirmed no-op, so it is safe to re-run before draft night |
 
 Ingestion stays **on demand** rather than part of `deploy.sh`: ingesting and
@@ -188,7 +203,10 @@ requests). Re-sync on the box with:
 ```bash
 ssh hstgr 'cd /var/www/eurovafliai && export PATH=/root/.local/share/fnm/aliases/default/bin:$PATH && npm run rosters:sync'
 ```
-| Sibling apps after our install | all 8 PM2 apps and 4 PocketBase units still up |
+
+The box's other tenants are unaffected: **10 PM2 apps online** — the eight that
+were already there, plus this app and its worker — and all four PocketBase units
+still up.
 
 CI is green on `main`. The `main` ruleset enforces linear history, squash-only
 merges, no force-push, no deletion, and no bypass actors. Both `verify` and

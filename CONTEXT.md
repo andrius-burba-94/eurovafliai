@@ -23,7 +23,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **3RR** | Third-round reversal — snake, but round 3 repeats round 2's direction. | `snake3rr` |
 | **autodraft** | The engine picking for an absent or timed-out member. | `picks.is_auto`, `selectAutoPick()` |
 | **rollback** | Undoing the draft back to a chosen pick number; later picks are deleted and the draft re-pointed. | `computeRollback()` |
-| **commissioner mode** | The commissioner entering picks made offline. | manual pick entry (Phase 3.6) |
+| **commissioner mode** | The commissioner entering picks made offline, or for a member whose phone has died. | Live since 2.4: the room shows a manager a "Pick for them" button for whoever is on the clock. The fuller offline-entry flow is Phase 3.6 |
 | **draft trade offer** | One offer per member per draft, announced in chat before the offerer's next pick. | `draft_trade_offers` |
 
 ## League & season
