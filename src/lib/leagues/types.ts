@@ -18,6 +18,7 @@ export type MemberRecord = RecordModel & {
   user: string;
   team_name: string;
   draft_position?: number;
+  can_manage?: boolean;
   autodraft_enabled: boolean;
   is_ready: boolean;
   expand?: {
@@ -45,4 +46,6 @@ export type Member = {
   isReady: boolean;
   /** Slot in the draft order, 1…N. Null until the order is rolled or set. */
   draftPosition: number | null;
+  /** The commissioner granted them the league's management powers. */
+  canManage: boolean;
 };

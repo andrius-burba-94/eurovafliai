@@ -33,6 +33,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **league** | One private competition: a commissioner, its members, its settings. | `leagues` |
 | **commissioner** | The admin of a league. Configures, rolls, pauses, rolls back, approves. | `leagues.commissioner` |
 | **member** | A participant in a league, with a team name and a draft position. | `league_members` |
+| **deputy** | A member the commissioner has granted the league's management powers: draft setup, the order, renaming and removing. Not a separate role, a flag — and never able to appoint another deputy or remove the commissioner. | `league_members.can_manage` |
 | **lobby** | The pre-draft room where members gather, get named, and are marked ready. | Phase 1.3 |
 | **ready** | A member's own signal that they are at their device and can start. Self-declared: nobody, commissioner included, marks anyone else ready. | `league_members.is_ready` |
 | **invite code** | The short string a commissioner shares out of band; entering it is how you join a league. Unique across leagues. | `leagues.invite_code` |

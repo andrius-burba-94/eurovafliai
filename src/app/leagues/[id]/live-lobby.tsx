@@ -16,6 +16,7 @@ import { publicConfig } from "@/lib/config/public";
 import {
   kickMember,
   renameTeam,
+  setMemberPermission,
   setReady,
   type LobbyResult,
 } from "@/lib/leagues/actions";
@@ -76,6 +77,12 @@ export function LiveLobby({
   settings: LeagueSettings;
 }) {
   const [members, setMembers] = useState(initialMembers);
+
+  // A deputy sees the same controls the commissioner does. Read off the live
+  // list so a grant or a revoke reaches them without a reload.
+  const viewerCanManage = members.some(
+    (member) => member.isYou && member.canManage,
+  );
 
   // The roll, arriving one slot at a time for everyone at once. Driven by the
   // stored seed, so it replays on a genuine reshuffle and not on a re-apply.
@@ -184,7 +191,8 @@ export function LiveLobby({
               leagueId={leagueId}
               member={member}
               landed={justArrived && member.isYou}
-              canManage={isCommissioner && inSetup}
+              canManage={(isCommissioner || viewerCanManage) && inSetup}
+              canDelegate={isCommissioner && inSetup}
               positionRevealed={
                 !member.draftPosition || revealed(member.draftPosition)
               }
@@ -214,7 +222,7 @@ export function LiveLobby({
 
       {/* Slice 2.3a. Only the commissioner sees it, and `updateDraftSettings`
           checks that again server-side rather than trusting this render. */}
-      {isCommissioner && inSetup ? (
+      {(isCommissioner || viewerCanManage) && inSetup ? (
         <DraftSetup leagueId={leagueId} settings={settings} members={members} />
       ) : null}
     </>
@@ -294,16 +302,22 @@ function MemberSlot({
   member,
   landed,
   canManage,
+  canDelegate,
   positionRevealed,
 }: {
   leagueId: string;
   member: Member;
   landed: boolean;
   canManage: boolean;
+  /** Only the commissioner may hand out management powers. */
+  canDelegate: boolean;
   positionRevealed: boolean;
 }) {
   const labels = [
     member.isCommissioner ? "commissioner" : null,
+    // Shown to everybody, not just the commissioner: who can change the league
+    // is the sort of thing the league should be able to see.
+    !member.isCommissioner && member.canManage ? "helps run it" : null,
     member.isYou ? "you" : null,
     member.isReady ? "ready" : null,
   ].filter(Boolean);
@@ -341,7 +355,11 @@ function MemberSlot({
       </span>
 
       {canManage && !member.isYou ? (
-        <CommissionerControls leagueId={leagueId} member={member} />
+        <CommissionerControls
+          leagueId={leagueId}
+          member={member}
+          canDelegate={canDelegate}
+        />
       ) : null}
     </Slot>
   );
@@ -355,12 +373,45 @@ function MemberSlot({
  * and costs nothing in reach. `<details>` rather than state because it wants no
  * JavaScript to work and is keyboard-navigable by default.
  */
-function CommissionerControls({
+function PermissionToggle({
   leagueId,
   member,
 }: {
   leagueId: string;
   member: Member;
+}) {
+  const [result, action] = useActionState(setMemberPermission, START);
+
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <input type="hidden" name="leagueId" value={leagueId} />
+      <input type="hidden" name="memberId" value={member.id} />
+      <input
+        type="hidden"
+        name="can_manage"
+        value={member.canManage ? "false" : "true"}
+      />
+      <SubmitButton
+        testId="member-permission"
+        pendingLabel={member.canManage ? "Removing…" : "Granting…"}
+      >
+        {member.canManage ? "Stop them helping run it" : "Let them help run it"}
+      </SubmitButton>
+      {result.error ? (
+        <Correction testId="member-permission-error">{result.error}</Correction>
+      ) : null}
+    </form>
+  );
+}
+
+function CommissionerControls({
+  leagueId,
+  member,
+  canDelegate,
+}: {
+  leagueId: string;
+  member: Member;
+  canDelegate: boolean;
 }) {
   const [rename, renameAction] = useActionState(renameTeam, START);
   const [kick, kickAction] = useActionState(kickMember, START);
@@ -404,6 +455,12 @@ function CommissionerControls({
             Remove from league
           </SubmitButton>
         </form>
+
+        {/* Handing over the keys is the commissioner's alone: a deputy who could
+            appoint deputies could hand the league to anyone. */}
+        {canDelegate ? (
+          <PermissionToggle leagueId={leagueId} member={member} />
+        ) : null}
 
         {rename.error ? <Correction>{rename.error}</Correction> : null}
         {kick.error ? <Correction>{kick.error}</Correction> : null}

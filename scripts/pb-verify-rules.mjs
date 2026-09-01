@@ -164,6 +164,14 @@ try {
     ),
     "unique index on league_members(league, user)",
   );
+  const canManage = byName.league_members.fields.find(
+    (f) => f.name === "can_manage",
+  );
+  check(
+    canManage?.type === "bool" && canManage?.required === false,
+    "can_manage is an optional bool (required:true would reject `false`)",
+  );
+
   const draftPosition = byName.league_members.fields.find(
     (f) => f.name === "draft_position",
   );

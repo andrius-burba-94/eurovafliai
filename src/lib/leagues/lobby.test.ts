@@ -5,6 +5,7 @@ import {
   canKickMember,
   canMarkReady,
   canRenameTeam,
+  isManager,
   normalizeTeamName,
   validateTeamName,
 } from "./lobby";
@@ -75,9 +76,9 @@ describe("canRenameTeam", () => {
   });
 
   it("lets the commissioner rename anyone's team", () => {
-    expect(
-      canRenameTeam({ ...boss, targetUserId: "u_someone_else" }),
-    ).toEqual({ ok: true });
+    expect(canRenameTeam({ ...boss, targetUserId: "u_someone_else" })).toEqual({
+      ok: true,
+    });
   });
 
   it("refuses a member renaming someone else's team", () => {
@@ -105,7 +106,9 @@ describe("canKickMember", () => {
   });
 
   it("refuses a member kicking anyone", () => {
-    expect(canKickMember({ ...member, targetUserId: "u_other" }).ok).toBe(false);
+    expect(canKickMember({ ...member, targetUserId: "u_other" }).ok).toBe(
+      false,
+    );
   });
 
   it("refuses a member kicking the commissioner", () => {
@@ -149,6 +152,61 @@ describe("canMarkReady", () => {
   });
 
   it("refuses outside setup", () => {
-    expect(canMarkReady({ ...member, leagueStatus: "drafting" }).ok).toBe(false);
+    expect(canMarkReady({ ...member, leagueStatus: "drafting" }).ok).toBe(
+      false,
+    );
+  });
+});
+
+describe("deputies — the commissioner's delegated powers", () => {
+  const base = {
+    actorUserId: "u1",
+    targetUserId: "u2",
+    actorIsCommissioner: false,
+    leagueStatus: "setup",
+  };
+
+  it("treats a granted member as a manager, and everyone else as not", () => {
+    expect(isManager({ ...base, actorCanManage: true })).toBe(true);
+    expect(isManager({ ...base })).toBe(false);
+    // The commissioner's authority is derived, never stored — so it holds even
+    // with no can_manage flag anywhere.
+    expect(isManager({ ...base, actorIsCommissioner: true })).toBe(true);
+  });
+
+  it("lets a deputy rename another member's team", () => {
+    expect(canRenameTeam({ ...base, actorCanManage: true }).ok).toBe(true);
+    expect(canRenameTeam(base).ok).toBe(false);
+  });
+
+  it("lets a deputy remove a member", () => {
+    expect(canKickMember({ ...base, actorCanManage: true }).ok).toBe(true);
+  });
+
+  it("does not let a deputy remove the commissioner who appointed them", () => {
+    const verdict = canKickMember({
+      ...base,
+      actorCanManage: true,
+      targetIsCommissioner: true,
+    });
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok)
+      expect(verdict.reason).toMatch(/commissioner cannot be removed/i);
+  });
+
+  it("still refuses a deputy marking somebody else ready", () => {
+    // Readiness is an attestation that you are at your phone. Delegating league
+    // management does not delegate being present.
+    expect(canMarkReady({ ...base, actorCanManage: true }).ok).toBe(false);
+  });
+
+  it("gives a deputy no powers once the draft has started", () => {
+    const drafting = {
+      ...base,
+      actorCanManage: true,
+      leagueStatus: "drafting",
+    };
+    expect(canRenameTeam(drafting).ok).toBe(false);
+    expect(canKickMember(drafting).ok).toBe(false);
   });
 });

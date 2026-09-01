@@ -7,6 +7,8 @@ import { getSuperuserClient } from "@/lib/pb/superuser";
 
 import { requireSession } from "@/lib/auth/session";
 
+import { isManager } from "./lobby";
+
 import {
   DRAFT_FORMATS,
   MAX_PICK_SECONDS,
@@ -35,7 +37,8 @@ import type { LeagueRecord, MemberRecord } from "./types";
 export type SetupResult = { error: string | null };
 const OK: SetupResult = { error: null };
 const NOT_YOURS: SetupResult = {
-  error: "Only the commissioner can change the draft setup.",
+  error:
+    "Only the commissioner, or someone they trust with it, can change the draft setup.",
 };
 
 /**
@@ -62,7 +65,28 @@ async function loadSetupContext(formData: FormData) {
     return null;
   }
 
-  if (league.commissioner !== session.user.id) return null;
+  // The commissioner, or a member they granted the league's management powers.
+  // Same rule as the lobby's controls, from the same predicate.
+  const actorIsCommissioner = league.commissioner === session.user.id;
+  if (!actorIsCommissioner) {
+    const own = await pb
+      .collection("league_members")
+      .getFullList<MemberRecord>({
+        filter: `league = '${leagueId}' && user = '${session.user.id}'`,
+        requestKey: null,
+      });
+    if (
+      !isManager({
+        actorUserId: session.user.id,
+        targetUserId: session.user.id,
+        actorIsCommissioner: false,
+        actorCanManage: Boolean(own[0]?.can_manage),
+        leagueStatus: league.status,
+      })
+    ) {
+      return null;
+    }
+  }
 
   const members = await pb
     .collection("league_members")
