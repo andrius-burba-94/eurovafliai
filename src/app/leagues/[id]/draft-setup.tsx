@@ -11,6 +11,7 @@ import {
   inputStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
+import { startDraft, type DraftResult } from "@/lib/drafts/actions";
 import {
   reshuffleDraftOrder,
   rollDraftOrder,
@@ -39,6 +40,7 @@ import type { Member } from "@/lib/leagues/types";
  */
 
 const START: SetupResult = { error: null };
+const DRAFT_START: DraftResult = { error: null };
 
 const FORMAT_LABELS: Record<(typeof DRAFT_FORMATS)[number], string> = {
   linear: "Linear — same order every round",
@@ -62,6 +64,7 @@ export function DraftSetup({
     reshuffleDraftOrder,
     START,
   );
+  const [started, startAction] = useActionState(startDraft, DRAFT_START);
 
   const positioned = members.filter((member) => member.draftPosition).length;
   const inOrder = [...members].sort(
@@ -208,6 +211,27 @@ export function DraftSetup({
             </SubmitButton>
           </form>
         </div>
+
+        {/* Once everyone has a slot there is nothing left to decide, so the
+            draft can start. The action re-checks the order server-side — this
+            button appearing is not what makes it legal. */}
+        {positioned === members.length && members.length >= 2 ? (
+          <form action={startAction} className="flex flex-col gap-3">
+            <input type="hidden" name="leagueId" value={leagueId} />
+            {started.error ? (
+              <Correction testId="start-draft-error">
+                {started.error}
+              </Correction>
+            ) : null}
+            <SubmitButton
+              testId="start-draft"
+              tone="live"
+              pendingLabel="Opening the room…"
+            >
+              Start the draft
+            </SubmitButton>
+          </form>
+        ) : null}
 
         {/* Reshuffling is the one action here that takes something away: it
             throws out an order the room may already have seen. So it is folded

@@ -282,6 +282,45 @@ export async function createPlayer(
 export async function cleanupTestData(): Promise<void> {
   const pb = await superuser();
 
+  // Order matters, and PocketBase enforces it. `picks.player` and
+  // `picks.member` are required relations with `cascadeDelete: false` — a
+  // membership vanishing mid-draft must not tear a hole in the board — so
+  // PocketBase refuses to delete any player or member a pick still points at,
+  // and the `.catch(() => {})` below would hide the refusal.
+  //
+  // So: picks, then drafts, then everything else.
+  //
+  // Picks are found through their player's club rather than through this
+  // process's own bookkeeping, because a run that aborted half way leaves
+  // picks whose league this process never recorded — and those are exactly the
+  // ones that would pin a stray player in the app-global pool forever.
+  const stalePicks = await pb
+    .collection("picks")
+    .getFullList({
+      filter: `player.club_code = '${TEST_CLUB}'`,
+      requestKey: null,
+    })
+    .catch(() => []);
+  for (const pick of stalePicks) {
+    await pb
+      .collection("picks")
+      .delete(pick.id, { requestKey: null })
+      .catch(() => {});
+  }
+
+  for (const id of created.leagues) {
+    const drafts = await pb
+      .collection("drafts")
+      .getFullList({ filter: `league = '${id}'`, requestKey: null })
+      .catch(() => []);
+    for (const draft of drafts) {
+      await pb
+        .collection("drafts")
+        .delete(draft.id, { requestKey: null })
+        .catch(() => {});
+    }
+  }
+
   // Every player in the test club goes, not just the ones `createPlayer`
   // tracked. A CSV import creates players this helper never saw, and they
   // linger into the next run — which is how a spec ended up asserting against

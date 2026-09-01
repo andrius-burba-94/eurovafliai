@@ -35,7 +35,14 @@ const check = (condition, message) => {
 };
 
 const stamp = Date.now();
-const created = { users: [], leagues: [], members: [], players: [] };
+const created = {
+  users: [],
+  leagues: [],
+  members: [],
+  players: [],
+  drafts: [],
+  picks: [],
+};
 
 const su = new PocketBase(url);
 await su
@@ -523,8 +530,165 @@ try {
     ),
     "a signed-in member cannot flip the roster authority",
   );
+
+  // --- the draft and its picks (slice 2.4) ----------------------------------
+  check(!!byName.drafts, "drafts collection exists");
+  check(!!byName.picks, "picks collection exists");
+
+  for (const name of ["drafts", "picks"]) {
+    check(
+      byName[name].createRule === null &&
+        byName[name].updateRule === null &&
+        byName[name].deleteRule === null,
+      `${name} writes are superuser-only — every state change is a server action`,
+    );
+    check(
+      byName[name].listRule?.includes("league_members:mine") === true,
+      `${name} is readable only by members of its own league`,
+    );
+  }
+
+  check(
+    byName.drafts.indexes.some((i) =>
+      /UNIQUE.*`league`.*WHERE.*status.*!=.*complete/.test(i),
+    ),
+    "one unfinished draft per league, enforced by a partial unique index",
+  );
+  check(
+    byName.picks.indexes.some((i) => /UNIQUE.*`draft`.*`overall_no`/.test(i)),
+    "unique index on picks(draft, overall_no) — two clients cannot fill one slot",
+  );
+  check(
+    byName.picks.indexes.some((i) => /UNIQUE.*`draft`.*`player`/.test(i)),
+    "unique index on picks(draft, player) — one player cannot go twice",
+  );
+
+  // The indexes, exercised rather than read. This is the layer that has to hold
+  // when two phones submit inside the same millisecond and the validation both
+  // of them passed is already out of date.
+  const aliceMember = (
+    await su.collection("league_members").getFullList({
+      filter: `league = '${league.id}' && user = '${alice.id}'`,
+      requestKey: null,
+    })
+  )[0];
+  const playerOne = await makePlayer({ name_normalized: `draft one ${stamp}` });
+  const playerTwo = await makePlayer({ name_normalized: `draft two ${stamp}` });
+
+  const draftFor = (league, over = {}) => ({
+    league,
+    format: "snake",
+    status: "live",
+    order: [aliceMember.id],
+    rounds: 13,
+    current_pick: 1,
+    seed: `verify-${stamp}`,
+    ...over,
+  });
+
+  const liveDraft = await su
+    .collection("drafts")
+    .create(draftFor(league.id), { requestKey: null });
+  created.drafts.push(liveDraft.id);
+
+  check(
+    await rejects(() =>
+      su.collection("drafts").create(draftFor(league.id), { requestKey: null }),
+    ),
+    "a second unfinished draft for the same league is refused",
+  );
+
+  const oldDraft = await su
+    .collection("drafts")
+    .create(draftFor(other.id, { status: "complete" }), {
+      requestKey: null,
+    });
+  created.drafts.push(oldDraft.id);
+  const newDraft = await su
+    .collection("drafts")
+    .create(draftFor(other.id), { requestKey: null });
+  created.drafts.push(newDraft.id);
+  check(
+    !!newDraft.id,
+    "a finished draft does not block the next one — the index is partial",
+  );
+
+  const pickOf = (over) => ({
+    draft: liveDraft.id,
+    overall_no: 1,
+    round: 1,
+    slot: 1,
+    member: aliceMember.id,
+    player: playerOne.id,
+    is_auto: false,
+    ...over,
+  });
+
+  const firstPick = await su
+    .collection("picks")
+    .create(pickOf({}), { requestKey: null });
+  created.picks.push(firstPick.id);
+
+  check(
+    await rejects(() =>
+      su
+        .collection("picks")
+        .create(pickOf({ player: playerTwo.id }), { requestKey: null }),
+    ),
+    "a second pick at the same overall number is refused",
+  );
+  check(
+    await rejects(() =>
+      su.collection("picks").create(pickOf({ overall_no: 2, slot: 2 }), {
+        requestKey: null,
+      }),
+    ),
+    "the same player cannot be drafted twice in one draft",
+  );
+
+  const secondPick = await su
+    .collection("picks")
+    .create(pickOf({ overall_no: 2, slot: 2, player: playerTwo.id }), {
+      requestKey: null,
+    });
+  created.picks.push(secondPick.id);
+  check(
+    secondPick.is_auto === false,
+    "is_auto stores false — the bool is not `required`, or PB would reject it",
+  );
+
+  check(
+    (await listCount(aliceClient, "picks")) === 2,
+    "a member reads the picks of their own draft with their own token",
+  );
+  check(
+    (await listCount(aliceClient, "drafts")) === 1,
+    "a member sees their own league's draft and no other",
+  );
+
+  // Carol is in a different league entirely. She has drafts of her own, which
+  // is what makes this a real test of the join rather than of emptiness.
+  check(
+    (await listCount(carolClient, "drafts")) === 2,
+    "an outsider sees their own league's drafts",
+  );
+  check(
+    (await listCount(carolClient, "picks")) === 0,
+    "an outsider cannot read another league's board",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.picks)
+    await su
+      .collection("picks")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
+  for (const id of created.drafts)
+    await su
+      .collection("drafts")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.players)
     await su
       .collection("players")

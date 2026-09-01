@@ -15,9 +15,11 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.4** — the pick pipeline: the `drafts` and `picks`
-migrations, `makePick`, pause/resume and rollback. That is the last thing
-between here and a draft that can actually be run.
+**Next up:** slice **2.5** — the worker: pick timers, the deadline the server
+enforces, and autodraft. A draft can now be run end to end by hand — started,
+picked through, paused, and undone. What it cannot yet do is run itself when
+somebody stops answering, and the room does not yet update on its own: a pick
+is visible to everyone else on their next load. Both land in 2.5 and 3.2.
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -89,9 +91,9 @@ attempted.
 | **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
 | 2.3a Draft setup & order determination — settings, the seeded roll, manual order | done | — | No new collection: settings live in `leagues.settings`, positions on `league_members.draft_position` (the field 1.1 created and left "unset until the roll"). `rollOrder` is pure and seeded, so a roll **replays identically** — which is what makes a half-written roll repairable by re-applying rather than re-rolling, and what 2.3b's reveal will replay from. `reverse_standings` is in the vocabulary and refused with its reason: it needs Phase 4's `standings_snapshots` |
 | 2.3b The roll, revealed live — one slot at a time, plus reshuffle | done | — | The order lands last-slot-first for everyone at once, driven by the seed changing rather than by any new state — so it plays on a first roll and on a reshuffle, and never on a reload or a re-apply. Reduced motion gets the finished order immediately, which every other E2E spec covers since the suite forces `reduce`. **Reshuffle** is a separate action behind a tick-box: `Re-apply` must be safe to press twice, changing who picks first must not happen by accident |
-| 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | todo | — | Where pick-then-advance and the two unique indexes land. The engine already computes the rollback and detects the un-advanced state |
+| 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | done | — | A draft can be started, picked through, paused, resumed and undone. Pick-then-advance writes the pick first and advances second, with `repairUnadvanced` running *before* the read on the next pick — so a crash between the two writes costs nothing and the next pick repairs it. Both unique indexes are exercised by `pb:verify`, not merely declared. A commissioner or deputy may enter a pick **for** whoever is on the clock (the button reads "Pick for them"), which is what keeps a draft moving when a phone dies. Every refusal revalidates the room, so a stale tab is corrected by the act of being wrong. Undo discards highest-numbered pick first and re-points the draft last, so a half-run undo leaves a shorter contiguous board rather than a hole, and pressing it again finishes the job; it always lands **paused**. The one piece of 2.4's blueprint text not here is the system **chat message** announcing a rollback — there is no chat until 3.4 |
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
-| 2.6 Minimal draft room | todo | — | Correctness before beauty; the flagship UI is Phase 3 |
+| 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. Correctness before beauty — fuzzy search, tiers and the radar are Phase 3 |
 
 ## Phases 3–8
 
@@ -137,7 +139,7 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.1b: **all green.**
+Last full local run, on slice 2.4: **all green.**
 
 | Check | Result |
 |---|---|
@@ -145,8 +147,8 @@ Last full local run, on slice 2.1b: **all green.**
 | `npm run typecheck` | pass |
 | `npm run test` | **318 passed** — 173 the engine, 55 the ingestion pipeline |
 | `npm run build` | pass |
-| `npm run test:e2e` | 86 passed (chromium + Pixel 7) |
-| `npm run pb:verify` | 55 checks pass |
+| `npm run test:e2e` | 108 passed (chromium + Pixel 7) |
+| `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 
 > Running E2E from a git worktree? Pass `E2E_PORT` — Playwright's
