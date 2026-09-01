@@ -76,6 +76,10 @@ export function toMember(
     // `draft_position` was made optional for in 1788124600. 0 is not a slot, so
     // it reads as "not positioned yet".
     draftPosition: record.draft_position ? record.draft_position : null,
+    // The commissioner's own authority is derived, never stored, so it is
+    // reported here rather than read from a flag that would not be set.
+    canManage:
+      record.user === context.commissionerUserId || Boolean(record.can_manage),
   };
 }
 
@@ -91,9 +95,31 @@ export type LobbyActor = {
   actorUserId: string;
   targetUserId: string;
   actorIsCommissioner: boolean;
+  /**
+   * The commissioner granted this member the league's management powers.
+   * Derived for the commissioner themselves, never stored for them.
+   */
+  actorCanManage?: boolean;
+  /** Whether the member being acted on is the commissioner. */
+  targetIsCommissioner?: boolean;
   /** The league's coarse lifecycle — see CONTEXT.md. */
   leagueStatus: string;
 };
+
+/**
+ * Who may change this league.
+ *
+ * The commissioner, plus anyone they have granted it to. One predicate rather
+ * than an `||` repeated at eight call sites, because the day somebody adds a
+ * ninth and forgets the second half is the day a deputy silently loses a power
+ * — or worse, a member silently gains one.
+ *
+ * Granting and revoking is deliberately NOT in here: only the commissioner does
+ * that, so a deputy cannot appoint themselves company.
+ */
+export function isManager(actor: LobbyActor): boolean {
+  return actor.actorIsCommissioner || actor.actorCanManage === true;
+}
 
 /**
  * Collapse whitespace and trim. Names are read aloud on draft night and shown
@@ -149,7 +175,7 @@ export function canRenameTeam(actor: LobbyActor): Verdict {
   if (!stage.ok) return stage;
 
   if (actor.actorUserId === actor.targetUserId) return { ok: true };
-  if (actor.actorIsCommissioner) return { ok: true };
+  if (isManager(actor)) return { ok: true };
   return { ok: false, reason: "You can only rename your own team." };
 }
 
@@ -165,14 +191,25 @@ export function canKickMember(actor: LobbyActor): Verdict {
   const stage = requireSetup(actor.leagueStatus);
   if (!stage.ok) return stage;
 
-  if (!actor.actorIsCommissioner) {
-    return { ok: false, reason: "Only the commissioner can remove a member." };
+  if (!isManager(actor)) {
+    return {
+      ok: false,
+      reason:
+        "Only the commissioner, or someone they trust with it, can remove a member.",
+    };
   }
   if (actor.actorUserId === actor.targetUserId) {
     return {
       ok: false,
-      reason: "You run this league — you cannot remove yourself from it.",
+      reason: actor.actorIsCommissioner
+        ? "You run this league — you cannot remove yourself from it."
+        : "You cannot remove yourself. Ask the commissioner.",
     };
+  }
+  // A deputy manages the league on the commissioner's behalf, so they cannot
+  // remove the person who appointed them.
+  if (!actor.actorIsCommissioner && actor.targetIsCommissioner) {
+    return { ok: false, reason: "The commissioner cannot be removed." };
   }
   return { ok: true };
 }

@@ -6,7 +6,11 @@ import { z } from "zod";
 
 import { requireSession } from "@/lib/auth/session";
 import { getSuperuserClient } from "@/lib/pb/superuser";
-import { generateInviteCode, isPlausibleInviteCode, normalizeInviteCode } from "./invite-code";
+import {
+  generateInviteCode,
+  isPlausibleInviteCode,
+  normalizeInviteCode,
+} from "./invite-code";
 import {
   canKickMember,
   canMarkReady,
@@ -15,7 +19,11 @@ import {
   type LobbyActor,
 } from "./lobby";
 import { ensureCommissionerMembership } from "./repair";
-import { canAcceptMember, parseLeagueSettings, leagueSettingsSchema } from "./settings";
+import {
+  canAcceptMember,
+  parseLeagueSettings,
+  leagueSettingsSchema,
+} from "./settings";
 import type { LeagueRecord, MemberRecord } from "./types";
 
 /**
@@ -28,7 +36,11 @@ import type { LeagueRecord, MemberRecord } from "./types";
  */
 
 const createLeagueSchema = z.object({
-  name: z.string().trim().min(2, "Give the league a name of at least 2 characters.").max(60),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Give the league a name of at least 2 characters.")
+    .max(60),
   season: z.string().trim().min(4).max(16).default("2026-27"),
 });
 
@@ -47,7 +59,10 @@ export async function createLeague(formData: FormData): Promise<never> {
     season: formData.get("season") || undefined,
   });
   if (!parsed.success) {
-    fail("/", parsed.error.issues[0]?.message ?? "That league name will not do.");
+    fail(
+      "/",
+      parsed.error.issues[0]?.message ?? "That league name will not do.",
+    );
   }
 
   const pb = await getSuperuserClient();
@@ -103,7 +118,9 @@ export async function joinLeague(formData: FormData): Promise<never> {
   const echo = `&code=${encodeURIComponent(raw.slice(0, 32))}`;
 
   if (!isPlausibleInviteCode(code)) {
-    redirect(`/?error=${encodeURIComponent("That is not a valid invite code.")}${echo}`);
+    redirect(
+      `/?error=${encodeURIComponent("That is not a valid invite code.")}${echo}`,
+    );
   }
 
   const pb = await getSuperuserClient();
@@ -120,13 +137,17 @@ export async function joinLeague(formData: FormData): Promise<never> {
         requestKey: null,
       });
   } catch {
-    redirect(`/?error=${encodeURIComponent("No league has that invite code.")}${echo}`);
+    redirect(
+      `/?error=${encodeURIComponent("No league has that invite code.")}${echo}`,
+    );
   }
 
-  const members = await pb.collection("league_members").getFullList<MemberRecord>({
-    filter: `league = '${league.id}'`,
-    requestKey: null,
-  });
+  const members = await pb
+    .collection("league_members")
+    .getFullList<MemberRecord>({
+      filter: `league = '${league.id}'`,
+      requestKey: null,
+    });
 
   // Already in? Joining again is not an error, it is a no-op with a redirect.
   if (members.some((m) => m.user === session.user.id)) {
@@ -215,18 +236,25 @@ async function loadLobbyContext(formData: FormData) {
   if (member.league !== league.id) return null;
 
   const actorIsCommissioner = league.commissioner === session.user.id;
+  let actorCanManage = false;
   if (!actorIsCommissioner) {
-    const own = await pb.collection("league_members").getFullList<MemberRecord>({
-      filter: `league = '${leagueId}' && user = '${session.user.id}'`,
-      requestKey: null,
-    });
+    const own = await pb
+      .collection("league_members")
+      .getFullList<MemberRecord>({
+        filter: `league = '${leagueId}' && user = '${session.user.id}'`,
+        requestKey: null,
+      });
     if (own.length === 0) return null;
+    // A deputy: the commissioner granted them the league's management powers.
+    actorCanManage = Boolean(own[0]?.can_manage);
   }
 
   const actor: LobbyActor = {
     actorUserId: session.user.id,
     targetUserId: member.user,
     actorIsCommissioner,
+    actorCanManage,
+    targetIsCommissioner: member.user === league.commissioner,
     leagueStatus: league.status,
   };
 
@@ -257,7 +285,11 @@ export async function renameTeam(
   try {
     await context.pb
       .collection("league_members")
-      .update(context.member.id, { team_name: name.value }, { requestKey: null });
+      .update(
+        context.member.id,
+        { team_name: name.value },
+        { requestKey: null },
+      );
   } catch {
     return { error: "Could not save that name. Try again.", value: raw };
   }
@@ -314,5 +346,45 @@ export async function kickMember(
   }
 
   revalidatePath(`/leagues/${context.league.id}`);
+  return OK;
+}
+
+/**
+ * Grant or revoke a member's management powers.
+ *
+ * **Commissioner only, and deliberately not delegable.** A deputy who could
+ * appoint deputies is a deputy who can hand the league to anyone, and the
+ * league's rule is that the commissioner decides who helps. `isManager` is not
+ * consulted here for exactly that reason.
+ *
+ * The commissioner's own authority comes from `leagues.commissioner`, so this
+ * refuses to write a flag on their row — two sources of truth for the same
+ * thing is how they end up disagreeing.
+ *
+ * A single write, so there is no torn-write story to tell.
+ */
+export async function setMemberPermission(
+  _previous: LobbyResult,
+  formData: FormData,
+): Promise<LobbyResult> {
+  const context = await loadLobbyContext(formData);
+  if (!context) return NOT_YOURS;
+
+  const { pb, league, member, actor } = context;
+  if (!actor.actorIsCommissioner) {
+    return {
+      error: "Only the commissioner can decide who helps run the league.",
+    };
+  }
+  if (member.user === league.commissioner) {
+    return { error: "You already run this league." };
+  }
+
+  const grant = String(formData.get("can_manage")) === "true";
+  await pb
+    .collection("league_members")
+    .update(member.id, { can_manage: grant }, { requestKey: null });
+
+  revalidatePath(`/leagues/${league.id}`);
   return OK;
 }

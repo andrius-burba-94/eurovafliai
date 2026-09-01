@@ -207,6 +207,23 @@ export async function addMemberTo(
  * whatever `npm run rosters:sync` last ingested would pass or fail depending on
  * whether anyone had run it. This plants its own player and cleans it up.
  */
+/** Grant a member the league's management powers, straight in the database. */
+export async function grantManage(
+  leagueId: string,
+  user: TestUser,
+): Promise<void> {
+  const pb = await superuser();
+  const rows = await pb.collection("league_members").getFullList({
+    filter: `league = '${leagueId}' && user = '${user.id}'`,
+    requestKey: null,
+  });
+  if (rows[0]) {
+    await pb
+      .collection("league_members")
+      .update(rows[0].id, { can_manage: true }, { requestKey: null });
+  }
+}
+
 export async function createPlayer(
   label: string,
   over: Record<string, unknown> = {},

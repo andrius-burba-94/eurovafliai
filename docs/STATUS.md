@@ -15,10 +15,10 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.1b** — the CSV front door and the commissioner's roster
-controls. The permission question is now answered (see Open debt): the
-commissioner owns league and roster changes, and can grant that to specific
-members.
+**Next up:** slice **2.1b** — the CSV front door, the roster authority switch and
+the `manual_lock` toggles. The permission rule they need now exists: the
+commissioner owns league changes and may grant them to members (**deputies**,
+`league_members.can_manage`).
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -119,7 +119,7 @@ touch should be fixed by that slice rather than deferred again.
 | [#16](https://github.com/andrius-burba-94/eurovafliai/issues/16) | `createLeague` and `joinLeague` put finished prose in the query string and render it into a `role="alert"` — attacker-controllable text. The 1.3b lobby actions do **not** do this: they return their errors through `useActionState`, so the fix is a change to two older actions, not a new pattern to invent | Nothing; correctness debt in the leagues slice |
 | **Local PocketBase drifts from `main`** | A dev database only applies migrations on boot, so a checkout that has been running across a schema change silently tests the old shape. It cost a confusing run of lobby-spec failures. `npm run dev` after pulling is the whole fix; the symptom is `pb:verify` disagreeing with CI | Nothing; a time sink |
 | **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
-| **No app-global admin role** | Rosters are one canonical table shared by every league, but the only role the app knows is per-league commissioner. So slice 2.1a's ingestion is a *script* holding superuser credentials, which sidesteps the question entirely. 2.1b cannot: a CSV upload, an authority flip and a `manual_lock` toggle are all web actions that need an answer to "who may do this" | Slice 2.1b |
+| **Roster controls still have no web door** | The permission question is **answered**: the commissioner owns league changes and may grant them to members (`can_manage`, shipped). What is not built is the CSV upload, the authority flip and the `manual_lock` toggles that use it — those are 2.1b, and the rule they will apply is now in place | Slice 2.1b |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 Closed since the last update:
@@ -137,15 +137,15 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.3b: **all green.**
+Last full local run, on the permissions slice: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **298 passed** — 173 the engine, 41 the ingestion pipeline |
+| `npm run test` | **304 passed** — 173 the engine, 41 the ingestion pipeline |
 | `npm run build` | pass |
-| `npm run test:e2e` | 72 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 78 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 55 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 
