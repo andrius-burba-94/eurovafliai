@@ -3,6 +3,8 @@ import "server-only";
 import { createUserClient } from "@/lib/pb/server";
 import { getSession } from "@/lib/auth/session";
 import { memberListQuery, toMember } from "./lobby";
+import { reconcileLeagueStatus } from "@/lib/drafts/repair";
+
 import { ensureCommissionerMembership } from "./repair";
 import { parseLeagueSettings } from "./settings";
 import type { LeagueRecord, LeagueWithMembers, MemberRecord } from "./types";
@@ -66,6 +68,11 @@ export async function getLeagueWithMembers(
   if (league.commissioner === session.user.id) {
     await ensureCommissionerMembership(leagueId);
   }
+
+  // The other lost-second-write on this page: a draft that finished (or was
+  // undone) without the league's own status following it. Same rule — repair
+  // before the read, never after.
+  await reconcileLeagueStatus(leagueId, league.status);
 
   const members = await pb
     .collection("league_members")

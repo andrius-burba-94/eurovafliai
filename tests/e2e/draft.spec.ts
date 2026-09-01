@@ -73,7 +73,10 @@ test("the member on the clock picks, and the draft advances", async ({
 
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   const onClock = page.getByTestId("on-the-clock");
-  const before = await onClock.innerText();
+  // textContent, not innerText: `toHaveText` compares textContent, and these
+  // headings are CSS-uppercased — so an innerText baseline could never match
+  // and the "it moved on" assertion below would pass even if it had not.
+  const before = await onClock.textContent();
 
   // Whoever is on the clock picks; if it is not this viewer, the commissioner
   // may pick on their behalf, which is the manual-entry path 3.6 formalises.
@@ -82,7 +85,9 @@ test("the member on the clock picks, and the draft advances", async ({
   await expect(page.getByTestId("pick-list")).toContainText(players[0]!.name);
   await expect(page.getByTestId("board-pick")).toHaveCount(1);
   // The slot moved on.
-  await expect(onClock).not.toHaveText(before);
+  await expect(onClock).not.toHaveText(before ?? "");
+  await expect(onClock).toContainText("round 1");
+  await expect(onClock).toContainText("Pick 2");
 });
 
 test("a stale tab cannot draft a player who is already gone", async ({
@@ -325,4 +330,67 @@ test("an ordinary member gets no draft controls at all", async ({
   await expect(theirs.getByTestId("draft-pause")).toHaveCount(0);
   await expect(theirs.getByTestId("draft-undo-toggle")).toHaveCount(0);
   await member.close();
+});
+
+test("undoing pauses the draft before it deletes anything", async ({
+  page,
+  context,
+}) => {
+  // Not cosmetic. If the draft is still live while picks are being deleted, a
+  // pick submitted mid-loop lands above the target, survives the delete, and
+  // leaves a slot nothing can ever fill — the draft can then never complete.
+  // Observable from outside as: the pause is in place by the time the undo
+  // has finished, and a submission afterwards is refused.
+  const { commissioner, league, players } = await readyLeague("Order League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+
+  // A second tab, still live, rendered before the undo.
+  const other = await context.newPage();
+  await other.goto(`/leagues/${league.id}/draft`);
+  await other.getByTestId("pool-search").fill(TEST_CLUB);
+  await expect(other.getByTestId(`pick-${players[1]!.id}`)).toBeVisible();
+
+  await page.getByTestId("draft-undo-toggle").click();
+  await page.getByTestId("draft-undo-target").fill("1");
+  await page.getByTestId("draft-undo").click();
+  await expect(page.getByTestId("board-pick")).toHaveCount(0);
+
+  // The stale tab's pick has to be refused, not accepted into a paused draft.
+  await other.getByTestId(`pick-${players[1]!.id}`).click();
+  await expect(other.getByTestId("pick-error")).toContainText(/paused/i);
+  await expect(page.getByTestId("on-the-clock")).toContainText(/paused/i);
+  await other.close();
+});
+
+test("a league that has already drafted cannot be started again", async ({
+  page,
+  context,
+}) => {
+  // A finished draft plus a replayed Start would create a second draft, and
+  // the room reads the newest — so every roster in the league would vanish.
+  const commissioner = await createTestUser("done");
+  const league = await createLeagueFor(commissioner, "Done League");
+  await addMemberTo(league.id, await createTestUser("pal"), "Pal FC");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await expect(page.getByTestId("enter-draft")).toBeVisible();
+
+  // Once a draft exists, the lobby no longer offers Start at all — the guard
+  // underneath it is what `startDraft` refuses on, and it is covered by the
+  // draft-setup unit path. Here: the lobby cannot be used to double-start.
+  await expect(page.getByTestId("start-draft")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("start-draft")).toHaveCount(0);
+  await expect(page.getByTestId("enter-draft")).toBeVisible();
 });

@@ -142,7 +142,7 @@ export default async function DraftPage({
             ) : null}
             <PickForm
               leagueId={id}
-              view={view}
+              view={{ available: view.available, isYourTurn }}
               canPick={(isYourTurn || view.canManage) && !isPaused && !!onClock}
             />
           </Bank>

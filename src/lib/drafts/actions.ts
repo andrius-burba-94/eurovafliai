@@ -4,11 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
 import {
-  buildPickOrder,
   computeRollback,
+  findUnadvancedPick,
   isDraftComplete,
   isLegalPick,
-  roundAndSlot,
   whoIsOnClock,
   type DraftState,
   type EnginePick,
@@ -116,6 +115,17 @@ export async function startDraft(
     };
   }
 
+  // Every sibling control in draft-setup.ts guards on the lifecycle, and this
+  // one has to as well: without it a replayed submission against a finished
+  // league creates a SECOND draft, and `getDraftView` reads the newest — so
+  // the completed board, every roster in the league, disappears from the room.
+  if (league.status !== "setup" && league.status !== "drafting") {
+    return {
+      error:
+        "This league has already drafted. Undo back into the draft if you need to change it.",
+    };
+  }
+
   const existing = await pb.collection("drafts").getFullList<DraftRecord>({
     filter: `league = '${leagueId}' && status != 'complete'`,
     requestKey: null,
@@ -220,15 +230,15 @@ export async function makePick(
     return refuse("The draft is paused.");
   }
 
-  let picks = await readPicks(pb, draft.id);
+  const picks = await readPicks(pb, draft.id);
 
-  // Repair first: a pick that exists for the current slot but was never
-  // advanced past would otherwise make the next pick look like a duplicate.
+  // Repair a pick that landed without the draft advancing past it. The repair
+  // writes only to `drafts`, so the picks in hand are still current — and
+  // re-reading them would be the read → repair → read-again shape AGENTS.md
+  // records as broken, since Next memoizes identical GET fetches within a
+  // render pass and the second read returns the first one's result.
   const repaired = await repairUnadvanced(pb, draft, picks);
-  if (repaired) {
-    picks = await readPicks(pb, draft.id);
-    Object.assign(draft, repaired);
-  }
+  if (repaired) Object.assign(draft, repaired);
 
   const state = toState(draft);
   const onClock = whoIsOnClock(state, picks);
@@ -243,11 +253,19 @@ export async function makePick(
 
   const player = await pb
     .collection("players")
-    .getOne<{ id: string; position: Position; name: string }>(playerId, {
-      requestKey: null,
-    })
+    .getOne<{ id: string; position: Position; name: string; status: string }>(
+      playerId,
+      { requestKey: null },
+    )
     .catch(() => null);
   if (!player) return refuse("No such player.");
+  // The pool hides players the roster sync has marked as gone, and the server
+  // has to agree with it. Otherwise a tab rendered before a mid-draft sync can
+  // still draft one, filling a roster slot with somebody who will never appear
+  // in a Euroleague box score again.
+  if (player.status === "left") {
+    return refuse(`${player.name} has left the Euroleague.`);
+  }
 
   const rosterPositions = await rosterOf(pb, picks, onClock.memberId);
   const verdict = isLegalPick({
@@ -258,16 +276,16 @@ export async function makePick(
   });
   if (!verdict.ok) return refuse(verdict.reason);
 
-  const { round, slot } = roundAndSlot(onClock.overallNo, draft.order.length);
-
   // Write 1: the pick.
   try {
     await pb.collection("picks").create(
       {
         draft: draft.id,
         overall_no: onClock.overallNo,
-        round,
-        slot,
+        // Straight from the clock. Recomputing them here would be a second
+        // source of truth for the same number.
+        round: onClock.round,
+        slot: onClock.slot,
         member: onClock.memberId,
         player: player.id,
         is_auto: false,
@@ -352,10 +370,19 @@ function deadlineFrom(now: Date, seconds: number): string {
 }
 
 function isUniqueViolation(error: unknown): boolean {
-  const response = (error as { response?: { data?: Record<string, unknown> } })
-    ?.response;
-  const text = JSON.stringify(response ?? error ?? "");
-  return /unique|already exists|constraint/i.test(text);
+  const data = (
+    error as {
+      response?: { data?: Record<string, { code?: string } | undefined> };
+    }
+  )?.response?.data;
+  if (!data) return false;
+  // PocketBase's own code, confirmed against a live 0.39 instance: a duplicate
+  // on the composite index comes back 400 with `validation_not_unique` on each
+  // field of the index. Substring-matching a stringified error instead would
+  // read an unrelated failure as "someone else already did it" and swallow it.
+  return Object.values(data).some(
+    (field) => field?.code === "validation_not_unique",
+  );
 }
 
 async function readPicks(
@@ -450,13 +477,14 @@ async function repairUnadvanced(
   draft: DraftRecord,
   picks: readonly EnginePick[],
 ): Promise<Partial<DraftRecord> | null> {
-  const stranded = picks.find((pick) => pick.overallNo === draft.current_pick);
+  // The engine owns this, and owns the part that is easy to get wrong: a
+  // worker that autodrafted several times without advancing leaves a whole
+  // contiguous run, not one pick, so the repair walks forward past all of it.
+  const stranded = findUnadvancedPick(toState(draft), picks);
   if (!stranded) return null;
-  await advance(pb, draft, picks, stranded.overallNo);
-  return { current_pick: stranded.overallNo + 1 };
+  await advance(pb, draft, picks, stranded.nextCurrentPick - 1);
+  return { current_pick: stranded.nextCurrentPick };
 }
-
-export { buildPickOrder };
 
 /**
  * Undo, back to a chosen pick number.
@@ -472,12 +500,21 @@ export { buildPickOrder };
  *
  * No transactions, so the order is chosen to be safe if it stops halfway:
  *
- * 1. Delete the picks, **highest overall number first**. A stop mid-way leaves
+ * 1. **Pause first.** Deleting picks out from under a live draft is a race:
+ *    another member — or 2.5's autodraft — can read `live` and `current_pick`
+ *    mid-loop and write a pick *above* the target. That pick survives the
+ *    delete loop, and the re-point then leaves the board with a permanent gap
+ *    that `isDraftComplete` will never fill, so the draft can never finish.
+ * 2. Delete the picks, **highest overall number first**. A stop mid-way leaves
  *    a shorter but still contiguous board — never a hole with picks after it.
- * 2. Re-point the draft last. Until that write lands the draft still points
+ * 3. Re-point the draft last. Until that write lands the draft still points
  *    past the deleted picks, and `whoIsOnClock` skips forward from
- *    `current_pick` to the first unpicked slot, so the room stays coherent and
- *    pressing Undo again finishes the job.
+ *    `current_pick` to the first unpicked slot, so the room stays coherent.
+ *
+ * Step 3 is also why "nothing to delete" is not automatically an error: a run
+ * that died between 2 and 3 leaves exactly that state, and refusing it would
+ * make the repair unreachable. It is an error only when the draft is already
+ * pointing at or before the target — then there really is nothing to undo.
  */
 export async function rollbackDraft(
   _previous: DraftResult,
@@ -513,8 +550,20 @@ export async function rollbackDraft(
   if (!verdict.ok) return { error: verdict.reason };
 
   const { deletePickIds, currentPick, status } = verdict.rollback;
-  if (deletePickIds.length === 0) {
+  if (deletePickIds.length === 0 && draft.current_pick <= targetPickNo) {
     return { error: `Nothing has been picked at ${targetPickNo} or later.` };
+  }
+
+  // Pause before touching a pick, so nobody can write into the range being
+  // undone while it is being undone.
+  if (draft.status === "live") {
+    await pb
+      .collection("drafts")
+      .update(
+        draft.id,
+        { status: "paused", deadline: "" },
+        { requestKey: null },
+      );
   }
 
   // Highest first: the engine already sorted them that way, and the order is
@@ -543,6 +592,7 @@ export async function rollbackDraft(
       .catch(() => {});
   }
 
+  revalidatePath(`/leagues/${leagueId}`);
   revalidatePath(`/leagues/${leagueId}/draft`);
   return OK;
 }

@@ -93,7 +93,7 @@ attempted.
 | 2.3b The roll, revealed live — one slot at a time, plus reshuffle | done | — | The order lands last-slot-first for everyone at once, driven by the seed changing rather than by any new state — so it plays on a first roll and on a reshuffle, and never on a reload or a re-apply. Reduced motion gets the finished order immediately, which every other E2E spec covers since the suite forces `reduce`. **Reshuffle** is a separate action behind a tick-box: `Re-apply` must be safe to press twice, changing who picks first must not happen by accident |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | done | — | A draft can be started, picked through, paused, resumed and undone. Pick-then-advance writes the pick first and advances second, with `repairUnadvanced` running *before* the read on the next pick — so a crash between the two writes costs nothing and the next pick repairs it. Both unique indexes are exercised by `pb:verify`, not merely declared. A commissioner or deputy may enter a pick **for** whoever is on the clock (the button reads "Pick for them"), which is what keeps a draft moving when a phone dies. Every refusal revalidates the room, so a stale tab is corrected by the act of being wrong. Undo discards highest-numbered pick first and re-points the draft last, so a half-run undo leaves a shorter contiguous board rather than a hole, and pressing it again finishes the job; it always lands **paused**. The one piece of 2.4's blueprint text not here is the system **chat message** announcing a rollback — there is no chat until 3.4 |
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
-| 2.6 Minimal draft room | todo | — | Correctness before beauty; the flagship UI is Phase 3 |
+| 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. Correctness before beauty — fuzzy search, tiers and the radar are Phase 3 |
 
 ## Phases 3–8
 
@@ -147,7 +147,7 @@ Last full local run, on slice 2.4: **all green.**
 | `npm run typecheck` | pass |
 | `npm run test` | **318 passed** — 173 the engine, 55 the ingestion pipeline |
 | `npm run build` | pass |
-| `npm run test:e2e` | 104 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 108 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 

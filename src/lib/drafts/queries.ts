@@ -10,6 +10,8 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 
+import { reconcileLeagueStatus } from "./repair";
+
 import type { BoardPick, DraftRecord, PickRecord } from "./types";
 
 /**
@@ -69,10 +71,14 @@ export async function getDraftView(
 
   const league = await pb
     .collection("leagues")
-    .getOne<{ settings: unknown; commissioner: string }>(leagueId, {
-      requestKey: null,
-    });
+    .getOne<{ settings: unknown; commissioner: string; status: string }>(
+      leagueId,
+      { requestKey: null },
+    );
   const settings = parseLeagueSettings(league.settings);
+
+  // Before the picks are read, not after — see the note in `repair.ts`.
+  await reconcileLeagueStatus(leagueId, league.status);
 
   const memberRecords = await pb.collection("league_members").getFullList<{
     id: string;

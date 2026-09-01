@@ -15,6 +15,17 @@ import { makePick, type DraftResult } from "@/lib/drafts/actions";
 import type { DraftView } from "@/lib/drafts/queries";
 
 /**
+ * Only what the pool needs. The page renders the board and the header on the
+ * server, so passing the whole `DraftView` here would serialize the picks, the
+ * member list and the taken-player ids into the RSC payload a second time —
+ * on a phone, on draft night.
+ */
+type PoolProps = {
+  available: DraftView["available"];
+  isYourTurn: boolean;
+};
+
+/**
  * Making a pick — slice 2.4.
  *
  * A plain filtered list, deliberately. The flagship pool experience (fuzzy
@@ -34,7 +45,7 @@ export function PickForm({
   canPick,
 }: {
   leagueId: string;
-  view: DraftView;
+  view: PoolProps;
   /** Your turn, and the draft actually running. The server re-checks both. */
   canPick: boolean;
 }) {
