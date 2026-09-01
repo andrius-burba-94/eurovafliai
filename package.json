@@ -26,7 +26,8 @@
     "worker:start": "tsx --env-file=.env src/worker/index.ts",
     "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs",
     "pb:verify:oauth2": "tsx --env-file=.env scripts/pb-verify-oauth2-signup.mjs",
-    "rosters:sync": "tsx --env-file=.env scripts/sync-rosters.mts"
+    "rosters:sync": "tsx --env-file=.env scripts/sync-rosters.mts",
+    "seed:members": "tsx --env-file=.env scripts/seed-members.mts"
   },
   "dependencies": {
     "next": "16.3.1",
