@@ -52,7 +52,10 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await expect(members.first()).toContainText("you");
 });
 
-test("a second person joins with the invite code", async ({ page, context }) => {
+test("a second person joins with the invite code", async ({
+  page,
+  context,
+}) => {
   const commissioner = await createTestUser("owner");
   const { id, code } = await createLeagueFor(commissioner, "Joinable League");
 
@@ -70,12 +73,17 @@ test("a second person joins with the invite code", async ({ page, context }) => 
 
   // And it now shows up on their own leagues list.
   await page.goto("/");
-  await expect(page.getByTestId("leagues-list")).toContainText("Joinable League");
+  await expect(page.getByTestId("leagues-list")).toContainText(
+    "Joinable League",
+  );
 });
 
 test("a lowercase, spaced code still joins", async ({ page, context }) => {
   const commissioner = await createTestUser("owner2");
-  const { id, code } = await createLeagueFor(commissioner, "Sloppy Code League");
+  const { id, code } = await createLeagueFor(
+    commissioner,
+    "Sloppy Code League",
+  );
 
   const joiner = await createTestUser("joiner2");
   await signIn(context, joiner);
@@ -167,7 +175,9 @@ test("a league whose membership write was lost repairs itself", async ({
   // Opening the lobby puts the missing row back.
   await page.goto(`/leagues/${id}`);
   await expect(page.getByTestId("member")).toHaveCount(1);
-  await expect(page.getByTestId("member").first()).toContainText("commissioner");
+  await expect(page.getByTestId("member").first()).toContainText(
+    "commissioner",
+  );
 
   // And the repair is idempotent — a reload does not add a second row.
   await page.reload();

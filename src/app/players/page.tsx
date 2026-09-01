@@ -11,6 +11,7 @@ import {
   Slots,
   TopRail,
 } from "@/components/board";
+import { canManageRosters } from "@/lib/rosters/actions";
 import { getPool } from "@/lib/rosters/queries";
 
 /**
@@ -30,6 +31,9 @@ export default async function PlayersPage() {
   if (!pool) redirect("/login?error=unauthorized");
 
   const { counts, authority, lastImport, clubs } = pool;
+  // Only shown to people who could use it, so the page does not dangle a door
+  // that would only 404 for them.
+  const canImport = await canManageRosters();
 
   return (
     <>
@@ -109,6 +113,17 @@ export default async function PlayersPage() {
                       &middot; kept, not deleted
                     </span>
                   </span>
+                </Slot>
+              ) : null}
+              {canImport ? (
+                <Slot state="waiting">
+                  <span className="slot-label">Upload a roster</span>
+                  <Link
+                    href="/players/import"
+                    className="text-sm text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                  >
+                    Paste a CSV
+                  </Link>
                 </Slot>
               ) : null}
               {lastImport ? (

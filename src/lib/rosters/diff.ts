@@ -180,3 +180,32 @@ export function diffRosters({
 
   return diff;
 }
+
+/**
+ * How much of the pool an import would empty.
+ *
+ * A partial sheet is the CSV path's sharpest edge: every player missing from it
+ * is "leaving", so a file with one line marks the other 323 as departed. That is
+ * correct behaviour for a complete roster and a catastrophe for an incomplete
+ * one — and the source that gets used in the 24 hours before the draft is
+ * exactly the hand-made one most likely to be incomplete.
+ *
+ * This happened during development: a one-line test CSV marked 324 players as
+ * left. Nothing was lost, because departures are a status and never a deletion
+ * and the next sync revived all of them — but "the undo worked" is not a reason
+ * to leave the trapdoor open.
+ *
+ * So beyond a threshold the caller must confirm. A quarter is deliberately low:
+ * a real roster refresh changes a handful of players, and twenty clubs dropping
+ * a quarter of their squads at once is not a thing that happens.
+ */
+export const DEPARTURE_ALARM_SHARE = 0.25;
+
+export function assessDepartures(
+  diff: RosterDiff,
+  currentCount: number,
+): { count: number; share: number; alarming: boolean } {
+  const count = diff.leaving.length;
+  const share = currentCount > 0 ? count / currentCount : 0;
+  return { count, share, alarming: share > DEPARTURE_ALARM_SHARE };
+}
