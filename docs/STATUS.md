@@ -15,9 +15,10 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.3b** — the live animated roll reveal — or **2.1b**, the
-CSV front door, whichever the league wants first. 2.1b is the one with an open
-question in front of it (see Open debt: there is no app-global admin role yet).
+**Next up:** slice **2.1b** — the CSV front door and the commissioner's roster
+controls. The permission question is now answered (see Open debt): the
+commissioner owns league and roster changes, and can grant that to specific
+members.
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -88,7 +89,7 @@ attempted.
 | 2.1b Roster ingestion — the CSV front door and the commissioner's controls | todo | — | Parse + preview + apply for a hand-made sheet, the `roster_authority` flip, `manual_lock` toggles. The pipeline they need already exists and is tested; what is missing is the answer to "who may do this" |
 | **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
 | 2.3a Draft setup & order determination — settings, the seeded roll, manual order | done | — | No new collection: settings live in `leagues.settings`, positions on `league_members.draft_position` (the field 1.1 created and left "unset until the roll"). `rollOrder` is pure and seeded, so a roll **replays identically** — which is what makes a half-written roll repairable by re-applying rather than re-rolling, and what 2.3b's reveal will replay from. `reverse_standings` is in the vocabulary and refused with its reason: it needs Phase 4's `standings_snapshots` |
-| 2.3b The roll, revealed live — one slot at a time | todo | — | The reveal only; the roll itself is done. Replays from the stored seed, so it needs no new state. Watch the `flushSync`-in-effect gotcha the blueprint flags for the Eurovision reveal pattern |
+| 2.3b The roll, revealed live — one slot at a time, plus reshuffle | done | — | The order lands last-slot-first for everyone at once, driven by the seed changing rather than by any new state — so it plays on a first roll and on a reshuffle, and never on a reload or a re-apply. Reduced motion gets the finished order immediately, which every other E2E spec covers since the suite forces `reduce`. **Reshuffle** is a separate action behind a tick-box: `Re-apply` must be safe to press twice, changing who picks first must not happen by accident |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | todo | — | Where pick-then-advance and the two unique indexes land. The engine already computes the rollback and detects the un-advanced state |
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
 | 2.6 Minimal draft room | todo | — | Correctness before beauty; the flagship UI is Phase 3 |
@@ -136,7 +137,7 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.3a: **all green.**
+Last full local run, on slice 2.3b: **all green.**
 
 | Check | Result |
 |---|---|
@@ -144,7 +145,7 @@ Last full local run, on slice 2.3a: **all green.**
 | `npm run typecheck` | pass |
 | `npm run test` | **298 passed** — 173 the engine, 41 the ingestion pipeline |
 | `npm run build` | pass |
-| `npm run test:e2e` | 66 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 72 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 55 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 
