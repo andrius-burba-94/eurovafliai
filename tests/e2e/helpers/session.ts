@@ -207,6 +207,15 @@ export async function addMemberTo(
  * whatever `npm run rosters:sync` last ingested would pass or fail depending on
  * whether anyone had run it. This plants its own player and cleans it up.
  */
+/**
+ * A club code unique to this worker process.
+ *
+ * The player pool is app-global, so a shared "ZZZ" test club meant one spec's
+ * cleanup deleted another spec's planted player mid-test, in parallel. Each
+ * worker gets its own club and purges only that one.
+ */
+export const TEST_CLUB = `Z${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+
 /** Grant a member the league's management powers, straight in the database. */
 export async function grantManage(
   leagueId: string,
@@ -221,6 +230,19 @@ export async function grantManage(
     await pb
       .collection("league_members")
       .update(rows[0].id, { can_manage: true }, { requestKey: null });
+  }
+}
+
+/** Put the app-global roster authority back to its default. */
+export async function resetRosterAuthority(): Promise<void> {
+  const pb = await superuser();
+  const rows = await pb
+    .collection("app_settings")
+    .getFullList({ requestKey: null });
+  if (rows[0] && rows[0].roster_authority !== "api") {
+    await pb
+      .collection("app_settings")
+      .update(rows[0].id, { roster_authority: "api" }, { requestKey: null });
   }
 }
 
@@ -239,7 +261,7 @@ export async function createPlayer(
       // violation. Caught by exactly that failure.
       name: `${label} ${unique}, E2e`,
       name_normalized: `e2e ${label.toLowerCase()} ${unique}`,
-      club_code: "ZZZ",
+      club_code: TEST_CLUB,
       club_name: "E2E Test Club",
       position: "G",
       status: "active",
@@ -259,6 +281,22 @@ export async function createPlayer(
 
 export async function cleanupTestData(): Promise<void> {
   const pb = await superuser();
+
+  // Every player in the test club goes, not just the ones `createPlayer`
+  // tracked. A CSV import creates players this helper never saw, and they
+  // linger into the next run — which is how a spec ended up asserting against
+  // a previous run's leftovers.
+  const strays = await pb.collection("players").getFullList({
+    filter: `club_code = '${TEST_CLUB}'`,
+    requestKey: null,
+  });
+  for (const stray of strays) {
+    await pb
+      .collection("players")
+      .delete(stray.id, { requestKey: null })
+      .catch(() => {});
+  }
+
   for (const id of created.players) {
     await pb
       .collection("players")

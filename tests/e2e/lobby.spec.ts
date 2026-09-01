@@ -19,7 +19,10 @@ test.afterAll(async () => {
   await cleanupTestData();
 });
 
-test("a member sees their co-member's actual name", async ({ page, context }) => {
+test("a member sees their co-member's actual name", async ({
+  page,
+  context,
+}) => {
   // The guard for issue #15. `users` was on PocketBase's self-only read rules,
   // so `expand: "user"` returned nothing for anyone but the viewer and every
   // other row rendered as "Unknown member". The old specs missed it because
@@ -75,7 +78,9 @@ test("a member names their own team, and it lands on the board", async ({
   // Normalized on the way in: collapsed whitespace, trimmed. Asserted in the
   // casing it is *stored* in — `CardName` uppercases in CSS, which the DOM text
   // does not reflect.
-  await expect(page.getByTestId("member-list")).toContainText("Vilnius Vafliai");
+  await expect(page.getByTestId("member-list")).toContainText(
+    "Vilnius Vafliai",
+  );
   // The display name stays visible beside the team name, so the row still says
   // who it is.
   await expect(page.getByTestId("member-name")).toContainText("namer");
@@ -120,7 +125,9 @@ test("a member marks themselves ready, and can take it back", async ({
 
   await page.getByTestId("toggle-ready").click();
   await expect(page.getByTestId("member-tally")).toContainText("1 of 1 ready");
-  await expect(page.getByTestId("member-labels").first()).toContainText("ready");
+  await expect(page.getByTestId("member-labels").first()).toContainText(
+    "ready",
+  );
 
   await page.getByTestId("toggle-ready").click();
   await expect(page.getByTestId("member-tally")).toContainText("0 of 1 ready");

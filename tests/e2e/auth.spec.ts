@@ -55,7 +55,10 @@ test("the login page offers Google and nothing else", async ({ page }) => {
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
 });
 
-test("the login button starts the Google handshake", async ({ page, request }) => {
+test("the login button starts the Google handshake", async ({
+  page,
+  request,
+}) => {
   // Needs a configured Google provider, which needs real credentials. Skip
   // rather than fail where they are absent (CI, a fresh checkout).
   const methods = await request
@@ -102,7 +105,10 @@ test("the callback refuses a forged state", async ({ page }) => {
   );
 });
 
-test("a forged session cookie does not get you in", async ({ page, context }) => {
+test("a forged session cookie does not get you in", async ({
+  page,
+  context,
+}) => {
   // The proxy only checks that a cookie exists; getSession is what verifies it.
   // This is the test that the second layer is actually doing its job.
   await context.addCookies([

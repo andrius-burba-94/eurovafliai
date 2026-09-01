@@ -75,6 +75,26 @@ if (dryRun) {
   process.exit(0);
 }
 
+// The same guard the CSV upload has. A feed outage that answers with twenty
+// players instead of 324 would otherwise mark three hundred as departed, and
+// an unattended cron is exactly where nobody is watching.
+const { readCurrentPlayers } = await import("../src/lib/rosters/apply");
+const { assessDepartures, diffRosters } =
+  await import("../src/lib/rosters/diff");
+const currentPool = await readCurrentPlayers(pb);
+const departures = assessDepartures(
+  diffRosters({ current: currentPool, incoming: rows }),
+  currentPool.length,
+);
+if (departures.alarming && !process.argv.includes("--allow-departures")) {
+  console.error(
+    `\nRefusing: this would mark ${departures.count} of ${currentPool.length} players as left ` +
+      `(${Math.round(departures.share * 100)}% of the pool).\n` +
+      "That is what a truncated feed looks like. Check the numbers above, then re-run with --allow-departures if it is real.",
+  );
+  process.exit(1);
+}
+
 const outcome = await runRosterImport({
   pb,
   incoming: rows,

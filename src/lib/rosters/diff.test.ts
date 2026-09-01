@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { diffRosters } from "./diff";
+import { assessDepartures, diffRosters } from "./diff";
 import { normalizeName } from "./normalize";
-import type { ExistingPlayer, NormalizedPlayer } from "./types";
+import type { ExistingPlayer, NormalizedPlayer, RosterDiff } from "./types";
 
 function incoming(
   over: Partial<NormalizedPlayer> & { name: string },
@@ -36,10 +36,20 @@ describe("diffRosters — matching", () => {
     // not a departure plus an arrival.
     const diff = diffRosters({
       current: [
-        existing({ id: "p1", name: "Sirvydis, Deividas", person_code: "0042", club_code: "ZAL" }),
+        existing({
+          id: "p1",
+          name: "Sirvydis, Deividas",
+          person_code: "0042",
+          club_code: "ZAL",
+        }),
       ],
       incoming: [
-        incoming({ name: "Sirvydis, Deividas", person_code: "0042", club_code: "MAD", club_name: "Real Madrid" }),
+        incoming({
+          name: "Sirvydis, Deividas",
+          person_code: "0042",
+          club_code: "MAD",
+          club_name: "Real Madrid",
+        }),
       ],
     });
 
@@ -67,7 +77,9 @@ describe("diffRosters — matching", () => {
       name: "Deividas Sirvydis",
       dorsal: "7",
     });
-    expect(diff.changes[0]?.before).toMatchObject({ name: "SIRVYDIS, DEIVIDAS" });
+    expect(diff.changes[0]?.before).toMatchObject({
+      name: "SIRVYDIS, DEIVIDAS",
+    });
   });
 
   it("reads a codeless player who changed club as a departure and an arrival", () => {
@@ -76,8 +88,16 @@ describe("diffRosters — matching", () => {
     // preview shows both, and a later sync that fills the code in will match
     // properly from then on.
     const diff = diffRosters({
-      current: [existing({ id: "p1", name: "Nowell, Jaylen", club_code: "BES" })],
-      incoming: [incoming({ name: "Nowell, Jaylen", club_code: "PAN", club_name: "Panathinaikos" })],
+      current: [
+        existing({ id: "p1", name: "Nowell, Jaylen", club_code: "BES" }),
+      ],
+      incoming: [
+        incoming({
+          name: "Nowell, Jaylen",
+          club_code: "PAN",
+          club_name: "Panathinaikos",
+        }),
+      ],
     });
 
     expect(diff.adds).toHaveLength(1);
@@ -108,7 +128,9 @@ describe("diffRosters — person codes are never lost", () => {
     // API→API as well as CSV→API: a re-sync must never blank a code that a
     // stats join depends on.
     const diff = diffRosters({
-      current: [existing({ id: "p1", name: "Hall, Donta", person_code: "0099" })],
+      current: [
+        existing({ id: "p1", name: "Hall, Donta", person_code: "0099" }),
+      ],
       incoming: [incoming({ name: "Hall, Donta", person_code: null })],
     });
 
@@ -117,7 +139,9 @@ describe("diffRosters — person codes are never lost", () => {
 
   it("fills in a code that was missing", () => {
     const diff = diffRosters({
-      current: [existing({ id: "p1", name: "Burnell, Jason", person_code: null })],
+      current: [
+        existing({ id: "p1", name: "Burnell, Jason", person_code: null }),
+      ],
       incoming: [incoming({ name: "Burnell, Jason", person_code: "0123" })],
     });
 
@@ -129,7 +153,9 @@ describe("diffRosters — person codes are never lost", () => {
     // suspect — a namesake, or a feed error. Overwriting would corrupt the
     // stats join for whichever player is real.
     const diff = diffRosters({
-      current: [existing({ id: "p1", name: "Jones, Chris", person_code: "0001" })],
+      current: [
+        existing({ id: "p1", name: "Jones, Chris", person_code: "0001" }),
+      ],
       incoming: [incoming({ name: "Jones, Chris", person_code: "0002" })],
     });
 
@@ -143,7 +169,12 @@ describe("diffRosters — manual_lock", () => {
   it("blocks a change to a locked player and says which fields", () => {
     const diff = diffRosters({
       current: [
-        existing({ id: "p1", name: "Hall, Donta", position: "C", manual_lock: true }),
+        existing({
+          id: "p1",
+          name: "Hall, Donta",
+          position: "C",
+          manual_lock: true,
+        }),
       ],
       incoming: [incoming({ name: "Hall, Donta", position: "F", dorsal: "5" })],
     });
@@ -158,7 +189,9 @@ describe("diffRosters — manual_lock", () => {
     // A lock is the commissioner saying "this row is mine". Marking it `left`
     // would be an ingest overruling that from the other direction.
     const diff = diffRosters({
-      current: [existing({ id: "p1", name: "Ghost, Player", manual_lock: true })],
+      current: [
+        existing({ id: "p1", name: "Ghost, Player", manual_lock: true }),
+      ],
       incoming: [],
     });
 
@@ -210,7 +243,12 @@ describe("diffRosters — departures and idempotency", () => {
     // Idempotence is the property that makes "re-sync on demand through
     // September" (blueprint 2.1) safe to do as often as you like.
     const current = [
-      existing({ id: "p1", name: "Sirvydis, Deividas", person_code: "0042", dorsal: "7" }),
+      existing({
+        id: "p1",
+        name: "Sirvydis, Deividas",
+        person_code: "0042",
+        dorsal: "7",
+      }),
       existing({ id: "p2", name: "Ulanovas, Edgaras", position: "F" }),
     ];
     const diff = diffRosters({
@@ -251,5 +289,38 @@ describe("diffRosters — departures and idempotency", () => {
     });
 
     expect(diff.changes).toHaveLength(0);
+  });
+});
+
+describe("assessDepartures", () => {
+  const leaving = (n: number) =>
+    ({
+      adds: [],
+      changes: [],
+      blocked: [],
+      problems: [],
+      leaving: Array.from({ length: n }, (_, i) => ({
+        id: `p${i}`,
+        name: `Gone ${i}`,
+        club_code: "ZAL",
+      })),
+    }) as RosterDiff;
+
+  it("does not raise the alarm for an ordinary roster refresh", () => {
+    // A handful of players move clubs; that is a normal week.
+    expect(assessDepartures(leaving(3), 324).alarming).toBe(false);
+  });
+
+  it("raises it when a sheet would empty a quarter of the pool", () => {
+    // The real incident this guards: a one-line CSV against a full pool.
+    const verdict = assessDepartures(leaving(323), 324);
+    expect(verdict.alarming).toBe(true);
+    expect(verdict.count).toBe(323);
+    expect(verdict.share).toBeGreaterThan(0.9);
+  });
+
+  it("says nothing is alarming when the pool is empty", () => {
+    // The very first import has nothing to lose.
+    expect(assessDepartures(leaving(0), 0).alarming).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import {
   createPlayer,
   createTestUser,
   signIn,
+  TEST_CLUB,
 } from "./helpers/session";
 
 /**
@@ -30,7 +31,6 @@ test("a member sees the pool, its clubs and a player's badges", async ({
 }) => {
   const user = await createTestUser("pooler");
   const planted = await createPlayer("Locked", {
-    club_code: "ZZZ",
     position: "C",
     manual_lock: true,
     person_code: "",
@@ -42,7 +42,7 @@ test("a member sees the pool, its clubs and a player's badges", async ({
 
   // The club is a disclosure, closed by default: 324 players flat made an
   // 18,000px page.
-  const club = page.locator("details", { hasText: "E2E Test Club" });
+  const club = page.locator("details", { hasText: TEST_CLUB });
   await expect(club).toBeVisible();
   await expect(page.getByText(planted.name)).toBeHidden();
 
