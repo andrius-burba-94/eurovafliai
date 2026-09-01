@@ -283,15 +283,20 @@ export async function makePick(
   }
 
   // Write 2: advance.
-  await advance(pb, draft, [
-    ...picks,
-    {
-      id: "pending",
-      overallNo: onClock.overallNo,
-      memberId: onClock.memberId,
-      playerId: player.id,
-    },
-  ]);
+  await advance(
+    pb,
+    draft,
+    [
+      ...picks,
+      {
+        id: "pending",
+        overallNo: onClock.overallNo,
+        memberId: onClock.memberId,
+        playerId: player.id,
+      },
+    ],
+    onClock.overallNo,
+  );
 
   revalidatePath(`/leagues/${leagueId}/draft`);
   return OK;
@@ -400,8 +405,17 @@ async function advance(
   pb: Awaited<ReturnType<typeof getSuperuserClient>>,
   draft: DraftRecord,
   picks: readonly EnginePick[],
+  /**
+   * The slot that was just filled. Usually `current_pick`, but not always:
+   * `whoIsOnClock` skips forward over slots that already hold a pick, so after
+   * a repair the pick can land ahead of where the draft was pointing. Deriving
+   * the next slot from `current_pick` in that case leaves it pointing at a
+   * taken slot — self-healing, since the clock skips forward again, but the
+   * worker's deadlines in 2.5 read this field and deserve it to be true.
+   */
+  filledNo: number,
 ): Promise<void> {
-  const next = draft.current_pick + 1;
+  const next = Math.max(draft.current_pick, filledNo) + 1;
   const state = toState({ ...draft, current_pick: next });
   const done = isDraftComplete(state, picks);
 
@@ -438,8 +452,8 @@ async function repairUnadvanced(
 ): Promise<Partial<DraftRecord> | null> {
   const stranded = picks.find((pick) => pick.overallNo === draft.current_pick);
   if (!stranded) return null;
-  await advance(pb, draft, picks);
-  return { current_pick: draft.current_pick + 1 };
+  await advance(pb, draft, picks, stranded.overallNo);
+  return { current_pick: stranded.overallNo + 1 };
 }
 
 export { buildPickOrder };
