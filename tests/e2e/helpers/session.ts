@@ -297,6 +297,31 @@ export async function cleanupTestData(): Promise<void> {
       .catch(() => {});
   }
 
+  // Picks reference players and members without cascading — losing a member
+  // mid-draft must not tear a hole in the board — so the picks have to go
+  // before the players do, and the drafts before the leagues.
+  for (const id of created.leagues) {
+    const drafts = await pb
+      .collection("drafts")
+      .getFullList({ filter: `league = '${id}'`, requestKey: null })
+      .catch(() => []);
+    for (const draft of drafts) {
+      const picks = await pb
+        .collection("picks")
+        .getFullList({ filter: `draft = '${draft.id}'`, requestKey: null })
+        .catch(() => []);
+      for (const pick of picks) {
+        await pb
+          .collection("picks")
+          .delete(pick.id, { requestKey: null })
+          .catch(() => {});
+      }
+      await pb
+        .collection("drafts")
+        .delete(draft.id, { requestKey: null })
+        .catch(() => {});
+    }
+  }
   for (const id of created.players) {
     await pb
       .collection("players")
