@@ -115,20 +115,18 @@ export async function updateDraftSettings(
     };
   }
 
-  await pb
-    .collection("leagues")
-    .update(
-      league.id,
-      {
-        settings: {
-          ...settings,
-          format,
-          order_mode: orderMode,
-          pick_seconds: pickSeconds,
-        },
+  await pb.collection("leagues").update(
+    league.id,
+    {
+      settings: {
+        ...settings,
+        format,
+        order_mode: orderMode,
+        pick_seconds: pickSeconds,
       },
-      { requestKey: null },
-    );
+    },
+    { requestKey: null },
+  );
 
   revalidatePath(`/leagues/${league.id}`);
   return OK;
@@ -157,6 +155,90 @@ export async function updateDraftSettings(
  * The engine refuses a duplicate member id, and `unique(league, user)` makes
  * that impossible in the database anyway.
  */
+/**
+ * Write one position per member, in the given order.
+ *
+ * Shared by rolling and reshuffling because the write and its recovery are the
+ * same: independent per-member updates, and the seed already stored means a
+ * partial pass is repaired by running it again rather than by re-deciding
+ * anything.
+ */
+async function writePositions(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  order: readonly string[],
+): Promise<string[]> {
+  const failures: string[] = [];
+  for (const [index, memberId] of order.entries()) {
+    try {
+      await pb
+        .collection("league_members")
+        .update(memberId, { draft_position: index + 1 }, { requestKey: null });
+    } catch {
+      failures.push(memberId);
+    }
+  }
+  return failures;
+}
+
+/**
+ * Reshuffle: deliberately throw the order away and draw a new one.
+ *
+ * The counterpart to `rollDraftOrder`, and the reason that one never generates
+ * a fresh seed on a retry. Re-applying must be safe to press twice; changing
+ * who drafts first must not happen by accident. So the destructive version is a
+ * separate action behind its own confirmation, and it refuses once the draft is
+ * under way — at that point the order is not a plan any more, it is history.
+ *
+ * Same failure-recovery shape as the roll: the new seed is written first, so a
+ * crash mid-way leaves an order that `Re-apply` reproduces exactly.
+ */
+export async function reshuffleDraftOrder(
+  _previous: SetupResult,
+  formData: FormData,
+): Promise<SetupResult> {
+  const context = await loadSetupContext(formData);
+  if (!context) return NOT_YOURS;
+
+  const { pb, league, members, settings } = context;
+  if (league.status !== "setup") {
+    return {
+      error: "The draft has already started; the order is history now.",
+    };
+  }
+  if (members.length < 2) {
+    return { error: "Wait for at least one more member before reshuffling." };
+  }
+  if (String(formData.get("confirm")) !== "reshuffle") {
+    return {
+      error: "Tick the box to confirm — a reshuffle changes who picks first.",
+    };
+  }
+
+  const seed = crypto.randomUUID();
+  await pb
+    .collection("leagues")
+    .update(
+      league.id,
+      { settings: { ...settings, roll_seed: seed, order_mode: "roll" } },
+      { requestKey: null },
+    );
+
+  const order = rollOrder(
+    members.map((member) => member.id),
+    seed,
+  );
+  const failures = await writePositions(pb, order);
+
+  revalidatePath(`/leagues/${league.id}`);
+
+  if (failures.length > 0) {
+    return {
+      error: `Reshuffled, but ${failures.length} of ${order.length} positions did not save. Press "Re-apply" — the new seed is stored, so it will finish the same order.`,
+    };
+  }
+  return OK;
+}
+
 export async function rollDraftOrder(
   _previous: SetupResult,
   formData: FormData,
@@ -197,16 +279,7 @@ export async function rollDraftOrder(
     seed,
   );
 
-  const failures: string[] = [];
-  for (const [index, memberId] of order.entries()) {
-    try {
-      await pb
-        .collection("league_members")
-        .update(memberId, { draft_position: index + 1 }, { requestKey: null });
-    } catch {
-      failures.push(memberId);
-    }
-  }
+  const failures = await writePositions(pb, order);
 
   revalidatePath(`/leagues/${league.id}`);
 

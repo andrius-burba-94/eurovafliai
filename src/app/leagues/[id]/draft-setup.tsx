@@ -12,6 +12,7 @@ import {
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import {
+  reshuffleDraftOrder,
   rollDraftOrder,
   setManualOrder,
   updateDraftSettings,
@@ -57,6 +58,10 @@ export function DraftSetup({
   const [saved, saveAction] = useActionState(updateDraftSettings, START);
   const [rolled, rollAction] = useActionState(rollDraftOrder, START);
   const [manual, manualAction] = useActionState(setManualOrder, START);
+  const [reshuffled, reshuffleAction] = useActionState(
+    reshuffleDraftOrder,
+    START,
+  );
 
   const positioned = members.filter((member) => member.draftPosition).length;
   const inOrder = [...members].sort(
@@ -140,6 +145,11 @@ export function DraftSetup({
         {manual.error ? (
           <Correction testId="draft-manual-error">{manual.error}</Correction>
         ) : null}
+        {reshuffled.error ? (
+          <Correction testId="draft-reshuffle-error">
+            {reshuffled.error}
+          </Correction>
+        ) : null}
 
         {positioned > 0 ? (
           <Slots testId="draft-order">
@@ -198,6 +208,42 @@ export function DraftSetup({
             </SubmitButton>
           </form>
         </div>
+
+        {/* Reshuffling is the one action here that takes something away: it
+            throws out an order the room may already have seen. So it is folded
+            away, asks for a deliberate tick, and says plainly what it does —
+            the opposite of "Re-apply", which is safe to press twice. */}
+        {positioned > 0 ? (
+          <details className="slot-waiting px-3 py-3">
+            <summary className="slot-label cursor-pointer list-none hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
+              Reshuffle&hellip;
+            </summary>
+            <form action={reshuffleAction} className="mt-4 flex flex-col gap-4">
+              <input type="hidden" name="leagueId" value={leagueId} />
+              <p className="text-sm text-ink-soft">
+                Draws a completely new order and throws this one away. Everyone
+                in the lobby watches it land again.
+              </p>
+              <label className="flex items-center gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  name="confirm"
+                  value="reshuffle"
+                  data-testid="draft-reshuffle-confirm"
+                  className="size-4 accent-live"
+                />
+                Yes, change who picks first
+              </label>
+              <SubmitButton
+                testId="draft-reshuffle"
+                tone="live"
+                pendingLabel="Reshuffling…"
+              >
+                Reshuffle the order
+              </SubmitButton>
+            </form>
+          </details>
+        ) : null}
       </Bank>
     </>
   );

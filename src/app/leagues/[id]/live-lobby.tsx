@@ -28,6 +28,7 @@ import type { LeagueSettings } from "@/lib/leagues/settings";
 import type { Member, MemberRecord } from "@/lib/leagues/types";
 
 import { DraftSetup } from "./draft-setup";
+import { useRollReveal } from "./use-reveal";
 
 /**
  * The lobby's member list, live.
@@ -75,6 +76,14 @@ export function LiveLobby({
   settings: LeagueSettings;
 }) {
   const [members, setMembers] = useState(initialMembers);
+
+  // The roll, arriving one slot at a time for everyone at once. Driven by the
+  // stored seed, so it replays on a genuine reshuffle and not on a re-apply.
+  const positioned = members.filter((member) => member.draftPosition).length;
+  const { revealed, running } = useRollReveal({
+    seed: positioned === members.length ? settings.roll_seed : "",
+    slots: positioned,
+  });
   // Starts true: the server-rendered list *was* current a moment ago, and
   // opening on "reconnecting" would cry wolf on every page load.
   const [connected, setConnected] = useState(true);
@@ -176,6 +185,9 @@ export function LiveLobby({
               member={member}
               landed={justArrived && member.isYou}
               canManage={isCommissioner && inSetup}
+              positionRevealed={
+                !member.draftPosition || revealed(member.draftPosition)
+              }
             />
           ))}
           {/* The free places are part of the board, not a blank area below it:
@@ -189,6 +201,16 @@ export function LiveLobby({
           ))}
         </Slots>
       </Bank>
+
+      {running ? (
+        <p
+          data-testid="reveal-running"
+          aria-live="polite"
+          className="slot-label text-live"
+        >
+          Drawing the order&hellip;
+        </p>
+      ) : null}
 
       {/* Slice 2.3a. Only the commissioner sees it, and `updateDraftSettings`
           checks that again server-side rather than trusting this render. */}
@@ -272,11 +294,13 @@ function MemberSlot({
   member,
   landed,
   canManage,
+  positionRevealed,
 }: {
   leagueId: string;
   member: Member;
   landed: boolean;
   canManage: boolean;
+  positionRevealed: boolean;
 }) {
   const labels = [
     member.isCommissioner ? "commissioner" : null,
@@ -294,10 +318,10 @@ function MemberSlot({
         <span className="flex items-baseline gap-2.5">
           {/* The slot the roll gave them. Tabular figures, so a column of them
               is a column (DESIGN.md). */}
-          {member.draftPosition ? (
+          {member.draftPosition && positionRevealed ? (
             <span
               data-testid="member-position"
-              className="slot-label tabular-nums text-live"
+              className="card-lands slot-label tabular-nums text-live"
             >
               {String(member.draftPosition).padStart(2, "0")}
             </span>
