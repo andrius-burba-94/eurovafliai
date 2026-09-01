@@ -29,7 +29,7 @@ src/worker/       PM2 worker: pick timers, autodraft, nightly stats (Phase 2.5)
 pb/VERSION        pinned PocketBase version — the download script reads it
 pb/pb_migrations/ schema as code, COMMITTED
 pb/pb_data/       local database, gitignored
-scripts/          pb-download.sh (+ deploy tooling from Phase 1.5)
+scripts/          pb-download.sh, seed-members.mts (+ deploy tooling from Phase 1.5)
 tests/e2e/        Playwright. Excluded from Vitest on purpose.
 docs/STATUS.md    what is done, what is next — update it in the same PR
 docs/adr/         architecture decision records
