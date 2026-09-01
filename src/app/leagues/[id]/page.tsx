@@ -68,6 +68,18 @@ export default async function LobbyPage({
         }
       />
       <Sheet testId="lobby">
+        {league.status === "drafting" ? (
+          <Link
+            href={`/leagues/${league.id}/draft`}
+            data-testid="enter-draft"
+            className="slot-live flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-live/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          >
+            <span className="text-lg font-semibold uppercase tracking-[0.04em]">
+              The draft is live
+            </span>
+            <span className="slot-label text-live">Enter the room &rarr;</span>
+          </Link>
+        ) : null}
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
             {league.name}
