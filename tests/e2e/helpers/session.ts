@@ -64,7 +64,11 @@ const created: { users: string[]; leagues: string[]; players: string[] } = {
   players: [],
 };
 
-async function superuser(): Promise<PocketBase> {
+/**
+ * A superuser client. Exported as `superuserClient` for specs that have to act
+ * as the server itself — `worker.spec.ts` runs the real sweep through it.
+ */
+export async function superuser(): Promise<PocketBase> {
   const pb = new PocketBase(env.PB_INTERNAL_URL);
   await pb
     .collection("_superusers")
