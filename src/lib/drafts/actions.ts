@@ -453,3 +453,60 @@ export async function rollbackDraft(
   revalidatePath(`/leagues/${leagueId}/draft`);
   return OK;
 }
+
+/**
+ * Arm or disarm autodraft for a member.
+ *
+ * The engine picking for somebody who is not there is what the worker is for,
+ * and this is the switch that says so out loud. With it on, the sweep takes
+ * their turn as soon as it comes round instead of waiting the clock out; with
+ * it off they simply time out and the sweep picks then — nobody is ever left on
+ * the clock forever, which is the property that makes a draft finishable at all.
+ *
+ * Your own switch is yours. "I'm driving, draft for me" is not a decision the
+ * commissioner should have to make on your behalf, and it is the same reasoning
+ * that makes `is_ready` self-declared. A manager may also set it for anybody,
+ * because a phone dying is exactly the case this exists for; the per-member
+ * console is Phase 3.6.
+ *
+ * ## Failure-recovery story
+ *
+ * One write, to one field, so there is no intermediate state to recover: it
+ * either lands or the switch did nothing. Nothing else reads the flag except
+ * the sweep, one tick later.
+ */
+export async function setAutodraft(
+  _previous: DraftResult,
+  formData: FormData,
+): Promise<DraftResult> {
+  const leagueId = String(formData.get("leagueId") ?? "");
+  const context = await loadDraftContext(leagueId);
+  if (!context) return { error: "That is not yours to change." };
+
+  const { pb, members, own, canManage } = context;
+  // No `memberId` means "mine", which is the common case and the one a member
+  // reaches from the draft room.
+  const targetId = String(formData.get("memberId") ?? "") || own?.id;
+  const target = members.find((member) => member.id === targetId);
+  if (!target) return { error: "That member is not in this league." };
+
+  if (target.id !== own?.id && !canManage) {
+    return {
+      error:
+        "Only the commissioner, or someone they trust with it, can set autodraft for somebody else.",
+    };
+  }
+
+  const enabled = String(formData.get("enabled")) === "true";
+  await pb
+    .collection("league_members")
+    .update(
+      target.id,
+      { autodraft_enabled: enabled },
+      { requestKey: null },
+    );
+
+  revalidatePath(`/leagues/${leagueId}`);
+  revalidatePath(`/leagues/${leagueId}/draft`);
+  return OK;
+}
