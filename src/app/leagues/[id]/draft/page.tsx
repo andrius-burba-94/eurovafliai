@@ -14,7 +14,9 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { getDraftView } from "@/lib/drafts/queries";
 
+import { AutodraftToggle } from "./autodraft-toggle";
 import { DraftControls } from "./draft-controls";
+import { PickClock } from "./pick-clock";
 import { PickForm } from "./pick-form";
 
 /**
@@ -88,6 +90,10 @@ export default async function DraftPage({
                   ? "You are on the clock"
                   : `${onClock.memberName} is on the clock`}
               </p>
+              {/* The clock is the room's, not the picker's: everybody watches
+                  the same number run down. It only renders while a draft is
+                  live, which is the only state `onClock` is non-null in. */}
+              <PickClock deadline={draft.deadline} />
             </>
           ) : (
             <>
@@ -110,6 +116,17 @@ export default async function DraftPage({
               />
             ))}
           </p>
+        ) : null}
+
+        {/* Your own switch, above the commissioner's controls: the common
+            case is a member handing their own picks over, not a manager
+            intervening. */}
+        {view.you && draft.status !== "complete" ? (
+          <AutodraftToggle
+            leagueId={id}
+            enabled={view.you.autodraftEnabled}
+            pickSeconds={draft.pick_seconds}
+          />
         ) : null}
 
         <DraftControls

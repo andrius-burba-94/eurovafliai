@@ -106,8 +106,12 @@ followed by a proper forward fix (revert or fix-forward PR) the same day.
 ## Draft-night failure modes
 
 - **Worker dies** → timers stop enforcing, nothing corrupts. PM2 restarts it;
-  the commissioner can enter picks manually meanwhile. A worker heartbeat is
-  surfaced in the commissioner console.
+  the commissioner can enter picks manually meanwhile, and the next pick — by
+  hand or by the restarted worker — repairs anything a half-finished tick left.
+  `deploy.sh` warns when a reload has left `eurovafliai-worker` down, because
+  the app itself serves perfectly well without it and the loss is invisible
+  until a clock runs out. A worker heartbeat is surfaced in the commissioner
+  console (Phase 3.6).
 - **PB down** → the app is read-broken but the data is intact; systemd restarts.
 - **Realtime dropped** → clients show "reconnecting" and the SDK re-subscribes;
   state is re-read from the server on reconnect, never reconstructed locally.

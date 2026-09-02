@@ -15,11 +15,20 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** slice **2.5** — the worker: pick timers, the deadline the server
-enforces, and autodraft. A draft can now be run end to end by hand — started,
-picked through, paused, and undone. What it cannot yet do is run itself when
-somebody stops answering, and the room does not yet update on its own: a pick
-is visible to everyone else on their next load. Both land in 2.5 and 3.2.
+**Next up:** the **Phase 2 rehearsal** — a real 13-round mock draft on a phone
+and a PC, with one member on autodraft and a rollback in the middle. That run is
+the only thing left between here and Phase 3, and it needs people rather than
+code. Then slice **3.1**, the draft board.
+
+A draft now runs itself. The worker (slice 2.5) enforces every deadline, picks
+for whoever has run out of time or has handed their picks over, and repairs the
+three states no request would ever notice. Verified locally by running one: a
+full 13-round two-member draft, autodrafted end to end at one pick a second,
+finishing `complete` with the league moved to `season`. What the room still does
+not do is update on its own while a clock is running — the countdown pulls the
+page for itself once a deadline passes, so an autodraft appears without a
+reload, but a pick made by somebody else *before* their clock ran out still
+waits for your next load. That is Phase 3.2's subscription.
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -90,23 +99,27 @@ anything.
 
 ## Phase 2 — Draft engine v1, the TDD phase
 
-**In progress.** DoD — *"a full 13-round mock draft on phone + PC with one member
-on autodraft, a mid-draft rollback, and the engine suite covering every format ×
-edge case"*. Most of it is now reachable: the engine suite is done, and 2.4
-shipped the pick pipeline, the room and rollback. What is missing is
-**autodraft**, which needs 2.5's worker — so the mock draft itself is the thing
-to run once 2.5 lands, and running it is what closes this phase.
+**Code complete, pending the rehearsal.** DoD — *"a full 13-round mock draft on
+phone + PC with one member on autodraft, a mid-draft rollback, and the engine
+suite covering every format × edge case"*. Every mechanism it names now exists
+and is tested: the engine suite (2.2), the pick pipeline, the room and rollback
+(2.4), and the worker that enforces the clock and drafts for the absent (2.5). A
+13-round draft has been run end to end locally, but by the worker rather than by
+people — so what remains is literally the phase's own wording: **a mock draft
+with humans on two devices**, with a rollback in the middle. Until somebody runs
+it, this phase is complete-pending-rehearsal rather than complete, exactly as
+Phase 1 is complete-pending-confirmation.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | 2.1a Roster ingestion — the shared pipeline and the API front door | **partial** | #24 | Landed: `players` / `roster_imports` / `app_settings` migrations, the pure normalize→diff pipeline (41 tests), the API sync (`npm run rosters:sync`, idempotent, rate-limit-resilient), the authority *gate*, and the `/players` pool page with source and lock badges. **Deferred to 2.1b, deliberately:** the CSV front door, the web diff preview, and any UI for flipping the authority or setting `manual_lock` — all three are commissioner controls, and the app has no app-global admin role yet (see Open debt). Both are settable in the database meanwhile |
 | 2.1b Roster ingestion — the CSV front door and the roster authority | done | — | Paste a sheet at `/players/import`, read the plan, then apply. Preview writes nothing at all; applying **re-parses and re-diffs** rather than trusting the preview, so a plan left in a tab cannot write itself against a table that moved. Authority flips between `api` and `csv` from the same page. Gated on the league's permission rule. **Deferred:** per-player `manual_lock` toggles in the UI — the lock is honoured everywhere and settable in the database, but there is no button for it yet |
-| **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, 157 tests. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness |
+| **2.2 Engine library** — `buildPickOrder`, `whoIsOnClock`, `isLegalPick`, `selectAutoPick`, `computeRollback` | done | #22 | Pure, **175 tests**. Purity is **enforced** by `purity.test.ts`, not just asserted — it reads the source and fails on a PocketBase import, I/O, an implicit clock, or randomness. 2.5 found and fixed one real bug in it: `rankForMember` subtracted two `-Infinity`s for a pool with no projections, and `Array#sort` reads the resulting NaN as "equal" — so the documented player-id tiebreak was dead code for *every* pool that exists before Phase 4.4, and the ranking silently became whatever order the caller passed. Fixed with a test for the both-absent case, which is the case the suite had never had |
 | 2.3a Draft setup & order determination — settings, the seeded roll, manual order | done | — | No new collection: settings live in `leagues.settings`, positions on `league_members.draft_position` (the field 1.1 created and left "unset until the roll"). `rollOrder` is pure and seeded, so a roll **replays identically** — which is what makes a half-written roll repairable by re-applying rather than re-rolling, and what 2.3b's reveal will replay from. `reverse_standings` is in the vocabulary and refused with its reason: it needs Phase 4's `standings_snapshots` |
 | 2.3b The roll, revealed live — one slot at a time, plus reshuffle | done | — | The order lands last-slot-first for everyone at once, driven by the seed changing rather than by any new state — so it plays on a first roll and on a reshuffle, and never on a reload or a re-apply. Reduced motion gets the finished order immediately, which every other E2E spec covers since the suite forces `reduce`. **Reshuffle** is a separate action behind a tick-box: `Re-apply` must be safe to press twice, changing who picks first must not happen by accident |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | done | — | A draft can be started, picked through, paused, resumed and undone. Pick-then-advance writes the pick first and advances second, with `repairUnadvanced` running *before* the read on the next pick — so a crash between the two writes costs nothing and the next pick repairs it. Both unique indexes are exercised by `pb:verify`, not merely declared. A commissioner or deputy may enter a pick **for** whoever is on the clock (the button reads "Pick for them"), which is what keeps a draft moving when a phone dies. Every refusal revalidates the room, so a stale tab is corrected by the act of being wrong. Undo discards highest-numbered pick first and re-points the draft last, so a half-run undo leaves a shorter contiguous board rather than a hole, and pressing it again finishes the job; it always lands **paused**. The one piece of 2.4's blueprint text not here is the system **chat message** announcing a rollback — there is no chat until 3.4 |
-| 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | todo | — | The worker app already exists in `ecosystem.config.js` as a heartbeat; this gives it its loop |
-| 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. Correctness before beauty — fuzzy search, tiers and the radar are Phase 3 |
+| 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | done | — | The heartbeat became a loop. One `sweepOnce` a second: autodraft for whoever is out of time (a 1s grace period past zero, so a member who taps on zero beats the sweep and the loser of that race is refused by the index either way) or has armed it, plus three repairs nothing else would notice — an unadvanced pick, a live draft whose every slot is filled, and a live draft whose deadline went missing. It refuses two things on purpose: a pool with no legal player, and a board with a hole in it, both of which are logged once and left for the commissioner (§7 — the worker running must corrupt no more than the worker dying). **The pick pipeline moved to `src/lib/drafts/pipeline.ts`**, framework-free, so the sweep and the server action land a pick through the *same* `commitPick` — a human pick and an automatic one cannot diverge. Autodraft is armed by the member themselves ("Draft for me" in the room, `league_members.autodraft_enabled`, the field 1.1 created and nothing used); the commissioner's per-member version is 3.6. `/api/time` plus an offset-corrected countdown finish 2.6's clock. Three properties are worth knowing before touching it: a **repair is the tick's one action** for that draft (carrying on meant reasoning about a record that had just changed, which handed the next member an expired clock); the sweep **re-reads the draft immediately before it writes**, so a pause or a rollback landing mid-tick is not written through; and the worker **counts its own intervals outside the tick**, so a wedged PocketBase produces a log line saying no deadline is being enforced rather than silence from a process everything else calls healthy |
+| 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. 2.5 added the countdown it was missing — display only, corrected against `/api/time`, and incapable of firing a pick. Correctness before beauty — fuzzy search, tiers and the radar are Phase 3 |
 
 ## Phases 3–8
 
@@ -135,8 +148,10 @@ touch should be fixed by that slice rather than deferred again.
 | **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
-| **The draft room does not update on its own** | Everything about the draft is server-authoritative and correct, but the room is rendered per request: a pick reaches the rest of the league on their *next load*, not as it happens. The lobby already subscribes over SSE with the viewer's token (1.3b) and the room is meant to copy that shape — blueprint 3.2. Until it does, the product's central promise, everyone watching one board move at once, is not yet true | Phase 3's draft-day experience |
+| **The draft room does not update on its own** | Mitigated at the one moment it mattered most, still open in general. The room is rendered per request, so a pick somebody makes *while their clock is running* reaches everyone else on their next load. What no longer waits is the clock running out: past zero the countdown asks the server for the page again — at 2s, then every 3s, five times at most per deadline — so an autodraft appears by itself and a room whose worker is down stops polling instead of hammering all night. It is a stopgap with a deliberate ceiling; the lobby already subscribes over SSE with the viewer's token (1.3b) and the room is meant to copy that shape (blueprint 3.2). Until it does, the central promise — everyone watching one board move at once — is not yet true | Phase 3's draft-day experience |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
+| **Autodraft has nothing to rank on** | `selectAutoPick` ranks a cheat sheet first and projections second, and neither exists yet: cheat sheets are 3.4, projections 4.4. So today every candidate ties, and the engine falls through to its own total tiebreak — the **lowest player id** among the legal ones. Arbitrary, and identical on every replay, which is the property that matters until there is something real to rank on; the pool is passed `projectedPoints` the moment the field exists. (Until 2.5 it looked alphabetical, because the NaN in the comparator meant `readPool`'s `sort: "name"` was deciding the pick by accident. It no longer decides anything) | Nothing; autodraft quality, not correctness |
+| **No per-member autodraft switch for a manager** | A member arms their own autodraft from the draft room, and `setAutodraft` already permits a commissioner or deputy to set anybody's — but there is no UI for it, so a manager dealing with a phone that died has to wait the clock out and let the sweep pick, or enter the pick themselves with "Pick for them". Blueprint 3.6 owns the console | Nothing; a commissioner-comfort gap |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 Closed since the last update:
@@ -154,18 +169,42 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.4: **all green.**
+Last full local run, on slice 2.5: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **318 passed** — 173 the engine, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 config and helpers |
+| `npm run test` | **372 passed** — 175 the engine, 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 35 config and helpers |
 | `npm run build` | pass |
-| `npm run test:e2e` | 108 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 120 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
+
+**The worker, run for real** against the local database rather than only against
+its tests: a planted two-member draft with both members armed was drafted to
+completion by `npm run worker:dev` — 26 picks at one a second, every one
+`is_auto`, the snake order correct, the draft closing itself `complete` and the
+league following it to `season`. `tsx watch` restarting the process mid-draft
+re-authenticated and carried on, which is the same path a PM2 reload takes.
+
+The sweep is exercised twice over on purpose: `src/worker/sweep.test.ts` stages
+the awkward states (a lost deadline, a hole in the board, a draft paused
+mid-tick, a race lost to a human on zero) against a strict PocketBase fake —
+which enforces the real unique indexes and throws on any filter, sort or option
+it does not implement, so it cannot quietly make broken code pass — and
+`tests/e2e/worker.spec.ts` runs the same `sweepOnce` against the real database,
+scoped with `onlyDraft` so a suite run cannot autodraft into a league somebody
+was testing by hand.
+
+The seam the worker depends on is **enforced, not documented**:
+`src/worker/framework-free.test.ts` walks the real import graph from
+`index.ts` and fails on `next/*`, `server-only` or `react` anywhere in it —
+including a bare `import "server-only";`, which the first draft of that test
+missed and which is exactly how the two modules next door declare themselves.
+Without it, importing `next/cache` into the pipeline would keep every check
+green and fail for the first time when PM2 started the worker in production.
 
 > Running E2E from a git worktree? Pass `E2E_PORT` — Playwright's
 > `reuseExistingServer` will otherwise reuse a dev server from a *different*

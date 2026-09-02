@@ -70,10 +70,14 @@ module.exports = {
     {
       ...common,
       name: "eurovafliai-worker",
-      // Pick timers, autodraft and nightly stats. Today it is the Phase 0
-      // heartbeat scaffold — the real loop lands in Phase 2.5. It is wired up
-      // now so the two-app layout, the Node 24 interpreter and the reload path
-      // are all proven by the first deploy rather than by the draft-night one.
+      // Pick timers and autodraft — live since slice 2.5, and the only process
+      // that enforces a deadline: with it stopped, a draft runs but nobody ever
+      // times out. `deploy.sh` warns when a reload has left it down. Nightly
+      // stats join it in Phase 4.3.
+      //
+      // One tick a second, each a couple of indexed queries against a local
+      // SQLite file, so the memory ceiling below is about catching a leak
+      // rather than about the work.
       script: "node_modules/tsx/dist/cli.mjs",
       args: "src/worker/index.ts",
       max_memory_restart: "300M",

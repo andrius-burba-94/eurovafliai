@@ -10,6 +10,8 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 
+import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
+
 import { reconcileLeagueStatus } from "./repair";
 
 import type { BoardPick, DraftRecord, PickRecord } from "./types";
@@ -33,6 +35,14 @@ export type DraftView = {
   } | null;
   /** True when it is the viewer's own turn. */
   isYourTurn: boolean;
+  /**
+   * The viewer's own membership, or null for a commissioner who has no row yet.
+   *
+   * `autodraftEnabled` is theirs to change from the room — the sweep reads it
+   * one tick later and takes their turn as soon as it comes round. Everyone
+   * else's flag is Phase 3.6's console.
+   */
+  you: { memberId: string; autodraftEnabled: boolean } | null;
   /**
    * The viewer is the commissioner or a deputy, so they may enter a pick for
    * whoever is on the clock. `makePick` has always permitted this — a phone
@@ -85,6 +95,7 @@ export async function getDraftView(
     user: string;
     team_name: string;
     can_manage?: boolean;
+    autodraft_enabled?: boolean;
     expand?: { user?: { name?: string; email?: string } };
   }>({
     filter: `league = '${leagueId}'`,
@@ -164,7 +175,7 @@ export async function getDraftView(
     position: Position;
     status: string;
   }>({
-    filter: "status != 'left'",
+    filter: DRAFTABLE_PLAYERS_FILTER,
     sort: "name",
     requestKey: null,
   });
@@ -181,6 +192,12 @@ export async function getDraftView(
         }
       : null,
     isYourTurn: Boolean(clock && youId && clock.memberId === youId),
+    you: you
+      ? {
+          memberId: you.id,
+          autodraftEnabled: Boolean(you.autodraft_enabled),
+        }
+      : null,
     canManage:
       league.commissioner === session.user.id || Boolean(you?.can_manage),
     members: memberRecords.map((record) => ({

@@ -143,4 +143,17 @@ fi
 curl -sf --max-time 3 http://127.0.0.1:8095/api/health > /dev/null \
   && echo "PocketBase responds on 127.0.0.1:8095"
 
+# The worker has no port to curl, and since slice 2.5 it is the only thing that
+# enforces a pick deadline: a deploy that quietly left it stopped would give the
+# league a draft where nobody ever times out and autodraft never fires. A warning
+# rather than a failure, because the app itself is up and serving — but a
+# warning that says exactly what is lost.
+WORKER_PID="$(pm2 pid eurovafliai-worker 2>/dev/null | tr -dc '0-9')"
+if [ -n "$WORKER_PID" ] && [ "$WORKER_PID" != "0" ]; then
+  echo "worker is online (pid $WORKER_PID)"
+else
+  warn "eurovafliai-worker is NOT running — pick timers and autodraft are off."
+  warn "Start it with: pm2 reload ecosystem.config.js --update-env"
+fi
+
 say "Deployed $AFTER_SHA"
