@@ -14,10 +14,13 @@ import type PocketBase from "pocketbase";
  *   violation throws the error shape PocketBase 0.39 actually returns
  *   (`response.data.<field>.code === "validation_not_unique"`). Without that,
  *   a test could "prove" a race is handled while the real backstop is missing.
- * - **An unsupported query throws.** A fake that quietly ignored a filter it
- *   did not understand would return every row and make broken code pass. If a
- *   caller writes a filter this cannot parse, the test fails loudly and this
- *   file gets extended.
+ * - **An unsupported query throws.** A fake that quietly ignored part of a
+ *   query would return the wrong rows and make broken code pass — and that
+ *   applies to every option, not just `filter`. An unparseable filter, a
+ *   multi-field sort, a sort on a field the fixtures do not carry, or an option
+ *   this file has never heard of (`expand`, `fields`, `page`) all throw, so the
+ *   failure is a message rather than a mystery. Extending this file is the
+ *   intended response.
  *
  * It is not a PocketBase emulator, and the integration proof lives in
  * `tests/e2e/worker.spec.ts`, which drives the sweep against the real thing.
@@ -41,8 +44,8 @@ export type FakeHooks = {
    * there between the sweep's read and its write.
    */
   beforeCreate?(collection: string, data: Record<string, unknown>): void;
+  /** The same seam on the read side: throw to fail one collection's query. */
   beforeList?(collection: string, filter: string): void;
-  beforeUpdate?(collection: string, id: string): void;
 };
 
 export type FakePb = {
@@ -79,6 +82,7 @@ export function fakePb(options: {
         filter?: string;
         sort?: string;
       }): Promise<T[]> {
+        onlySupported(options, ["filter", "sort"]);
         hooks.beforeList?.(collection, options?.filter ?? "");
         const found = rows(collection).filter((record) =>
           matches(record, options?.filter),
@@ -88,13 +92,18 @@ export function fakePb(options: {
         })) as T[];
       },
 
-      async getOne<T>(id: string): Promise<T> {
+      async getOne<T>(id: string, options?: object): Promise<T> {
+        onlySupported(options, []);
         const found = rows(collection).find((record) => record.id === id);
         if (!found) throw notFound(collection, id);
         return { ...found } as T;
       },
 
-      async create<T>(body: Record<string, unknown>): Promise<T> {
+      async create<T>(
+        body: Record<string, unknown>,
+        options?: object,
+      ): Promise<T> {
+        onlySupported(options, []);
         hooks.beforeCreate?.(collection, body);
         for (const fields of unique[collection] ?? []) {
           const clash = rows(collection).some((record) =>
@@ -116,8 +125,9 @@ export function fakePb(options: {
       async update<T>(
         id: string,
         body: Record<string, unknown>,
+        options?: object,
       ): Promise<T> {
-        hooks.beforeUpdate?.(collection, id);
+        onlySupported(options, []);
         const found = rows(collection).find((record) => record.id === id);
         if (!found) throw notFound(collection, id);
         Object.assign(found, body);
@@ -125,7 +135,8 @@ export function fakePb(options: {
         return { ...found } as T;
       },
 
-      async delete(id: string): Promise<boolean> {
+      async delete(id: string, options?: object): Promise<boolean> {
+        onlySupported(options, []);
         const list = rows(collection);
         const at = list.findIndex((record) => record.id === id);
         if (at === -1) throw notFound(collection, id);
@@ -167,10 +178,39 @@ function matches(record: FakeRecord, filter?: string): boolean {
   return operator === "=" ? actual === value : actual !== value;
 }
 
+/**
+ * Everything this fake understands, per call. `requestKey` is always allowed —
+ * every read in this repo passes it — and anything else named here is
+ * implemented below. An option that is neither is a silent lie waiting to
+ * happen: `expand` ignored returns rows without their relations, and the test
+ * asserts against nulls it thinks are real.
+ */
+function onlySupported(options: object | undefined, supported: string[]): void {
+  for (const key of Object.keys(options ?? {})) {
+    if (key === "requestKey" || supported.includes(key)) continue;
+    throw new Error(
+      `fake-pb does not implement the "${key}" option — implement it rather than ignoring it`,
+    );
+  }
+}
+
 function sorted(records: FakeRecord[], sort?: string): FakeRecord[] {
   if (!sort) return records;
+  if (sort.includes(",")) {
+    throw new Error(`fake-pb sorts by one field, not "${sort}"`);
+  }
   const descending = sort.startsWith("-");
   const field = descending ? sort.slice(1) : sort;
+  // A field the rows do not carry compares `undefined` against `undefined` for
+  // every pair, which scrambles the order instead of failing. `readPicks`
+  // depends on `sort: "overall_no"` being honoured for `findUnadvancedPick` and
+  // `whoIsOnClock` to be right, so a typo here has to be loud.
+  const missing = records.find((record) => record[field] === undefined);
+  if (missing) {
+    throw new Error(
+      `fake-pb cannot sort by "${field}": record ${missing.id} does not have it`,
+    );
+  }
   return [...records].sort((a, b) => {
     const left = a[field] as string | number;
     const right = b[field] as string | number;

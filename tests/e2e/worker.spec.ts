@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { parsePbDate } from "../../src/lib/drafts/due";
+import { deadlineFrom } from "../../src/lib/drafts/pipeline";
 import { sweepOnce } from "../../src/worker/sweep";
 
 import {
@@ -31,9 +33,13 @@ test.afterEach(async () => {
   await cleanupTestData();
 });
 
-/** The shape PocketBase stores a date in. */
+/**
+ * A deadline `offsetMs` from now, written the way the app writes one — through
+ * `deadlineFrom`, not a local copy of it. A spec that formats its own dates is
+ * a spec that keeps passing after the stored format changes.
+ */
 function stamp(offsetMs: number): string {
-  return new Date(Date.now() + offsetMs).toISOString().replace("T", " ");
+  return deadlineFrom(new Date(Date.now() + offsetMs), 0);
 }
 
 /**
@@ -93,7 +99,7 @@ async function tick(draftId: string, graceMs?: number) {
   const messages: string[] = [];
   const report = await sweepOnce({
     pb,
-    now: new Date(),
+    clock: () => new Date(),
     log: (message) => messages.push(message),
     onlyDraft: draftId,
     graceMs,
@@ -125,7 +131,9 @@ test("the sweep picks for a member who has run out of time", async () => {
     .collection("drafts")
     .getOne(draft.id, { requestKey: null });
   expect(after.current_pick).toBe(2);
-  expect(new Date(String(after.deadline).replace(" ", "T")).getTime()).toBeGreaterThan(Date.now());
+  // Read back through the app's own parser, so this asserts the format the
+  // sweep actually has to survive rather than one the spec invented.
+  expect(parsePbDate(after.deadline)?.getTime()).toBeGreaterThan(Date.now());
 });
 
 test("and leaves a member alone while they still have time", async () => {

@@ -5,6 +5,8 @@ import {
   advance,
   commitPick,
   deadlineFrom,
+  describeError,
+  DRAFTABLE_PLAYERS_FILTER,
   readPicks,
   repairUnadvanced,
   rosterPositionsOf,
@@ -48,16 +50,21 @@ import { parseLeagueSettings } from "@/lib/leagues/settings";
  * draft alone for the commissioner (§7 — the worker dying must corrupt
  * nothing, and neither may the worker running).
  *
- * `now` is an argument, and so is the grace: a sweep that read the wall clock
- * itself could not be tested against a deadline, which is the one thing it
- * exists to do.
+ * The clock is injected, and as a *function* rather than a timestamp. A sweep
+ * that reached for the wall clock itself could not be tested against a
+ * deadline, which is the one thing it exists to do — but a single timestamp
+ * taken at the top of the tick would be stale by the time the writes happen,
+ * and a tick that overran would stamp the next member a deadline already in the
+ * past. So each decision and each write asks for the time where it stands, and
+ * a test hands over a clock that does not move.
  */
 
 export type SweepLog = (message: string) => void;
 
 export type SweepInput = {
   readonly pb: PocketBase;
-  readonly now: Date;
+  /** The time, asked for at each decision and each write. Tests pass a fixed one. */
+  readonly clock: () => Date;
   readonly log: SweepLog;
   /**
    * Drafts already complained about, so a draft the sweep cannot help is
@@ -89,6 +96,8 @@ export type SweepReport = {
   clocksRestarted: number;
   /** Drafts the sweep could not move and would not force. */
   stuck: number;
+  /** Drafts that changed under the sweep mid-tick — a pause, or a rollback. */
+  moved: number;
   /** Drafts that threw. One bad draft must not stop the others. */
   failed: number;
 };
@@ -102,6 +111,7 @@ function emptyReport(): SweepReport {
     finished: 0,
     clocksRestarted: 0,
     stuck: 0,
+    moved: 0,
     failed: 0,
   };
 }
@@ -129,6 +139,12 @@ type PoolPlayer = EnginePlayer & { readonly name: string };
 export async function sweepOnce(input: SweepInput): Promise<SweepReport> {
   const { pb, log } = input;
   const report = emptyReport();
+  /**
+   * A caller that does not keep a set across ticks — a spec, a script — still
+   * gets de-duplication *within* the tick, instead of silently getting one log
+   * line per call from a function whose whole job is to log once.
+   */
+  const reported = input.reported ?? new Set<string>();
 
   // Only `live` drafts. A paused draft has nobody on the clock by design, and
   // a complete one is history — sweeping either would be the worker overruling
@@ -143,13 +159,17 @@ export async function sweepOnce(input: SweepInput): Promise<SweepReport> {
 
   for (const draft of drafts) {
     try {
-      await sweepDraft(input, draft, report);
+      const outcome = await sweepDraft(input, draft, report, reported);
+      // A draft that the sweep could move is a draft whose earlier complaint is
+      // spent. Without this, a commissioner who fixed a gap and later hit the
+      // same state again would get no log line for the life of the process.
+      if (outcome !== "stuck") forget(reported, draft.id);
     } catch (error) {
       // One league's draft must never take the others down with it: at 10
       // users there may be two drafts running, and the second one's members
       // did nothing wrong.
       report.failed += 1;
-      log(`draft ${draft.id} failed: ${describe(error)}`);
+      log(`draft ${draft.id} failed: ${describeError(error)}`);
     }
   }
 
@@ -157,20 +177,29 @@ export async function sweepOnce(input: SweepInput): Promise<SweepReport> {
 }
 
 async function sweepDraft(
-  { pb, now, log, reported, graceMs = AUTOPICK_GRACE_MS }: SweepInput,
+  { pb, clock, log, graceMs = AUTOPICK_GRACE_MS }: SweepInput,
   draft: DraftRecord,
   report: SweepReport,
-): Promise<void> {
+  reported: Set<string>,
+): Promise<"handled" | "stuck"> {
+  const now = clock();
   const picks = await readPicks(pb, draft.id);
 
   // Job 2, first, on every live draft: an unadvanced pick makes every reading
-  // below it wrong. The repair writes only to `drafts`, so the picks in hand
-  // are still current.
+  // below it wrong.
   const repaired = await repairUnadvanced(pb, draft, picks, now);
   if (repaired) {
-    Object.assign(draft, repaired);
     report.repaired += 1;
-    log(`draft ${draft.id} · repaired an unadvanced pick → ${repaired.current_pick}`);
+    log(
+      `draft ${draft.id} · repaired an unadvanced pick → ${repaired.current_pick}`,
+    );
+    // And that is this draft's one action for this tick. Carrying on would mean
+    // reasoning about a record that has just changed under us — which is
+    // exactly how the repair came to hand the next member an expired clock, and
+    // how a repair that finished a draft advanced it a second time. A second
+    // later the next tick reads the draft as it now is, which is cheaper than
+    // being clever about it.
+    return "handled";
   }
 
   const state = toState(draft);
@@ -184,14 +213,19 @@ async function sweepDraft(
       await advance(pb, draft, picks, totalPicks(state), now);
       report.finished += 1;
       log(`draft ${draft.id} · every slot filled, closing it`);
-      return;
+      return "handled";
     }
     // A live draft with nobody on the clock and slots still empty means a hole
     // below `current_pick` — an interrupted rollback, most likely. Filling it
     // would be guessing at what the commissioner meant.
     report.stuck += 1;
-    reportOnce(reported, log, `${draft.id}:hole`, `draft ${draft.id} · live with a gap in the board and nobody on the clock — needs a commissioner`);
-    return;
+    reportOnce(
+      reported,
+      log,
+      `${draft.id}:hole`,
+      `draft ${draft.id} · live with a gap in the board and nobody on the clock — needs a commissioner`,
+    );
+    return "stuck";
   }
 
   if (needsDeadline(draft)) {
@@ -206,7 +240,7 @@ async function sweepDraft(
       );
     report.clocksRestarted += 1;
     log(`draft ${draft.id} · live with no deadline, restarted the clock`);
-    return;
+    return "handled";
   }
 
   const member = await pb
@@ -218,7 +252,7 @@ async function sweepDraft(
     .catch(() => null);
 
   const armed = Boolean(member?.autodraft_enabled);
-  if (!armed && !isPickDue(draft, now, graceMs)) return;
+  if (!armed && !isPickDue(draft, clock(), graceMs)) return "handled";
 
   const league = await pb
     .collection("leagues")
@@ -230,9 +264,10 @@ async function sweepDraft(
 
   const choice = selectAutoPick({
     candidates: pool,
-    // Cheat sheets are Phase 3.4. Until then every member's ranking is the
-    // pool's own, which is why `readPool` sorts it deliberately rather than
-    // taking whatever the database returns.
+    // Cheat sheets are Phase 3.4 and projections 4.4, so the engine has
+    // nothing to rank on and falls through to its own total tiebreak, the
+    // player id. Arbitrary, and identical on every replay — which is the
+    // property that matters until there is something real to rank on.
     roster,
     template,
     takenPlayerIds: new Set(picks.map((pick) => pick.playerId)),
@@ -250,7 +285,34 @@ async function sweepDraft(
       `${draft.id}:${onClock.overallNo}`,
       `draft ${draft.id} · pick ${onClock.overallNo}: no legal player left in the pool — needs a commissioner`,
     );
-    return;
+    return "stuck";
+  }
+
+  /**
+   * The last look before the write.
+   *
+   * Between the list read at the top of the tick and this line sit half a dozen
+   * queries — the member, the league, the pool, the roster. A pause or a
+   * rollback landing in that window must not be written through: `advance`
+   * does not touch `status`, so an autopick into a paused draft would leave it
+   * paused with a running clock, and a pick above a rollback's target survives
+   * that rollback's delete loop and leaves a gap `isDraftComplete` can never
+   * fill. `rollbackDraft` pauses *first* precisely to close this door; this is
+   * the sweep checking that it is shut.
+   *
+   * It does not make the race impossible — PocketBase has no transactions —
+   * but it shrinks the window from six queries to one, and the unique indexes
+   * still refuse a double pick.
+   */
+  const fresh = await pb
+    .collection("drafts")
+    .getOne<DraftRecord>(draft.id, { requestKey: null });
+  if (fresh.status !== "live" || fresh.current_pick !== draft.current_pick) {
+    report.moved += 1;
+    log(
+      `draft ${draft.id} · moved under the sweep (${fresh.status}, pick ${fresh.current_pick}) — leaving it`,
+    );
+    return "handled";
   }
 
   const outcome = await commitPick(pb, {
@@ -259,7 +321,7 @@ async function sweepDraft(
     playerId: choice.id,
     isAuto: true,
     picks,
-    now,
+    now: clock(),
   });
 
   if (outcome === "raced") {
@@ -267,7 +329,7 @@ async function sweepDraft(
     // them — got there first. Exactly what the grace period is for.
     report.raced += 1;
     log(`draft ${draft.id} · pick ${onClock.overallNo} was taken first`);
-    return;
+    return "handled";
   }
 
   report.autopicked += 1;
@@ -276,27 +338,27 @@ async function sweepDraft(
       `${member?.team_name || onClock.memberId} ← ${nameOf(pool, choice.id)}` +
       `${armed ? " (autodraft armed)" : " (out of time)"}`,
   );
+  return "handled";
 }
 
 /**
- * The pool, best first, as the engine wants to see it.
+ * The pool the engine ranks, and the room's own definition of draftable —
+ * `DRAFTABLE_PLAYERS_FILTER`, shared with `getDraftView` so the sweep cannot
+ * pick somebody the room would not have offered.
  *
- * Sorted by name, which is honest about what it is: there are no projections
- * until Phase 4.4 and no cheat sheets until 3.4, so `selectAutoPick` has
- * nothing to rank on and falls back to its own total tiebreak — the player id,
- * which is a random string. Sorting by name at least makes the sweep's choice
- * *explicable* ("the first legal player alphabetically") instead of arbitrary,
- * and it keeps two replays of the same draft identical. When projections land,
- * they are passed as `projectedPoints` here and this comment goes away.
- *
- * `status != 'left'` matches what the room offers: a player the roster sync has
- * marked as gone must not be autodrafted into somebody's team.
+ * The `sort` is for the log and for a readable database read; it does **not**
+ * decide the pick. With no cheat sheet and no projections, `selectAutoPick`
+ * falls through to its own total tiebreak — the player id — so the autopick is
+ * arbitrary and identical on every replay until Phase 4.4 gives it something
+ * real to rank on. (It used to decide the pick, by accident, through a NaN in
+ * the engine's comparator that made the id tiebreak dead code. Fixed there,
+ * with a test.)
  */
 async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
   const players = await pb
     .collection("players")
     .getFullList<{ id: string; name: string; position: Position }>({
-      filter: "status != 'left'",
+      filter: DRAFTABLE_PLAYERS_FILTER,
       sort: "name",
       requestKey: null,
     });
@@ -321,17 +383,19 @@ function nameOf(pool: readonly PoolPlayer[], id: string): string {
 
 /** Log a problem the sweep cannot fix once, not once a second. */
 function reportOnce(
-  reported: Set<string> | undefined,
+  reported: Set<string>,
   log: SweepLog,
   key: string,
   message: string,
 ): void {
-  if (reported?.has(key)) return;
-  reported?.add(key);
+  if (reported.has(key)) return;
+  reported.add(key);
   log(message);
 }
 
-function describe(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
+/** Forget a draft's complaints, so the same state can be reported again later. */
+function forget(reported: Set<string>, draftId: string): void {
+  for (const key of reported) {
+    if (key.startsWith(`${draftId}:`)) reported.delete(key);
+  }
 }

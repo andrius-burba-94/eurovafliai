@@ -109,7 +109,8 @@ function world(overrides: {
       live.db = pb.db;
       const report = await sweepOnce({
         pb: pb.client,
-        now: NOW,
+        // A clock that does not move, so a deadline can be asserted exactly.
+        clock: () => NOW,
         log: (message) => log.push(message),
         reported: options.reported,
         graceMs: options.graceMs,
@@ -257,6 +258,32 @@ describe("legality, through the engine", () => {
     expect(stuck.log).toHaveLength(1);
   });
 
+  it("complains again about a draft that was fixed and broke again", async () => {
+    // Reported once, not once and never again: a commissioner who repairs a
+    // pool and later hits the same wall deserves to hear about it a second
+    // time. The set is what remembers, so the sweep has to forget on the way
+    // past a draft it could move.
+    const stuck = world({
+      draft: { deadline: deadlineAt(-5_000) },
+      players: [{ id: "charlie", name: "Charlie", position: "C", status: "active" }],
+    });
+    const reported = new Set<string>();
+
+    await stuck.run({ reported });
+    expect(stuck.log).toHaveLength(1);
+
+    // A guard turns up in the pool, the pick lands, and the complaint is spent.
+    stuck.db.players.push({ id: "dana", name: "Dana", position: "G", status: "active" });
+    await stuck.run({ reported });
+
+    // Back to a pool with nothing legal in it, and the sweep says so again.
+    stuck.db.players = [
+      { id: "charlie", name: "Charlie", position: "C", status: "active" },
+    ];
+    await stuck.run({ reported });
+    expect(stuck.log.filter((line) => line.includes("no legal player"))).toHaveLength(2);
+  });
+
   it("does not autodraft a player who has left the Euroleague", async () => {
     const gone = world({
       draft: { deadline: deadlineAt(-5_000) },
@@ -284,6 +311,44 @@ describe("the repairs nobody else would notice", () => {
     expect(db.drafts[0].current_pick).toBe(2);
     // The repair advances; it does not pick. m2 has a full clock.
     expect(db.picks).toHaveLength(1);
+  });
+
+  it("does not hand the next member an expired clock", async () => {
+    // The repair writes a fresh deadline; the record in hand still carries the
+    // old one. Believing it read the *previous* member's expired clock as this
+    // member's, and took their whole turn in the same tick.
+    const repaired = world({
+      draft: { current_pick: 1, deadline: deadlineAt(-5_000) },
+      picks: [
+        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
+      ],
+    });
+    const { report, db } = await repaired.run();
+
+    expect(report).toMatchObject({ repaired: 1, autopicked: 0 });
+    expect(db.picks).toHaveLength(1);
+    expect(db.drafts[0].deadline).toBe(deadlineFrom(NOW, PICK_SECONDS));
+  });
+
+  it("does not advance twice when the repair itself finishes the draft", async () => {
+    // Every slot filled and `current_pick` pointing at the last one: the repair
+    // completes the draft, and a second advance in the same tick pushed
+    // `current_pick` past the end and wrote the league's status twice.
+    const finished = world({
+      draft: { current_pick: 4, deadline: deadlineAt(-5_000) },
+      picks: [
+        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
+        { id: "p2", draft: "d1", overall_no: 2, round: 1, slot: 2, member: "m2", player: "elin" },
+        { id: "p3", draft: "d1", overall_no: 3, round: 2, slot: 1, member: "m2", player: "zane" },
+        { id: "p4", draft: "d1", overall_no: 4, round: 2, slot: 2, member: "m1", player: "bravo" },
+      ],
+    });
+    const { report, writes, db } = await finished.run();
+
+    expect(report).toMatchObject({ repaired: 1, finished: 0, autopicked: 0 });
+    expect(db.drafts[0]).toMatchObject({ status: "complete", current_pick: 5 });
+    expect(db.leagues[0].status).toBe("season");
+    expect(writes).toEqual(["update drafts:d1", "update leagues:lg1"]);
   });
 
   it("closes a draft whose every slot is filled", async () => {
@@ -360,6 +425,24 @@ describe("races and failures", () => {
     // The human's pick stands, and the sweep wrote nothing over it.
     expect(onlyPick(db)).toMatchObject({ id: "human", is_auto: false });
     expect(raced.log.join(" ")).toContain("taken first");
+  });
+
+  it("leaves a draft that was paused while the tick was reading", async () => {
+    // The real window `rollbackDraft` pauses first to close: the sweep read the
+    // draft as live, and half a dozen queries later it is not. Staged here by
+    // pausing it as the pool is read, which is the last read before the write.
+    const paused = world({ draft: { deadline: deadlineAt(-5_000) } });
+    const { report, db } = await paused.run({
+      hooks: (live) => ({
+        beforeList(collection) {
+          if (collection === "players") live.db.drafts[0].status = "paused";
+        },
+      }),
+    });
+
+    expect(report).toMatchObject({ moved: 1, autopicked: 0 });
+    expect(db.picks).toEqual([]);
+    expect(paused.log.join(" ")).toContain("moved under the sweep");
   });
 
   it("keeps sweeping the other drafts when one throws", async () => {

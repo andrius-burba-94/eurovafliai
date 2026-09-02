@@ -32,6 +32,8 @@ import PocketBase from "pocketbase";
 
 import { parseServerEnv, type ServerEnv } from "@/lib/config/schema";
 
+import { describeError } from "@/lib/drafts/pipeline";
+
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
 /**
@@ -43,15 +45,23 @@ import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 const TICK_MS = 1_000;
 /** Five minutes. Proof of life for a process that is silent when all is well. */
 const HEARTBEAT_EVERY_TICKS = 300;
+/**
+ * How long a tick may be in flight before the log says so.
+ *
+ * A tick is a handful of queries against a local SQLite file, so thirty seconds
+ * is not slow, it is wedged — PocketBase accepting a connection and then not
+ * answering, most likely. The process is *alive* in that state, which is what
+ * makes it dangerous: PM2 reports it online, `deploy.sh` agrees, and no pick
+ * deadline is being enforced. That is exactly the "looks perfectly healthy and
+ * never times anybody out" failure the sweep exists to repair, so the worker
+ * must not be able to fall into it silently.
+ */
+const STALL_AFTER_MS = 30_000;
 /** A minute of consecutive failures between complaints — PocketBase being down should not fill the disk. */
 const FAILURE_LOG_EVERY = 60;
 
 function log(message: string): void {
   console.log(`[worker] ${new Date().toISOString()} ${message}`);
-}
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** A one-line summary of a tick that actually did something. */
@@ -63,6 +73,7 @@ function summarise(report: SweepReport): string {
   if (report.finished) parts.push(`${report.finished} finished`);
   if (report.clocksRestarted) parts.push(`${report.clocksRestarted} clocks restarted`);
   if (report.stuck) parts.push(`${report.stuck} stuck`);
+  if (report.moved) parts.push(`${report.moved} moved`);
   if (report.failed) parts.push(`${report.failed} failed`);
   return `tick · ${report.live} live · ${parts.join(", ")}`;
 }
@@ -94,33 +105,43 @@ function main(): void {
    * is a set of a few strings that a restart clears.
    */
   const reported = new Set<string>();
+  /** Intervals fired — counted out here, so a stuck tick cannot stop the count. */
   let ticks = 0;
   let failures = 0;
   let inFlight: Promise<void> | null = null;
+  let startedAt = 0;
+  let stallReported = false;
+  /** The last count the sweep saw, for the heartbeat to quote. */
+  let live = 0;
   let stopping = false;
 
   async function tick(): Promise<void> {
-    ticks += 1;
     try {
       await ensureAuth(pb, env);
-      const report = await sweepOnce({ pb, now: new Date(), log, reported });
+      const report = await sweepOnce({
+        pb,
+        // The wall clock, asked for wherever the sweep needs it — not sampled
+        // once here, where it would already be stale by the time a deadline
+        // gets stamped from it.
+        clock: () => new Date(),
+        log,
+        reported,
+      });
 
       // Every action the sweep takes has already logged itself, naming the
       // draft, the member and the player. The summary only earns its line when
       // one tick did several things — two leagues drafting at once, a repair
       // alongside a pick — which is when those lines stop reading in sequence.
       if (eventCount(report) > 1) log(summarise(report));
+      live = report.live;
       if (failures > 0) {
         log(`recovered after ${failures} failed tick(s)`);
         failures = 0;
       }
-      if (ticks % HEARTBEAT_EVERY_TICKS === 0) {
-        log(`heartbeat · ${ticks} ticks · ${report.live} live draft(s)`);
-      }
     } catch (error) {
       failures += 1;
       if (failures === 1 || failures % FAILURE_LOG_EVERY === 0) {
-        log(`tick failed (${failures} in a row): ${describe(error)}`);
+        log(`tick failed (${failures} in a row): ${describeError(error)}`);
       }
       // Most whole-tick failures are PocketBase being unreachable or a token
       // that has expired, and the two are indistinguishable from here. Dropping
@@ -131,13 +152,40 @@ function main(): void {
   }
 
   const timer = setInterval(() => {
+    if (stopping) return;
+    ticks += 1;
+
+    // Proof of life belongs out here rather than inside the tick. A tick that
+    // never returns would otherwise silence the process completely — no
+    // heartbeat, because the line never runs; no failure, because nothing
+    // threw — while every outside observer still calls it healthy.
+    if (ticks % HEARTBEAT_EVERY_TICKS === 0) {
+      log(`heartbeat · ${ticks} ticks · ${live} live draft(s)`);
+    }
+
     // A tick that overran its second must not stack another on top of itself:
     // two sweeps in flight would both read "nobody has picked yet" and race
     // each other into the same slot. The unique index would refuse the second,
     // but the right answer is not to start it.
-    if (stopping || inFlight) return;
+    if (inFlight) {
+      const stalledMs = Date.now() - startedAt;
+      if (
+        stalledMs >= STALL_AFTER_MS &&
+        (!stallReported || ticks % HEARTBEAT_EVERY_TICKS === 0)
+      ) {
+        stallReported = true;
+        log(
+          `a tick has been in flight for ${Math.round(stalledMs / 1000)}s — ` +
+            `NO pick deadline is being enforced. PocketBase is probably wedged.`,
+        );
+      }
+      return;
+    }
+
+    startedAt = Date.now();
     inFlight = tick().finally(() => {
       inFlight = null;
+      stallReported = false;
     });
   }, TICK_MS);
 

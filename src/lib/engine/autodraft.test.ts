@@ -37,6 +37,28 @@ describe("rankForMember — projection order", () => {
     expect(ids(rankForMember(pool))).toEqual(["alpha", "mike", "zeta"]);
   });
 
+  it("breaks a tie by id when NOBODY has a projection", () => {
+    // The case that mattered and was missed: with no projections anywhere,
+    // subtracting two `-Infinity`s gave NaN, `Array#sort` read NaN as "equal",
+    // and the ranking quietly became the order the caller happened to pass.
+    // Until Phase 4.4 ships projections, this is the only pool shape there is.
+    const pool = [p("zeta", "G"), p("alpha", "G"), p("mike", "G")];
+    expect(ids(rankForMember(pool))).toEqual(["alpha", "mike", "zeta"]);
+  });
+
+  it("keeps a projected player ahead of an unprojected one either way round", () => {
+    // Both orderings of the same pair, because a comparator that returns NaN
+    // passes one of them by luck.
+    expect(ids(rankForMember([p("none", "G"), p("some", "G", 1)]))).toEqual([
+      "some",
+      "none",
+    ]);
+    expect(ids(rankForMember([p("some", "G", 1), p("none", "G")]))).toEqual([
+      "some",
+      "none",
+    ]);
+  });
+
   it("does not mutate the pool it was given", () => {
     const pool = [p("b", "G", 1), p("a", "G", 2)];
     const before = ids(pool);

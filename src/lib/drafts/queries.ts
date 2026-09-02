@@ -10,6 +10,8 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 
+import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
+
 import { reconcileLeagueStatus } from "./repair";
 
 import type { BoardPick, DraftRecord, PickRecord } from "./types";
@@ -173,7 +175,7 @@ export async function getDraftView(
     position: Position;
     status: string;
   }>({
-    filter: "status != 'left'",
+    filter: DRAFTABLE_PLAYERS_FILTER,
     sort: "name",
     requestKey: null,
   });

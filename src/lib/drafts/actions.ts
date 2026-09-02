@@ -497,7 +497,16 @@ export async function setAutodraft(
     };
   }
 
-  const enabled = String(formData.get("enabled")) === "true";
+  // Read as three cases, not two. `String(null) === "true"` is false, so a
+  // submission that lost its hidden input — a replay, a hand-made POST, a
+  // future caller that forgets the field — used to read as "turn it off": the
+  // member would be told nothing was wrong and then sit out their turns.
+  const raw = String(formData.get("enabled") ?? "");
+  if (raw !== "true" && raw !== "false") {
+    return { error: "That request did not say whether to turn autodraft on or off." };
+  }
+  const enabled = raw === "true";
+
   await pb
     .collection("league_members")
     .update(

@@ -19,11 +19,17 @@ import { connection } from "next/server";
  * default today, but this one is *only* correct at request time, and saying so
  * in the file is cheaper than discovering a prerendered timestamp later.
  *
- * It sits behind the session like everything else (see `src/proxy.ts`) —
- * there is no reason for the open internet to ask this app what time it is —
- * and the client treats a failed fetch as "offset zero" rather than as an
- * error, because a countdown against the local clock is a far better
- * degradation than no countdown at all.
+ * `src/proxy.ts` keeps it off the open internet by requiring a session cookie,
+ * and that is **all** it does: the proxy is optimistic by design, so a forged
+ * or expired cookie reaches this handler. That is deliberate here and nowhere
+ * else — this route returns a timestamp, not data, and making the draft room's
+ * countdown depend on a PocketBase round trip would buy a real failure mode for
+ * no secret. **Any route handler that returns something worth protecting must
+ * call `getSession()` itself**; copying this file is not a licence to skip it.
+ *
+ * The client treats a failed fetch as "offset zero" rather than as an error,
+ * because a countdown against the local clock is a far better degradation than
+ * no countdown at all.
  */
 export async function GET(): Promise<Response> {
   await connection();

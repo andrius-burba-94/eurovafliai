@@ -43,6 +43,18 @@ import type { DraftRecord, PickRecord } from "./types";
  * left to reveal it.
  */
 
+/**
+ * Which players may be drafted at all — one filter, two callers.
+ *
+ * The room's pool (`getDraftView`) and the sweep's autodraft pool must agree
+ * about this or the engine will pick somebody the room would not have offered.
+ * They were two identical string literals, which is one literal too many: the
+ * day a rule is added — the roster sync has marked somebody as gone, a
+ * commissioner has flagged an injury — only one of them would learn it, and
+ * nothing would fail until an autodraft put the wrong player on a roster.
+ */
+export const DRAFTABLE_PLAYERS_FILTER = "status != 'left'";
+
 /** A `deadline` value in the shape PocketBase stores. */
 export function deadlineFrom(now: Date, seconds: number): string {
   return new Date(now.getTime() + seconds * 1000)
@@ -64,6 +76,27 @@ export function isUniqueViolation(error: unknown): boolean {
   return Object.values(data).some(
     (field) => field?.code === "validation_not_unique",
   );
+}
+
+/**
+ * An error, in a sentence worth logging.
+ *
+ * PocketBase's `ClientResponseError` carries "Something went wrong." in
+ * `message` and the part you actually need — which field, and why — in
+ * `response.data`, the same place `isUniqueViolation` reads. Both the worker's
+ * log surfaces use this, so they cannot disagree about the same failure.
+ */
+export function describeError(error: unknown): string {
+  const data = (
+    error as {
+      response?: { data?: Record<string, { message?: string } | undefined> };
+    }
+  )?.response?.data;
+  const fields = Object.entries(data ?? {})
+    .map(([field, detail]) => `${field}: ${detail?.message ?? "invalid"}`)
+    .join("; ");
+  const message = error instanceof Error ? error.message : String(error);
+  return fields ? `${message} (${fields})` : message;
 }
 
 /** The league's draft that is still running, or null. */
@@ -122,7 +155,16 @@ export function toState(draft: DraftRecord): DraftState {
   };
 }
 
-/** Move the draft to the next slot, or finish it. */
+/**
+ * Move the draft to the next slot, or finish it.
+ *
+ * Returns **everything it wrote**, so a caller holding the record can patch it
+ * in hand rather than re-reading it (Next memoizes identical GET fetches inside
+ * a render pass, so a re-read would hand back the stale copy). Returning only
+ * `current_pick` was a real bug: the sweep kept the *old* deadline in memory
+ * and read the previous member's expired clock as the next member's, taking
+ * their whole turn in the same tick.
+ */
 export async function advance(
   pb: PocketBase,
   draft: DraftRecord,
@@ -137,21 +179,19 @@ export async function advance(
    */
   filledNo: number,
   now: Date,
-): Promise<void> {
+): Promise<Partial<DraftRecord>> {
   const next = Math.max(draft.current_pick, filledNo) + 1;
   const state = toState({ ...draft, current_pick: next });
   const done = isDraftComplete(state, picks);
 
-  await pb.collection("drafts").update(
-    draft.id,
-    done
-      ? { status: "complete", current_pick: next, deadline: "" }
-      : {
-          current_pick: next,
-          deadline: deadlineFrom(now, draft.pick_seconds),
-        },
-    { requestKey: null },
-  );
+  const patch: Partial<DraftRecord> = done
+    ? { status: "complete", current_pick: next, deadline: "" }
+    : {
+        current_pick: next,
+        deadline: deadlineFrom(now, draft.pick_seconds),
+      };
+
+  await pb.collection("drafts").update(draft.id, patch, { requestKey: null });
 
   if (done) {
     await pb
@@ -159,6 +199,8 @@ export async function advance(
       .update(draft.league, { status: "season" }, { requestKey: null })
       .catch(() => {});
   }
+
+  return patch;
 }
 
 /**
@@ -168,11 +210,12 @@ export async function advance(
  * order is what it is. Idempotent: running it twice changes nothing, because
  * after the first run there is no unadvanced pick to find.
  *
- * Returns the fields it changed, so a caller holding the stale record can patch
- * it in hand. Re-reading the draft instead would be the read → repair →
- * read-again shape AGENTS.md records as broken — Next memoizes identical GET
- * fetches within a render pass, so the second read returns the first one's
- * result and the repair looks like it silently failed.
+ * Returns every field it changed — `current_pick`, the new `deadline`, and
+ * `status` when the repair was the draft's last missing advance. A caller that
+ * patches only some of them is holding a record that disagrees with the
+ * database, which is how a repaired draft came to autodraft the next member
+ * instantly. Re-reading instead would be the read → repair → read-again shape
+ * AGENTS.md records as broken.
  */
 export async function repairUnadvanced(
   pb: PocketBase,
@@ -185,8 +228,7 @@ export async function repairUnadvanced(
   // contiguous run, not one pick, so the repair walks forward past all of it.
   const stranded = findUnadvancedPick(toState(draft), picks);
   if (!stranded) return null;
-  await advance(pb, draft, picks, stranded.nextCurrentPick - 1, now);
-  return { current_pick: stranded.nextCurrentPick };
+  return advance(pb, draft, picks, stranded.nextCurrentPick - 1, now);
 }
 
 export type CommitPickInput = {
