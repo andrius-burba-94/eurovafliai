@@ -24,7 +24,9 @@ A draft now runs itself. The worker (slice 2.5) enforces every deadline, picks
 for whoever has run out of time or has handed their picks over, and repairs the
 three states no request would ever notice. Verified locally by running one: a
 full 13-round two-member draft, autodrafted end to end at one pick a second,
-finishing `complete` with the league moved to `season`. What the room still does
+finishing `complete` with the league moved to `season`. **Live in production**
+since `afb58b3` — the deployed worker authenticates to PocketBase and sweeps
+(see the production table below). What the room still does
 not do is update on its own while a clock is running — the countdown pulls the
 page for itself once a deadline passes, so an autodraft appears without a
 reload, but a pick made by somebody else *before* their clock ran out still
@@ -152,6 +154,8 @@ touch should be fixed by that slice rather than deferred again.
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
 | **Autodraft has nothing to rank on** | `selectAutoPick` ranks a cheat sheet first and projections second, and neither exists yet: cheat sheets are 3.4, projections 4.4. So today every candidate ties, and the engine falls through to its own total tiebreak — the **lowest player id** among the legal ones. Arbitrary, and identical on every replay, which is the property that matters until there is something real to rank on; the pool is passed `projectedPoints` the moment the field exists. (Until 2.5 it looked alphabetical, because the NaN in the comparator meant `readPool`'s `sort: "name"` was deciding the pick by accident. It no longer decides anything) | Nothing; autodraft quality, not correctness |
 | **No per-member autodraft switch for a manager** | A member arms their own autodraft from the draft room, and `setAutodraft` already permits a commissioner or deputy to set anybody's — but there is no UI for it, so a manager dealing with a phone that died has to wait the clock out and let the sweep pick, or enter the pick themselves with "Pick for them". Blueprint 3.6 owns the console | Nothing; a commissioner-comfort gap |
+| [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34) | **`deploy.sh` rewrites itself mid-run**, so a change to it never applies to its own deploy — 2.5's worker-liveness check did not run on the deploy that shipped it, and will from the next one. Worse in principle than in practice so far: bash reads a script by byte offset, so a pull that changes a not-yet-executed part of the file can make the shell resume mid-line | Nothing yet; a deploy-tooling trap |
+| [#35](https://github.com/andrius-burba-94/eurovafliai/issues/35) | **The nginx vhost drift warning can never be silenced.** The committed vhost is the plain `:80` one *by design* (certbot needs a working vhost to answer the ACME challenge and then rewrites the file in place), so every deploy warns. The whole drift is certbot's own `# managed by Certbot` lines; `/pb/` is byte-identical. A warning that fires every time is one nobody reads, which is a problem because the thing it exists to catch — a hand-edit that loses `proxy_buffering off` — kills realtime silently | Nothing; the check protects nothing until it is quiet |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 Closed since the last update:
@@ -234,6 +238,16 @@ sync, a player the feed no longer lists is marked `left` rather than deleted, an
 | `npm run pb:verify` against the production database | **74 checks pass**, re-run on the box at `af1314a` — so the `drafts` and `picks` rules and indexes are known to hold in production, not only locally |
 | `npm run pb:verify:oauth2` against production | passes — first-time Google sign-up still works with public sign-up closed |
 | The production player pool | **324 players, 20 clubs**, ingested on the box. Re-running the sync there is a confirmed no-op, so it is safe to re-run before draft night |
+| **The worker, in production** | Confirmed running the 2.5 loop at `afb58b3`, not merely "online": its log shows `SIGINT received, stopping` (PM2's reload, handled by the graceful path) followed by `starting · PocketBase http://127.0.0.1:8095 · tick 1000ms` and `authenticated as superuser`. That last line is the proof — the Phase 0 scaffold it replaced had no PocketBase client at all. It then sweeps silently, because production has no live draft |
+| `/api/time` through the proxy | 307 to `/login?error=unauthorized` without a session, which is the optimistic proxy doing its job |
+| **SSE after the deploy** | Re-checked, because the deploy warns about vhost drift (see #35): `PB_CONNECT` arrives immediately through `/pb/api/realtime` and the stream stays open. Realtime is unaffected |
+
+`npm run pb:verify` was **not** re-run against the production database on this
+deploy, and that is deliberate rather than forgotten: 2.5 ships no migration, so
+the production schema is the same one verified on the box at `af1314a`, and CI's
+`pocketbase` job asserted the same 74 checks against a from-scratch database on
+this very commit. Writing throwaway records into the live database to learn
+nothing new is not a trade worth making.
 
 Ingestion stays **on demand** rather than part of `deploy.sh`: ingesting and
 deploying have different natural cadences, and the feed rate-limits (a sync is 21
