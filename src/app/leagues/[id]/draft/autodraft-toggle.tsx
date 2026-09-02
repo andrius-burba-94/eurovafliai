@@ -50,7 +50,10 @@ export function AutodraftToggle({
           {enabled ? "Take my picks back" : "Draft for me"}
         </SubmitButton>
       </form>
-      <p className="slot-label" data-testid="autodraft-state">
+      {/* A sentence, so body-small rather than a slot label: DESIGN.md keeps
+          the board's small caps for statuses and counts, and thirteen words of
+          caps under a button is a paragraph shouting. */}
+      <p className="text-sm text-ink-soft" data-testid="autodraft-state">
         {enabled
           ? "Autodraft is on · the engine picks the moment your turn comes"
           : `Autodraft is off · you get ${pickSeconds}s a turn, then the engine picks`}
