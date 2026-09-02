@@ -25,7 +25,12 @@ src/lib/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
 src/components/   shared UI in the board's vocabulary (board.tsx) — see DESIGN.md
 src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door
 src/lib/config/   validated env: schema.ts (pure) + public.ts + server.ts
-src/worker/       PM2 worker: pick timers, autodraft, nightly stats (Phase 2.5)
+src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
+                  verbatim with the worker; `actions.ts` is the request-facing
+                  half (session, permissions, revalidation). One pipeline, so a
+                  human pick and an autodraft cannot diverge
+src/worker/       PM2 worker: the ~1s sweep — pick deadlines, autodraft and the
+                  repairs no request would notice. Nightly stats join it in 4.3
 pb/VERSION        pinned PocketBase version — the download script reads it
 pb/pb_migrations/ schema as code, COMMITTED
 pb/pb_data/       local database, gitignored
@@ -39,7 +44,11 @@ docs/runbooks/    one-time operational procedures (VPS setup)
 ```
 
 Unit tests sit next to their subject as `*.test.ts` (`src/**`); Vitest picks
-those up plus `tests/unit/**`.
+those up plus `tests/unit/**`. Shared test doubles live in
+`tests/unit/helpers/` — `fake-pb.ts` is the PocketBase stand-in the worker's
+sweep is tested against, and it is deliberately strict: it enforces the real
+unique indexes and throws on a filter it cannot parse, so it cannot quietly
+make broken code pass.
 
 ## Before you write code
 
@@ -81,6 +90,10 @@ those up plus `tests/unit/**`.
   landing in the database all along.
 - **React 19 resets uncontrolled inputs** after a server-action transition. Chat
   and pick forms must handle it; E2E specs must refill.
+- **The sweep is app-global.** `sweepOnce` looks for *every* live draft, so
+  calling it — from a spec, a script or a REPL — against a database where you
+  have a draft open by hand will autodraft into that draft. Pass `onlyDraft`
+  with the id under test; `tests/e2e/worker.spec.ts` does, and that is why.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so

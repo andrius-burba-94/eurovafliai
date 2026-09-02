@@ -21,7 +21,9 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **order mode** | How draft order is decided: `roll`, `manual` or `reverse_standings`. Orthogonal to format. | `drafts.settings.order_mode` |
 | **format** | How order repeats across rounds: `linear`, `snake`, `snake3rr`, `keeper`. | `drafts.format` |
 | **3RR** | Third-round reversal — snake, but round 3 repeats round 2's direction. | `snake3rr` |
-| **autodraft** | The engine picking for an absent or timed-out member. | `picks.is_auto`, `selectAutoPick()` |
+| **autodraft** | The engine picking for an absent or timed-out member. Armed on purpose (`autodraft_enabled`, the member's own switch) or reached by running out of time; either way the sweep makes the pick. | `league_members.autodraft_enabled`, `picks.is_auto`, `selectAutoPick()` |
+| **the sweep** | The worker's ~1s tick — the only thing that enforces a deadline. Autodrafts, and repairs the three states no request would ever notice. | `src/worker/sweep.ts`, `sweepOnce()` |
+| **clock offset** | The difference between a device's clock and the server's, fetched once so a countdown is honest. A phone whose clock is fast must not tell its owner they are out of time. | `/api/time`, `PickClock` |
 | **rollback** | Undoing the draft back to a chosen pick number; later picks are deleted and the draft re-pointed. | `computeRollback()` |
 | **commissioner mode** | The commissioner entering picks made offline, or for a member whose phone has died. | Live since 2.4: the room shows a manager a "Pick for them" button for whoever is on the clock. The fuller offline-entry flow is Phase 3.6 |
 | **draft trade offer** | One offer per member per draft, announced in chat before the offerer's next pick. | `draft_trade_offers` |
