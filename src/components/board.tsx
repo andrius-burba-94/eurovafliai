@@ -99,19 +99,52 @@ export function Slot({
   children,
   testId,
   className = "",
+  current = false,
+  nowrap = false,
 }: {
   state?: SlotState;
   landed?: boolean;
   children: ReactNode;
   testId?: string;
   className?: string;
+  /**
+   * Keep the row on one line, letting its primary content truncate instead of
+   * pushing the trailing action onto a second.
+   *
+   * A wrapping row is right for a lobby, where a slot holds a name and a
+   * label. It is wrong for a thirty-row pool: the action lands right-aligned
+   * when it fits and left-aligned at x=32 when it does not, so the button a
+   * thumb is reaching for moves between rows depending on how long the name
+   * above it is, and rows run 59–107px instead of the 44 they should.
+   *
+   * Swapped rather than appended, because `flex-wrap` and `flex-nowrap` set the
+   * same property: which one wins would come down to the order Tailwind emits
+   * them in, not the order they are written here.
+   */
+  nowrap?: boolean;
+  /**
+   * The row a keyboard cursor is on. Drawn as a 2px **ink** outline inside the
+   * row — the system's own focus material, in ink because marker is the
+   * clock's — and announced as `aria-current`.
+   *
+   * It was a 5% ink wash alone, which measures **1.10:1**: the one place in
+   * this system where a state was carried by a fill and no rule at all. The
+   * wash stays as an echo; the outline is what carries it.
+   */
+  current?: boolean;
 }) {
   return (
     <li
       data-testid={testId}
       data-state={state}
       data-landed={landed ? "true" : undefined}
-      className={`${SLOT_RULE[state]} ${landed ? "card-lands" : ""} ${className} flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 ${state === "waiting" ? "py-2" : "py-3"}`}
+      data-current={current ? "true" : undefined}
+      aria-current={current ? "true" : undefined}
+      className={`${SLOT_RULE[state]} ${landed ? "card-lands" : ""} ${
+        current ? "bg-ink/5 outline-2 -outline-offset-2 outline-ink" : ""
+      } ${className} flex ${
+        nowrap ? "flex-nowrap" : "flex-wrap"
+      } items-baseline justify-between gap-x-4 gap-y-1 px-3 ${state === "waiting" ? "py-2" : "py-3"}`}
     >
       {children}
     </li>
@@ -130,6 +163,12 @@ export function Slots({
   return (
     <ul
       data-testid={testId}
+      // Stated, not inherited. Tailwind's preflight sets `list-style: none` and
+      // this is a flex column, and Safari + VoiceOver drop the list/listitem
+      // roles from a `<ul>` styled that way — so on an iPhone, which is what
+      // draft night is, "how many are there and which one am I on" stopped
+      // being answerable. Costs nothing on every other engine.
+      role="list"
       className="flex flex-col border-b border-rule-strong"
     >
       {children}
@@ -251,7 +290,16 @@ export function FilterToggle({
       data-testid={testId}
       aria-pressed={pressed}
       onClick={() => onPressedChange(!pressed)}
-      className={`slot-label min-h-11 px-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+      // `flex items-end pb-1.5` because the state is the rule *under the
+      // label*, and `min-h-11` alone centred the label in a 44px box — leaving
+      // the dashed rule sitting 18px below the word it belongs to, reading as a
+      // stray tick rather than as the control's state. The target stays 44px.
+      //
+      // `min-w-11` because the rule DESIGN.md wrote was `min-h-11`, i.e. height
+      // only, and a single-letter toggle fell straight through it: G, F and C
+      // measured 24.5–26.5px wide. That clears WCAG 2.2 AA's 24px and fails
+      // both AAA and this project's own written 44px.
+      className={`slot-label flex min-h-11 min-w-11 items-end justify-center px-2 pb-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
         pressed
           ? "border-b-2 border-ink text-ink"
           : "border-b border-dashed border-rule hover:text-ink"
