@@ -187,6 +187,9 @@ touch should be fixed by that slice rather than deferred again.
 | **Two-device confirmation** | Most of the way there. Two Google accounts have now joined one production league, rolled an order and started a draft — and the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board, so the live surface is confirmed by more than a protocol check. What is not recorded is whether that was two devices (a phone and a PC) rather than two browsers on one machine, which is the literal wording of Phase 1's DoD. One deliberate run closes this | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
+| **Twenty-five marker-red actions on one surface** | The room's pool renders a `tone="live"` pick button on every one of its 25 rows, which is DESIGN.md's one-marker-action-per-surface rule broken 24 times — and it sits directly above the board, whose entire state language is that same red used sparingly. By the time the eye reaches the board, red has been taught to mean "button". Pre-existing, from 2.4's pool; found by 3.1's critique because the board is what it damages. The fix is one word (`tone="ink"`) in `pick-form.tsx`, but it is 3.3's surface and 3.3 is rewriting that list | Nothing; it dilutes 3.1's accent until 3.3 lands |
+| **"You are on the clock" is not perceivable without looking** | PRODUCT.md commits to it being "announced to assistive tech via a live region, with sound and vibration cues". None of the three exists: the on-the-clock banner is a plain `div` whose text swaps on an SSE re-render, so a screen reader is told nothing and a phone face-down on a couch says nothing. 3.1 closed the board's half of this — the marked slot now carries an `sr-only` "on the clock" — but the banner is the one that matters and it belongs to blueprint 3.7 | Nothing; a written product commitment, unmet since 2.6 |
+| **`PositionPatch`'s own colours are still eyeballed** | 3.1 taught `tokens.test.ts` to composite an alpha wash and used it on the board, which is how three real failures surfaced. The same measurement has not been pointed at `PositionPatch` itself: its coloured letter on its own 10% wash measures 4.21–4.50:1, straddling the 4.5 floor. The board moved off that pairing; the patch has not. DESIGN.md open question 7 now says exactly this | Nothing; the machinery exists, somebody has to aim it |
 | **The pool buries the board on a phone** | 3.1 put the board in the room and thereby measured the pool: the room renders 25 of 324 players, each with its own pick button, so on a phone the board sits roughly four screens down. The order is deliberate — the clock and the way to pick own the top of the viewport, because picking is the time-critical act — but it means the flagship surface is below a wall of pool rows for anybody who is only watching. 3.3's search and filters are the fix, which is why that slice is next rather than 3.2 | Nothing; 3.1's board is further down the page than it should be until 3.3 lands |
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
@@ -233,9 +236,9 @@ Last full local run, on slice 3.1: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **405 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 38 config, helpers and the board's name-writing |
+| `npm run test` | **415 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 48 config, helpers, the board's name-writing and the ten new contrast floors |
 | `npm run build` | pass |
-| `npm run test:e2e` | **154 passed** (chromium + Pixel 7) — 3.1 adds eight specs, run on both |
+| `npm run test:e2e` | **158 passed** (chromium + Pixel 7) — 3.1 adds ten specs, run on both |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
@@ -280,6 +283,44 @@ a filled slot wins, so the paused board would have shown no marker at all.
 `getDraftView` now asks the engine, with the status the draft would have if it
 were running, and hands the room a `markedOverallNo`. No clock arithmetic
 survives in the page.
+
+**What `/impeccable critique` changed, and why it was worth running.** The design
+pass found four things a passing test suite cannot:
+
+- **The board broke DESIGN.md's own Ink-on-Blush rule** — marker red on the live
+  tint, 4.15:1, forbidden there by name — and it did it on the one slot that
+  matters most, where the pick number is the slot's *only* text.
+- **The position washes cost about a tenth of every ratio above them**, which put
+  the slot numbers at 4.42:1, the G/F/C letter (the colour-blind fallback, so an
+  accessibility floor twice over) at 4.21–4.50:1, and the column rules at 2.90:1
+  against a 3:1 floor. All three now measure over 5:1 and over 4:1 respectively,
+  because the wash carries the hue and every word in a slot is ink.
+  `tokens.test.ts` was green through all of it: it could only compare one opaque
+  token with another and had no way to express an alpha background. It can now,
+  and ten new assertions hold these pairs.
+- **The board could not write the names it exists to write.** At 6rem a slot had
+  about 69px for a name once the position letter had taken its share of the same
+  line — eight characters, where "Valančiūnas" needs 90px — and the only recovery
+  was a `title` tooltip, which does not exist on a phone. The letter moved to the
+  number line and columns went to 8rem. A phone shows three columns instead of
+  four; three readable columns beat four truncated ones.
+- **A paused board was struck exactly like a live one**, which is one material
+  carrying two opposite instructions — act, and wait — with the banner that
+  disambiguates them several screens up. `slot-standing` is the fourth state:
+  the same marker at the same weight, dashed, no fill.
+
+Two more were accessibility failures rather than design ones. The scrollport had
+no focusable element, so past about five members most of the board was
+unreachable by keyboard; it passed in Chromium only because 127+ makes such a
+region focusable by itself, wearing a user-agent ring nobody chose. And the
+marked slot announced itself to a screen reader as the bare word "13" — border
+weight, a fill and a colour being three things a screen reader cannot see.
+
+One finding was stale evidence rather than a defect: a screenshot showing a
+paused board with no marker at all predated the `markedOverallNo` work. Worth
+recording because it is the failure mode of reviewing a stateful surface by
+screenshot. One was a false positive: `globals.css` says "bays" four times, and
+CONTEXT.md explicitly permits the word in code comments while banning it in copy.
 
 **The header alignment bug this shipped past a screenshot.** The round gutter's
 own column header was an `sr-only` span, and `sr-only` is absolutely positioned

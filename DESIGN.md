@@ -211,7 +211,7 @@ dead grey.
 
 Contrast ratios below are **measured**, not estimated: `src/app/tokens.test.ts`
 parses `globals.css`, converts OKLCH to WCAG relative luminance and asserts the
-floors. Twelve assertions, all passing.
+floors. Twenty-three assertions, all passing.
 
 ### Primary
 
@@ -484,6 +484,12 @@ heavy rule; each `Slot` is an `<li>` whose **top border is its state**.
   place. Rendered with a faint-ink "Slot 07" number.
 - **`filled`** — 1px solid heavy-grey, `0.75rem` vertical padding. The default.
 - **`live`** — 2px solid marker + `live-sunk` fill. On the clock.
+- **`standing`** — 2px **dashed** marker, no fill. Where a paused draft stands.
+  Board only (`slot-standing`). It exists because 3.1 first struck a paused slot
+  exactly like a live one, which is one material carrying two opposite
+  instructions — act, and wait — and the banner that disambiguates them is
+  several screens up on a phone. Dashed is already this system's word for
+  unsettled, so "paused" is the marker at the same weight, unsettled.
 - **Content layout:** `flex-wrap`, baseline-aligned, primary content left and
   metadata right, `1rem` / `0.25rem` gaps. Typically a `CardName` on the left and
   a slot label on the right.
@@ -507,6 +513,13 @@ stops is not a board.
 
 The name written on a card: 600 caps at 0.06em, 1rem at every size. Use it
 for the thing that occupies a slot, never for a label about the thing.
+
+`scale="slot"` is the one step down — same caps, same 0.06em, at body-small's
+0.875rem — for the board's 8rem columns. It exists because a full-size card name
+cannot write "Valančiūnas" inside a board column, and because the alternative
+was a bespoke `text-xs tracking-[0.04em]` class that quietly added a fifth type
+size to a five-size system and set it at *display* tracking. A player in a slot
+on the board is still a name on a card; it is only smaller.
 
 ### Position patch — `PositionPatch`
 
@@ -592,24 +605,54 @@ per member across, every slot drawn whether it is filled or not. Lives in
 - **The shape comes from the engine** (`buildBoardShape`), which derives it from
   `buildPickOrder` rather than beside it — so the board cannot disagree with the
   order the clock is driven by.
-- **Slot state is the slot's own top rule**, the same three weights as `Slot`:
-  dashed for a slot nobody has filled, solid for a pick, the 2px marker plus
-  `live-sunk` for the slot on the clock. A filled slot also takes a 10% wash of
-  its position's hue — the patch colours, used as a field rather than a border —
-  and **always** carries the G / F / C letter.
-- **Structure:** `2rem` round gutter, then `minmax(6rem, 1fr)` per member. That
+- **Slot state is the slot's own top rule**, the same weights as `Slot`, all four
+  of them: dashed `rule` for a slot nobody has filled, solid for a pick, 2px
+  solid marker plus `live-sunk` for the slot on the clock, 2px dashed marker for
+  where a paused draft stands. A filled slot also takes a 10% wash of its
+  position's hue — the patch colours, used as a field rather than a border — and
+  **always** carries the G / F / C letter.
+- **Every word in a slot is ink or soft ink.** Not the position's own hue, and
+  never the marker. See the Wash-Costs-A-Tenth Rule below: the wash carries the
+  hue, the letter carries the position, and the text carries the contrast.
+- **Structure:** `2rem` round gutter, then `minmax(8rem, 1fr)` per member. That
   `minmax` is the whole layout: with room to spare the columns share it, and past
-  about six members they hold their width and the region scrolls. Round numbers
-  are `sticky left-0` on stock, so the row you are reading stays labelled while
-  the columns move. Slot height is `min-h-slot` — the board's own spacing unit.
+  about five members they hold their width and the region scrolls. 8rem is not
+  arbitrary — at 6rem a slot had ~69px for a name once the position letter had
+  taken its share of the same line, about eight characters, so the board could
+  not write "Valančiūnas" or "Papanikolaou" and the only recovery was a `title`
+  tooltip, which does not exist on a phone. The letter therefore sits on the
+  number line, right-aligned, and the name gets the column. Round numbers are
+  `sticky left-0` on stock, so the row you are reading stays labelled while the
+  columns move. Slot height is `min-h-slot` — the board's own spacing unit.
+- **Column separators are `rule-strong`, and the board's outer edge is 2px of
+  it.** `rule` over a position wash measures 2.90:1, under this system's own 3:1
+  floor for a boundary that means something — and which column a pick is in is
+  meaning. The 2px outer edge does a second job: a closed board reads closed,
+  and an interior-weight line at the viewport edge means "more board this way",
+  which is scroll extent expressed in rule weight rather than in the shadow or
+  gradient this system forbids.
 - **Semantics:** grid layout, table roles — `role="table"`, `role="row"`,
   `role="columnheader"` for members, `role="rowheader"` for the round. A real
   `<table>` would give this for free but not the widths: a fixed-layout table
   divides the container, and this board has to overflow it in order to scroll.
   Unlike `BoardPlan` it is **not** `aria-hidden`: it carries data.
 - **State in the DOM:** `data-board-slot` on every slot, plus `data-state`
-  (`waiting` / `filled` / `live`), `data-live="true"` on the marked slot, and
-  `data-advanced="true"` for the duration of the second motion event.
+  (`waiting` / `filled` / `live` / `standing`), `data-live="true"` on the marked
+  slot whichever of the two things it means, `data-reversed="true"` in a round
+  drafted right to left, and `data-advanced="true"` for the duration of the
+  second motion event — removed on `animationend`, so the pseudo-element hands
+  the rule back to the real border rather than standing in for it all night.
+- **The scrollport is focusable, named and a region.** `tabIndex={0}`,
+  `role="region"`, `aria-label`, and the system's own `focus-visible` ring. A
+  scrolling region with no focusable descendant cannot be reached by keyboard,
+  and past about five members that is most of the board. Chromium 127+ makes such
+  a region focusable by itself and Firefox and Safari do not, so the first
+  version passed WCAG 2.1.1 in one engine by accident, wearing a 1px black
+  user-agent ring nobody chose.
+- **The marked slot says so in words.** An `sr-only` "on the clock" (or "the
+  draft stands here"), because border weight, a fill and a colour are three
+  things a screen reader cannot see — the live slot used to announce itself as
+  the bare word "13".
 - **A paused board keeps its marker**, on the slot the draft stands at. Strictly
   nobody is on the clock while paused — but the room's on-the-clock banner is
   struck in marker throughout a pause, and a board that alone showed nothing was
@@ -625,6 +668,16 @@ scrolls underneath and its tail shows through; the header's gutter cell needs
 `self-stretch` on top of that, because its only child is `sr-only` and therefore
 absolutely positioned, and a background painted on a zero-height box hides
 nothing.
+
+**The Wash-Costs-A-Tenth Rule.** A 10% wash over stock costs roughly a tenth of
+every contrast ratio measured on top of it. `ink-faint` is 4.80:1 on stock and
+**4.42:1** on a position wash; a position colour on its own 10% wash is 4.50:1 at
+best and 4.21:1 at worst — and that letter is the colour-blind fallback for
+position, so it is an accessibility floor twice over. So text on a washed field
+is `ink` or `ink-soft`, and a rule on one is `rule-strong`. 3.1 shipped the
+opposite of all three, and `tokens.test.ts` was green throughout, because until
+3.1 it could only compare one opaque token with another and had no way to express
+an alpha background at all. It can now, and these pairs are asserted.
 
 **The gutter header must stay in flow.** It is a `role="columnheader"` wrapping
 an `sr-only` span, not an `sr-only` span itself. `sr-only` is absolutely
@@ -712,6 +765,12 @@ clock and draws itself across the next one — 260ms on the same curve, painted 
 a pseudo-element because a border cannot be scaled from one end. Under
 `prefers-reduced-motion` the rule arrives without travelling.
 
+`data-advanced` comes off again on `animationend`, handing the rule back to the
+real border underneath — so the overlay exists only while it is travelling, which
+is what makes the sentence above true. Under `prefers-reduced-motion` no
+animation runs and none ends, so the attribute simply stays and the rule sits at
+its resting width.
+
 It travels **the way the round is being drafted**: `transform-origin: left`
 normally, flipped to `right` on a slot carrying `data-reversed`. Every even round
 of a snake draft runs right to left, so a rule that always grew from the left
@@ -768,10 +827,14 @@ rather than deleted, so the decision and the question it settled stay together.
 6. **Input error and disabled states are unstyled.** `Correction` carries every
    failure today. Per-field validation (which a player search or a trade form
    will want) has no visual language yet.
-7. **The patch and button opacity modifiers are unverified.** `tokens.test.ts`
-   asserts the patch *text* colours. The 55% borders, 10% washes and the
-   35/60/80% button borders are eyeballed against stock; if a token moves, only
-   the text assertions will catch it.
+7. **The patch and button opacity modifiers are *partly* verified now.** 3.1
+   taught `tokens.test.ts` to composite an alpha token over an opaque one, and
+   used it to assert every pair the board renders on a 10% position wash — which
+   is how the three failures behind the Wash-Costs-A-Tenth Rule were found. Still
+   eyeballed: `PositionPatch`'s own 55% borders and its coloured letter on its
+   own 10% wash (4.21–4.50:1 — the board moved off that pairing, the patch has
+   not), and the 35/60/80% button borders. The machinery to check them exists;
+   somebody has to point it at them.
 8. **Two tracking values are one-offs, not tokens.** `tracking-[0.32em]` on the
    code input and `tracking-[0.36em]` on the displayed code. Both are display
    treatments of the same six characters and want to stay in sync; if a third
