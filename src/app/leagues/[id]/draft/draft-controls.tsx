@@ -5,18 +5,25 @@ import { useActionState, useState } from "react";
 import { Correction, Field, inputStyles } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import {
+  resetDraft,
   rollbackDraft,
   setDraftPaused,
   type DraftResult,
 } from "@/lib/drafts/actions";
+import { RESET_CONFIRMATION } from "@/lib/drafts/types";
 
 /**
- * Pause and resume.
+ * The commissioner's controls: pause, undo, reset.
  *
- * Shown to everyone and refused server-side for anyone who is not the
- * commissioner or a deputy — the same rule as the rest of the league's
- * controls. Rendering it conditionally would be a nicety; refusing it is the
- * part that matters.
+ * Three degrees of intervention, and they are ordered by how much they cost.
+ * Pause is free and reversible. Undo takes the board back to a pick and can be
+ * walked forward again by picking. Reset throws the draft away, which is the
+ * one thing here that cannot be undone — so it is folded away, states what it
+ * will discard, and asks for a typed word rather than a tap.
+ *
+ * Shown to managers and refused server-side for anyone else — the same rule as
+ * the rest of the league's controls. Rendering them conditionally is a nicety;
+ * refusing them is the part that matters.
  */
 const START: DraftResult = { error: null };
 
@@ -35,7 +42,9 @@ export function DraftControls({
 }) {
   const [result, action] = useActionState(setDraftPaused, START);
   const [undone, undoAction] = useActionState(rollbackDraft, START);
+  const [reset, resetAction] = useActionState(resetDraft, START);
   const [showUndo, setShowUndo] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   if (!canManage) return null;
 
   const paused = status === "paused";
@@ -113,6 +122,51 @@ export function DraftControls({
           ) : null}
         </div>
       ) : null}
+
+      {/* Reset. Last, folded, and the only control here that destroys work.
+          Not marker-toned: the pick is this room's one act, and spending the
+          marker on a destructive control would be spending it twice
+          (DESIGN.md, the Two Jobs Rule). */}
+      <div className="flex flex-col gap-3 border-t border-rule pt-3">
+        {reset.error ? (
+          <Correction testId="draft-reset-error">{reset.error}</Correction>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setShowReset((open) => !open)}
+          data-testid="draft-reset-toggle"
+          className="slot-label self-start underline underline-offset-4 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+        >
+          {showReset ? "Never mind" : "Start over"}
+        </button>
+        {showReset ? (
+          <form action={resetAction} className="flex flex-col gap-3">
+            <input type="hidden" name="leagueId" value={leagueId} />
+            <p className="text-sm text-ink-soft">
+              This deletes the draft and{" "}
+              {picksMade === 0
+                ? "returns the league to the lobby"
+                : picksMade === 1
+                  ? "the one pick made so far, and returns the league to the lobby"
+                  : `all ${picksMade} picks made so far, and returns the league to the lobby`}
+              . The draft order is kept, so you can start again or re-roll it.
+              Nothing brings the board back.
+            </p>
+            <Field label={`Type ${RESET_CONFIRMATION} to confirm`}>
+              <input
+                name="confirm"
+                autoComplete="off"
+                autoCapitalize="characters"
+                data-testid="draft-reset-confirm"
+                className={inputStyles}
+              />
+            </Field>
+            <SubmitButton testId="draft-reset" pendingLabel="Starting over…">
+              Delete the draft
+            </SubmitButton>
+          </form>
+        ) : null}
+      </div>
     </div>
   );
 }

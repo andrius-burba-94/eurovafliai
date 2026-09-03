@@ -70,9 +70,14 @@ export async function getLeagueWithMembers(
   }
 
   // The other lost-second-write on this page: a draft that finished (or was
-  // undone) without the league's own status following it. Same rule — repair
-  // before the read, never after.
-  await reconcileLeagueStatus(leagueId, league.status);
+  // undone or reset) without the league's own status following it. Same rule —
+  // repair before the read, never after — and render what the repair settled
+  // on rather than the value read a moment before it, or the page spends one
+  // whole load describing the problem it has just fixed.
+  league.status = (await reconcileLeagueStatus(
+    leagueId,
+    league.status,
+  )) as LeagueRecord["status"];
 
   const members = await pb
     .collection("league_members")
