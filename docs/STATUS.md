@@ -196,6 +196,9 @@ touch should be fixed by that slice rather than deferred again.
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
 | **"You are on the clock" is not perceivable without looking** | PRODUCT.md commits to it being "announced to assistive tech via a live region, with sound and vibration cues". None of the three exists: the on-the-clock banner is a plain `div` whose text swaps on an SSE re-render, so a screen reader is told nothing and a phone face-down on a couch says nothing. 3.1 closed the board's half of this — the marked slot now carries an `sr-only` "on the clock" — but the banner is the one that matters and it belongs to blueprint 3.7 | Nothing; a written product commitment, unmet since 2.6 |
 | **`PositionPatch`'s own colours are still eyeballed** | 3.1 taught `tokens.test.ts` to composite an alpha wash and used it on the board, which is how three real failures surfaced. The same measurement has not been pointed at `PositionPatch` itself: its coloured letter on its own 10% wash measures 4.21–4.50:1, straddling the 4.5 floor. The board moved off that pairing; the patch has not. DESIGN.md open question 7 now says exactly this | Nothing; the machinery exists, somebody has to aim it |
+| **The clock is not on screen while you pick** | `PickClock` is at the top of the room; the pool is below the needs, the autodraft switch and (for a manager) the whole pause/undo/reset stack. On a 390px phone the countdown and the search box cannot both be visible once you have scrolled into the list — so "under a minute to find a player and commit" is an instruction you cannot follow while watching the clock. The critique's fix is to make the on-the-clock block `sticky top-0`, which has in-repo precedent in the board's sticky round gutter. Not done here because it moves the room's layout rather than the pool's, and it belongs with 3.7's draft-day polish | Nothing; it makes the last ten seconds of a pick worse than they need to be |
+| **A refusal explains itself where you are not looking** | The whole argument for muting an illegal row rather than hiding it is that the server's refusal explains itself in the league's own words. `Correction` renders above the search box, and the tap can be thirty rows below it — so on a phone the explanation is off-screen. Fixing it properly means widening `DraftResult` to carry the player id so the *row* can take `slot-correction` (2px ink, already defined and unused in the pool), which is a change to `makePick`'s contract rather than to the pool | Nothing; the justification for a shipped decision is weaker on a phone than it reads on paper |
+| **`SubmitButton`'s resting border is 2.11:1** | Measured, not eyeballed: `border-ink/35` over stock is under the 3:1 boundary floor, and in the pool the border *is* the button — no fill, no radius, and now no coloured label either. Hover at 80% is 7.72:1 and is the only state that clears the floor, which a phone never reaches. `border-ink/50` measures 3.10:1 and stays inside DESIGN.md's own declared 35–80% range. Not changed here because it repaints every button in the app, which is a look decision rather than a pool one. `PositionPatch`'s 55% borders (2.16–2.23:1) are the same story | Nothing; every button in the app has a sub-floor resting boundary |
 | **The pool is still 30 rows tall before you touch it** | 3.3 gave the pool filters and a search, which is what a drafter uses — but its *resting* state still lists 30 of 341 players, so the board below it is still a long scroll away on a phone for somebody who is only watching. Genuinely better than 3.1's 25-with-no-filters, and not fixed: the honest answer is probably that an untouched pool should be short (a handful of best-available rows) rather than a truncated list of everybody, and that is a 3.4 question because "best available" means a cheat sheet | Nothing; the board sits lower on a phone than it should |
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
@@ -242,9 +245,9 @@ Last full local run, on slice 3.3: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **438 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 48 config, helpers, the board's name-writing and the ten new contrast floors, 23 the pool's filtering and fuzzy search |
+| `npm run test` | **444 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 48 config, helpers, the board's name-writing and the ten new contrast floors, 23 the pool's filtering and fuzzy search |
 | `npm run build` | pass |
-| `npm run test:e2e` | **170 passed** (chromium + Pixel 7) — 3.1 adds ten specs and 3.3 adds six, run on both |
+| `npm run test:e2e` | **176 passed** (chromium + Pixel 7) — 3.1 adds ten specs and 3.3 adds ten, run on both |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
@@ -301,6 +304,69 @@ logged a migration restart for a slice that ships no migration. Harmless, and
 now documented. And the `vps-deploy` skill said "`deploy.sh` never restarts it",
 which stopped being true when the migration step was written; the skill now says
 what the script does.
+
+**What the pool's critique changed, and the one finding that matters most.**
+`/impeccable critique` ran as two isolated assessments again and scored the pool
+**24/40**. It found that **3.3 broke the same rule 3.1 had just been fixed for**:
+the armed row is struck in marker — correctly, it is the one act — and 3.3 put
+the button's own marker-red label on the blush that strike brings with it. That
+is 4.15:1, DESIGN.md forbids it by name in two places, and `tokens.test.ts`
+*asserted the pairing fails* while staying green, because nothing asserted what
+the pool renders. Same shape of blind spot as the washes one slice earlier: not
+a wrong number, an unasked question.
+
+Underneath it was a worse one. The `wash()` helper 3.1 added to catch exactly
+this class of bug **composites in linear light, and a browser composites in
+gamma-encoded sRGB**. It reads about 0.2 too *high* on dark text over a light
+wash — optimistic in the only direction that matters — so it scored the position
+letter on its own wash at 4.50 and asserted ≥4.5 while the browser rendered
+4.30. Fixed, and it immediately failed two pairings that had been passing:
+`pos-g` and `pos-f`, on the element that **is** the colour-blind fallback for
+position, of which the pool renders about thirty per screen. Both tokens were
+darkened to L 0.49 (from 0.505/0.508), which is the whole of open question 7's
+patch half, answered by measurement rather than by eye.
+
+Four more were defects rather than taste:
+
+- **A drafted row could be armed.** No `!row.drafted` guard, and a drafted row
+  is in the list whenever "hide drafted" is off — which the blueprint wants.
+  Arming one struck a player somebody already owns in marker, gave it the live
+  blush, withheld the button that marker promises, dropped focus on the floor,
+  and left the live region offering an action that could never happen.
+- **"Esc to cancel" was false.** Arming moves focus to the row's button and the
+  key handler lived on the search input, so Escape and the arrows died at
+  exactly the moment the hint above the list promised otherwise — with a pick
+  armed and a clock running. The spec that "proved" Escape worked passed only
+  because `locator.press` focuses the input first; it now uses
+  `page.keyboard.press`, which is the difference between testing the app and
+  testing the test.
+- **Every spectator saw somebody else's legality.** The pool muted against the
+  *picker's* roster for all eleven people who were not picking, so a member
+  holding four open centre slots watched the centres dim and read "No room".
+- **The live region flooded.** It narrated the top row rebuilt from
+  `shortlist[0]`, which changes on every character typed, every filter toggled
+  *and every pick landing anywhere in the league*: typing one name queued eleven
+  announcements about eleven players nobody had navigated to, and a full draft
+  added 156 more. It now reports the one thing that changed — the match count —
+  and leaves which row to `aria-current` on the row itself.
+
+And the quieter craft items: the keyboard cursor was a **1.10:1** wash with no
+rule at all (now a 2px ink outline); the single-letter position toggles were 44px
+tall and **24px wide**, because the Do's rule said `min-h-11` and meant both
+axes; the row name was a bespoke class at *display* tracking, which is the exact
+mistake DESIGN.md records the board making and fixing; thirty buttons all
+answered to the name "Pick" in a screen-reader rotor; `Slots` lost its list role
+on iOS VoiceOver; `autoCorrect` was left on for the one input this slice exists
+to serve, on the device draft night happens on; and pool rows ran 59–107px with
+the pick button flipping between right- and left-aligned depending on the length
+of the name above it — now a uniform 61px with every button at the same x.
+
+Two findings were not defects. Marker red on the ticker's pick numbers *was*
+decoration and is now ink — but that came from 3.1, not 3.3. And the detector
+itself found nothing on any of these files: its browser engine, which owns every
+contrast and type-size rule, needs puppeteer and never ran, and its static-HTML
+engine ran degraded and said so. A clean detector run on this surface meant
+"no purple gradients", which was never the risk.
 
 **The pool is tested as a function, and the chain is tested in a browser.**
 `src/lib/pool/search.test.ts` owns the 23 questions that are really about a
