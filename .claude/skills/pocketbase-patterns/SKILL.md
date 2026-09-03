@@ -49,6 +49,16 @@ one of them is not a review.
 - Never `required: true` on a number field that can legitimately be `0`. The
   required check is a truthy test that runs before type-aware validation, so
   `0` fails as "Cannot be blank".
+- **A required non-cascade relation blocks a *direct* delete but not a cascading
+  one.** Deleting a `players` or `league_members` record that a `picks` row
+  points at comes back `400 … Make sure that the record is not part of a
+  required relation reference` — which is what `picks.member`/`picks.player`
+  carrying `cascadeDelete: false` is *for*: a membership must not vanish out
+  from under a board. But deleting the `leagues` record above them succeeds:
+  PocketBase walks the cascade tree (league → drafts → picks, league → members)
+  and gets there in an order that works. Both halves measured against 0.39.11,
+  2026-09-03 — the second one is why `deleteLeague` still deletes drafts first
+  rather than leaning on an internal ordering nothing here pins.
 
 ## No transactions — the three-layer defense
 

@@ -12,6 +12,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { rosterSize } from "@/lib/leagues/settings";
+import { DeleteLeague } from "./delete-league";
 import { LiveLobby } from "./live-lobby";
 
 /**
@@ -142,10 +143,20 @@ export default async function LobbyPage({
         />
 
         {isCommissioner ? (
-          <p className="text-sm text-ink-soft">
-            You run this league. Open <em>Manage</em> on any row to rename or
-            remove a member. The draft roll arrives in Phase 2.
-          </p>
+          <>
+            <p className="text-sm text-ink-soft">
+              You run this league. Open <em>Manage</em> on any row to rename or
+              remove a member, and roll the draft order when everyone is in.
+            </p>
+            {/* Last on the page, and folded: the way out of a league should be
+                findable and never in the way. */}
+            <DeleteLeague
+              leagueId={league.id}
+              leagueName={league.name}
+              memberCount={members.length}
+              hasDrafted={league.status !== "setup"}
+            />
+          </>
         ) : null}
 
         {/* The board this lobby is filling, at its real width: one column per
