@@ -213,6 +213,7 @@ export default async function DraftPage({
                 pool: view.pool,
                 isYourTurn,
                 clockNeeds: view.clockNeeds,
+                yourNeeds,
                 clockMemberName: onClock?.memberName ?? null,
               }}
               canPick={(isYourTurn || view.canManage) && !isPaused && !!onClock}
@@ -255,7 +256,11 @@ export default async function DraftPage({
                 .map((pick) => (
                   <Slot key={pick.id} testId="board-pick">
                     <span className="flex flex-wrap items-baseline gap-x-3">
-                      <span className="slot-label tabular-nums text-live">
+                      {/* Ink, not marker. A pick number in the ticker is
+                        neither state nor the one act, and eight marker-red
+                        numbers under the board undercut the one thing red is
+                        supposed to mean in this room. */}
+                      <span className="slot-label tabular-nums text-ink-soft">
                         {String(pick.overallNo).padStart(2, "0")}
                       </span>
                       <CardName>{pick.playerName}</CardName>

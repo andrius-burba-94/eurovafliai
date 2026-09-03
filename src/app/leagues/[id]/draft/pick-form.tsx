@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState, type KeyboardEvent } from "react";
 
 import {
+  CardName,
   Correction,
   Field,
   FilterToggle,
@@ -34,6 +35,16 @@ type PoolProps = {
   pool: DraftView["pool"];
   isYourTurn: boolean;
   clockNeeds: DraftView["clockNeeds"];
+  /**
+   * The viewer's own remaining room, used when they cannot pick.
+   *
+   * Eleven of twelve people in this league are spectators at any moment, and
+   * the pool was muting against the *picker's* roster for all of them — so a
+   * member holding four open centre slots watched the centres dim and read
+   * "No room". Legality is only somebody else's business while you are the one
+   * entering their pick.
+   */
+  yourNeeds: DraftView["yourNeeds"];
   /** Whose legality is being shown, when it is not the viewer's. */
   clockMemberName: string | null;
 };
@@ -120,16 +131,13 @@ export function PickForm({
   // local search feel slow.
   const index = useMemo(() => poolIndex(view.pool), [view.pool]);
 
+  // Whose legality this pool is about: the picker's if you are the one picking
+  // (your turn, or a manager entering it for them), otherwise your own.
+  const needs = canPick ? view.clockNeeds : view.yourNeeds;
+
   const rows = useMemo(
-    () =>
-      selectPool({
-        pool: view.pool,
-        filters,
-        query,
-        needs: view.clockNeeds,
-        index,
-      }),
-    [view.pool, filters, query, view.clockNeeds, index],
+    () => selectPool({ pool: view.pool, filters, query, needs, index }),
+    [view.pool, filters, query, needs, index],
   );
 
   const shortlist = rows.slice(0, VISIBLE_ROWS);
@@ -183,7 +191,29 @@ export function PickForm({
     });
   };
 
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  /**
+   * Bound to the whole pool, not to the search box.
+   *
+   * Arming moves focus to the row's button, and with the handler on the input
+   * that meant Escape and the arrows stopped working at exactly the moment the
+   * hint above the list promised "Esc to cancel" — with a pick armed and a
+   * clock running. Keydown bubbles, so listening at the container keeps every
+   * key alive wherever focus has gone. The spec that "proved" Escape worked
+   * only passed because `locator.press` focuses the input first.
+   */
+  const onPoolKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // The club select owns its own arrows and Escape natively.
+    if ((event.target as HTMLElement).tagName === "SELECT") return;
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setArmed(null);
+      document
+        .querySelector<HTMLInputElement>('[data-testid="pool-search"]')
+        ?.focus();
+      return;
+    }
+
     if (shortlist.length === 0) return;
 
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -201,28 +231,29 @@ export function PickForm({
       return;
     }
 
-    if (event.key === "Enter") {
-      // Never submits the form itself: the search box is not inside one, and
-      // this is the keystroke that must not be able to draft anybody.
+    // Enter on the armed button is the browser submitting that form, and must
+    // pass straight through — that second Enter is the pick.
+    if (
+      event.key === "Enter" &&
+      (event.target as HTMLElement).tagName !== "BUTTON"
+    ) {
       event.preventDefault();
       setKeyboardUsed(true);
       const row = shortlist[cursor];
-      if (!row || !canPick) return;
+      // `!row.drafted` is the guard this was missing. A drafted row is in the
+      // list whenever "hide drafted" is off, and arming one struck it in
+      // marker, gave it the live blush, withheld the button that marker
+      // promises, dropped focus on the floor, and left the live region
+      // offering an action that could never happen — on a player somebody
+      // already owns.
+      if (!row || !canPick || row.drafted) return;
       setArmed(row.id);
       focusPickButton(row.id);
-      return;
-    }
-
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setArmed(null);
     }
   };
 
-  const highlightedRow = shortlist[cursor];
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" onKeyDown={onPoolKeyDown}>
       {result.error ? (
         <Correction testId="pick-error">{result.error}</Correction>
       ) : null}
@@ -234,11 +265,15 @@ export function PickForm({
             setQuery(event.target.value);
             relist();
           }}
-          onKeyDown={onSearchKeyDown}
           placeholder="Name or club — misspelling is fine"
           data-testid="pool-search"
           autoComplete="off"
           spellCheck={false}
+          // iOS autocorrect owns the one input this whole slice exists to
+          // serve, on the device draft night actually happens on, for surnames
+          // it has never seen. "Valančiūnas" does not survive it.
+          autoCorrect="off"
+          autoCapitalize="none"
           aria-describedby="pool-keys"
           className={inputStyles}
         />
@@ -314,19 +349,21 @@ export function PickForm({
         </select>
       </label>
 
-      {/* The keyboard's position, spoken. PRODUCT.md asks for a draft room a
-          screen reader can follow, and a highlight that only exists as a 5%
-          ink wash is invisible to one. */}
+      {/* What the list did, spoken — and only what the list did.
+          
+          This used to narrate the top row's whole line, rebuilt from
+          `shortlist[0]`. That fires on every character typed, every filter
+          toggled, and every pick landing anywhere in the league, because all
+          three re-list the pool: typing "valanciunas" queued eleven
+          announcements of eleven different players nobody had navigated to,
+          and a twelve-member draft added 156 more. Now it says the one thing
+          that changed — how many are left — and leaves *which row* to
+          `aria-current` on the row itself, which a reader reports when the
+          user asks rather than when the app decides. */}
       <p role="status" aria-live="polite" className="sr-only">
-        {highlightedRow
-          ? `${highlightedRow.name}, ${highlightedRow.club}, ${highlightedRow.position}${
-              highlightedRow.drafted
-                ? `, taken by ${highlightedRow.takenBy}`
-                : highlightedRow.noRoom
-                  ? ", no room left in that position"
-                  : ""
-            }${armedId === highlightedRow.id ? ", armed — press Enter to pick" : ""}`
-          : "Nobody matches that"}
+        {rows.length === 0
+          ? "Nobody left matching that."
+          : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`}
       </p>
 
       <Slots testId="pick-pool">
@@ -336,41 +373,58 @@ export function PickForm({
           return (
             <Slot
               key={player.id}
-              state={isArmed ? "live" : "waiting"}
+              // Four states, and the drafted one is not `waiting`. A dashed
+              // rule is this system's word for an empty place; a player
+              // somebody already owns is the most settled row in the list.
+              state={isArmed ? "live" : player.drafted ? "filled" : "waiting"}
               testId="pool-row"
-              // The keyboard's highlight is the same 5% ink wash the pointer
-              // already gets on a whole-row link — an established material for
-              // "attention is here", rather than a new one.
-              className={`${keyboardUsed && isHighlighted && !isArmed ? "bg-ink/5" : ""} ${
-                player.drafted || player.noRoom ? "text-ink-faint" : ""
-              }`}
+              current={keyboardUsed && isHighlighted && !isArmed}
+              nowrap
+              // An armed row is never faded: `ink-faint` on the live blush is
+              // 4.37:1, and the row you are about to commit is the last thing
+              // that should be hard to read.
+              className={
+                (player.drafted || player.noRoom) && !isArmed
+                  ? "text-ink-faint"
+                  : ""
+              }
             >
-              <span className="flex flex-wrap items-baseline gap-x-3">
+              <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
+                {/* `CardName scale="slot"`, not a bespoke class. The board
+                    already made this mistake once — a one-off `text-xs` at
+                    *display* tracking — and DESIGN.md records fixing it. */}
                 <span
-                  className={`text-sm font-semibold uppercase tracking-[0.04em] ${
+                  className={`min-w-0 truncate ${
                     player.drafted ? "line-through decoration-1" : ""
                   }`}
+                  title={player.name}
                 >
-                  {player.name}
+                  <CardName scale="slot">{player.name}</CardName>
                 </span>
                 <span className="slot-label">{player.club}</span>
                 <PositionPatch position={player.position} />
                 {/* Every one of these is a word, not a colour. */}
                 {player.status !== "active" ? (
-                  <span className="slot-label">{player.status}</span>
+                  <span className="slot-label shrink-0">{player.status}</span>
                 ) : null}
                 {player.drafted ? (
-                  <span className="slot-label" data-testid="pool-taken">
+                  <span
+                    className="slot-label shrink-0"
+                    data-testid="pool-taken"
+                  >
                     {String(player.takenAt).padStart(2, "0")} · {player.takenBy}
                   </span>
                 ) : player.noRoom ? (
-                  <span className="slot-label" data-testid="pool-no-room">
+                  <span
+                    className="slot-label shrink-0"
+                    data-testid="pool-no-room"
+                  >
                     No room
                   </span>
                 ) : null}
               </span>
               {canPick && !player.drafted ? (
-                <form action={action}>
+                <form action={action} className="shrink-0">
                   <input type="hidden" name="leagueId" value={leagueId} />
                   <input type="hidden" name="playerId" value={player.id} />
                   <SubmitButton
@@ -378,8 +432,14 @@ export function PickForm({
                     // The armed row is the surface's one marker action. Every
                     // other row is ink, so red still means exactly what it
                     // means everywhere else in this app.
-                    tone={isArmed ? "live" : "ink"}
+                    // Inside a live row the label cannot be marker red:
+                    // `live` on `live-sunk` is 4.15:1 and DESIGN.md forbids the
+                    // pairing by name — which 3.3 shipped anyway, on the one
+                    // control it matters most for. Full-strength marker border,
+                    // ink label.
+                    tone={isArmed ? "liveOnField" : "ink"}
                     compact
+                    ariaLabel={`Pick ${player.name}`}
                     pendingLabel="Picking…"
                   >
                     Pick
