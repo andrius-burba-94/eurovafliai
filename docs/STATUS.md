@@ -9,6 +9,10 @@ It is deliberately *not* the plan. The plan is
 file records how far through it we are. When the two disagree, the blueprint
 defines the target and this file is wrong.
 
+> **Slice 3.1, the draft board, is in production** at `920439e` — realtime
+> re-checked through the proxy afterwards (`PB_CONNECT` in 0.2s) because that is
+> the thing a deploy breaks silently.
+>
 > **Phase 1 — walking skeleton. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).**
 > Auth, league creation, join-by-code, the design foundation, the live lobby and
@@ -385,6 +389,7 @@ sync, a player the feed no longer lists is marked `left` rather than deleted, an
 | The production player pool | **324 players, 20 clubs**, ingested on the box. Re-running the sync there is a confirmed no-op, so it is safe to re-run before draft night |
 | **The worker, in production** | Confirmed running the 2.5 loop at `afb58b3`, not merely "online": its log shows `SIGINT received, stopping` (PM2's reload, handled by the graceful path) followed by `starting · PocketBase http://127.0.0.1:8095 · tick 1000ms` and `authenticated as superuser`. That last line is the proof — the Phase 0 scaffold it replaced had no PocketBase client at all. It then sweeps silently, because production has no live draft |
 | `/api/time` through the proxy | 307 to `/login?error=unauthorized` without a session, which is the optimistic proxy doing its job |
+| **The board, in production** | Live at `920439e`. Confirmed by more than a 200: the deployed stylesheet contains `slot-standing`, `rule-advances` and `min-h-slot`, so the board's fourth state and the second motion event are genuinely on the box rather than merely merged. No migration shipped with 3.1, and `deploy.sh` said so itself — "No migration changes — leaving eurovafliai-pb alone" — so PocketBase was not restarted |
 | **SSE after the deploy** | Re-checked, because the deploy warns about vhost drift (see #35): `PB_CONNECT` arrives immediately through `/pb/api/realtime` and the stream stays open. Realtime is unaffected |
 
 `npm run pb:verify` was **not** re-run against the production database on this
