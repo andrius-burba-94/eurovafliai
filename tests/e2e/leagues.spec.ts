@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  addMemberTo,
   cleanupTestData,
   createLeagueFor,
+  createPlayer,
   createTestUser,
+  grantManage,
   signIn,
+  superuser,
   trackLeague,
 } from "./helpers/session";
 
@@ -182,4 +186,131 @@ test("a league whose membership write was lost repairs itself", async ({
   // And the repair is idempotent — a reload does not add a second row.
   await page.reload();
   await expect(page.getByTestId("member")).toHaveCount(1);
+});
+
+/**
+ * A league mid-draft with a pick on the board, planted rather than clicked.
+ *
+ * What these specs need is the *reference* a pick makes to a membership —
+ * `picks.member`, a required relation with `cascadeDelete: false` — because
+ * that reference is the reason `deleteLeague` deletes drafts before it deletes
+ * the league. Clicking through a draft to get one would test the pick pipeline
+ * again instead.
+ */
+async function leagueWithABoard(name: string) {
+  const commissioner = await createTestUser("chief");
+  const league = await createLeagueFor(commissioner, name);
+  const other = await createTestUser("other");
+  await addMemberTo(league.id, other, "Other FC");
+  const player = await createPlayer("Alpha", { position: "G" });
+
+  const pb = await superuser();
+  const members = await pb.collection("league_members").getFullList({
+    filter: `league = '${league.id}'`,
+    sort: "created",
+    requestKey: null,
+  });
+  const draft = await pb.collection("drafts").create(
+    {
+      league: league.id,
+      format: "snake",
+      status: "live",
+      order: members.map((member) => member.id),
+      rounds: 13,
+      current_pick: 2,
+      pick_seconds: 60,
+      deadline: new Date(Date.now() + 60_000).toISOString().replace("T", " "),
+      seed: "delete-spec",
+    },
+    { requestKey: null },
+  );
+  await pb.collection("picks").create(
+    {
+      draft: draft.id,
+      overall_no: 1,
+      round: 1,
+      slot: 1,
+      member: members[0].id,
+      player: player.id,
+      is_auto: false,
+    },
+    { requestKey: null },
+  );
+  await pb
+    .collection("leagues")
+    .update(league.id, { status: "drafting" }, { requestKey: null });
+
+  return { commissioner, other, league, members };
+}
+
+test("the commissioner deletes the league, board and all", async ({
+  page,
+  context,
+}) => {
+  const { commissioner, league } = await leagueWithABoard("Doomed League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("delete-league-toggle").click();
+
+  // The wrong name is not a confirmation.
+  await page.getByTestId("delete-league-confirm").fill("Doomed");
+  await page.getByTestId("delete-league").click();
+  await expect(page.getByTestId("delete-league-error")).toContainText(
+    "Doomed League",
+  );
+  await expect(page.getByTestId("lobby")).toBeVisible();
+
+  // React 19 empties the field across the transition (AGENTS.md).
+  await page.getByTestId("delete-league-confirm").fill("doomed league  ");
+  await page.getByTestId("delete-league").click();
+
+  // Home, and the league is not there to open — which also proves the delete
+  // order: a pick still pointed at a membership, and PocketBase refuses to
+  // delete a member while one does.
+  await expect(page).toHaveURL("/");
+  const gone = await page.goto(`/leagues/${league.id}`);
+  expect(gone?.status()).toBe(404);
+});
+
+test("a deputy is trusted to help run the league, not to end it", async ({
+  page,
+  context,
+}) => {
+  const { league, other } = await leagueWithABoard("Deputy League");
+  await grantManage(league.id, other);
+  await signIn(context, other);
+
+  await page.goto(`/leagues/${league.id}`);
+  await expect(page.getByTestId("lobby")).toBeVisible();
+  // They can manage members; they cannot end the league. `deleteLeague`
+  // refuses a deputy regardless of what is on screen.
+  await expect(page.getByTestId("delete-league-toggle")).toHaveCount(0);
+});
+
+test("a lobby open elsewhere does not sit there empty after a delete", async ({
+  page,
+  context,
+}) => {
+  // What the rest of the league sees. The cascade takes every membership at
+  // once, so the live list would otherwise render an empty lobby forever —
+  // which looks like a bug rather than like a deleted league.
+  const { commissioner, other, league } = await leagueWithABoard("Watched League");
+  await signIn(context, other);
+  await page.goto(`/leagues/${league.id}`);
+  await expect(page.getByTestId("member-list")).toBeVisible();
+
+  const owner = await context.browser()!.newContext();
+  await signIn(owner, commissioner);
+  const ownerPage = await owner.newPage();
+  await ownerPage.goto(`/leagues/${league.id}`);
+  await ownerPage.getByTestId("delete-league-toggle").click();
+  await ownerPage.getByTestId("delete-league-confirm").fill("Watched League");
+  await ownerPage.getByTestId("delete-league").click();
+  await expect(ownerPage).toHaveURL("/");
+
+  // Nobody touched the watching tab: the memberships vanish, it asks the
+  // server what it should be showing, and there is no league to show.
+  await expect(page.getByTestId("lobby")).toHaveCount(0, { timeout: 15_000 });
+  await owner.close();
 });

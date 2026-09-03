@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import PocketBase from "pocketbase";
 import { useActionState, useEffect, useState } from "react";
 
@@ -76,6 +77,7 @@ export function LiveLobby({
   isCommissioner: boolean;
   settings: LeagueSettings;
 }) {
+  const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
 
   // A deputy sees the same controls the commissioner does. Read off the live
@@ -120,6 +122,15 @@ export function LiveLobby({
           .collection("league_members")
           .getFullList<MemberRecord>(memberListQuery(leagueId));
         if (!active) return;
+        if (records.length === 0) {
+          // Every membership at once means the league itself is gone — the
+          // commissioner deleted it, and the cascade took the rows with it.
+          // Nothing can be rendered from that, and an empty lobby that never
+          // corrects is worse than being told plainly, so hand it back to the
+          // server: the page finds no league and says so.
+          router.refresh();
+          return;
+        }
         setMembers(
           records.map((record) =>
             toMember(record, { commissionerUserId, viewerUserId }),
@@ -172,7 +183,7 @@ export function LiveLobby({
       for (const unsubscribe of unsubscribes) unsubscribe();
       void pb.realtime.unsubscribe();
     };
-  }, [leagueId, authToken, commissionerUserId, viewerUserId]);
+  }, [leagueId, authToken, commissionerUserId, viewerUserId, router]);
 
   const you = members.find((member) => member.isYou);
   const slotsLeft = Math.max(maxMembers - members.length, 0);

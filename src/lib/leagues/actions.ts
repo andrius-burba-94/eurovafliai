@@ -15,6 +15,7 @@ import {
   canKickMember,
   canMarkReady,
   canRenameTeam,
+  normalizeTeamName,
   validateTeamName,
   type LobbyActor,
 } from "./lobby";
@@ -335,8 +336,12 @@ export async function kickMember(
   if (!verdict.ok) return { error: verdict.reason };
 
   try {
-    // A single delete. Nothing references a membership yet — picks and rosters
-    // arrive in Phase 2 — so this frees the slot and leaves nothing dangling.
+    // A single delete, and it leaves nothing dangling *because* kicking is
+    // refused outside `setup` (`canKickMember`): a member can only be removed
+    // before a draft exists, so no pick can be pointing at the row. That is
+    // not luck — `picks.member` carries `cascadeDelete: false` precisely so
+    // that a membership cannot vanish out from under a board, and PocketBase
+    // would refuse this delete rather than tear a hole in one.
     // Their place is not held: they rejoin with the invite code like anyone.
     await context.pb
       .collection("league_members")
@@ -387,4 +392,118 @@ export async function setMemberPermission(
 
   revalidatePath(`/leagues/${league.id}`);
   return OK;
+}
+
+/**
+ * Delete the league.
+ *
+ * The end of the line, and the only action in this app that destroys something
+ * belonging to everybody rather than to the person pressing the button. It
+ * takes the league, its memberships, any draft it has run and every pick on
+ * those boards. The players stay — they are app-global — and so do the user
+ * accounts; nobody is logged out by this.
+ *
+ * **Commissioner only, and deliberately not delegable**, on the same reasoning
+ * as `setMemberPermission`: a deputy is trusted to help run the league, not to
+ * end it. `isManager` is not consulted here, and that is on purpose.
+ *
+ * Guarded by typing the league's **name**, not a fixed word. A commissioner
+ * with three leagues open in three tabs should have to look at which one they
+ * are deleting, and the name is the only confirmation that carries that
+ * information. Case and stray spaces are forgiven — this is a confirmation, not
+ * a password.
+ *
+ * ## Failure-recovery story
+ *
+ * Two steps:
+ *
+ * 1. **delete every draft of the league** — `picks.draft` cascades, so each
+ *    board goes with its draft;
+ * 2. **delete the league** — `league_members.league` cascades, so the
+ *    memberships go with it.
+ *
+ * Step 1 is not strictly required, and it is worth being exact about why it is
+ * here. Deleting the league on its own *does* work: PocketBase walks the whole
+ * cascade tree and takes the drafts, their picks and the memberships with it —
+ * checked against 0.39, not assumed. What it does refuse is a **direct** delete
+ * of a record held by a required non-cascade relation: `picks.member` and
+ * `picks.player` are exactly that (2.4 made them so, precisely so a membership
+ * could not vanish out from under a board), and deleting either one straight
+ * comes back `400 … not part of a required relation reference`. Also checked.
+ *
+ * So the one-step version leans on the order PocketBase happens to walk that
+ * tree in, which nothing in this repo pins and no test would notice changing.
+ * Deleting the drafts first removes every reference before a membership is
+ * touched, and costs one query. That is the whole reason.
+ *
+ * A crash between the steps leaves a league with no drafts, in whatever status
+ * it held. Visible, harmless, and `reconcileLeagueStatus` already repairs the
+ * status half of it; pressing delete again finishes the job, because deleting
+ * nothing is not an error. Nothing partial is reachable in the other direction:
+ * the league is gone or it is not.
+ */
+export async function deleteLeague(
+  _previous: LobbyResult,
+  formData: FormData,
+): Promise<LobbyResult> {
+  const session = await requireSession();
+  const leagueId = String(formData.get("leagueId") ?? "");
+  if (!leagueId) return NOT_YOURS;
+
+  const pb = await getSuperuserClient();
+
+  let league: LeagueRecord;
+  try {
+    league = await pb
+      .collection("leagues")
+      .getOne<LeagueRecord>(leagueId, { requestKey: null });
+  } catch {
+    // Already gone, or never theirs. Same answer either way — see
+    // `getLeagueWithMembers` on why those are not told apart.
+    return NOT_YOURS;
+  }
+
+  if (league.commissioner !== session.user.id) {
+    return { error: "Only the commissioner can delete the league." };
+  }
+
+  if (!typedTheName(formData.get("confirm"), league.name)) {
+    return {
+      error: `Type the league's name — ${league.name} — to confirm.`,
+    };
+  }
+
+  // Step 1. Drafts, oldest or newest, all of them: a league may have finished
+  // one and started another across seasons.
+  const drafts = await pb
+    .collection("drafts")
+    .getFullList<{ id: string }>({
+      filter: `league = '${leagueId}'`,
+      requestKey: null,
+    });
+  for (const draft of drafts) {
+    await pb.collection("drafts").delete(draft.id, { requestKey: null });
+  }
+
+  // Step 2.
+  await pb.collection("leagues").delete(leagueId, { requestKey: null });
+
+  revalidatePath("/");
+  revalidatePath(`/leagues/${leagueId}`);
+  // There is nothing to go back to.
+  redirect("/");
+}
+
+/**
+ * Did they type the league's name?
+ *
+ * Whitespace is collapsed through `normalizeTeamName` — the same rule the rest
+ * of this module applies to a name a human typed — and the comparison ignores
+ * case, because a phone capitalises the first letter of a field whether you
+ * want it to or not, and refusing a commissioner's own league name over that
+ * would be a puzzle rather than a safeguard.
+ */
+function typedTheName(typed: FormDataEntryValue | null, name: string): boolean {
+  const fold = (value: string) => normalizeTeamName(value).toLowerCase();
+  return fold(String(typed ?? "")) === fold(name) && name.trim() !== "";
 }

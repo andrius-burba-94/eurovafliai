@@ -26,6 +26,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **clock offset** | The difference between a device's clock and the server's, fetched once so a countdown is honest. A phone whose clock is fast must not tell its owner they are out of time. | `/api/time`, `PickClock` |
 | **rollback** | Undoing the draft back to a chosen pick number; later picks are deleted and the draft re-pointed. | `computeRollback()` |
 | **start over** | Discarding a draft entirely — the draft and every pick in it — and returning the league to the lobby with the draft order intact. Distinct from a rollback, which keeps the draft and walks it back to a pick. | `resetDraft()` |
+| **delete the league** | Ending the league itself: the league, its memberships, every draft it has run and every pick on those boards. The furthest of the three undoings — rollback walks a board back, starting over discards a board, this discards the league. Commissioner only, never a deputy. | `deleteLeague()` |
 | **commissioner mode** | The commissioner entering picks made offline, or for a member whose phone has died. | Live since 2.4: the room shows a manager a "Pick for them" button for whoever is on the clock. The fuller offline-entry flow is Phase 3.6 |
 | **draft trade offer** | One offer per member per draft, announced in chat before the offerer's next pick. | `draft_trade_offers` |
 
