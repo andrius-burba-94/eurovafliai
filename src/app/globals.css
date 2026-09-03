@@ -117,6 +117,17 @@ body {
   background-color: var(--color-live-sunk);
 }
 
+/* Where a paused draft stands. Solid marker plus the blush means *pick now*;
+ * this is the same marker at the same weight, dashed, with no fill — because
+ * dashed is already this system's word for unsettled. 3.1 shipped a paused
+ * board struck exactly like a live one, which is one material carrying two
+ * opposite instructions: act, and wait. A member glancing down mid-conversation
+ * could not tell which, and the banner that disambiguates it is several screens
+ * up on a phone. */
+@utility slot-standing {
+  border-top: 2px dashed var(--color-live);
+}
+
 /* A correction on the board: struck in ink, not in marker. The marker means
  * one thing only — who is on the clock — so an error that borrowed it made a
  * failure and an invite code look identical. */
@@ -190,7 +201,7 @@ body {
   }
 }
 
-[data-board-slot][data-advanced="true"] {
+[data-board-slot][data-state="live"][data-advanced="true"] {
   position: relative;
   border-top-color: transparent;
 
@@ -218,6 +229,6 @@ body {
 /* Every even round of a snake draft is drafted right to left, so the rule has
  * to be able to travel that way too — otherwise half of all advances move
  * against the round they are advancing through. */
-[data-board-slot][data-advanced="true"][data-reversed]::after {
+[data-board-slot][data-state="live"][data-advanced="true"][data-reversed]::after {
   transform-origin: right;
 }
