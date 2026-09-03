@@ -14,6 +14,7 @@
  * |----------------|----------------------------------------------------|
  * | `roll.ts`      | the seeded shuffle that decides the member order     |
  * | `order.ts`     | who drafts at each overall number, per format       |
+ * | `board.ts`     | where each pick number sits on a rounds × members wall |
  * | `clock.ts`     | whose turn is it, and is the draft finished         |
  * | `legality.ts`  | may this member take this player                    |
  * | `autodraft.ts` | who does the engine pick for an absent member       |
@@ -38,6 +39,9 @@ export { rosterSize } from "./types";
 export { rollOrder } from "./roll";
 
 export { buildPickOrder, memberAt, roundAndSlot } from "./order";
+
+export type { BoardShape, BoardSlot } from "./board";
+export { buildBoardShape } from "./board";
 
 export type { OnClock } from "./clock";
 export {
