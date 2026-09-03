@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth/session";
 import {
@@ -24,7 +25,7 @@ import {
   rosterPositionsOf,
   toState,
 } from "./pipeline";
-import type { DraftRecord } from "./types";
+import { RESET_CONFIRMATION, type DraftRecord } from "./types";
 
 /**
  * The draft's server actions — the request-facing half of the pick pipeline.
@@ -518,4 +519,82 @@ export async function setAutodraft(
   revalidatePath(`/leagues/${leagueId}`);
   revalidatePath(`/leagues/${leagueId}/draft`);
   return OK;
+}
+
+/**
+ * Reset the draft, back to the lobby.
+ *
+ * The tool the first real draft went looking for and did not find. Undo takes
+ * the board back to a pick; this throws the whole draft away — the record, every
+ * pick in it — and returns the league to the lobby, where the order can be
+ * re-rolled and the draft started again. It is what you want after a practice
+ * run, a false start, or a draft begun with the wrong settings.
+ *
+ * Draft positions are left alone. Somebody who resets because they started too
+ * early should not have to re-roll, and re-rolling overwrites them anyway.
+ *
+ * Guarded by a typed confirmation rather than a second button. Everything else
+ * in this module is recoverable — a pause resumes, an undo can be undone by
+ * picking again — and this is the one action that destroys work, so it asks for
+ * a word rather than a tap. The count of what will be discarded is on screen
+ * beside it.
+ *
+ * ## Failure-recovery story
+ *
+ * Two writes, and the order is deliberate:
+ *
+ * 1. **delete the draft** — `picks.draft` cascades, so the board goes with it in
+ *    one operation rather than a delete loop that could stop half way;
+ * 2. **league back to `setup`**.
+ *
+ * A crash between them leaves a league claiming to be `drafting` with no draft
+ * to open. That is visible, harmless, and repaired by `reconcileLeagueStatus` on
+ * the next render of either the lobby or the room. The reverse order would leave
+ * a `setup` league with a live draft still in it — the lobby would offer a
+ * re-roll, and `startDraft` would then find the old draft and resume it, so the
+ * new order would be silently ignored. That one is not repairable by inspection,
+ * which is why it is not the order chosen.
+ */
+export async function resetDraft(
+  _previous: DraftResult,
+  formData: FormData,
+): Promise<DraftResult> {
+  const leagueId = String(formData.get("leagueId") ?? "");
+  const context = await loadDraftContext(leagueId);
+  if (!context) return { error: "That is not yours to reset." };
+  if (!context.canManage) {
+    return {
+      error:
+        "Only the commissioner, or someone they trust with it, can reset the draft.",
+    };
+  }
+
+  if (String(formData.get("confirm") ?? "").trim() !== RESET_CONFIRMATION) {
+    return {
+      error: `Type ${RESET_CONFIRMATION} to confirm — this discards the whole board.`,
+    };
+  }
+
+  const { pb } = context;
+  // Every draft of this league, not just the unfinished one: resetting a
+  // finished draft is how a league that drafted by mistake gets its lobby back,
+  // and leaving a completed record behind would have `getDraftView` open it.
+  const drafts = await pb.collection("drafts").getFullList<DraftRecord>({
+    filter: `league = '${leagueId}'`,
+    requestKey: null,
+  });
+
+  for (const draft of drafts) {
+    await pb.collection("drafts").delete(draft.id, { requestKey: null });
+  }
+
+  await pb
+    .collection("leagues")
+    .update(leagueId, { status: "setup" }, { requestKey: null });
+
+  revalidatePath(`/leagues/${leagueId}`);
+  revalidatePath(`/leagues/${leagueId}/draft`);
+  // The room they are standing in no longer exists. Everyone else's room gets
+  // the delete event and follows them here.
+  redirect(`/leagues/${leagueId}`);
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import {
   BackArrow,
@@ -42,7 +42,12 @@ export default async function DraftPage({
 
   const { id } = await params;
   const view = await getDraftView(id);
-  if (!view) notFound();
+  // No draft to show: either there has never been one, or the commissioner has
+  // just reset it — in which case every other room in the league gets a delete
+  // event and lands here a moment later. The lobby is the honest destination
+  // for all of those; a 404 would be the app telling the league its own league
+  // does not exist. (If the *league* is gone, the lobby says so properly.)
+  if (!view) redirect(`/leagues/${id}`);
 
   const { draft, picks, onClock, isYourTurn, yourNeeds } = view;
   // Three states, not two. The engine says nobody is on the clock while a
