@@ -226,6 +226,7 @@ export default async function DraftPage({
             columns={columns}
             entries={entries}
             markedOverallNo={view.markedOverallNo}
+            isPaused={isPaused}
           />
         </Bank>
 
@@ -258,7 +259,7 @@ export default async function DraftPage({
                     </span>
                     <span className="slot-label">
                       {pick.memberName}
-                      {pick.isAuto ? " · auto" : ""}
+                      {pick.isAuto ? " · AUTO" : ""}
                     </span>
                   </Slot>
                 ))}

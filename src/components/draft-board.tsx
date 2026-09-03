@@ -1,5 +1,6 @@
 import type { BoardShape, Position } from "@/lib/engine";
 
+import { CardName } from "./board";
 import { BoardScroll } from "./board-scroll";
 
 /**
@@ -16,8 +17,9 @@ import { BoardScroll } from "./board-scroll";
  * ## What it is not allowed to do
  *
  * Decide anything. The shape comes from `buildBoardShape`, the picks come from
- * the server, and `liveOverallNo` is the engine's word on who is on the clock
- * (invariant §1). This component maps a pick number to a place and paints it.
+ * the server, and `markedOverallNo` is the engine's word on where the marker
+ * goes (invariant §1). This component maps a pick number to a place and paints
+ * it.
  *
  * ## Semantics
  *
@@ -29,6 +31,18 @@ import { BoardScroll } from "./board-scroll";
  * overflow it so it can scroll. So the rows are grids with one shared template
  * — every row is the same width, so every row's tracks resolve identically —
  * and the roles are stated rather than inherited.
+ *
+ * ## Why every word in a slot is ink
+ *
+ * Because the alternatives were measured, not eyeballed. The marker's own red
+ * on the live blush is **4.15:1** — DESIGN.md forbids that pairing by name, and
+ * the first version of this file shipped it on the one cell that matters most,
+ * where the pick number is the slot's only text. The 10% position wash costs
+ * roughly a tenth of every ratio on top of it, which drops `ink-faint` to 4.22
+ * and the G/F/C letter's own hue to 4.21. So: the wash carries the position's
+ * hue, the letter carries the position, and all three texts are ink or soft ink
+ * and clear 5:1. Colour still never encodes position alone — the letter is
+ * unconditional — it simply is not the letter that is coloured any more.
  */
 
 export type BoardColumn = {
@@ -44,13 +58,23 @@ export type BoardEntry = {
   readonly isAuto: boolean;
 };
 
-const PATCH_TEXT: Record<Position, string> = {
-  G: "text-pos-g",
-  F: "text-pos-f",
-  C: "text-pos-c",
-};
+/**
+ * A slot's material, spelled out.
+ *
+ * Written as a literal map rather than composed as `slot-${state}`, because
+ * Tailwind only emits a utility it can *see* in the source: an interpolated
+ * class name compiles to nothing, the rule silently does not exist, and the
+ * board looks plausible in a screenshot with its whole state language missing.
+ * `board.tsx` writes `SLOT_RULE` out for the same reason.
+ */
+const SLOT_RULE = {
+  waiting: "slot-waiting",
+  filled: "slot-filled",
+  live: "slot-live",
+  standing: "slot-standing",
+} as const;
 
-/** The wash that colours a filled slot by its position. */
+/** The wash that colours a filled slot by its position. Non-text, by design. */
 const PATCH_WASH: Record<Position, string> = {
   G: "bg-pos-g/10",
   F: "bg-pos-f/10",
@@ -75,6 +99,7 @@ export function DraftBoard({
   columns,
   entries,
   markedOverallNo,
+  isPaused,
 }: {
   shape: BoardShape;
   /** Ordered exactly as `shape.columns` — column 0 drafts first in round 1. */
@@ -87,6 +112,12 @@ export function DraftBoard({
    * finished board, which has no next slot.
    */
   markedOverallNo: number | null;
+  /**
+   * Which of the two things the marker means here. Solid marker plus the blush
+   * is "pick now"; dashed marker with no fill is "this is where we resume".
+   * One material for both was 3.1's own mistake.
+   */
+  isPaused: boolean;
 }) {
   // A mismatch here would shift or overflow every cell on the board — the same
   // invisible failure as the gutter-header bug below, and the reason both are
@@ -101,12 +132,28 @@ export function DraftBoard({
   // The round gutter, then one track per member. Counted off the *shape*, which
   // is where the cells come from. `minmax` is what makes the board scroll
   // instead of squeezing: with room to spare the columns share it, and past
-  // about six members they hold their width and overflow.
-  const template = `2rem repeat(${shape.columns.length}, minmax(6rem, 1fr))`;
+  // about five members they hold their width and overflow.
+  //
+  // 8rem, not 6: at 6rem a slot had about 69px for a name once the position
+  // letter had taken its share of the same line — roughly eight characters,
+  // where "Valančiūnas" needs 90px and "Papanikolaou" more. The board could not
+  // write the names it exists to write, on the one device it is designed for,
+  // and the only recovery was a `title` tooltip, which does not exist on a
+  // phone. So the letter moved up to the number line and the column went wide
+  // enough for the longest surname this league will actually read. A phone
+  // shows three columns instead of four; three readable columns beat four
+  // truncated ones.
+  const template = `2rem repeat(${shape.columns.length}, minmax(8rem, 1fr))`;
+
+  const lastColumn = shape.columns.length - 1;
 
   return (
     <BoardScroll markedOverallNo={markedOverallNo} testId="draft-board">
-      <div role="table" aria-label="The draft board" className="min-w-full">
+      <div
+        role="table"
+        aria-label="Picks by round and member"
+        className="min-w-full"
+      >
         {/* The heavy rule under the names is drawn per cell, not on the row.
             A row's border box is only as wide as the scrollport, while its
             tracks overflow it — so a row-level border on a twelve-member board
@@ -118,35 +165,27 @@ export function DraftBoard({
           className="grid items-end gap-0"
           style={{ gridTemplateColumns: template }}
         >
-          {/* In flow, and only its *text* hidden. `sr-only` is absolutely
-              positioned, so making this whole span visually-hidden took it out
-              of the grid and slid every member's name one column to the left —
-              a board that named the wrong person above every column, which a
-              screenshot shows only if you already know the draft order. */}
           {/* Sticky and on stock, like the round numbers below it: without
               that, a member's name scrolls underneath the gutter and its tail
-              shows through where the round numbers will be. */}
+              shows through where the round numbers will be. `self-stretch`
+              because the cell has no content of its own, and a background
+              painted on a zero-height box hides nothing. */}
           <span
             role="columnheader"
-            aria-label="Round"
-            // `self-stretch` because its only child is `sr-only` and therefore
-            // absolutely positioned: without it the cell has no height, and a
-            // background painted on nothing hides nothing.
+            aria-label="Draft round"
             className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock"
-          >
-            <span className="sr-only">Round</span>
-          </span>
-          {columns.map((column) => (
+          />
+          {columns.map((column, index) => (
             <span
               role="columnheader"
               key={column.memberId}
               title={column.name}
               className={`slot-label truncate border-b border-rule-strong px-1.5 pb-1 ${
                 column.isYou ? "text-ink" : ""
-              }`}
+              } ${index === lastColumn ? "border-r-2 border-r-rule-strong" : ""}`}
             >
               {column.name}
-              {column.isYou ? " · you" : ""}
+              {column.isYou ? " · you" : ""}
             </span>
           ))}
         </div>
@@ -172,57 +211,85 @@ export function DraftBoard({
               >
                 {row[0]?.round ?? index + 1}
               </span>
-              {row.map((place) => {
+              {row.map((place, column) => {
                 const entry = entries.get(place.overallNo);
-                const isLive = place.overallNo === markedOverallNo;
+                const isMarked = place.overallNo === markedOverallNo;
+                // Three materials, and the marker means two different things.
                 const state = entry
-                  ? "slot-filled"
-                  : isLive
-                    ? "slot-live"
-                    : "slot-waiting";
+                  ? "filled"
+                  : isMarked
+                    ? isPaused
+                      ? "standing"
+                      : "live"
+                    : "waiting";
                 return (
                   <div
                     key={place.overallNo}
                     // `data-board-slot` is what the scrollport looks for, and
-                    // what the second motion event is keyed on. `data-state`
-                    // is the same DOM contract `Slot` publishes.
+                    // `data-state="live"` is what the second motion event is
+                    // keyed on — the same DOM contract `Slot` publishes.
                     data-board-slot=""
-                    data-state={entry ? "filled" : isLive ? "live" : "waiting"}
-                    data-live={isLive ? "true" : undefined}
+                    data-state={state}
+                    // The marked slot, whichever of the two things it means, so
+                    // the scrollport has one thing to follow.
+                    data-live={isMarked ? "true" : undefined}
                     // So the marker rule travels the way this round is being
                     // drafted rather than always left to right.
                     data-reversed={reversed ? "true" : undefined}
                     data-testid={`board-slot-${place.overallNo}`}
                     role="cell"
-                    className={`${state} ${
+                    className={`${SLOT_RULE[state]} ${
                       entry ? PATCH_WASH[entry.position] : ""
-                    } flex min-h-slot min-w-0 flex-col justify-start gap-0.5 border-r border-rule px-1.5 py-1 ${
-                      isLastRound ? "border-b border-b-rule-strong" : ""
-                    }`}
+                    } flex min-h-slot min-w-0 flex-col justify-start gap-0.5 px-1.5 py-1 ${
+                      // rule-strong, not rule: a 1px `rule` over a position
+                      // wash measures 2.77:1, under this project's own 3:1
+                      // floor for a boundary that means something. The board's
+                      // outer edge is 2px of the same, so a closed board reads
+                      // closed and an interior-weight edge means "more board
+                      // this way" — scroll extent made of rule weight, which is
+                      // the only material this system has for depth.
+                      column === lastColumn
+                        ? "border-r-2 border-r-rule-strong"
+                        : "border-r border-rule-strong"
+                    } ${isLastRound ? "border-b border-b-rule-strong" : ""}`}
                   >
-                    <span
-                      className={`text-slot tabular-nums ${
-                        isLive ? "text-live" : "text-ink-faint"
-                      }`}
-                    >
-                      {String(place.overallNo).padStart(2, "0")}
-                      {entry?.isAuto ? " · A" : ""}
-                    </span>
-                    {entry ? (
-                      <span className="flex min-w-0 items-baseline gap-1">
-                        <span
-                          className="truncate text-xs font-semibold uppercase tracking-[0.04em]"
-                          title={entry.playerName}
-                        >
-                          {boardName(entry.playerName)}
-                        </span>
-                        {/* The letter is always present: colour never carries
-                            position on its own. */}
-                        <span
-                          className={`${PATCH_TEXT[entry.position]} shrink-0 text-slot font-semibold`}
-                        >
+                    <span className="flex items-baseline justify-between gap-1">
+                      <span className="text-slot tabular-nums text-ink-soft">
+                        {String(place.overallNo).padStart(2, "0")}
+                        {/* CONTEXT.md's own word, and the same word the ticker
+                            uses. It was "· A", which is a single letter in a
+                            cell where single letters mean G, F or C — for the
+                            one fact PRODUCT.md calls fairness-relevant. */}
+                        {entry?.isAuto ? " · AUTO" : ""}
+                      </span>
+                      {/* The letter is always present: colour never carries
+                          position on its own. Ink, not its own hue — see the
+                          note at the top of this file. */}
+                      {entry ? (
+                        <span className="shrink-0 text-slot font-semibold text-ink-soft">
                           {entry.position}
                         </span>
+                      ) : null}
+                    </span>
+                    {entry ? (
+                      <span
+                        className="min-w-0 truncate"
+                        title={entry.playerName}
+                      >
+                        <CardName scale="slot">
+                          {boardName(entry.playerName)}
+                        </CardName>
+                      </span>
+                    ) : null}
+                    {/* The board carried "on the clock" in a border weight, a
+                        fill and a colour — none of which a screen reader can
+                        see, so the live slot announced itself as the bare word
+                        "13". The banner at the top of the room still said it,
+                        so the page never lost the fact; the surface this app
+                        calls its thesis did. */}
+                    {isMarked ? (
+                      <span className="sr-only">
+                        {isPaused ? "the draft stands here" : "on the clock"}
                       </span>
                     ) : null}
                   </div>
