@@ -1,5 +1,15 @@
 import type { DraftFormat, DraftStatus, Position } from "@/lib/engine";
 
+/**
+ * The word a commissioner types to confirm a reset.
+ *
+ * Lives here rather than beside the action because a `"use server"` module may
+ * export nothing but async functions — Next refuses the build otherwise — and
+ * the form that asks for the word and the action that checks it must not each
+ * carry their own copy of it.
+ */
+export const RESET_CONFIRMATION = "RESET";
+
 /** The `drafts` record, as PocketBase stores it. */
 export type DraftRecord = {
   id: string;

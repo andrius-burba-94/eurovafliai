@@ -507,3 +507,102 @@ test("a pause reaches a room nobody is touching", async ({
     { timeout: 15_000 },
   );
 });
+
+test("the commissioner starts over, and the league is back in the lobby", async ({
+  page,
+  context,
+}) => {
+  // The tool the first real draft went looking for: undo takes the board back
+  // to a pick, and there was nothing that threw a practice draft away.
+  const { commissioner, league, players } = await readyLeague("Reset League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await expect(page.getByTestId("member-position")).toHaveCount(2);
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+
+  await page.getByTestId("draft-reset-toggle").click();
+
+  // A tap is not enough, and neither is the wrong word.
+  await page.getByTestId("draft-reset-confirm").fill("reset please");
+  await page.getByTestId("draft-reset").click();
+  await expect(page.getByTestId("draft-reset-error")).toContainText("RESET");
+  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+
+  // The form stays open behind the refusal — but React 19 empties an
+  // uncontrolled input across a server-action transition (AGENTS.md), so the
+  // word has to be typed again rather than corrected.
+  await page.getByTestId("draft-reset-confirm").fill("RESET");
+  await page.getByTestId("draft-reset").click();
+
+  // Back in the lobby, with the order still on the board: somebody who started
+  // too early should not have to re-roll.
+  await expect(page.getByTestId("member-list")).toBeVisible();
+  await expect(page.getByTestId("member-position")).toHaveCount(2);
+  // And startable again, which is the point of going back rather than forward.
+  await expect(page.getByTestId("start-draft")).toBeVisible();
+  await expect(page.getByTestId("enter-draft")).toHaveCount(0);
+});
+
+test("a room whose draft was reset follows it back to the lobby", async ({
+  page,
+  context,
+}) => {
+  // What the rest of the league sees: the delete event arrives, the room asks
+  // the server what it should be showing, and there is no draft — so the room
+  // goes where the draft went instead of standing on a 404.
+  const { commissioner, league } = await readyLeague("Follow League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+  await expect(page.getByTestId("draft-room")).toBeVisible();
+
+  const watching = await context.newPage();
+  await watching.goto(`/leagues/${league.id}/draft`);
+  await expect(watching.getByTestId("draft-room")).toBeVisible();
+
+  await page.getByTestId("draft-reset-toggle").click();
+  await page.getByTestId("draft-reset-confirm").fill("RESET");
+  await page.getByTestId("draft-reset").click();
+  await expect(page.getByTestId("member-list")).toBeVisible();
+
+  // Nobody touched this tab.
+  await expect(watching.getByTestId("member-list")).toBeVisible({
+    timeout: 15_000,
+  });
+  await watching.close();
+});
+
+test("a league whose reset lost its second write repairs itself", async ({
+  page,
+  context,
+}) => {
+  // `resetDraft` deletes the draft first and moves the league second, so the
+  // only state a crash between them can leave is a league claiming to draft
+  // with no draft to open. Staged directly, because a crash cannot be.
+  const { commissioner, league } = await readyLeague("Half Reset League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await expect(page.getByTestId("enter-draft")).toBeVisible();
+
+  const pb = await superuser();
+  const draft = await findUnfinishedDraft(pb, league.id);
+  await pb.collection("drafts").delete(draft!.id, { requestKey: null });
+  // The league is still `drafting` at this point — the lost write.
+
+  await page.goto(`/leagues/${league.id}`);
+  // Reading the lobby repaired it, so the lobby is a lobby again.
+  await expect(page.getByTestId("draft-roll")).toBeVisible();
+  await expect(page.getByTestId("enter-draft")).toHaveCount(0);
+});
