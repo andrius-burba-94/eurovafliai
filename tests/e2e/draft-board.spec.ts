@@ -41,11 +41,18 @@ test.afterEach(async () => {
 /** Positions chosen so nine picks are all legal under 5G/5F/3C, either way the roll falls. */
 const POOL: ("G" | "F")[] = ["G", "G", "F", "F", "G", "G", "F", "F", "G"];
 
-async function boardLeague(name: string) {
+async function boardLeague(name: string, extraMembers = 0) {
   const commissioner = await createTestUser("chief");
   const league = await createLeagueFor(commissioner, name);
   const other = await createTestUser("other");
   await addMemberTo(league.id, other, "Other FC");
+  for (let index = 0; index < extraMembers; index += 1) {
+    await addMemberTo(
+      league.id,
+      await createTestUser(`m${index}`),
+      `M${index} Ballers`,
+    );
+  }
   const players = [];
   for (const [index, position] of POOL.entries()) {
     players.push(await createPlayer(`P${index}`, { position }));
@@ -96,6 +103,51 @@ async function slotOrder(page: Page): Promise<string[]> {
       nodes.map((node) => node.getAttribute("data-testid") ?? ""),
     );
 }
+
+/**
+ * Watch for the second motion event actually starting.
+ *
+ * `data-advanced` is taken off again on `animationend`, so with motion allowed
+ * it exists for 260ms and asserting on it is a race. The honest subject is the
+ * animation: this records every one that starts on a board slot, with the
+ * computed origin of the overlay painting it. Installed before the pick, and it
+ * survives `router.refresh()` because that is a soft navigation.
+ */
+async function recordAdvances(page: Page) {
+  await page.evaluate(() => {
+    const seen: unknown[] = [];
+    (window as unknown as { __advances: unknown[] }).__advances = seen;
+    document.addEventListener(
+      "animationstart",
+      (event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target?.hasAttribute?.("data-board-slot")) return;
+        const after = window.getComputedStyle(target, "::after");
+        seen.push({
+          testId: target.getAttribute("data-testid"),
+          name: (event as AnimationEvent).animationName,
+          origin: after.transformOrigin,
+          width: target.clientWidth,
+          height: after.height,
+        });
+      },
+      true,
+    );
+  });
+}
+
+type Advance = {
+  testId: string;
+  name: string;
+  origin: string;
+  width: number;
+  height: string;
+};
+
+const advancesOn = (page: Page): Promise<Advance[]> =>
+  page.evaluate(
+    () => (window as unknown as { __advances: Advance[] }).__advances,
+  );
 
 test("the board draws every slot before a single pick is made", async ({
   page,
@@ -280,15 +332,24 @@ test.describe("with motion allowed", () => {
     const { commissioner, league, players } = await boardLeague("Motion On");
     await signIn(context, commissioner);
     await enterDraft(page, league.id);
+    await recordAdvances(page);
     await pickBehindTheirBack(league.id, players[0]!.id);
     await expect(page.getByTestId("board-slot-2")).toHaveAttribute(
-      "data-advanced",
-      "true",
+      "data-state",
+      "live",
     );
 
-    const rule = await markerRule(page, 2);
-    expect(rule.animationName).toBe("rule-advances");
-    expect(rule.height).toBe("2px");
+    await expect
+      .poll(async () => (await advancesOn(page)).length)
+      .toBeGreaterThan(0);
+    const [advance] = await advancesOn(page);
+    expect(advance!.testId).toBe("board-slot-2");
+    expect(advance!.name).toBe("rule-advances");
+    expect(advance!.height).toBe("2px");
+
+    // And the overlay hands the rule back to the real border when it is done,
+    // rather than standing in for it until the clock moves again.
+    await expect(page.locator("[data-advanced]")).toHaveCount(0);
   });
 });
 
@@ -309,10 +370,17 @@ test("a paused board keeps its marker on the slot the draft stands at", async ({
   await expect(page.getByTestId("on-the-clock")).toContainText(/paused/i);
 
   // Nobody is on the clock, but the draft still stands at pick 2 — and the
-  // banner above is struck in marker, so the board is too.
+  // banner above is struck in marker, so the board is too. A *different*
+  // material, though: dashed marker, no fill. One material for both meanings
+  // told a member glancing down mid-conversation to pick when the clock was
+  // stopped.
   await expect(page.getByTestId("board-slot-2")).toHaveAttribute(
     "data-state",
-    "live",
+    "standing",
+  );
+  // And it says which it means, out loud, for somebody who cannot see a border.
+  await expect(page.getByTestId("board-slot-2")).toContainText(
+    "the draft stands here",
   );
   await expect(page.getByTestId("board-slot-3")).toHaveAttribute(
     "data-state",
@@ -344,31 +412,104 @@ test.describe("the rule travels the way the round is drafted", () => {
     await signIn(context, commissioner);
     await enterDraft(page, league.id);
 
+    await recordAdvances(page);
+
     await pickBehindTheirBack(league.id, players[0]!.id);
     await expect(page.getByTestId("board-slot-2")).toHaveAttribute(
-      "data-advanced",
-      "true",
+      "data-state",
+      "live",
     );
     // Round 1 is drafted left to right.
     await expect(page.getByTestId("board-slot-2")).not.toHaveAttribute(
       "data-reversed",
       "true",
     );
-    const forward = await page.getByTestId("board-slot-2").evaluate((node) => ({
-      origin: window.getComputedStyle(node, "::after").transformOrigin,
-      width: node.clientWidth,
-    }));
-    expect(Number.parseFloat(forward.origin)).toBeCloseTo(0, 1);
 
     await pickBehindTheirBack(league.id, players[1]!.id);
-    const third = page.getByTestId("board-slot-3");
-    await expect(third).toHaveAttribute("data-advanced", "true");
-    // Round 2, drafted right to left.
-    await expect(third).toHaveAttribute("data-reversed", "true");
-    const back = await third.evaluate((node) => ({
-      origin: window.getComputedStyle(node, "::after").transformOrigin,
-      width: node.clientWidth,
-    }));
-    expect(Number.parseFloat(back.origin)).toBeGreaterThan(back.width / 2);
+    // Round 2 is drafted the other way.
+    await expect(page.getByTestId("board-slot-3")).toHaveAttribute(
+      "data-reversed",
+      "true",
+    );
+
+    await expect
+      .poll(async () => (await advancesOn(page)).length)
+      .toBeGreaterThanOrEqual(2);
+    const advances = await advancesOn(page);
+    const forward = advances.find((one) => one.testId === "board-slot-2");
+    const back = advances.find((one) => one.testId === "board-slot-3");
+
+    // Pick 2 sits in round 1: the rule grows from the left edge.
+    expect(Number.parseFloat(forward!.origin)).toBeCloseTo(0, 1);
+    // Pick 3 sits in round 2, so it grows from the right — otherwise half of
+    // every snake draft's advances travel against the round they move through.
+    expect(Number.parseFloat(back!.origin)).toBeGreaterThan(back!.width / 2);
   });
+});
+
+test("the board is reachable and named for a keyboard and a screen reader", async ({
+  page,
+  context,
+}) => {
+  // A scrolling region with no focusable descendant cannot be reached by
+  // keyboard, and past about five members that is most of the board — WCAG
+  // 2.1.1 on the surface this app is named after. Chromium makes such a region
+  // focusable by itself and Firefox and Safari do not, so this has to be the
+  // author's doing rather than the engine's.
+  // Eight members, so the board is genuinely wider than the sheet and the arrow
+  // keys have somewhere to go.
+  const { commissioner, league, players } = await boardLeague("Keyboard", 6);
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const board = page.getByTestId("draft-board");
+  await expect(board).toHaveAttribute("tabindex", "0");
+  await expect(board).toHaveAttribute("role", "region");
+  await expect(board).toHaveAttribute("aria-label", "The draft board");
+
+  // It really takes focus and really scrolls from the keyboard.
+  await board.focus();
+  await expect(board).toBeFocused();
+  const before = await board.evaluate((node) => node.scrollLeft);
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(async () => board.evaluate((node) => node.scrollLeft))
+    .toBeGreaterThan(before);
+
+  // The marked slot says so in words, not only in a border weight and a fill.
+  await expect(page.getByTestId("board-slot-1")).toContainText("on the clock");
+
+  // And a filled slot still writes the position as a letter, never as a colour
+  // alone. The pool's players are all created in TEST_CLUB with a position.
+  await pickBehindTheirBack(league.id, players[0]!.id);
+  await expect(page.getByTestId("board-slot-1")).toContainText(/[GFC]/);
+});
+
+test("the board does not chase the clock when the clock is already in view", async ({
+  page,
+  context,
+}) => {
+  // Two members, so every slot fits on screen and nothing ever needs to move.
+  // Scrolling on every change meant the eleven people who were *not* about to
+  // pick had the board pulled out from under them once per pick, all night.
+  const { commissioner, league, players } = await boardLeague("Steady");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const board = page.getByTestId("draft-board");
+  // Park the board somewhere deliberate. With two members it may not overflow
+  // at all, in which case this is a no-op and the assertion still holds.
+  await board.evaluate((node) => {
+    node.scrollLeft = 0;
+  });
+
+  await pickBehindTheirBack(league.id, players[0]!.id);
+  await expect(page.getByTestId("board-slot-2")).toHaveAttribute(
+    "data-state",
+    "live",
+  );
+
+  // The marker moved; the viewport did not, because it did not need to.
+  expect(await board.evaluate((node) => node.scrollLeft)).toBe(0);
 });
