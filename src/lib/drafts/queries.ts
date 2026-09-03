@@ -36,6 +36,13 @@ export type DraftView = {
   /** True when it is the viewer's own turn. */
   isYourTurn: boolean;
   /**
+   * The `overall_no` the board marks in the commissioner's marker: whoever is
+   * on the clock, or — while paused — the slot the draft stands at. Null on a
+   * finished board. Distinct from `onClock`, which is null throughout a pause
+   * because that is what pausing means.
+   */
+  markedOverallNo: number | null;
+  /**
    * The viewer's own membership, or null for a commissioner who has no row yet.
    *
    * `autodraftEnabled` is theirs to change from the room — the sweep reads it
@@ -149,16 +156,34 @@ export async function getDraftView(
     playerId: pick.playerId,
   }));
 
-  const clock = whoIsOnClock(
-    {
-      format: draft.format,
-      memberIds: draft.order,
-      rounds: draft.rounds,
-      currentPick: draft.current_pick,
-      status: draft.status,
-    },
-    enginePicks,
-  );
+  const state = {
+    format: draft.format,
+    memberIds: draft.order,
+    rounds: draft.rounds,
+    currentPick: draft.current_pick,
+    status: draft.status,
+  };
+  const clock = whoIsOnClock(state, enginePicks);
+
+  /**
+   * The slot the board marks — which is not the same question as who is on the
+   * clock, because a paused draft deliberately has nobody on it and yet still
+   * stands somewhere.
+   *
+   * Asked of the engine, with the status it would have if it were running,
+   * rather than read off `current_pick`: in §3's repairable state `current_pick`
+   * points at a number that *already has a pick*, and `whoIsOnClock` is the
+   * function that exists to correct exactly that. Reading the field raw would
+   * put the marker on a filled slot — and, because a filled slot wins, would
+   * leave a paused board with no marker at all while the banner above it is
+   * still struck in marker. Returns null for a finished board, which has no
+   * next slot.
+   */
+  const marked =
+    clock ??
+    (draft.status === "paused"
+      ? whoIsOnClock({ ...state, status: "live" }, enginePicks)
+      : null);
 
   const yourRoster = picks
     .filter((pick) => pick.memberId === youId)
@@ -192,6 +217,7 @@ export async function getDraftView(
         }
       : null,
     isYourTurn: Boolean(clock && youId && clock.memberId === youId),
+    markedOverallNo: marked?.overallNo ?? null,
     you: you
       ? {
           memberId: you.id,

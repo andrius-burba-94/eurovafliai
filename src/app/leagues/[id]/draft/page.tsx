@@ -11,8 +11,10 @@ import {
   Slots,
   TopRail,
 } from "@/components/board";
+import { DraftBoard, type BoardEntry } from "@/components/draft-board";
 import { getSession } from "@/lib/auth/session";
 import { getDraftView } from "@/lib/drafts/queries";
+import { buildBoardShape } from "@/lib/engine";
 
 import { AutodraftToggle } from "./autodraft-toggle";
 import { DraftControls } from "./draft-controls";
@@ -21,13 +23,23 @@ import { PickClock } from "./pick-clock";
 import { PickForm } from "./pick-form";
 
 /**
- * The draft room — slices 2.4/2.6, live since 3.2a.
+ * How many picks the ticker keeps.
  *
- * On the clock, the board so far, and a way to pick. The flagship version is
- * the rest of Phase 3: the rounds-by-teams grid, the live roster radar, fuzzy
- * search, cheat sheets. This one exists to prove the pipeline runs, and it
- * renders server-side so the state is correct before any JavaScript does
- * anything.
+ * The board above it holds the whole draft — all 156 slots of a full league —
+ * so the run below no longer has to be the history. What it is good at, and the
+ * board's narrow columns are not, is the sentence: who took whom, under whose
+ * name, and whether the worker did it. Eight is about a round and a half, which
+ * is the window somebody looking up from their phone actually missed.
+ */
+const RECENT_PICKS = 8;
+
+/**
+ * The draft room — slices 2.4/2.6, live since 3.2a, with the board since 3.1.
+ *
+ * On the clock, a way to pick, and the board itself: rounds down, members
+ * across, every slot drawn whether it is filled or not. Still to come in Phase
+ * 3: the live roster radar, fuzzy search, cheat sheets. It renders server-side
+ * so the state is correct before any JavaScript does anything.
  *
  * `LiveDraft` is what keeps it correct *after* that: it subscribes to this
  * draft over SSE and asks this page to render again. Every fact on screen is
@@ -54,6 +66,27 @@ export default async function DraftPage({
   // draft is paused, which is right — but reading that as "finished" told a
   // paused room every slot was filled.
   const isPaused = draft.status === "paused";
+
+  // The board's shape is the engine's, derived from the same order the clock is
+  // driven by — see the note on `buildBoardShape`. The page's only job is to
+  // put the picks it read into the places the engine named.
+  const shape = buildBoardShape(draft.format, draft.order, draft.rounds);
+  const nameOf = new Map(view.members.map((member) => [member.id, member]));
+  const columns = draft.order.map((memberId) => ({
+    memberId,
+    name: nameOf.get(memberId)?.name ?? "Unknown member",
+    isYou: Boolean(nameOf.get(memberId)?.isYou),
+  }));
+  const entries = new Map<number, BoardEntry>(
+    picks.map((pick) => [
+      pick.overallNo,
+      {
+        playerName: pick.playerName,
+        position: pick.position,
+        isAuto: pick.isAuto,
+      },
+    ]),
+  );
   const needs = (["G", "F", "C"] as const).filter(
     (position) => yourNeeds[position] > 0,
   );
@@ -120,11 +153,7 @@ export default async function DraftPage({
         {/* Renders nothing while the subscription is healthy. It is mounted
             here, high in the room, because "this board may be behind" is only
             useful next to the board it is about. */}
-        <LiveDraft
-          draftId={draft.id}
-          leagueId={id}
-          authToken={session.token}
-        />
+        <LiveDraft draftId={draft.id} leagueId={id} authToken={session.token} />
 
         {needs.length > 0 ? (
           <p className="flex flex-wrap items-center gap-2">
@@ -186,9 +215,27 @@ export default async function DraftPage({
           </Bank>
         ) : null}
 
+        {/* The board proper. No empty state: an empty board is still a board,
+            which is the whole of the Board-Shows-Its-Shape rule. */}
         <Bank
           label="The board"
           aside={`${picks.length} of ${draft.order.length * draft.rounds}`}
+        >
+          <DraftBoard
+            shape={shape}
+            columns={columns}
+            entries={entries}
+            markedOverallNo={view.markedOverallNo}
+          />
+        </Bank>
+
+        <Bank
+          label="Recent picks"
+          aside={
+            picks.length > RECENT_PICKS
+              ? `last ${RECENT_PICKS} of ${picks.length}`
+              : "newest first"
+          }
         >
           {picks.length === 0 ? (
             <div className="slot-waiting px-3 py-5">
@@ -196,22 +243,25 @@ export default async function DraftPage({
             </div>
           ) : (
             <Slots testId="pick-list">
-              {[...picks].reverse().map((pick) => (
-                <Slot key={pick.id} testId="board-pick">
-                  <span className="flex flex-wrap items-baseline gap-x-3">
-                    <span className="slot-label tabular-nums text-live">
-                      {String(pick.overallNo).padStart(2, "0")}
+              {[...picks]
+                .reverse()
+                .slice(0, RECENT_PICKS)
+                .map((pick) => (
+                  <Slot key={pick.id} testId="board-pick">
+                    <span className="flex flex-wrap items-baseline gap-x-3">
+                      <span className="slot-label tabular-nums text-live">
+                        {String(pick.overallNo).padStart(2, "0")}
+                      </span>
+                      <CardName>{pick.playerName}</CardName>
+                      <PositionPatch position={pick.position} />
+                      <span className="slot-label">{pick.playerClub}</span>
                     </span>
-                    <CardName>{pick.playerName}</CardName>
-                    <PositionPatch position={pick.position} />
-                    <span className="slot-label">{pick.playerClub}</span>
-                  </span>
-                  <span className="slot-label">
-                    {pick.memberName}
-                    {pick.isAuto ? " · auto" : ""}
-                  </span>
-                </Slot>
-              ))}
+                    <span className="slot-label">
+                      {pick.memberName}
+                      {pick.isAuto ? " · auto" : ""}
+                    </span>
+                  </Slot>
+                ))}
             </Slots>
           )}
         </Bank>
