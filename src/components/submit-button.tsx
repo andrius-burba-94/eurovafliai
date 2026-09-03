@@ -20,11 +20,18 @@ export function SubmitButton({
   testId,
   tone = "ink",
   pendingLabel,
+  compact = false,
 }: {
   children: ReactNode;
   testId?: string;
   tone?: "ink" | "live";
   pendingLabel?: string;
+  /**
+   * A row's action rather than a surface's. Drops the full-width phone
+   * treatment, because a list of 30 rows each with a full-width button is a
+   * column of buttons with names above them rather than a pool of players.
+   */
+  compact?: boolean;
 }) {
   const { pending } = useFormStatus();
 
@@ -40,7 +47,7 @@ export function SubmitButton({
       aria-busy={pending}
       data-testid={testId}
       data-pending={pending ? "true" : undefined}
-      className={`${tones[tone]} min-h-11 w-full border px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-progress disabled:opacity-60 sm:w-auto`}
+      className={`${tones[tone]} min-h-11 border px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-progress disabled:opacity-60 ${compact ? "" : "w-full sm:w-auto"}`}
     >
       {pending ? (pendingLabel ?? "Working…") : children}
     </button>
