@@ -21,7 +21,19 @@ Production is `https://eurovafliai.labrium.online`. The pipeline is
 | PocketBase | **systemd** | `127.0.0.1:8095` | auto-restart on reboot |
 
 PocketBase is **not** a PM2 app — it is a systemd service so it survives a
-reboot independently of the Node processes, and `deploy.sh` never restarts it.
+reboot independently of the Node processes. `deploy.sh` restarts it **only when
+`pb/pb_migrations/` changed**, because PocketBase applies pending migrations on
+boot and a restart therefore *is* the migration step; it health-checks the
+service afterwards and fails the deploy if it does not come back. Every other
+deploy leaves it alone and says so.
+
+One consequence worth knowing before you retry a failed deploy: `changed()`
+treats "I cannot tell" as "assume it changed", which is right for a first
+deploy and means a **re-run against an already-current checkout restarts
+PocketBase** — the pull is a no-op, so `BEFORE_SHA == AFTER_SHA`, so every
+`changed()` answers true. Harmless (migrations are idempotent and the health
+check guards it), but it is why a retry logs a migration restart for a slice
+that shipped no migration.
 Both PM2 apps live in one `ecosystem.config.js` and are reloaded together.
 
 Check the ports are actually free before you claim them: `ss -tlnp` and

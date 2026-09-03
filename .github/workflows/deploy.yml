@@ -46,10 +46,24 @@ jobs:
           ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Run deploy.sh on the VPS
+        # `ServerAliveInterval` is not a nicety. `deploy.sh` runs `npm ci` only
+        # when the lockfile changed, and on this shared box that install takes
+        # over four minutes — during which the SSH session sends nothing. The
+        # 3.3 deploy died exactly there: `client_loop: send disconnect: Broken
+        # pipe`, exit 255, after `npm ci` had actually *finished*. The install
+        # was fine and the deploy was not: the pull had landed, the build had
+        # never run, and production went on serving the previous release with
+        # the new commit checked out under it.
+        #
+        # A keepalive every 30s for up to ten minutes of silence covers any
+        # install this repo will plausibly do, and costs nothing when the deploy
+        # is the usual fifteen seconds.
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o BatchMode=yes \
               -o ConnectTimeout=20 \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=20 \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               '/var/www/eurovafliai/scripts/deploy.sh'
 

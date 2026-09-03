@@ -9,6 +9,10 @@ It is deliberately *not* the plan. The plan is
 file records how far through it we are. When the two disagree, the blueprint
 defines the target and this file is wrong.
 
+> **Slice 3.3, the player pool, is in production** at `cdb1e51` — and its
+> deploy is the one that has actually failed. See "The deploy that broke, and
+> what it was really about" below.
+>
 > **Slice 3.1, the draft board, is in production** at `920439e` — realtime
 > re-checked through the proxy afterwards (`PB_CONNECT` in 0.2s) because that is
 > the thing a deploy breaks silently.
@@ -270,6 +274,34 @@ invisible in a screenshot, and the failure mode that matters is a reduced-motion
 guard that drops the *rule* instead of the travel and stops telling somebody who
 is on the clock.
 
+**The deploy that broke, and what it was really about.** 3.3 is the first slice
+since 1.5 to change `package-lock.json`, so it is the first to make `deploy.sh`
+run `npm ci` — which on this shared box takes **over four minutes**, during which
+the SSH session the workflow holds open sends nothing at all. It died there:
+`client_loop: send disconnect: Broken pipe`, exit 255.
+
+The state that left is worth writing down, because it is not the one you would
+guess. `npm ci` had *finished* — 332 packages, `fuse.js` present, the lockfile
+marker written. What had not happened was the build and the reload. So production
+kept serving the **previous release** from a checkout that had already moved to
+the new commit: healthy, correct, and a release behind, with nothing anywhere
+saying so except a red tick on a workflow. Re-running the deploy fixed it in
+fourteen seconds, because the expensive half was already done.
+
+The fix is two SSH options (`ServerAliveInterval`, `ServerAliveCountMax`) and it
+is in the workflow rather than in `deploy.sh`, so [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34)
+does not apply to it — GitHub Actions reads the workflow file, it is not executed
+out of the working tree that the deploy is busy rewriting.
+
+Two smaller things the same failure surfaced. `deploy.sh`'s `changed()` treats "I
+cannot tell" as "assume it changed", which is right for a first deploy and means
+a **retry against an already-current checkout restarts PocketBase** — the pull is
+a no-op, so every `changed()` answers true, which is why the successful re-run
+logged a migration restart for a slice that ships no migration. Harmless, and
+now documented. And the `vps-deploy` skill said "`deploy.sh` never restarts it",
+which stopped being true when the migration step was written; the skill now says
+what the script does.
+
 **The pool is tested as a function, and the chain is tested in a browser.**
 `src/lib/pool/search.test.ts` owns the 23 questions that are really about a
 function — does a transposed letter still match, does an empty position filter
@@ -404,6 +436,7 @@ sync, a player the feed no longer lists is marked `left` rather than deleted, an
 | The production player pool | **324 players, 20 clubs**, ingested on the box. Re-running the sync there is a confirmed no-op, so it is safe to re-run before draft night |
 | **The worker, in production** | Confirmed running the 2.5 loop at `afb58b3`, not merely "online": its log shows `SIGINT received, stopping` (PM2's reload, handled by the graceful path) followed by `starting · PocketBase http://127.0.0.1:8095 · tick 1000ms` and `authenticated as superuser`. That last line is the proof — the Phase 0 scaffold it replaced had no PocketBase client at all. It then sweeps silently, because production has no live draft |
 | `/api/time` through the proxy | 307 to `/login?error=unauthorized` without a session, which is the optimistic proxy doing its job |
+| **The pool, in production** | Live at `cdb1e51`, on the **second** attempt — see the deploy note above. Confirmed by more than a 200: the stylesheet served from the box carries `border-b-2` and `appearance-none` (3.3's filter toggle and its select) alongside 3.1's `slot-standing` and `rule-advances`, so this is genuinely the new build and not the previous one still being served under a new commit, which is exactly what the failed attempt left behind |
 | **The board, in production** | Live at `920439e`. Confirmed by more than a 200: the deployed stylesheet contains `slot-standing`, `rule-advances` and `min-h-slot`, so the board's fourth state and the second motion event are genuinely on the box rather than merely merged. No migration shipped with 3.1, and `deploy.sh` said so itself — "No migration changes — leaving eurovafliai-pb alone" — so PocketBase was not restarted |
 | **SSE after the deploy** | Re-checked, because the deploy warns about vhost drift (see #35): `PB_CONNECT` arrives immediately through `/pb/api/realtime` and the stream stays open. Realtime is unaffected |
 
