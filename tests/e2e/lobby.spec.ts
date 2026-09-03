@@ -8,6 +8,8 @@ import {
   signIn,
 } from "./helpers/session";
 
+import { withoutRealtime } from "./helpers/realtime";
+
 /**
  * Slice 1.3b — the lobby, finished: real names, a live list, and the three
  * controls that make it a room rather than a read-out.
@@ -184,4 +186,24 @@ test("the commissioner cannot remove themselves", async ({ page, context }) => {
   // would put them straight back, so offering it would be a lie.
   await expect(page.getByTestId("member")).toHaveCount(1);
   await expect(page.getByTestId("manage-member")).toHaveCount(0);
+});
+
+test("a lobby that cannot subscribe admits it", async ({ page, context }) => {
+  // The failure that used to be silent: the SDK does not reject `subscribe()`
+  // when the endpoint is unreachable, it retries quietly — so a list that had
+  // never once connected looked exactly like a live one. Found in the draft
+  // room (3.2a) and fixed in both surfaces, which is why the lobby is asserted
+  // here rather than left to the room's spec.
+  const commissioner = await createTestUser("chief");
+  const league = await createLeagueFor(commissioner, "Deaf Lobby");
+  await signIn(context, commissioner);
+
+  await withoutRealtime(page);
+  await page.goto(`/leagues/${league.id}`);
+  await expect(page.getByTestId("member-list")).toBeVisible();
+
+  // Longer than the component's own 5s connect grace.
+  await expect(page.getByTestId("reconnecting")).toBeVisible({
+    timeout: 10_000,
+  });
 });

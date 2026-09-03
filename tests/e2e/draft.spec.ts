@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+import { whoIsOnClock } from "../../src/lib/engine";
+import {
+  commitPick,
+  findUnfinishedDraft,
+  readPicks,
+  toState,
+} from "../../src/lib/drafts/pipeline";
+
+import { withoutRealtime } from "./helpers/realtime";
 import {
   addMemberTo,
   cleanupTestData,
@@ -7,6 +16,7 @@ import {
   createPlayer,
   createTestUser,
   signIn,
+  superuser,
   TEST_CLUB,
 } from "./helpers/session";
 
@@ -35,6 +45,32 @@ async function readyLeague(name: string) {
     createPlayer("Charlie", { position: "C" }),
   ]);
   return { commissioner, league, other, players };
+}
+
+/**
+ * A pick made the way the app makes one, but by nobody the browser can see.
+ *
+ * Goes through the real pipeline — the same `commitPick` a tapped button and
+ * the worker's sweep both use — so the pick lands with the right round, slot
+ * and advance. Driving another browser instead would prove the same thing far
+ * more slowly, and this is about what the *watching* page does.
+ */
+async function pickBehindTheirBack(leagueId: string, playerId: string) {
+  const pb = await superuser();
+  const draft = await findUnfinishedDraft(pb, leagueId);
+  if (!draft) throw new Error("no live draft to pick in");
+  const picks = await readPicks(pb, draft.id);
+  const onClock = whoIsOnClock(toState(draft), picks);
+  if (!onClock) throw new Error("nobody is on the clock");
+  const outcome = await commitPick(pb, {
+    draft,
+    onClock,
+    playerId,
+    isAuto: false,
+    picks,
+    now: new Date(),
+  });
+  if (outcome !== "landed") throw new Error(`pick did not land: ${outcome}`);
 }
 
 test("a commissioner starts the draft and the room opens", async ({
@@ -107,6 +143,7 @@ test("a stale tab cannot draft a player who is already gone", async ({
   await page.getByTestId("pool-search").fill(TEST_CLUB);
 
   const stale = await context.newPage();
+  await withoutRealtime(stale);
   await stale.goto(`/leagues/${league.id}/draft`);
   await stale.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(stale.getByTestId(`pick-${players[0]!.id}`)).toBeVisible();
@@ -228,6 +265,22 @@ test("a pick from a tab that has not seen the pause is refused", async ({
   await page.getByTestId("draft-roll").click();
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
+  // Wait for the room before reloading it: `enter-draft` is a navigation, and
+  // reloading while it is still in flight reloads the *lobby* — which has a
+  // reconnecting note of its own and no pool, so the failure looks like the
+  // feature is broken when the spec simply looked at the wrong page.
+  await expect(page.getByTestId("draft-room")).toBeVisible();
+
+  // From here this tab hears nothing — and says so, which is the difference
+  // between a stale room and a room that looks current and is not.
+  await withoutRealtime(page);
+  await page.reload();
+  // Longer than the component's own connect grace, which is 5s: the room waits
+  // that long before calling itself deaf, and an assertion that expires first
+  // would fail for the wrong reason.
+  await expect(page.getByTestId("draft-reconnecting")).toBeVisible({
+    timeout: 10_000,
+  });
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeVisible();
 
@@ -352,8 +405,9 @@ test("undoing pauses the draft before it deletes anything", async ({
   await page.getByTestId(`pick-${players[0]!.id}`).click();
   await expect(page.getByTestId("board-pick")).toHaveCount(1);
 
-  // A second tab, still live, rendered before the undo.
+  // A second tab, rendered before the undo and deaf to it.
   const other = await context.newPage();
+  await withoutRealtime(other);
   await other.goto(`/leagues/${league.id}/draft`);
   await other.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(other.getByTestId(`pick-${players[1]!.id}`)).toBeVisible();
@@ -393,4 +447,63 @@ test("a league that has already drafted cannot be started again", async ({
   await page.reload();
   await expect(page.getByTestId("start-draft")).toHaveCount(0);
   await expect(page.getByTestId("enter-draft")).toBeVisible();
+});
+
+test("a pick by somebody else moves the room, with nobody reloading", async ({
+  page,
+  context,
+}) => {
+  // The bug the first real two-device draft found: the room was rendered per
+  // request, so "X is on the clock" sat there naming a member who had already
+  // picked, and the only thing that ever moved a screen by itself was a
+  // deadline passing. Slice 3.2a subscribes; this is the assertion.
+  const { commissioner, league, players } = await readyLeague("Live League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+
+  await expect(page.getByTestId("on-the-clock")).toContainText("Pick 1");
+  await expect(page.getByTestId("board-pick")).toHaveCount(0);
+
+  // Somebody else's phone, in another room.
+  await pickBehindTheirBack(league.id, players[0].id);
+
+  // No `page.reload()` anywhere below, and that is the whole point.
+  await expect(page.getByTestId("board-pick")).toHaveCount(1, {
+    timeout: 15_000,
+  });
+  await expect(page.getByTestId("board-pick")).toContainText(players[0].name);
+  // The clock moved on to the next member, which is the part that was wrong.
+  await expect(page.getByTestId("on-the-clock")).toContainText("Pick 2");
+});
+
+test("a pause reaches a room nobody is touching", async ({
+  page,
+  context,
+}) => {
+  // The `drafts` record topic rather than the `picks` one: a pause is a change
+  // to the draft itself, and a room that missed it would keep offering a pick
+  // the server is about to refuse.
+  const { commissioner, league } = await readyLeague("Pause League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+  await expect(page.getByTestId("on-the-clock")).toContainText("Pick 1");
+
+  const pb = await superuser();
+  const draft = await findUnfinishedDraft(pb, league.id);
+  await pb
+    .collection("drafts")
+    .update(draft!.id, { status: "paused" }, { requestKey: null });
+
+  await expect(page.getByTestId("on-the-clock")).toContainText(
+    "The draft is paused",
+    { timeout: 15_000 },
+  );
 });

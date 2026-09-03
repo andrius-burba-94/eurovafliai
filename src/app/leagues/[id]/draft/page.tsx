@@ -16,16 +16,23 @@ import { getDraftView } from "@/lib/drafts/queries";
 
 import { AutodraftToggle } from "./autodraft-toggle";
 import { DraftControls } from "./draft-controls";
+import { LiveDraft } from "./live-draft";
 import { PickClock } from "./pick-clock";
 import { PickForm } from "./pick-form";
 
 /**
- * The draft room, minimal — slice 2.4/2.6.
+ * The draft room — slices 2.4/2.6, live since 3.2a.
  *
  * On the clock, the board so far, and a way to pick. The flagship version is
- * Phase 3: the rounds-by-teams grid, the live roster radar, fuzzy search,
- * cheat sheets. This one exists to prove the pipeline runs, and it renders
- * server-side so the state is correct before any JavaScript does anything.
+ * the rest of Phase 3: the rounds-by-teams grid, the live roster radar, fuzzy
+ * search, cheat sheets. This one exists to prove the pipeline runs, and it
+ * renders server-side so the state is correct before any JavaScript does
+ * anything.
+ *
+ * `LiveDraft` is what keeps it correct *after* that: it subscribes to this
+ * draft over SSE and asks this page to render again. Every fact on screen is
+ * still decided here, on the server — the client's whole job is to notice that
+ * something changed.
  */
 export default async function DraftPage({
   params,
@@ -104,6 +111,15 @@ export default async function DraftPage({
             </>
           )}
         </div>
+
+        {/* Renders nothing while the subscription is healthy. It is mounted
+            here, high in the room, because "this board may be behind" is only
+            useful next to the board it is about. */}
+        <LiveDraft
+          draftId={draft.id}
+          leagueId={id}
+          authToken={session.token}
+        />
 
         {needs.length > 0 ? (
           <p className="flex flex-wrap items-center gap-2">

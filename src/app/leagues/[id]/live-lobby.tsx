@@ -100,7 +100,19 @@ export function LiveLobby({
     pb.authStore.save(authToken, null);
 
     let active = true;
+    let everConnected = false;
     const unsubscribes: Array<() => void> = [];
+
+    /**
+     * A subscription that never comes up is the one case where saying nothing
+     * is a lie — the list looks live and hears nothing. The SDK does not reject
+     * `subscribe()` when the endpoint is unreachable, it retries quietly, so
+     * the honest signal is the absence of a connect event. Found in the draft
+     * room (3.2a), which is the same pattern; fixed in both.
+     */
+    const grace = setTimeout(() => {
+      if (active && !everConnected) setConnected(false);
+    }, 5_000);
 
     const refresh = async () => {
       try {
@@ -131,9 +143,13 @@ export function LiveLobby({
         unsubscribes.push(
           await pb.realtime.subscribe("PB_CONNECT", () => {
             if (!active) return;
-            // Back on. Re-read rather than trust the gap: events that fired
-            // while the socket was down were never delivered to anyone.
+            clearTimeout(grace);
             setConnected(true);
+            // Back on. Re-read rather than trust the gap: events that fired
+            // while the socket was down were never delivered to anyone. The
+            // first connect has missed nothing, but the list is cheap and the
+            // roll reveal reads off it, so this one always re-reads.
+            everConnected = true;
             void refresh();
           }),
         );
@@ -152,6 +168,7 @@ export function LiveLobby({
 
     return () => {
       active = false;
+      clearTimeout(grace);
       for (const unsubscribe of unsubscribes) unsubscribe();
       void pb.realtime.unsubscribe();
     };

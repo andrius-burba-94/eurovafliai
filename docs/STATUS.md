@@ -26,11 +26,14 @@ three states no request would ever notice. Verified locally by running one: a
 full 13-round two-member draft, autodrafted end to end at one pick a second,
 finishing `complete` with the league moved to `season`. **Live in production**
 since `afb58b3` — the deployed worker authenticates to PocketBase and sweeps
-(see the production table below). What the room still does
-not do is update on its own while a clock is running — the countdown pulls the
-page for itself once a deadline passes, so an autodraft appears without a
-reload, but a pick made by somebody else *before* their clock ran out still
-waits for your next load. That is Phase 3.2's subscription.
+(see the production table below).
+
+**And the room is live.** A pick, a pause, an undo and an autodraft all reach
+every screen in the league as they happen: the room subscribes to this draft
+over SSE with the viewer's own token and asks the server to render again, so
+every fact on screen is still decided in one place. Found the hard way — the
+first real two-device draft spent its first minute watching a banner name
+somebody who had already picked.
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -121,7 +124,7 @@ Phase 1 is complete-pending-confirmation.
 | 2.3b The roll, revealed live — one slot at a time, plus reshuffle | done | — | The order lands last-slot-first for everyone at once, driven by the seed changing rather than by any new state — so it plays on a first roll and on a reshuffle, and never on a reload or a re-apply. Reduced motion gets the finished order immediately, which every other E2E spec covers since the suite forces `reduce`. **Reshuffle** is a separate action behind a tick-box: `Re-apply` must be safe to press twice, changing who picks first must not happen by accident |
 | 2.4 Pick pipeline — `drafts` + `picks` migrations, `makePick`, pause/resume, rollback | done | — | A draft can be started, picked through, paused, resumed and undone. Pick-then-advance writes the pick first and advances second, with `repairUnadvanced` running *before* the read on the next pick — so a crash between the two writes costs nothing and the next pick repairs it. Both unique indexes are exercised by `pb:verify`, not merely declared. A commissioner or deputy may enter a pick **for** whoever is on the clock (the button reads "Pick for them"), which is what keeps a draft moving when a phone dies. Every refusal revalidates the room, so a stale tab is corrected by the act of being wrong. Undo discards highest-numbered pick first and re-points the draft last, so a half-run undo leaves a shorter contiguous board rather than a hole, and pressing it again finishes the job; it always lands **paused**. The one piece of 2.4's blueprint text not here is the system **chat message** announcing a rollback — there is no chat until 3.4 |
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | done | — | The heartbeat became a loop. One `sweepOnce` a second: autodraft for whoever is out of time (a 1s grace period past zero, so a member who taps on zero beats the sweep and the loser of that race is refused by the index either way) or has armed it, plus three repairs nothing else would notice — an unadvanced pick, a live draft whose every slot is filled, and a live draft whose deadline went missing. It refuses two things on purpose: a pool with no legal player, and a board with a hole in it, both of which are logged once and left for the commissioner (§7 — the worker running must corrupt no more than the worker dying). **The pick pipeline moved to `src/lib/drafts/pipeline.ts`**, framework-free, so the sweep and the server action land a pick through the *same* `commitPick` — a human pick and an automatic one cannot diverge. Autodraft is armed by the member themselves ("Draft for me" in the room, `league_members.autodraft_enabled`, the field 1.1 created and nothing used); the commissioner's per-member version is 3.6. `/api/time` plus an offset-corrected countdown finish 2.6's clock. Three properties are worth knowing before touching it: a **repair is the tick's one action** for that draft (carrying on meant reasoning about a record that had just changed, which handed the next member an expired clock); the sweep **re-reads the draft immediately before it writes**, so a pause or a rollback landing mid-tick is not written through; and the worker **counts its own intervals outside the tick**, so a wedged PocketBase produces a log line saying no deadline is being enforced rather than silence from a process everything else calls healthy |
-| 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. 2.5 added the countdown it was missing — display only, corrected against `/api/time`, and incapable of firing a pick. Correctness before beauty — fuzzy search, tiers and the radar are Phase 3 |
+| 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. 2.5 added the countdown — display only, corrected against `/api/time`, incapable of firing a pick. **This row said `done` for two slices while it was not.** 2.6's own blueprint text asks for "realtime subscription wiring, connection-lost indicator", and neither shipped; the gap was recorded in Open debt but the row still claimed the slice. Both landed after the first real two-device draft ran into it, and the row is now true. Correctness before beauty — fuzzy search, tiers and the radar are still Phase 3 |
 
 ## Phases 3–8
 
@@ -150,7 +153,6 @@ touch should be fixed by that slice rather than deferred again.
 | **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
-| **The draft room does not update on its own** | Mitigated at the one moment it mattered most, still open in general. The room is rendered per request, so a pick somebody makes *while their clock is running* reaches everyone else on their next load. What no longer waits is the clock running out: past zero the countdown asks the server for the page again — at 2s, then every 3s, five times at most per deadline — so an autodraft appears by itself and a room whose worker is down stops polling instead of hammering all night. It is a stopgap with a deliberate ceiling; the lobby already subscribes over SSE with the viewer's token (1.3b) and the room is meant to copy that shape (blueprint 3.2). Until it does, the central promise — everyone watching one board move at once — is not yet true | Phase 3's draft-day experience |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
 | **Autodraft has nothing to rank on** | `selectAutoPick` ranks a cheat sheet first and projections second, and neither exists yet: cheat sheets are 3.4, projections 4.4. So today every candidate ties, and the engine falls through to its own total tiebreak — the **lowest player id** among the legal ones. Arbitrary, and identical on every replay, which is the property that matters until there is something real to rank on; the pool is passed `projectedPoints` the moment the field exists. (Until 2.5 it looked alphabetical, because the NaN in the comparator meant `readPool`'s `sort: "name"` was deciding the pick by accident. It no longer decides anything) | Nothing; autodraft quality, not correctness |
 | **No per-member autodraft switch for a manager** | A member arms their own autodraft from the draft room, and `setAutodraft` already permits a commissioner or deputy to set anybody's — but there is no UI for it, so a manager dealing with a phone that died has to wait the clock out and let the sweep pick, or enter the pick themselves with "Pick for them". Blueprint 3.6 owns the console | Nothing; a commissioner-comfort gap |
@@ -160,6 +162,22 @@ touch should be fixed by that slice rather than deferred again.
 
 Closed since the last update:
 
+- **The draft room not updating on its own.** The room subscribes now, to two
+  topics — the `picks` of this draft and the `drafts` record itself, because a
+  pick is two writes and a pause is only the second kind. It holds no draft
+  state: an event makes it ask the server to render the route again, so the
+  engine still decides everything and there is one authority rather than two.
+  2.5's countdown pull survives as the fallback for a room whose subscription is
+  down.
+- **Both live surfaces could lie about being live.** The PocketBase SDK does not
+  reject `subscribe()` when the endpoint is unreachable — it retries quietly —
+  so a room *or lobby* that had never once connected rendered no warning and
+  looked perfectly current. Both now say so if `PB_CONNECT` has not arrived
+  within five seconds. Found by writing a test that blocks the SSE endpoint,
+  which is also how the two stale-tab specs now stage a stale tab: a room that
+  corrects itself cannot be made stale by changing the world behind it, and
+  those specs are about the server-side refusal, which still has to hold for a
+  phone whose connection has died.
 - **#15** (the lobby's "Unknown member"), fixed in 1.3b by
   `1788181100_users_read_co_members.js`.
 - **The Google redirect URI.** `https://eurovafliai.labrium.online/auth/callback`
@@ -181,7 +199,7 @@ Last full local run, on slice 2.5: **all green.**
 | `npm run typecheck` | pass |
 | `npm run test` | **372 passed** — 175 the engine, 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 35 config and helpers |
 | `npm run build` | pass |
-| `npm run test:e2e` | 120 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 126 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
