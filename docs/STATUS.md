@@ -126,13 +126,30 @@ Phase 1 is complete-pending-confirmation.
 | 2.5 Worker — the ~1s sweep, autodraft, repair, `/api/time` | done | — | The heartbeat became a loop. One `sweepOnce` a second: autodraft for whoever is out of time (a 1s grace period past zero, so a member who taps on zero beats the sweep and the loser of that race is refused by the index either way) or has armed it, plus three repairs nothing else would notice — an unadvanced pick, a live draft whose every slot is filled, and a live draft whose deadline went missing. It refuses two things on purpose: a pool with no legal player, and a board with a hole in it, both of which are logged once and left for the commissioner (§7 — the worker running must corrupt no more than the worker dying). **The pick pipeline moved to `src/lib/drafts/pipeline.ts`**, framework-free, so the sweep and the server action land a pick through the *same* `commitPick` — a human pick and an automatic one cannot diverge. Autodraft is armed by the member themselves ("Draft for me" in the room, `league_members.autodraft_enabled`, the field 1.1 created and nothing used); the commissioner's per-member version is 3.6. `/api/time` plus an offset-corrected countdown finish 2.6's clock. Three properties are worth knowing before touching it: a **repair is the tick's one action** for that draft (carrying on meant reasoning about a record that had just changed, which handed the next member an expired clock); the sweep **re-reads the draft immediately before it writes**, so a pause or a rollback landing mid-tick is not written through; and the worker **counts its own intervals outside the tick**, so a wedged PocketBase produces a log line saying no deadline is being enforced rather than silence from a process everything else calls healthy |
 | 2.6 Minimal draft room | done | — | Shipped with 2.4, since a pick pipeline nobody can reach is not testable. `/leagues/[id]/draft`: on the clock at the top of the phone viewport, the positions you still need, the manager's controls, a filtered pool and the board newest-first. 2.5 added the countdown — display only, corrected against `/api/time`, incapable of firing a pick. **This row said `done` for two slices while it was not.** 2.6's own blueprint text asks for "realtime subscription wiring, connection-lost indicator", and neither shipped; the gap was recorded in Open debt but the row still claimed the slice. Both landed after the first real two-device draft ran into it, and the row is now true. Correctness before beauty — fuzzy search, tiers and the radar are still Phase 3 |
 
-## Phases 3–8
+## Phase 3 — Draft-day experience (the flagship UI)
+
+**Started, out of order.** The plan is 3.1 → 3.7; what actually happened is that
+running a real draft on two devices produced two findings, and both were
+answered before the board was built. That is the right order — a beautiful board
+nobody's screen updates is worth less than a plain one that does.
+
+| Slice | State | Landed | Notes |
+|---|---|---|---|
+| 3.1 Draft board — the rounds × teams grid | todo | — | The next slice. `BoardPlan` is still an authored depiction of an empty board (DESIGN.md, open question 2) |
+| 3.2 Live Roster Radar | **partial** | — | The realtime half is done and belonged to 2.6 all along (see that row). The radar itself — the 5G/5F/3C matrix per member, filling live, with legality muting in the pool — is not started |
+| 3.3 Player pool: filters + fuzzy search | todo | — | The room's pool is a substring filter over 324 rows |
+| 3.4 Cheat sheets | todo | — | Autodraft has nothing to rank on until this or 4.4 lands (see Open debt) |
+| 3.5 League chat + draft trade offers | todo | — | Also where a rollback finally gets its system message (2.4's one deferred line) |
+| **3.6a Start over** | done | — | Out of 3.6's slice, brought forward by draft-night feedback: pause is reversible and undo walks the board back, but nothing threw a draft away, so a practice run could only be cleared by editing the database. "Start over" deletes the draft and its picks (`picks.draft` cascades, so the board goes in one operation rather than a delete loop that can stop half way) and returns the league to the lobby, keeping the draft order — somebody who started too early should not have to re-roll. Behind a typed word, because it is the only control in the room that destroys work. Deletes the draft **first** so the only crash state is a league claiming to draft with no draft to open, which `reconcileLeagueStatus` now repairs; the reverse order would leave a `setup` league with a live draft that `startDraft` would silently resume, ignoring a fresh roll. A room whose draft is gone now redirects to the lobby rather than 404ing, which is also what every other member's room does the instant the delete event arrives |
+| 3.6 Commissioner console — the rest | todo | — | Rollback UI beyond the pick-number field, autodraft for another member, the timer mid-draft, offline pick entry. `setAutodraft` already permits a manager to set anybody's; there is no UI |
+| 3.7 Draft-day polish | todo | — | Pick confirmation, sound/vibration on "you're on the clock", `/impeccable` passes |
+
+## Phases 4–8
 
 Not started. One line each; the detail lives in the blueprint.
 
 | Phase | State |
 |---|---|
-| 3 — Draft-day experience (the flagship UI) | todo |
 | 4 — Player stats, projections, standings | todo |
 | 5 — Season mode: rosters, trades, impact tracking | todo |
 | 6 — Optional formats | todo |
@@ -199,7 +216,7 @@ Last full local run, on slice 2.5: **all green.**
 | `npm run typecheck` | pass |
 | `npm run test` | **372 passed** — 175 the engine, 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 35 config and helpers |
 | `npm run build` | pass |
-| `npm run test:e2e` | 126 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | 132 passed (chromium + Pixel 7) |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
