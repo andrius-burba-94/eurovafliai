@@ -15,10 +15,14 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up:** the **Phase 2 rehearsal** — a real 13-round mock draft on a phone
-and a PC, with one member on autodraft and a rollback in the middle. That run is
-the only thing left between here and Phase 3, and it needs people rather than
-code. Then slice **3.1**, the draft board.
+**Next up: slice 3.1, the draft board** — the rounds × teams grid, which is the
+one thing Phase 3 was supposed to start with and did not (see that section).
+
+Still outstanding, and it needs people rather than code: the **Phase 2
+rehearsal**, a full 13-round draft with one member on autodraft and a rollback
+in the middle. A real two-account draft *has* now been run on production — it is
+what found the two gaps Phase 3 opened with — but it was started and undone
+rather than played out, so the phase's own DoD is not met yet.
 
 A draft now runs itself. The worker (slice 2.5) enforces every deadline, picks
 for whoever has run out of time or has handed their picks over, and repairs the
@@ -49,8 +53,8 @@ and 2.5's autodraft see exactly what they will see on draft night — and you ca
 sign in as one in a private window to watch from another member's side. The
 script refuses any PocketBase that is not local.
 
-Two Phase 1 items are still open and both are listed under Open debt: a human
-two-device confirmation of the lobby, and nightly `pb_data` backups.
+Two Phase 1 items are still open and both are listed under Open debt: the last
+step of the two-device confirmation, and nightly `pb_data` backups.
 
 ---
 
@@ -168,7 +172,7 @@ touch should be fixed by that slice rather than deferred again.
 |---|---|---|
 | [#16](https://github.com/andrius-burba-94/eurovafliai/issues/16) | `createLeague` and `joinLeague` put finished prose in the query string and render it into a `role="alert"` — attacker-controllable text. The 1.3b lobby actions do **not** do this: they return their errors through `useActionState`, so the fix is a change to two older actions, not a new pattern to invent | Nothing; correctness debt in the leagues slice |
 | **Local PocketBase drifts from `main`** | A dev database only applies migrations on boot, so a checkout that has been running across a schema change silently tests the old shape. It cost a confusing run of lobby-spec failures. `npm run dev` after pulling is the whole fix; the symptom is `pb:verify` disagreeing with CI | Nothing; a time sink |
-| **Two-device confirmation** | Realtime is proven at the protocol level in production, but nobody has yet had two people on two devices in one lobby. That is the literal wording of Phase 1's DoD | Declaring Phase 1 finished |
+| **Two-device confirmation** | Most of the way there. Two Google accounts have now joined one production league, rolled an order and started a draft — and the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board, so the live surface is confirmed by more than a protocol check. What is not recorded is whether that was two devices (a phone and a PC) rather than two browsers on one machine, which is the literal wording of Phase 1's DoD. One deliberate run closes this | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
@@ -209,7 +213,7 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 2.5: **all green.**
+Last full local run, on slice 3.6b: **all green.**
 
 | Check | Result |
 |---|---|
