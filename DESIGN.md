@@ -548,6 +548,11 @@ A form on card stock. Character: a ruled line to write on, not a box to type in.
 
 ### Action — `SubmitButton`
 
+`compact` drops the full-width phone treatment for a button that belongs to a
+*row* rather than to a surface: a list of thirty rows each with a full-width
+button is a column of buttons with names above them, not a pool of players.
+
+
 The board's action, with the pending state a server action needs. A client
 component for exactly one reason: `useFormStatus`.
 
@@ -569,6 +574,26 @@ component for exactly one reason: `useFormStatus`.
 
 **The Pending-Label Rule.** Every `SubmitButton` gets a `pendingLabel` written in
 the domain's words. "Loading" is not one of the domain's words.
+
+### Filter toggle — `FilterToggle`
+
+A filter, in the board's own material. `aria-pressed` button, slot-label type,
+44px target. **Off** is the dashed waiting rule under it; **on** is a 2px solid
+**ink** rule. That is the Material-Carries-State rule applied to a control: this
+system has no chip and no coloured dot, so a filter's state is the weight of its
+own underline. Ink and not marker, because a filter is not the one act on a
+surface and must not compete with the act that is.
+
+Filters group by kind, on their own rows with their own slot label — *which*
+(Position: G F C) above *whether* (Show: hide drafted, fit to play, legal for
+me). As one wrapping run, "Hide drafted" landed on the same line as G F C and
+read as a fourth position.
+
+### Select — `selectStyles`
+
+The same ruled line as `inputStyles`, so the same focus idiom. `appearance-none`,
+because a native select's own chrome is the one place a rounded corner and a
+gradient would arrive in this app without anybody choosing them.
 
 ### Correction — `Correction`
 
@@ -721,7 +746,11 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 - **Don't** add a corner radius, a shadow, a gradient, a blur or a second surface
   colour. None exist today; each would be a regression, not a variant.
 - **Don't** put a second marker-red primary action on one surface, and don't use
-  marker red for anything that is not state or the one act.
+  marker red for anything that is not state or the one act. The pool's **armed**
+  row is the one act, and is struck accordingly: exactly one row at a time, and
+  only while a pick is armed. It was 25 marker-red buttons at once until 3.3 —
+  which is what taught the room that red meant "button" one screen above a
+  board whose whole state language is red used sparingly.
 - **Don't** strike an error in marker. Corrections are ink
   (`slot-correction`) — an error and an invite code must never look alike.
 - **Don't** put marker-red text on the live tint: 4.15:1. Ink on the live tint is
@@ -807,11 +836,13 @@ rather than deleted, so the decision and the question it settled stay together.
    have no draft to draw, and an authored depiction of an empty board is still
    the honest thing to show there. The two are the same object at two scales and
    share their ruling, their round gutter and their heavy frame deliberately.
-3. **Two focus idioms.** Buttons and links add a 2px marker outline at
-   `focus-visible`. Inputs instead remove the outline and turn their bottom
-   border marker red at `focus`. Both are visible and both pass, but there is no
-   recorded decision about which idiom a new control type (select, checkbox,
-   radio, combobox — the player search is coming) should follow.
+3. ~~**Two focus idioms.**~~ **Answered in 3.3:** the idiom follows **the
+   element, not the role**. A `<button>` or `<a>` takes the 2px marker outline at
+   `focus-visible`; an `<input>` or `<select>` turns its bottom rule marker red
+   at `focus`. Both were already shipped and both pass — the only thing missing
+   was saying which is which. A corollary settled the same slice: a filter is a
+   **button** with `aria-pressed`, never a checkbox, so it also inherits the
+   button idiom and carries its state in its own rule (`FilterToggle`).
 4. ~~**No wide layout beyond 48rem, and only one breakpoint.**~~ **Answered in
    3.1:** a horizontally scrolling region, and one layout everywhere. No second
    container width and no new breakpoint — `max-w-3xl` stays the app's single

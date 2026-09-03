@@ -200,7 +200,7 @@ export default async function DraftPage({
                     ? `Pick for ${onClock.memberName}`
                     : "The pool"
             }
-            aside={`${view.available.length} available`}
+            aside={`${view.availableCount} available`}
           >
             {isPaused ? (
               <p className="slot-waiting px-3 py-4 text-sm text-ink-soft">
@@ -209,7 +209,12 @@ export default async function DraftPage({
             ) : null}
             <PickForm
               leagueId={id}
-              view={{ available: view.available, isYourTurn }}
+              view={{
+                pool: view.pool,
+                isYourTurn,
+                clockNeeds: view.clockNeeds,
+                clockMemberName: onClock?.memberName ?? null,
+              }}
               canPick={(isYourTurn || view.canManage) && !isPaused && !!onClock}
             />
           </Bank>

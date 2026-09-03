@@ -218,6 +218,64 @@ export const inputStyles =
   "placeholder:text-ink-faint focus:border-live focus:outline-none";
 
 /**
+ * A filter, in the board's own material — slice 3.3, and the answer to
+ * DESIGN.md's open question 3.
+ *
+ * The system had two focus idioms and no rule about which a new control type
+ * should follow. The rule this settles on is **the element, not the role**: a
+ * `<button>` takes the 2px marker outline at `focus-visible`, an `<input>` or
+ * `<select>` turns its bottom rule marker red at `focus`. Both were already
+ * shipped and both pass; the only thing missing was saying which is which.
+ *
+ * So a filter is a **button**, never a checkbox — which also keeps its state
+ * where this system always puts it: in the control's own rule. Off is the
+ * dashed waiting rule, on is a 2px solid ink rule. No chip, no pill, no
+ * coloured dot, because the Material-Carries-State rule forbids exactly that.
+ * Ink rather than marker, because a filter is not the one act on this surface
+ * and must not compete with the pick that is.
+ */
+export function FilterToggle({
+  pressed,
+  onPressedChange,
+  children,
+  testId,
+}: {
+  pressed: boolean;
+  onPressedChange: (next: boolean) => void;
+  children: ReactNode;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-pressed={pressed}
+      onClick={() => onPressedChange(!pressed)}
+      className={`slot-label min-h-11 px-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+        pressed
+          ? "border-b-2 border-ink text-ink"
+          : "border-b border-dashed border-rule hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * A `<select>` on card stock. The same ruled line as `inputStyles`, and
+ * therefore the same focus idiom — it holds a value, and it is an input
+ * element.
+ *
+ * `appearance-none`, because a native select's own chrome is the one place a
+ * rounded corner and a gradient would arrive in this app without anybody
+ * choosing them.
+ */
+export const selectStyles =
+  "min-h-11 w-full appearance-none border-b border-ink/30 bg-transparent px-1 py-2 " +
+  "text-base focus:border-live focus:outline-none";
+
+/**
  * A correction on the board — struck in ink, not in marker.
  *
  * The marker means one thing only, who is on the clock, so an error that
