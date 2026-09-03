@@ -15,8 +15,10 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up: slice 3.1, the draft board** — the rounds × teams grid, which is the
-one thing Phase 3 was supposed to start with and did not (see that section).
+**Next up: slice 3.3, the player pool** — filters and fuzzy search. It is out of
+numerical order on purpose: 3.1 has just landed the board, and the board made
+plain that the room's weakest surface is the pool it sits under. See the note in
+Open debt.
 
 Still outstanding, and it needs people rather than code: the **Phase 2
 rehearsal**, a full 13-round draft with one member on autodraft and a rollback
@@ -38,6 +40,15 @@ over SSE with the viewer's own token and asks the server to render again, so
 every fact on screen is still decided in one place. Found the hard way — the
 first real two-device draft spent its first minute watching a banner name
 somebody who had already picked.
+
+**And the board is on the wall.** Slice 3.1: rounds down, one column per member
+across, all 156 slots of a full league drawn whether they are filled or not. A
+column is one member's roster rather than a run of pick numbers, so a snake
+draft reads down a column instead of zigzagging across one — and the layout is
+derived from `buildPickOrder` itself rather than beside it, so the board cannot
+disagree with the order the clock is driven by. It brought the app's **second and
+last** animation with it: the live rule advancing, which fires for a viewer who
+was watching the clock move and stays still on a page load.
 
 The pool exists: **324 E2026 players across 20 clubs** are ingested from the
 Euroleague API by `npm run rosters:sync`, which is idempotent and re-runnable.
@@ -135,13 +146,14 @@ Phase 1 is complete-pending-confirmation.
 **Started, out of order.** The plan is 3.1 → 3.7; what actually happened is that
 running a real draft on two devices produced two findings, and both were
 answered before the board was built. That is the right order — a beautiful board
-nobody's screen updates is worth less than a plain one that does.
+nobody's screen updates is worth less than a plain one that does. The board has
+now landed on top of them.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
-| 3.1 Draft board — the rounds × teams grid | todo | — | The next slice. `BoardPlan` is still an authored depiction of an empty board (DESIGN.md, open question 2) |
-| 3.2 Live Roster Radar | **partial** | — | The realtime half is done and belonged to 2.6 all along (see that row). The radar itself — the 5G/5F/3C matrix per member, filling live, with legality muting in the pool — is not started |
-| 3.3 Player pool: filters + fuzzy search | todo | — | The room's pool is a substring filter over 324 rows |
+| **3.1 Draft board — the rounds × teams grid** | done | — | Rounds down, members across, in a region that scrolls sideways inside the app's one `max-w-3xl` column — no second container width and no new breakpoint, which settles DESIGN.md's open question 4 and accepts knowingly that a twelve-member league scrolls on a laptop too. **Columns are members, not pick slots**: a column has to be one member's roster or every column of a snake draft is a zigzag of two people's players. The layout is a new pure engine function, `buildBoardShape`, and it is computed **from `buildPickOrder`** rather than from its own parity arithmetic — round direction stays decided in exactly one place, so this board is already right for any format that function is right for, including ones not written yet. Round numbers are sticky, so the row stays labelled while the columns move. Grid layout with table roles, because a rounds × members wall genuinely is tabular data and a real `<table>` cannot both divide its container and overflow it. `BoardPlan` **stays** — the login page and the lobby have no draft to draw (open question 2, answered). A **paused** board keeps its marker on the slot the draft stands at — strictly nobody is on the clock while paused, but the room's own banner is struck in marker throughout a pause, and a board that alone showed nothing was the odd one out; a complete board has no marked slot, because there is no next one. The chronological run below the board is now a **ticker**, capped at the last 8: the board above it holds the history, and the run is better at the sentence — who took whom, and whether the worker did it |
+| 3.2 Live Roster Radar | **partial** | — | The realtime half is done and belonged to 2.6 all along (see that row). The radar itself — the 5G/5F/3C matrix per member, filling live, with legality muting in the pool — is not started. 3.1's board is the closest thing to it today: a column *is* a member's roster, and the position letter and wash are in every filled slot, so "who still needs a centre" is readable off the wall by eye rather than stated |
+| 3.3 Player pool: filters + fuzzy search | **next** | — | The room's pool is a substring filter over 324 rows, rendering 25 at a time, and it is now the longest thing on the page by a wide margin — see Open debt |
 | 3.4 Cheat sheets | todo | — | Autodraft has nothing to rank on until this or 4.4 lands (see Open debt) |
 | 3.5 League chat + draft trade offers | todo | — | Also where a rollback finally gets its system message (2.4's one deferred line) |
 | **3.6a Start over** | done | — | Out of 3.6's slice, brought forward by draft-night feedback: pause is reversible and undo walks the board back, but nothing threw a draft away, so a practice run could only be cleared by editing the database. "Start over" deletes the draft and its picks (`picks.draft` cascades, so the board goes in one operation rather than a delete loop that can stop half way) and returns the league to the lobby, keeping the draft order — somebody who started too early should not have to re-roll. Behind a typed word, because it is the only control in the room that destroys work. Deletes the draft **first** so the only crash state is a league claiming to draft with no draft to open, which `reconcileLeagueStatus` now repairs; the reverse order would leave a `setup` league with a live draft that `startDraft` would silently resume, ignoring a fresh roll. A room whose draft is gone now redirects to the lobby rather than 404ing, which is also what every other member's room does the instant the delete event arrives |
@@ -175,6 +187,11 @@ touch should be fixed by that slice rather than deferred again.
 | **Two-device confirmation** | Most of the way there. Two Google accounts have now joined one production league, rolled an order and started a draft — and the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board, so the live surface is confirmed by more than a protocol check. What is not recorded is whether that was two devices (a phone and a PC) rather than two browsers on one machine, which is the literal wording of Phase 1's DoD. One deliberate run closes this | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
+| **Twenty-five marker-red actions on one surface** | The room's pool renders a `tone="live"` pick button on every one of its 25 rows, which is DESIGN.md's one-marker-action-per-surface rule broken 24 times — and it sits directly above the board, whose entire state language is that same red used sparingly. By the time the eye reaches the board, red has been taught to mean "button". Pre-existing, from 2.4's pool; found by 3.1's critique because the board is what it damages. The fix is one word (`tone="ink"`) in `pick-form.tsx`, but it is 3.3's surface and 3.3 is rewriting that list | Nothing; it dilutes 3.1's accent until 3.3 lands |
+| **"You are on the clock" is not perceivable without looking** | PRODUCT.md commits to it being "announced to assistive tech via a live region, with sound and vibration cues". None of the three exists: the on-the-clock banner is a plain `div` whose text swaps on an SSE re-render, so a screen reader is told nothing and a phone face-down on a couch says nothing. 3.1 closed the board's half of this — the marked slot now carries an `sr-only` "on the clock" — but the banner is the one that matters and it belongs to blueprint 3.7 | Nothing; a written product commitment, unmet since 2.6 |
+| **`PositionPatch`'s own colours are still eyeballed** | 3.1 taught `tokens.test.ts` to composite an alpha wash and used it on the board, which is how three real failures surfaced. The same measurement has not been pointed at `PositionPatch` itself: its coloured letter on its own 10% wash measures 4.21–4.50:1, straddling the 4.5 floor. The board moved off that pairing; the patch has not. DESIGN.md open question 7 now says exactly this | Nothing; the machinery exists, somebody has to aim it |
+| **The pool buries the board on a phone** | 3.1 put the board in the room and thereby measured the pool: the room renders 25 of 324 players, each with its own pick button, so on a phone the board sits roughly four screens down. The order is deliberate — the clock and the way to pick own the top of the viewport, because picking is the time-critical act — but it means the flagship surface is below a wall of pool rows for anybody who is only watching. 3.3's search and filters are the fix, which is why that slice is next rather than 3.2 | Nothing; 3.1's board is further down the page than it should be until 3.3 lands |
+| **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
 | **Autodraft has nothing to rank on** | `selectAutoPick` ranks a cheat sheet first and projections second, and neither exists yet: cheat sheets are 3.4, projections 4.4. So today every candidate ties, and the engine falls through to its own total tiebreak — the **lowest player id** among the legal ones. Arbitrary, and identical on every replay, which is the property that matters until there is something real to rank on; the pool is passed `projectedPoints` the moment the field exists. (Until 2.5 it looked alphabetical, because the NaN in the comparator meant `readPool`'s `sort: "name"` was deciding the pick by accident. It no longer decides anything) | Nothing; autodraft quality, not correctness |
 | **No per-member autodraft switch for a manager** | A member arms their own autodraft from the draft room, and `setAutodraft` already permits a commissioner or deputy to set anybody's — but there is no UI for it, so a manager dealing with a phone that died has to wait the clock out and let the sweep pick, or enter the pick themselves with "Pick for them". Blueprint 3.6 owns the console | Nothing; a commissioner-comfort gap |
@@ -213,18 +230,106 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, on slice 3.6b: **all green.**
+Last full local run, on slice 3.1: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **372 passed** — 175 the engine, 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 35 config and helpers |
+| `npm run test` | **415 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 48 config, helpers, the board's name-writing and the ten new contrast floors |
 | `npm run build` | pass |
-| `npm run test:e2e` | 138 passed (chromium + Pixel 7) |
+| `npm run test:e2e` | **158 passed** (chromium + Pixel 7) — 3.1 adds ten specs, run on both |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
+
+**The board's arithmetic is tested twice over, and the second one is the point.**
+`src/lib/engine/board.test.ts` covers every format, odd and even member counts,
+2 through 12, the full 13 rounds and the round boundaries — §5 of the engine
+invariants, which applies to the board because the board is order-derived. The
+load-bearing case is `agrees with buildPickOrder`: every place on the wall must
+be owned by the member the pick order says owns that number. Writing the
+expected rows out by hand found the mistake it was going to find — the first
+draft of the test asserted a *reversed* thirteenth round, when 13 is odd and
+plain snake drafts it forward. The cross-check was green while the hand-written
+literals were wrong, which is the right way round.
+
+In the browser, `tests/e2e/draft-board.spec.ts` asserts the two things only a
+browser can: that round 2 reads `4, 3` in DOM order for two members — a board
+laid out by pick sequence would read `3, 4` and every column would be a zigzag —
+and that the second motion event fires for a viewer who was watching the clock
+move over SSE but **not** on a page load, which is the whole difference between
+motion and decoration. It also pins the ticker's cap: nine picks made, eight in
+the run, and the first one still in slot 1 of the board. Two specs go past the
+attribute to what is actually painted — `rule-advances` running with motion
+allowed, `none` under `reduce`, and a 2px marker rule across the slot either
+way. That last assertion is the one worth having: every way this breaks is
+invisible in a screenshot, and the failure mode that matters is a reduced-motion
+guard that drops the *rule* instead of the travel and stops telling somebody who
+is on the clock.
+
+**Two things the review pass caught, both worth knowing.** The first: the
+scrollport was keyed on `current_pick`, and the marked slot can move while that
+field stands still — §3's repairable state is exactly a pick created without the
+draft advancing, which is the case `whoIsOnClock` exists to correct. Keyed on the
+wrong field the effect never ran, so the mark it had set on the slot that just
+filled stayed there: two marker rules on one board, one of them on a finished
+pick. It is keyed on the marked slot now, which is also simpler — "the marker
+moved" is the whole signal, and `current_pick` was a proxy for it. The second:
+the paused board's marker was read off `draft.current_pick` directly, which is
+the one thing `clock.ts`'s own module note says not to do, and in that same
+repairable state it would have marked a slot that already had a pick in it — and
+a filled slot wins, so the paused board would have shown no marker at all.
+`getDraftView` now asks the engine, with the status the draft would have if it
+were running, and hands the room a `markedOverallNo`. No clock arithmetic
+survives in the page.
+
+**What `/impeccable critique` changed, and why it was worth running.** The design
+pass found four things a passing test suite cannot:
+
+- **The board broke DESIGN.md's own Ink-on-Blush rule** — marker red on the live
+  tint, 4.15:1, forbidden there by name — and it did it on the one slot that
+  matters most, where the pick number is the slot's *only* text.
+- **The position washes cost about a tenth of every ratio above them**, which put
+  the slot numbers at 4.42:1, the G/F/C letter (the colour-blind fallback, so an
+  accessibility floor twice over) at 4.21–4.50:1, and the column rules at 2.90:1
+  against a 3:1 floor. All three now measure over 5:1 and over 4:1 respectively,
+  because the wash carries the hue and every word in a slot is ink.
+  `tokens.test.ts` was green through all of it: it could only compare one opaque
+  token with another and had no way to express an alpha background. It can now,
+  and ten new assertions hold these pairs.
+- **The board could not write the names it exists to write.** At 6rem a slot had
+  about 69px for a name once the position letter had taken its share of the same
+  line — eight characters, where "Valančiūnas" needs 90px — and the only recovery
+  was a `title` tooltip, which does not exist on a phone. The letter moved to the
+  number line and columns went to 8rem. A phone shows three columns instead of
+  four; three readable columns beat four truncated ones.
+- **A paused board was struck exactly like a live one**, which is one material
+  carrying two opposite instructions — act, and wait — with the banner that
+  disambiguates them several screens up. `slot-standing` is the fourth state:
+  the same marker at the same weight, dashed, no fill.
+
+Two more were accessibility failures rather than design ones. The scrollport had
+no focusable element, so past about five members most of the board was
+unreachable by keyboard; it passed in Chromium only because 127+ makes such a
+region focusable by itself, wearing a user-agent ring nobody chose. And the
+marked slot announced itself to a screen reader as the bare word "13" — border
+weight, a fill and a colour being three things a screen reader cannot see.
+
+One finding was stale evidence rather than a defect: a screenshot showing a
+paused board with no marker at all predated the `markedOverallNo` work. Worth
+recording because it is the failure mode of reviewing a stateful surface by
+screenshot. One was a false positive: `globals.css` says "bays" four times, and
+CONTEXT.md explicitly permits the word in code comments while banning it in copy.
+
+**The header alignment bug this shipped past a screenshot.** The round gutter's
+own column header was an `sr-only` span, and `sr-only` is absolutely positioned
+— so it occupied no grid track and slid every member's name one column left. The
+board named the wrong person above every column, and it looked completely
+plausible unless you already knew the draft order. Found by rendering a
+six-member board with real picks in it and reading the names. The fix is a
+`role="columnheader"` wrapper around an `sr-only` span, and DESIGN.md now says so
+in a rule of its own.
 
 **The worker, run for real** against the local database rather than only against
 its tests: a planted two-member draft with both members armed was drafted to

@@ -202,12 +202,17 @@ test("the room counts down, and shows the autodraft that lands in it", async ({
 }) => {
   // Two seconds on the clock: long enough to see it running, short enough that
   // the room is past zero and pulling for itself by the time the sweep runs.
-  const { commissioner, league, draft } = await liveDraft("Clock League", 2_000);
+  const { commissioner, league, draft } = await liveDraft(
+    "Clock League",
+    2_000,
+  );
   await signIn(context, commissioner);
 
   await page.goto(`/leagues/${league.id}/draft`);
   await expect(page.getByTestId("draft-room")).toBeVisible();
-  await expect(page.getByTestId("pick-clock")).toContainText(/Time left|Time's up/);
+  await expect(page.getByTestId("pick-clock")).toContainText(
+    /Time left|Time's up/,
+  );
 
   // The offset endpoint the countdown corrects itself against. Asserted here
   // rather than assumed: the component swallows a failed fetch on purpose and
@@ -228,7 +233,9 @@ test("the room counts down, and shows the autodraft that lands in it", async ({
   await expect(page.getByTestId("board-pick")).toHaveCount(1, {
     timeout: 20_000,
   });
-  await expect(page.getByTestId("board-pick")).toContainText("auto");
+  // Case-insensitive: the room writes CONTEXT.md's word in caps, and CSS is not
+  // what does it — the string in the DOM is "AUTO".
+  await expect(page.getByTestId("board-pick")).toContainText(/auto/i);
 });
 
 test("a member can hand their picks to the engine", async ({

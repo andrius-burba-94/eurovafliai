@@ -211,7 +211,7 @@ dead grey.
 
 Contrast ratios below are **measured**, not estimated: `src/app/tokens.test.ts`
 parses `globals.css`, converts OKLCH to WCAG relative luminance and asserts the
-floors. Twelve assertions, all passing.
+floors. Twenty-three assertions, all passing.
 
 ### Primary
 
@@ -484,6 +484,12 @@ heavy rule; each `Slot` is an `<li>` whose **top border is its state**.
   place. Rendered with a faint-ink "Slot 07" number.
 - **`filled`** — 1px solid heavy-grey, `0.75rem` vertical padding. The default.
 - **`live`** — 2px solid marker + `live-sunk` fill. On the clock.
+- **`standing`** — 2px **dashed** marker, no fill. Where a paused draft stands.
+  Board only (`slot-standing`). It exists because 3.1 first struck a paused slot
+  exactly like a live one, which is one material carrying two opposite
+  instructions — act, and wait — and the banner that disambiguates them is
+  several screens up on a phone. Dashed is already this system's word for
+  unsettled, so "paused" is the marker at the same weight, unsettled.
 - **Content layout:** `flex-wrap`, baseline-aligned, primary content left and
   metadata right, `1rem` / `0.25rem` gaps. Typically a `CardName` on the left and
   a slot label on the right.
@@ -507,6 +513,13 @@ stops is not a board.
 
 The name written on a card: 600 caps at 0.06em, 1rem at every size. Use it
 for the thing that occupies a slot, never for a label about the thing.
+
+`scale="slot"` is the one step down — same caps, same 0.06em, at body-small's
+0.875rem — for the board's 8rem columns. It exists because a full-size card name
+cannot write "Valančiūnas" inside a board column, and because the alternative
+was a bespoke `text-xs tracking-[0.04em]` class that quietly added a fifth type
+size to a five-size system and set it at *display* tracking. A player in a slot
+on the board is still a name on a card; it is only smaller.
 
 ### Position patch — `PositionPatch`
 
@@ -578,6 +591,100 @@ is an authored depiction of an empty board, which is why it is
 which has no slot run to restate, and desktop-only on the lobby, where it added a
 third to the mobile scroll to repeat the run immediately above it.
 
+### Draft board — `DraftBoard`
+
+The real board, and `BoardPlan`'s data-carrying sibling: rounds down, one column
+per member across, every slot drawn whether it is filled or not. Lives in
+`src/components/draft-board.tsx`; its scrollport is
+`src/components/board-scroll.tsx`, the design system's second client component.
+
+- **Columns are members, not slots.** A column is one member's roster, readable
+  top to bottom. Laying it out by pick sequence instead would make every column
+  of a snake draft a zigzag of two people's players. The pick *numbers* zigzag,
+  exactly as they do on a real board.
+- **The shape comes from the engine** (`buildBoardShape`), which derives it from
+  `buildPickOrder` rather than beside it — so the board cannot disagree with the
+  order the clock is driven by.
+- **Slot state is the slot's own top rule**, the same weights as `Slot`, all four
+  of them: dashed `rule` for a slot nobody has filled, solid for a pick, 2px
+  solid marker plus `live-sunk` for the slot on the clock, 2px dashed marker for
+  where a paused draft stands. A filled slot also takes a 10% wash of its
+  position's hue — the patch colours, used as a field rather than a border — and
+  **always** carries the G / F / C letter.
+- **Every word in a slot is ink or soft ink.** Not the position's own hue, and
+  never the marker. See the Wash-Costs-A-Tenth Rule below: the wash carries the
+  hue, the letter carries the position, and the text carries the contrast.
+- **Structure:** `2rem` round gutter, then `minmax(8rem, 1fr)` per member. That
+  `minmax` is the whole layout: with room to spare the columns share it, and past
+  about five members they hold their width and the region scrolls. 8rem is not
+  arbitrary — at 6rem a slot had ~69px for a name once the position letter had
+  taken its share of the same line, about eight characters, so the board could
+  not write "Valančiūnas" or "Papanikolaou" and the only recovery was a `title`
+  tooltip, which does not exist on a phone. The letter therefore sits on the
+  number line, right-aligned, and the name gets the column. Round numbers are
+  `sticky left-0` on stock, so the row you are reading stays labelled while the
+  columns move. Slot height is `min-h-slot` — the board's own spacing unit.
+- **Column separators are `rule-strong`, and the board's outer edge is 2px of
+  it.** `rule` over a position wash measures 2.90:1, under this system's own 3:1
+  floor for a boundary that means something — and which column a pick is in is
+  meaning. The 2px outer edge does a second job: a closed board reads closed,
+  and an interior-weight line at the viewport edge means "more board this way",
+  which is scroll extent expressed in rule weight rather than in the shadow or
+  gradient this system forbids.
+- **Semantics:** grid layout, table roles — `role="table"`, `role="row"`,
+  `role="columnheader"` for members, `role="rowheader"` for the round. A real
+  `<table>` would give this for free but not the widths: a fixed-layout table
+  divides the container, and this board has to overflow it in order to scroll.
+  Unlike `BoardPlan` it is **not** `aria-hidden`: it carries data.
+- **State in the DOM:** `data-board-slot` on every slot, plus `data-state`
+  (`waiting` / `filled` / `live` / `standing`), `data-live="true"` on the marked
+  slot whichever of the two things it means, `data-reversed="true"` in a round
+  drafted right to left, and `data-advanced="true"` for the duration of the
+  second motion event — removed on `animationend`, so the pseudo-element hands
+  the rule back to the real border rather than standing in for it all night.
+- **The scrollport is focusable, named and a region.** `tabIndex={0}`,
+  `role="region"`, `aria-label`, and the system's own `focus-visible` ring. A
+  scrolling region with no focusable descendant cannot be reached by keyboard,
+  and past about five members that is most of the board. Chromium 127+ makes such
+  a region focusable by itself and Firefox and Safari do not, so the first
+  version passed WCAG 2.1.1 in one engine by accident, wearing a 1px black
+  user-agent ring nobody chose.
+- **The marked slot says so in words.** An `sr-only` "on the clock" (or "the
+  draft stands here"), because border weight, a fill and a colour are three
+  things a screen reader cannot see — the live slot used to announce itself as
+  the bare word "13".
+- **A paused board keeps its marker**, on the slot the draft stands at. Strictly
+  nobody is on the clock while paused — but the room's on-the-clock banner is
+  struck in marker throughout a pause, and a board that alone showed nothing was
+  the odd one out. A **complete** board has no marked slot: there is no next one.
+
+**Frame rules go on the cells, never on the row.** A row is a grid whose tracks
+overflow its own border box — that is what makes the board scroll — so a
+row-level border is only as wide as the scrollport and stops halfway across a
+twelve-member board once you scroll right. The header's heavy underline and the
+last round's bottom rule are both per cell for this reason. The gutter cells are
+additionally `sticky left-0` on stock, header included, or a member's name
+scrolls underneath and its tail shows through; the header's gutter cell needs
+`self-stretch` on top of that, because its only child is `sr-only` and therefore
+absolutely positioned, and a background painted on a zero-height box hides
+nothing.
+
+**The Wash-Costs-A-Tenth Rule.** A 10% wash over stock costs roughly a tenth of
+every contrast ratio measured on top of it. `ink-faint` is 4.80:1 on stock and
+**4.42:1** on a position wash; a position colour on its own 10% wash is 4.50:1 at
+best and 4.21:1 at worst — and that letter is the colour-blind fallback for
+position, so it is an accessibility floor twice over. So text on a washed field
+is `ink` or `ink-soft`, and a rule on one is `rule-strong`. 3.1 shipped the
+opposite of all three, and `tokens.test.ts` was green throughout, because until
+3.1 it could only compare one opaque token with another and had no way to express
+an alpha background at all. It can now, and these pairs are asserted.
+
+**The gutter header must stay in flow.** It is a `role="columnheader"` wrapping
+an `sr-only` span, not an `sr-only` span itself. `sr-only` is absolutely
+positioned, so hiding the whole element takes it out of the grid and slides every
+member's name one column left — a board that names the wrong person above every
+column, which a screenshot only reveals if you already know the draft order.
+
 ### Back arrow — `BackArrow`
 
 See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
@@ -596,7 +703,7 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 - **Do** give any new interactive element a 44px minimum target (`min-h-11`) and
   a `focus-visible` 2px marker outline at 2px offset.
 - **Do** render empty slots. Show the shape of the board, not the length of the
-  list.
+  list. `DraftBoard` draws all 156 of them.
 - **Do** use CONTEXT.md's words. A **slot** is a position on the **board**. An
   earlier draft of `board.tsx` invented "bay" and led a page headline with it —
   which is exactly the drift CONTEXT.md exists to prevent. The word survives in
@@ -641,7 +748,7 @@ Motion exists for **meaningful state changes only** — PRODUCT.md's brand
 commitment, and the direction contract's promise: "Only two things in this app
 animate: a card landing, and the live rule advancing."
 
-**Implemented today: one.** The `card-lands` utility — 260ms,
+**Implemented today: both.** The `card-lands` utility — 260ms,
 `cubic-bezier(0.22, 1, 0.36, 1)`, `both`, from `opacity: 0` /
 `translateY(-0.375rem)` to rest. It plays on the single row that genuinely just
 arrived: the create and join actions redirect with `?arrived=1`, and the lobby
@@ -652,7 +759,36 @@ the second is decoration.
 `@media (prefers-reduced-motion: reduce)` is handled **inside** the utility:
 `animation: none`. The state change still lands; only the travel is dropped.
 
-**The Two Events Rule.** Nothing else animates. Colour transitions on hover
+The second event landed with the draft board (3.1): **the live rule
+advancing**. When a pick lands, the marker rule leaves the slot that was on the
+clock and draws itself across the next one — 260ms on the same curve, painted by
+a pseudo-element because a border cannot be scaled from one end. Under
+`prefers-reduced-motion` the rule arrives without travelling.
+
+`data-advanced` comes off again on `animationend`, handing the rule back to the
+real border underneath — so the overlay exists only while it is travelling, which
+is what makes the sentence above true. Under `prefers-reduced-motion` no
+animation runs and none ends, so the attribute simply stays and the rule sits at
+its resting width.
+
+It travels **the way the round is being drafted**: `transform-origin: left`
+normally, flipped to `right` on a slot carrying `data-reversed`. Every even round
+of a snake draft runs right to left, so a rule that always grew from the left
+would spend half the draft moving against the round it was advancing through.
+
+It is keyed on `data-advanced`, set by `board-scroll.tsx`, rather than chosen on
+the server like every other utility here. The reason is the same one that makes
+`card-lands` wait for `?arrived=1`: the server knows which slot is live but not
+whether *this viewer* was watching when it changed, and motion rendered from
+server state would replay on every load and every refresh. A first paint is
+still. That is also why the room's board has no "just landed" animation on the
+pick itself — one event per state change, and the state change here is the clock
+moving.
+
+**The Two Events Rule.** Nothing else animates. Both events now exist, so the
+budget is spent: a third animation is a change to this document, not a variant.
+The board's auto-scroll is not one of them — following the clock is scrolling,
+not animation, and it uses `behavior: "auto"` under reduced motion. Colour transitions on hover
 (`transition-colors`) are not animation and are permitted on interactive
 elements. A spinner, a skeleton, a page transition, a parallax or an entrance
 animation on a static element is out of scope for this world.
@@ -660,25 +796,29 @@ animation on a static element is out of scope for this world.
 ## Open questions
 
 Gaps in the built system that future work must decide. These are honestly
-unresolved, not omissions from this document.
+unresolved, not omissions from this document. Answered ones are struck through
+rather than deleted, so the decision and the question it settled stay together.
 
-1. **The second motion event does not exist yet.** "The live rule advancing" is
-   promised by the contract and by `globals.css`, and nothing implements it —
-   there is no draft with a clock yet. Whoever builds Phase 3's board owns
-   defining it, and the two-event budget means it is the last animation this app
-   gets.
-2. **There is no real draft board.** `BoardPlan` is an authored, `aria-hidden`
-   depiction of an *empty* board. The 13 × 12 grid with picks in it, its
-   scrolling behaviour on a phone, and what happens to `BoardPlan` once a real
-   board exists are all Phase 2/3 decisions.
+1. ~~**The second motion event does not exist yet.**~~ **Answered in 3.1:** the
+   live rule advancing, keyed on `data-advanced`. See Motion above. The
+   two-event budget is now spent.
+2. ~~**There is no real draft board.**~~ **Answered in 3.1:** `DraftBoard`, above.
+   `BoardPlan` **stays** where it is, unchanged — the login page and the lobby
+   have no draft to draw, and an authored depiction of an empty board is still
+   the honest thing to show there. The two are the same object at two scales and
+   share their ruling, their round gutter and their heavy frame deliberately.
 3. **Two focus idioms.** Buttons and links add a 2px marker outline at
    `focus-visible`. Inputs instead remove the outline and turn their bottom
    border marker red at `focus`. Both are visible and both pass, but there is no
    recorded decision about which idiom a new control type (select, checkbox,
    radio, combobox — the player search is coming) should follow.
-4. **No wide layout beyond 48rem, and only one breakpoint.** A 12-column draft
-   board will not fit `max-w-3xl`. Whether that is a wider container, a
-   horizontally scrolling region, or a new breakpoint is undecided.
+4. ~~**No wide layout beyond 48rem, and only one breakpoint.**~~ **Answered in
+   3.1:** a horizontally scrolling region, and one layout everywhere. No second
+   container width and no new breakpoint — `max-w-3xl` stays the app's single
+   column, and the board overflows it rather than the app widening around the
+   board. The cost is accepted knowingly: a full twelve-member league scrolls
+   sideways on a laptop as well as on a phone. Up to about six members the
+   columns simply share the width they have.
 5. **No dark mode.** `color-scheme: light` is declared and the light ground is a
    deliberate inversion of the physical object, argued from a lit room and
    daylight phone use. Whether a genuinely dark room during a night draft
@@ -687,10 +827,14 @@ unresolved, not omissions from this document.
 6. **Input error and disabled states are unstyled.** `Correction` carries every
    failure today. Per-field validation (which a player search or a trade form
    will want) has no visual language yet.
-7. **The patch and button opacity modifiers are unverified.** `tokens.test.ts`
-   asserts the patch *text* colours. The 55% borders, 10% washes and the
-   35/60/80% button borders are eyeballed against stock; if a token moves, only
-   the text assertions will catch it.
+7. **The patch and button opacity modifiers are *partly* verified now.** 3.1
+   taught `tokens.test.ts` to composite an alpha token over an opaque one, and
+   used it to assert every pair the board renders on a 10% position wash — which
+   is how the three failures behind the Wash-Costs-A-Tenth Rule were found. Still
+   eyeballed: `PositionPatch`'s own 55% borders and its coloured letter on its
+   own 10% wash (4.21–4.50:1 — the board moved off that pairing, the patch has
+   not), and the 35/60/80% button borders. The machinery to check them exists;
+   somebody has to point it at them.
 8. **Two tracking values are one-offs, not tokens.** `tracking-[0.32em]` on the
    code input and `tracking-[0.36em]` on the displayed code. Both are display
    treatments of the same six characters and want to stay in sync; if a third

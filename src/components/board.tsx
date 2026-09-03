@@ -137,10 +137,26 @@ export function Slots({
   );
 }
 
-/** The name written on a card, in marker caps. */
-export function CardName({ children }: { children: ReactNode }) {
+/**
+ * The name written on a card, in marker caps.
+ *
+ * `scale="slot"` is one step down, for the board's 7.5rem columns — the same
+ * caps and the same 0.06em card-name tracking at body-small's size, because a
+ * player in a slot on the board is still a name on a card and should not be
+ * a bespoke class string. It exists because a full-size card name cannot write
+ * "Valančiūnas" inside a board column, and a truncated name is not a name.
+ */
+export function CardName({
+  children,
+  scale = "card",
+}: {
+  children: ReactNode;
+  scale?: "card" | "slot";
+}) {
   return (
-    <span className="text-base font-semibold uppercase tracking-[0.06em]">
+    <span
+      className={`${scale === "slot" ? "text-sm" : "text-base"} font-semibold uppercase tracking-[0.06em]`}
+    >
       {children}
     </span>
   );

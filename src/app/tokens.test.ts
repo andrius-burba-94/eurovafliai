@@ -66,6 +66,40 @@ function contrast(a: string, b: string): number {
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
+/** Clamped linear sRGB for a token, ready to composite. */
+const rgbOf = (name: string): number[] =>
+  oklchToLinearRgb(token(name)).map((v) => Math.min(Math.max(v, 0), 1));
+
+const luminanceOf = ([r, g, b]: number[]): number =>
+  0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+
+/**
+ * A token at partial opacity, composited over an opaque one.
+ *
+ * This is what the board's position washes actually are — `bg-pos-g/10` is a
+ * tenth of the guard hue over card stock — and until 3.1 this file had no way
+ * to say so: every assertion compared one token against another, so an alpha
+ * background was outside what it could express. That is not a small gap. The
+ * board renders its numbers, its G/F/C letter and its column rules on top of
+ * those washes, 156 slots at a time, and the wash costs roughly a tenth of
+ * every ratio above it. The first version of the board put `ink-faint` numbers
+ * (4.42:1) and same-hue letters on them, and this file was 13/13 green the
+ * whole time.
+ */
+const wash = (name: string, alpha: number, over: string): number[] => {
+  const fg = rgbOf(name);
+  const bg = rgbOf(over);
+  return fg.map((v, i) => v * alpha + bg[i]! * (1 - alpha));
+};
+
+/** Contrast of a token against an already-composited background. */
+function contrastOn(name: string, background: number[]): number {
+  const la = luminanceOf(rgbOf(name));
+  const lb = luminanceOf(background);
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 describe("text on card stock clears AA", () => {
   // 4.5:1 is the floor for body text and for anything that tells a user what to
   // do. Every one of these renders as words on the stock ground.
@@ -92,6 +126,59 @@ describe("text on card stock clears AA", () => {
       ).toBeGreaterThanOrEqual(4.5);
     });
   }
+});
+
+describe("the draft board's slots clear AA on their position wash", () => {
+  // Slice 3.1. A filled slot is tinted by its position — `bg-pos-*/10` over
+  // stock — and everything the slot says is written on that tint. These are the
+  // pairings the board actually renders, so they are the ones asserted.
+  const POSITIONS = ["pos-g", "pos-f", "pos-c"] as const;
+
+  for (const position of POSITIONS) {
+    const field = () => wash(position, 0.1, "stock");
+
+    it(`a surname on a ${position} slot clears 4.5:1`, () => {
+      const ratio = contrastOn("ink", field());
+      expect(round(ratio), `ink was ${round(ratio)}:1`).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    });
+
+    it(`the pick number and the G/F/C letter on a ${position} slot clear 4.5:1`, () => {
+      // Both are `ink-soft`, and the letter is the colour-blind fallback for
+      // position — so this is an accessibility floor twice over. Set in the
+      // position's own hue it measured 4.5:1 at best and 4.2:1 at worst, which
+      // is why the hue moved to the field and the text went to ink.
+      const ratio = contrastOn("ink-soft", field());
+      expect(
+        round(ratio),
+        `ink-soft was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it(`the column rule between two ${position} slots clears 3:1`, () => {
+      // Which column a pick is in is meaning, so its boundary has the 3:1
+      // floor. `rule` over a wash is 2.90:1 — under it — which is why the
+      // board's separators are `rule-strong`.
+      const ratio = contrastOn("rule-strong", field());
+      expect(
+        round(ratio),
+        `rule-strong was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  it("the slot on the clock says its pick number in ink, not in marker", () => {
+    // DESIGN.md forbids marker text on the live tint by name, and 3.1 shipped
+    // exactly that on the one slot that matters most — where the pick number is
+    // the slot's only text. Asserted here so it cannot come back.
+    const onBlush = rgbOf("live-sunk");
+    expect(round(contrastOn("live", onBlush))).toBeLessThan(4.5);
+    expect(
+      round(contrastOn("ink-soft", onBlush)),
+      `ink-soft on live-sunk was ${round(contrastOn("ink-soft", onBlush))}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 describe("the board's ruling is perceivable", () => {

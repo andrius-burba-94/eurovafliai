@@ -117,6 +117,17 @@ body {
   background-color: var(--color-live-sunk);
 }
 
+/* Where a paused draft stands. Solid marker plus the blush means *pick now*;
+ * this is the same marker at the same weight, dashed, with no fill — because
+ * dashed is already this system's word for unsettled. 3.1 shipped a paused
+ * board struck exactly like a live one, which is one material carrying two
+ * opposite instructions: act, and wait. A member glancing down mid-conversation
+ * could not tell which, and the banner that disambiguates it is several screens
+ * up on a phone. */
+@utility slot-standing {
+  border-top: 2px dashed var(--color-live);
+}
+
 /* A correction on the board: struck in ink, not in marker. The marker means
  * one thing only — who is on the clock — so an error that borrowed it made a
  * failure and an invite code look identical. */
@@ -156,4 +167,68 @@ body {
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
+}
+
+/* Event two, and the last one this app gets: the live rule advancing.
+ *
+ * Slice 1.4 promised it in the direction contract and left it unbuilt, because
+ * there was no draft with a clock to advance. The board is where it belongs —
+ * when a pick lands, the marker rule leaves the slot that was on the clock and
+ * draws itself across the next one, left to right, in the direction the round
+ * is being drafted.
+ *
+ * ## Why this one is keyed on an attribute rather than a class
+ *
+ * The other utilities are chosen on the server: the room re-renders per event
+ * and the server knows which slot is live. What the server cannot know is
+ * whether the viewer was *watching* when the clock moved. Rendering the
+ * animation from server state would replay it on every page load and every
+ * refresh — DESIGN.md's own objection to motion without a signal, and the
+ * reason `card-lands` waits for `?arrived=1`. So the honest signal is
+ * client-side: `board-scroll.tsx` sets `data-advanced` on the newly live slot
+ * only when it saw `current_pick` change while mounted, exactly as `Slot`
+ * marks `data-landed`. A first paint is therefore still.
+ *
+ * The rule is painted by a pseudo-element rather than the border it sits on,
+ * because a border cannot be scaled from one end. The border underneath goes
+ * transparent for the duration and the overlay is what you see. */
+@keyframes rule-advances {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+[data-board-slot][data-state="live"][data-advanced="true"] {
+  position: relative;
+  border-top-color: transparent;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-live);
+    transform-origin: left;
+    animation: rule-advances 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* The rule still arrives — it simply does not travel. `animation: none`
+   * leaves the overlay at its resting scale, which is the full-width rule. */
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      animation: none;
+    }
+  }
+}
+
+/* Every even round of a snake draft is drafted right to left, so the rule has
+ * to be able to travel that way too — otherwise half of all advances move
+ * against the round they are advancing through. */
+[data-board-slot][data-state="live"][data-advanced="true"][data-reversed]::after {
+  transform-origin: right;
 }
