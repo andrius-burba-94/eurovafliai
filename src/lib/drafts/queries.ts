@@ -8,6 +8,7 @@ import {
   type Position,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
+import type { PoolPlayer } from "@/lib/pool/search";
 import { createUserClient } from "@/lib/pb/server";
 
 import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
@@ -60,14 +61,25 @@ export type DraftView = {
   members: { id: string; name: string; isYou: boolean }[];
   /** Positions the viewer still has room for — "needs: 1 C, 2 F". */
   yourNeeds: Record<Position, number>;
-  /** Players nobody has taken yet, ready to pick. */
-  available: {
-    id: string;
-    name: string;
-    club: string;
-    position: Position;
-  }[];
-  takenPlayerIds: string[];
+  /**
+   * The same count for **whoever is on the clock**, which is not always the
+   * viewer: a commissioner entering a pick for a dead phone needs that member's
+   * legality, not their own. The pool mutes rows against this. Null while
+   * nobody is on the clock, which mutes nothing.
+   */
+  clockNeeds: Record<Position, number> | null;
+  /**
+   * The whole draftable pool, drafted players included and marked as such.
+   *
+   * Not just the available ones, because "hide drafted" is a filter and a
+   * filter needs something to filter — and its off state answers a question a
+   * draft room asks out loud: has somebody already taken Nunn, and who? 324
+   * rows is small enough to send once and narrow in the browser, which is what
+   * makes 3.3's search instant and free of round trips.
+   */
+  pool: PoolPlayer[];
+  /** How many of `pool` nobody holds yet. The Bank's count. */
+  availableCount: number;
 };
 
 export async function getDraftView(
@@ -185,17 +197,25 @@ export async function getDraftView(
       ? whoIsOnClock({ ...state, status: "live" }, enginePicks)
       : null);
 
-  const yourRoster = picks
-    .filter((pick) => pick.memberId === youId)
-    .map((pick) => ({ position: pick.position }));
+  const rosterOf = (memberId: string | undefined) =>
+    picks
+      .filter((pick) => pick.memberId === memberId)
+      .map((pick) => ({ position: pick.position }));
 
-  const taken = new Set(picks.map((pick) => pick.playerId));
+  /** Who holds each player, by player id — the pool's `takenBy`. */
+  const heldBy = new Map(
+    picks.map((pick) => [
+      pick.playerId,
+      { by: pick.memberName, at: pick.overallNo },
+    ]),
+  );
 
-  // The pool, minus everyone already drafted. 324 players is small enough to
-  // read whole; Phase 3.3 adds the filters and the fuzzy search.
+  // The whole pool, drafted players included — see `pool` on DraftView. 324
+  // players is small enough to read whole and to send whole.
   const players = await pb.collection("players").getFullList<{
     id: string;
     name: string;
+    name_normalized: string;
     club_code: string;
     position: Position;
     status: string;
@@ -231,16 +251,27 @@ export async function getDraftView(
       name: nameOf.get(record.id) ?? "Unknown member",
       isYou: record.id === youId,
     })),
-    yourNeeds: needsOf(yourRoster, settings.roster_template),
-    available: players
-      .filter((player) => !taken.has(player.id))
-      .map((player) => ({
+    yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
+    clockNeeds: clock
+      ? needsOf(rosterOf(clock.memberId), settings.roster_template)
+      : null,
+    pool: players.map((player) => {
+      const held = heldBy.get(player.id);
+      return {
         id: player.id,
         name: player.name,
+        // The ingestion match key, carried so the browser can match
+        // "valanciunas" against "Valančiūnas" without owning a second folding
+        // implementation. Never displayed — ingestion sorts its tokens.
+        normalized: player.name_normalized ?? "",
         club: player.club_code,
         position: player.position,
-      })),
-    takenPlayerIds: [...taken],
+        status: player.status,
+        takenBy: held?.by ?? null,
+        takenAt: held?.at ?? null,
+      };
+    }),
+    availableCount: players.filter((player) => !heldBy.has(player.id)).length,
   };
 }
 
