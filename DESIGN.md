@@ -742,6 +742,48 @@ positioned, so hiding the whole element takes it out of the grid and slides ever
 member's name one column left — a board that names the wrong person above every
 column, which a screenshot only reveals if you already know the draft order.
 
+### Roster radar — `RosterRadar`
+
+One row per member, one mark per roster slot, grouped the way the template is
+written: five guards, five forwards, three centres. Same material as the board —
+dashed `rule` waiting, solid `rule-strong` plus a position wash filled — at the
+one scale where the whole league is visible at once. Rows are in draft order, so
+the radar reads *down* the same order the board reads *across*, and both zip
+against one `columns` array.
+
+- **It fits a phone because a mark is not a name.** The board needs 8rem a
+  column to write "Valančiūnas" and therefore scrolls; a radar slot says only
+  *filled* or *waiting*, so thirteen of them plus a member's name sit inside
+  350px. `gap-0.5` between slots, not `gap-px`: at a hairline's separation the
+  twelve dashed empties merged into one dashed line and the row read as a
+  progress bar. You have to be able to count thirteen.
+- **Your own row** takes the heavier top rule and ink text, the same treatment
+  the board gives your column.
+- **A surplus is drawn, not dropped.** A pick that does not fit the template is
+  struck in `slot-correction` — 2px ink, the system's word for an error. There
+  should never be one; a radar that quietly discarded it would hide the only
+  state that would mean the referee had failed.
+
+**Position here is carried by *place*, not by a letter.** This is the one
+component that does not print G / F / C, and it is not an exception to the
+Letter-Always Rule: the marks are ordered by the template, so the first group
+*is* the guards, and every row carries a sentence that names the positions in
+words. Colour is the third signal, not the only one.
+
+### Marks are a picture; the sentence is the content
+
+Thirteen 14px marks are a visualization, and to a screen reader they are
+thirteen announcements of nothing. So the radar's grid is `aria-hidden` and each
+row carries an `sr-only` sentence instead — "B Ballers, 3 of 13 filled, needs 3
+guards, 4 forwards and 3 centres" — which is the same fact said properly rather
+than the same fact said 156 times.
+
+`DraftBoard` does the opposite, and correctly: its cells carry player names, so
+they are content, and they are announced. The rule is about what the element
+*holds*, not about how it is drawn: a cell with a name in it is text; a cell
+whose whole meaning is "this one is filled" is a picture of a number, and the
+number should be said once.
+
 ### Back arrow — `BackArrow`
 
 See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.

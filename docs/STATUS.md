@@ -23,9 +23,10 @@ defines the target and this file is wrong.
 > the deploy have all landed. Realtime is verified working *through the
 > production proxy* — `PB_CONNECT` arrives in 0.1s, unbuffered.
 
-**Next up: slice 3.2, the Live Roster Radar** — the 5G/5F/3C matrix per member.
-It is the only part of 3.2 left: the realtime half belonged to 2.6 and the
-legality muting landed with 3.3.
+**Next up: slice 3.4, cheat sheets** — the CSV upload, drag-to-reorder and tier
+breaks that drive autodraft. It is also what 3.3 left owing: the pool's resting
+state should be a short "best available" list rather than thirty of 341, and
+"best available" means a sheet.
 
 Still outstanding, and it needs people rather than code: the **Phase 2
 rehearsal**, a full 13-round draft with one member on autodraft and a rollback
@@ -159,7 +160,7 @@ now landed on top of them.
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **3.1 Draft board — the rounds × teams grid** | done | — | Rounds down, members across, in a region that scrolls sideways inside the app's one `max-w-3xl` column — no second container width and no new breakpoint, which settles DESIGN.md's open question 4 and accepts knowingly that a twelve-member league scrolls on a laptop too. **Columns are members, not pick slots**: a column has to be one member's roster or every column of a snake draft is a zigzag of two people's players. The layout is a new pure engine function, `buildBoardShape`, and it is computed **from `buildPickOrder`** rather than from its own parity arithmetic — round direction stays decided in exactly one place, so this board is already right for any format that function is right for, including ones not written yet. Round numbers are sticky, so the row stays labelled while the columns move. Grid layout with table roles, because a rounds × members wall genuinely is tabular data and a real `<table>` cannot both divide its container and overflow it. `BoardPlan` **stays** — the login page and the lobby have no draft to draw (open question 2, answered). A **paused** board keeps its marker on the slot the draft stands at — strictly nobody is on the clock while paused, but the room's own banner is struck in marker throughout a pause, and a board that alone showed nothing was the odd one out; a complete board has no marked slot, because there is no next one. The chronological run below the board is now a **ticker**, capped at the last 8: the board above it holds the history, and the run is better at the sentence — who took whom, and whether the worker did it |
-| **3.2 Live Roster Radar** | **next** | — | Two of its three parts have already landed elsewhere. The realtime half is done and belonged to 2.6 all along (see that row), and the **legality muting landed with 3.3** — a player the picker has no room for is dimmed and labelled "No room" while keeping its button, because the server is the authority. What is left is the radar itself: the 5G/5F/3C matrix per member, filling live. 3.1's board is the closest thing to it today: a column *is* a member's roster, and the position letter and wash are in every filled slot, so "who still needs a centre" is readable off the wall by eye rather than stated |
+| **3.2 Live Roster Radar** | done | — | Shipped in three pieces across three slices, which is worth knowing when reading the blueprint's one bullet: the **realtime half** belonged to 2.6, the **legality muting** landed with 3.3, and this slice is the **radar itself** — one row per member, one mark per roster slot, grouped the way the template is written. Rows are in draft order so the radar reads *down* the same order the board reads *across*; the two answer different questions, because the board is sorted by when a pick happened and the radar by what a roster is missing. It fits a phone with no scrolling at all, which the board cannot, for the plain reason that a mark is not a name. The layout is a pure engine function (`buildRadar`) because the template is a **rule** read from league settings — the blueprint leaves open whether a twelve-member league drops to eleven-man rosters, and a radar that had assumed 5/5/3 would be a second place to correct when that lands. A pick that does not fit the template is **drawn** as a correction rather than dropped: there should never be one, and a radar that discarded it would hide the only state that would mean the referee had failed. 3.1's board is the closest thing to it today: a column *is* a member's roster, and the position letter and wash are in every filled slot, so "who still needs a centre" is readable off the wall by eye rather than stated |
 | **3.3 Player pool: filters + fuzzy search** | **partial** | — | Landed: fuse.js over the whole pool in the browser (no round trip per keystroke), position, club, hide-drafted and fit-to-play filters, legality muting brought forward from 3.2, and a keyboard path — type, arrow, **Enter to arm**, Enter again to pick, Escape to cancel. The blueprint says "enter to queue pick" and there is no queue until 3.4, so arming is what Enter does: a pick is undoable only by a commissioner rollback and Enter is the key people press to dismiss things. Diacritic folding is not reimplemented — the browser is sent ingestion's own `name_normalized`, so "valanciunas" finds Valančiūnas because 2.1a already folded it. The pool now arrives **whole**, drafted players included and marked with who took them, because "hide drafted" is a filter and a filter needs something to filter. **Deferred, both blocked rather than skipped:** the *projected points* filter needs 4.4's projections and the *cheat-sheet tier* filter needs 3.4's sheets. Both are listed in the blueprint's 3.3 and neither has data to filter on yet |
 | 3.4 Cheat sheets | todo | — | Autodraft has nothing to rank on until this or 4.4 lands (see Open debt) |
 | 3.5 League chat + draft trade offers | todo | — | Also where a rollback finally gets its system message (2.4's one deferred line) |
@@ -245,9 +246,9 @@ Last full local run, on slice 3.3: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **444 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 48 config, helpers, the board's name-writing and the ten new contrast floors, 23 the pool's filtering and fuzzy search |
+| `npm run test` | **463 passed** — 205 the engine (3.1 adds 24 for the board's layout, and 6 more purity checks arrive free with the new module), 55 the ingestion pipeline, 55 leagues and the draft setup, 52 the clock, the pipeline's small print and the sweep, 48 config, helpers, the board's name-writing and the ten new contrast floors, 23 the pool's filtering and fuzzy search |
 | `npm run build` | pass |
-| `npm run test:e2e` | **176 passed** (chromium + Pixel 7) — 3.1 adds ten specs and 3.3 adds ten, run on both |
+| `npm run test:e2e` | **184 passed** (chromium + Pixel 7) — 3.1 adds ten specs, 3.3 adds ten and 3.2 adds four, run on both |
 | `npm run pb:verify` | 74 checks pass |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | 324 players from 20 clubs, applied; re-running is a no-op |
@@ -304,6 +305,22 @@ logged a migration restart for a slice that ships no migration. Harmless, and
 now documented. And the `vps-deploy` skill said "`deploy.sh` never restarts it",
 which stopped being true when the migration step was written; the skill now says
 what the script does.
+
+**The radar is where a screen reader and a screen want different things.** 3.2's
+marks are 14px wide and mean only *filled* or *waiting*, so thirteen of them are
+a picture — and to a screen reader they were thirteen announcements of nothing.
+The grid is therefore `aria-hidden` and every row carries one `sr-only` sentence
+instead: "B Ballers, 3 of 13 filled, needs 3 guards, 4 forwards and 3 centres."
+`DraftBoard` does the opposite and is right to: its cells hold player names, so
+they are content and are announced. The rule that fell out of it — a cell with a
+name in it is text, a cell whose whole meaning is "this one is filled" is a
+picture of a number, and the number should be said once — is now in DESIGN.md,
+because it is the kind of thing the next surface will have to decide too.
+
+It is also the one component in the app that does **not** print G / F / C, which
+is worth being explicit about rather than letting it look like a lapse: the marks
+are ordered by the template, so the first group *is* the guards, and the sentence
+names every position in words. Place and prose carry it; colour is third.
 
 **What the pool's critique changed, and the one finding that matters most.**
 `/impeccable critique` ran as two isolated assessments again and scored the pool
