@@ -78,10 +78,17 @@ export function Bank({
   children: ReactNode;
   aside?: ReactNode;
 }) {
+  // A section with a heading it is not associated with is an unnamed region:
+  // a screen reader lands in it and is told nothing, while the heading it
+  // belongs to sits outside as a sibling. One `id` fixes it for every bank in
+  // the app, which is every section on every surface.
+  const headingId = `bank-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   return (
-    <section className="flex flex-col gap-3">
+    <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="slot-label">{label}</h2>
+        <h2 id={headingId} className="slot-label">
+          {label}
+        </h2>
         {aside ? <span className="slot-label">{aside}</span> : null}
       </div>
       {children}
