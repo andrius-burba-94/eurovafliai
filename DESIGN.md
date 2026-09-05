@@ -469,6 +469,10 @@ surfaces this way (`login`, `app-shell`, `lobby`).
 
 ### Section — `Bank`
 
+Every bank is `aria-labelledby` its own `h2`. A section whose heading is a
+sibling it is not associated with is an unnamed region: a screen reader lands in
+it and is told nothing. One `id` fixes it for every section on every surface.
+
 A section of the board. Heading is a slot label; an optional `aside` (also a slot
 label) sits baseline-aligned at the right of the same line and carries the
 count — "3 of 12", "9 of 12 free", "2 on the board", "none yet". Heading and
@@ -744,31 +748,69 @@ column, which a screenshot only reveals if you already know the draft order.
 
 ### Roster radar — `RosterRadar`
 
-One row per member, one mark per roster slot, grouped the way the template is
-written: five guards, five forwards, three centres. Same material as the board —
-dashed `rule` waiting, solid `rule-strong` plus a position wash filled — at the
+One row per member, one mark per roster slot, in three **labelled** runs — and
+each run prints **what that member still needs**. Same material as the board:
+dashed `rule` waiting, solid `rule-strong` over a position wash filled, at the
 one scale where the whole league is visible at once. Rows are in draft order, so
 the radar reads *down* the same order the board reads *across*, and both zip
 against one `columns` array.
 
-- **It fits a phone because a mark is not a name.** The board needs 8rem a
-  column to write "Valančiūnas" and therefore scrolls; a radar slot says only
-  *filled* or *waiting*, so thirteen of them plus a member's name sit inside
-  350px. `gap-0.5` between slots, not `gap-px`: at a hairline's separation the
-  twelve dashed empties merged into one dashed line and the row read as a
-  progress bar. You have to be able to count thirteen.
-- **Your own row** takes the heavier top rule and ink text, the same treatment
-  the board gives your column.
-- **A surplus is drawn, not dropped.** A pick that does not fit the template is
-  struck in `slot-correction` — 2px ink, the system's word for an error. There
-  should never be one; a radar that quietly discarded it would hide the only
-  state that would mean the referee had failed.
+- **The figure is the answer; the marks are the shape.** The first version
+  printed `filled/total` and put the needs in an `sr-only` sentence — so the
+  surface whose subject is *who still needs a center* showed how **full** a
+  roster was, a number the board's own heading already gives, and hid what it
+  was missing. Counting could not recover it either: measured in a browser,
+  thirteen waiting marks render as three continuous dashed rules, because
+  Chromium's dash gap for a 1px dashed border is 2px and the gap between slots
+  was also 2px. Filled marks were countable; the empty ones — the ones you would
+  want to count — were not.
+- **The run heads are right-aligned**, so each letter sits directly above its
+  own figure and "how many centers does D Ballers need" is a one-step lookup
+  down a labelled column. A blank figure means no room left, so the block's ink
+  *decreases* as the evening goes on.
+- **The figure is fixed-width, and there is no trailing total.** The old `11/13`
+  had no fixed width, so a two-digit count pulled every mark in that row 7.5px
+  left and the runs zig-zagged down the page from about round ten. Measured
+  before and after; every head and figure now shares a right edge at 320, 390
+  and 1280px.
+- **It fits a phone because a mark is not a name.** The board needs 8rem a column
+  to write "Valančiūnas" and therefore scrolls; a radar slot says only *filled*
+  or *waiting*, so thirteen of them plus a member's name sit inside 350px, at
+  every width, with no horizontal overflow. The name column widens at `sm`
+  rather than staying 88px while the marks get 570px.
+- **Your own row** is `text-ink` and `· you`, and nothing else — which is what
+  `DraftBoard` actually does for your column. This entry used to claim the
+  heavier top rule was "the same treatment the board gives your column"; the
+  board does no such thing, and the rule bought 1.39:1 on a hairline.
+- **Row dividers are `slot-filled`**, a solid `rule-strong`, so a divider is a
+  full contrast step away from the dashed `rule` data below it. Solid 1px `rule`
+  — what this used to use — is the *same colour* as an empty mark's own rule,
+  differing only in dash phase, so the eye read two parallel lines per row
+  rather than thirteen slots. It is also a material `globals.css` does not have.
+- **The list closes** with `border-b border-rule-strong`, like every other run in
+  the app. It used to just stop.
+- **A surplus is drawn, not dropped**, at a fixed width so it cannot shrink the
+  thirteen real marks beside it. A pick that does not fit the template is struck
+  in `slot-correction` — 2px ink, the system's word for an error. There should
+  never be one; a radar that quietly discarded it would hide the only state that
+  would mean the referee had failed.
 
-**Position here is carried by *place*, not by a letter.** This is the one
-component that does not print G / F / C, and it is not an exception to the
-Letter-Always Rule: the marks are ordered by the template, so the first group
-*is* the guards, and every row carries a sentence that names the positions in
-words. Colour is the third signal, not the only one.
+**Position here is carried by a run head, not by a per-mark letter.** The locked
+decision — that a *mark* does not print G / F / C — stands, and is right at 156
+marks. It should never have been extended to the *table*: this was the only grid
+in the app whose axis was unnamed, and the colour that was meant to be the
+fallback is not one. Measured under a severity-1.0 deuteranopia simulation, the
+guard wash and the center wash are **pixel-identical** (ΔE76 = 0.00; protanopia
+0.36), so "colour is the third signal" was really "place is the only signal" —
+unlabelled. `DraftBoard` names its columns; the pool's filters name G, F and C
+on their own rules. A table naming its axis once is not a per-cell letter.
+
+**The position wash is decoration, and this document should say so.** At
+`bg-pos-*/10` it measures **1.14:1** against stock — 62% short of the 3:1
+boundary floor, and identical for all three hues. What separates filled from
+waiting is *form*: a solid `rule-strong` rule over a filled box (4.37:1) against
+a dashed `rule` hairline (3.15:1), which survives grayscale and every CVD
+simulation. The wash reinforces; it never carried.
 
 ### Marks are a picture; the sentence is the content
 
