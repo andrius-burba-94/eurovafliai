@@ -15,7 +15,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **slot** | One position on the board: a round crossed with a team. Empty, filled, or the one on the clock. Also a member's place in a lobby before the draft exists. | `picks.slot`; the `Slot` and `DraftBoard` components |
 | **column** | One member's whole roster, read down the board. Columns are in round 1's order — never in pick order, which in a snake draft would put two people's players in one column. | `BoardShape.columns` |
 | **the pool** | Every player still available to draft. | filtered `players` |
-| **radar** | The 5G/5F/3C slot matrix per team, filling live; shows what a roster still needs. | Live Roster Radar (Phase 3.2) |
+| **radar** | The 5G/5F/3C slot matrix per team, filling live; shows what a roster still needs. Live since 3.2. | `RosterRadar`, `buildRadar()` |
 | **cheat sheet** | A member's private ranked player list, with optional tier breaks. Drives autodraft. | `cheat_sheets` |
 | **tier** | A break in a cheat sheet grouping players of similar value. | `cheat_sheets.tiers` |
 | **the roll** | The seeded shuffle that determines draft order, revealed live one slot at a time. | `order_mode: 'roll'`, `drafts.seed` |

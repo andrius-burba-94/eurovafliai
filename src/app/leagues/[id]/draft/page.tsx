@@ -12,6 +12,7 @@ import {
   TopRail,
 } from "@/components/board";
 import { DraftBoard, type BoardEntry } from "@/components/draft-board";
+import { RosterRadar } from "@/components/roster-radar";
 import { getSession } from "@/lib/auth/session";
 import { getDraftView } from "@/lib/drafts/queries";
 import { buildBoardShape } from "@/lib/engine";
@@ -36,10 +37,10 @@ const RECENT_PICKS = 8;
 /**
  * The draft room — slices 2.4/2.6, live since 3.2a, with the board since 3.1.
  *
- * On the clock, a way to pick, and the board itself: rounds down, members
- * across, every slot drawn whether it is filled or not. Still to come in Phase
- * 3: the live roster radar, fuzzy search, cheat sheets. It renders server-side
- * so the state is correct before any JavaScript does anything.
+ * On the clock, a way to pick, the pool to pick from, the radar of what every
+ * roster still needs, and the board itself. Still to come in Phase 3: cheat
+ * sheets, chat and trades, the commissioner console. It renders server-side so
+ * the state is correct before any JavaScript does anything.
  *
  * `LiveDraft` is what keeps it correct *after* that: it subscribes to this
  * draft over SSE and asks this page to render again. Every fact on screen is
@@ -220,6 +221,23 @@ export default async function DraftPage({
             />
           </Bank>
         ) : null}
+
+        {/* Between the pool and the board on purpose. The pick path owns the
+            top of the room — clock, then a way to pick — and the radar is the
+            first thing you meet when you scroll to *study* the draft rather
+            than to act in it. It also pairs with the board: the radar is
+            sorted by what a roster is missing, the board by when a pick
+            happened, and the two answer different questions. */}
+        <Bank
+          label="The radar"
+          aside={`${draft.order.length} rosters × ${view.rosterTotal}`}
+        >
+          <RosterRadar
+            rows={view.radar}
+            columns={columns}
+            total={view.rosterTotal}
+          />
+        </Bank>
 
         {/* The board proper. No empty state: an empty board is still a board,
             which is the whole of the Board-Shows-Its-Shape rule. */}

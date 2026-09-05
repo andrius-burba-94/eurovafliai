@@ -17,6 +17,7 @@
  * | `board.ts`     | where each pick number sits on a rounds × members wall |
  * | `clock.ts`     | whose turn is it, and is the draft finished         |
  * | `legality.ts`  | may this member take this player                    |
+ * | `radar.ts`     | what each member's roster still has room for        |
  * | `autodraft.ts` | who does the engine pick for an absent member       |
  * | `rollback.ts`  | what does undoing to pick N delete and re-point     |
  *
@@ -53,6 +54,9 @@ export {
 
 export type { LegalityInput } from "./legality";
 export { countByPosition, isLegalPick, openPositions } from "./legality";
+
+export type { RadarPick, RadarRow, RadarSlot } from "./radar";
+export { buildRadar, radarSize } from "./radar";
 
 export type { AutoPickInput } from "./autodraft";
 export { rankForMember, selectAutoPick } from "./autodraft";
