@@ -883,6 +883,14 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 
 - **Don't** add a corner radius, a shadow, a gradient, a blur or a second surface
   colour. None exist today; each would be a regression, not a variant.
+- **Don't** compose a utility name from a variable. Tailwind reads source text,
+  so `` `slot-${state}` `` emits nothing, the rule does not exist, and the
+  surface looks plausible with its whole state language missing. Write the map
+  out — `SLOT_RULE` exists in two files for exactly this reason.
+- **Don't** add a plain background utility next to a state utility that brings
+  its own. `bg-stock` alongside `slot-live` paints straight over the live tint,
+  because both set `background-color` and the plain one wins. Shipped that way
+  once, on the room's sticky band.
 - **Don't** put a second marker-red primary action on one surface, and don't use
   marker red for anything that is not state or the one act. The pool's **armed**
   row is the one act, and is struck accordingly: exactly one row at a time, and
