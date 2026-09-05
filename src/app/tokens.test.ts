@@ -275,6 +275,17 @@ describe("a control's own border is a boundary that means something", () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
+  it("an input's ruled line clears 3:1 on stock", () => {
+    // DESIGN.md: the ruled line *is* the input — no box, no fill, no radius —
+    // so it is the whole affordance and takes the boundary floor. `ink/30` was
+    // 1.87:1, the lowest boundary in the app, and unasserted.
+    const ratio = contrastOn2(wash("ink", 0.5, "stock"), rgbOf("stock"));
+    expect(
+      round(ratio),
+      `ink/50 on stock was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
   for (const position of ["pos-g", "pos-f", "pos-c"] as const) {
     it(`a ${position} patch's border clears 3:1 against the wash it encloses`, () => {
       // The border separates the wash inside from the stock outside, so the

@@ -308,14 +308,18 @@ what the script does.
 been logged as debt rather than fixed were closed in the same pass as the
 radar's:
 
-- **Two measured rule violations.** `border-ink/35` on every button was
-  **2.10:1** and `border-pos-*/55` on every patch **2.22–2.26:1**, both under
-  this project's own 3:1 boundary floor — and on a button the border *is* the
+- **Three measured rule violations.** `border-ink/35` on every button was
+  **2.10:1**, `border-pos-*/55` on every patch **2.22–2.26:1**, and an input's
+  or select's bottom rule at `ink/30` **1.87:1** — the lowest boundary in the
+  app, and the one DESIGN.md itself calls the whole affordance ("the ruled line
+  *is* the input"). All three under this project's own 3:1 boundary floor — and on a button the border *is* the
   control: no fill, no radius, no coloured label. Now `ink/50` (3.10:1) and
   `pos-*/80` (3.05–3.11:1 against the wash it encloses, which is the binding
-  side). Both stay inside the 35–80% range DESIGN.md already declared, so this
-  closes its open question 7 rather than moving the system, and both are
-  asserted.
+  side), and inputs and selects `/50` as well. All inside the 35–80% range
+  DESIGN.md already declared, so this closes its open question 7 rather than
+  moving the system, and every pair is asserted. The input one had been reported
+  and missed twice before this pass — it was in a measurement list rather than
+  in a ranked finding, which is exactly how a real number gets skimmed past.
 - **The clock is on screen while you pick.** The on-the-clock band is
   `sticky top-0`. It broke the banner's blush on the way — a plain `bg-stock`
   alongside `slot-live` paints over it, because both set `background-color` and
