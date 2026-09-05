@@ -94,6 +94,24 @@ make broken code pass.
   calling it — from a spec, a script or a REPL — against a database where you
   have a draft open by hand will autodraft into that draft. Pass `onlyDraft`
   with the id under test; `tests/e2e/worker.spec.ts` does, and that is why.
+- **`readPicks` returns the *engine's* pick shape, not PocketBase's.** It gives
+  you `playerId` and `memberId`; the raw records carry `player` and `member`. A
+  script that reads `.player` off it gets `undefined` silently — and if that
+  value went into a `takenPlayerIds` set, `selectAutoPick` then re-picks a player
+  who is already gone and every `commitPick` after the first returns `"raced"`.
+  Cost two throwaway scripts that looked like they worked; both produced a draft
+  frozen after exactly one pick.
+- **A screenshot used as evidence must assert something about its own content.**
+  A script that drives a draft and then screenshots it can fail halfway and still
+  produce a plausible-looking image. Two identical screenshots were handed to a
+  design review as "the radar at 20 and at 60 picks"; both were the radar at one
+  pick, and the review's own reader caught it. One `expect` on a count or a
+  rendered string before the `screenshot()` call is the whole fix.
+- **Interpolated class names compile to nothing.** Tailwind reads source text, so
+  `` className={`slot-${state}`} `` emits no CSS at all and the rule silently does
+  not exist — a board with its entire state language missing still looks
+  plausible in a screenshot. Write the map out (`SLOT_RULE` in `board.tsx` and
+  `draft-board.tsx` both do).
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so
