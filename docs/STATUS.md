@@ -9,13 +9,18 @@ It is deliberately *not* the plan. The plan is
 file records how far through it we are. When the two disagree, the blueprint
 defines the target and this file is wrong.
 
-> **Production is at `99a1fe9`**, live at
-> [eurovafliai.labrium.online](https://eurovafliai.labrium.online). Everything
-> below marked `done` is deployed and was checked after the deploy by more than
-> an HTTP 200 — the classes the slice added were grepped out of the stylesheet
-> the box actually serves, and realtime was re-verified through the `/pb/` proxy
+> **Production tracks `main`.** Every merge deploys itself — CI green on `main`
+> triggers the deploy workflow — so "what is live" is always just `main`, and
+> this file will not try to name a SHA it cannot keep current. The last
+> code-bearing slice to reach production was 3.2's critique fixes, `99a1fe9`;
+> anything merged after that is deployed too. Live at
+> [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
+>
+> Everything below marked `done` was checked *after* its deploy by more than an
+> HTTP 200 — the classes the slice added were grepped out of the stylesheet the
+> box actually serves, and realtime was re-verified through the `/pb/` proxy
 > (`PB_CONNECT` inside 0.3s, unbuffered), because that is the thing a deploy
-> breaks silently.
+> breaks silently. Do the same after yours.
 >
 > **Phase 3 is three slices in**: the board (3.1), the radar (3.2) and the pool
 > (3.3, partial), each followed by an `/impeccable critique` pass whose fixes
