@@ -86,8 +86,11 @@ export function rowSentence(
   row: RadarRow,
   column: BoardColumn,
   total: number,
+  onClock = false,
 ): string {
-  const who = `${column.name}${column.isYou ? ", you" : ""}`;
+  const who = `${column.name}${column.isYou ? ", you" : ""}${
+    onClock ? ", on the clock" : ""
+  }`;
   const surplus =
     row.overflow.length === 0
       ? ""
@@ -134,12 +137,23 @@ export function RosterRadar({
   rows,
   columns,
   total,
+  onClockMemberId,
 }: {
   rows: readonly RadarRow[];
   /** Ordered exactly as `rows` — the same array the board's columns come from. */
   columns: readonly BoardColumn[];
   /** Slots per roster, for the spoken "3 of 13". */
   total: number;
+  /**
+   * The member on the clock, or null when nobody is.
+   *
+   * CONTEXT.md calls this surface "filling live", and it was the one live
+   * surface in the room with no marker on the live member at all — so the
+   * question "whose turn is it, and what do they need" took two surfaces to
+   * answer. Marked in the row's own material: the marker rule, which is what
+   * red means everywhere else in this app.
+   */
+  onClockMemberId: string | null;
 }) {
   // The same guard the board carries, for the same reason: a mismatch here
   // would put every member's name against somebody else's roster, and it would
@@ -196,13 +210,25 @@ export function RosterRadar({
               key={row.memberId}
               data-testid="radar-row"
               data-member={row.memberId}
+              data-on-clock={
+                row.memberId === onClockMemberId ? "true" : undefined
+              }
+              // The same DOM contract `Slot` publishes, so a row's material is
+              // readable without parsing class strings.
+              data-state={row.memberId === onClockMemberId ? "live" : "filled"}
               // `slot-filled` — a solid `rule-strong` divider, a full contrast
               // step away from the dashed `rule` data below it. It used to be
               // solid `rule`: the same colour as an empty mark's own rule,
               // differing only in dash phase, so the eye read two parallel
               // lines per row instead of thirteen slots. Solid 1px `rule` is
               // also a material `globals.css` does not have.
-              className="slot-filled flex items-center gap-2 py-1.5"
+              //
+              // The member on the clock takes `slot-live` instead: the marker
+              // rule and the blush, which is what red means on every other
+              // surface here.
+              className={`flex items-center gap-2 py-1.5 ${
+                row.memberId === onClockMemberId ? "slot-live" : "slot-filled"
+              }`}
             >
               {/* Your own row is `text-ink` and `· you`, and nothing else,
                   which is exactly what the board does for your column. The
@@ -274,7 +300,14 @@ export function RosterRadar({
                 ))}
               </span>
 
-              <span className="sr-only">{rowSentence(row, column, total)}</span>
+              <span className="sr-only">
+                {rowSentence(
+                  row,
+                  column,
+                  total,
+                  row.memberId === onClockMemberId,
+                )}
+              </span>
             </li>
           );
         })}

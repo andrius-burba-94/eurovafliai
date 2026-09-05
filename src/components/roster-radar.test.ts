@@ -67,6 +67,23 @@ describe("rowSentence", () => {
   });
 });
 
+describe("rowSentence — the clock", () => {
+  it("says when a member is on the clock", () => {
+    const row = buildRadar([{ memberId: "m1", picks: [] }], TEMPLATE)[0]!;
+    expect(rowSentence(row, mine, 13, true)).toBe(
+      "Chief, you, on the clock: 0 of 13 filled, needs 5 guards, 5 forwards and 3 centers.",
+    );
+    expect(rowSentence(row, you, 13, true)).toContain(
+      "B Ballers, on the clock:",
+    );
+  });
+
+  it("says nothing about the clock when nobody is on it", () => {
+    const row = buildRadar([{ memberId: "m1", picks: [] }], TEMPLATE)[0]!;
+    expect(rowSentence(row, you, 13, false)).not.toContain("on the clock");
+  });
+});
+
 describe("rowSentence — the surplus that should never exist", () => {
   it("reports it as its own sentence, with the verb agreeing", () => {
     // Not "needs nothing, and 1 pick that do not fit": a member does not *need*

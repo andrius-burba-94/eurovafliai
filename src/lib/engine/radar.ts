@@ -80,14 +80,17 @@ export function buildRadar(
   template: RosterTemplate,
 ): RadarRow[] {
   return rosters.map(({ memberId, picks }) => {
+    // One pass to bucket, then sort each bucket — rather than three filters
+    // over the same array. The old shape walked every pick once per position,
+    // which is the same "read it twice" the module docstring warns about for
+    // the template, applied to the picks.
     const byPosition = new Map<Position, RadarPick[]>(
-      ORDER.map((position) => [
-        position,
-        picks
-          .filter((pick) => pick.position === position)
-          .sort((a, b) => a.overallNo - b.overallNo),
-      ]),
+      ORDER.map((position) => [position, []]),
     );
+    for (const pick of picks) byPosition.get(pick.position)?.push(pick);
+    for (const bucket of byPosition.values()) {
+      bucket.sort((a, b) => a.overallNo - b.overallNo);
+    }
 
     const slots: RadarSlot[] = [];
     const overflow: RadarSlot[] = [];
