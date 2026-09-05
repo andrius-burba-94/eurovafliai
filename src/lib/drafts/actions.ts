@@ -48,7 +48,21 @@ import { RESET_CONFIRMATION, type DraftRecord } from "./types";
  * so a human pick and an automatic one cannot diverge.
  */
 
-export type DraftResult = { error: string | null };
+export type DraftResult = {
+  error: string | null;
+  /**
+   * The player the refusal is about, when there is one.
+   *
+   * The pool argues at length for keeping a pick button on a row it has muted:
+   * the UI's opinion about legality is not evidence, and a refusal that
+   * explains itself in the league's own words beats a control that is silently
+   * absent. That argument only holds if the explanation is where the tap was —
+   * and `Correction` renders above the search box, which on a phone can be
+   * thirty rows away from the row that was tapped. Carrying the id lets the row
+   * say it too.
+   */
+  playerId?: string;
+};
 const OK: DraftResult = { error: null };
 
 /** Everything a draft action needs, read before anything is written. */
@@ -227,7 +241,7 @@ export async function makePick(
    */
   const refuse = (message: string): DraftResult => {
     revalidatePath(`/leagues/${leagueId}/draft`);
-    return { error: message };
+    return { error: message, playerId };
   };
 
   const { pb, own, settings, canManage } = context;
@@ -504,17 +518,15 @@ export async function setAutodraft(
   // member would be told nothing was wrong and then sit out their turns.
   const raw = String(formData.get("enabled") ?? "");
   if (raw !== "true" && raw !== "false") {
-    return { error: "That request did not say whether to turn autodraft on or off." };
+    return {
+      error: "That request did not say whether to turn autodraft on or off.",
+    };
   }
   const enabled = raw === "true";
 
   await pb
     .collection("league_members")
-    .update(
-      target.id,
-      { autodraft_enabled: enabled },
-      { requestKey: null },
-    );
+    .update(target.id, { autodraft_enabled: enabled }, { requestKey: null });
 
   revalidatePath(`/leagues/${leagueId}`);
   revalidatePath(`/leagues/${leagueId}/draft`);
