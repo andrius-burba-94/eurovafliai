@@ -2,10 +2,13 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import {
+  buildRadar,
   countByPosition,
   whoIsOnClock,
   type EnginePick,
   type Position,
+  type RadarRow,
+  radarSize,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import type { PoolPlayer } from "@/lib/pool/search";
@@ -80,6 +83,19 @@ export type DraftView = {
   pool: PoolPlayer[];
   /** How many of `pool` nobody holds yet. The Bank's count. */
   availableCount: number;
+  /**
+   * The roster radar — slice 3.2. One row per member, **in draft order**, so it
+   * reads down the same order the board reads across and the two can be zipped
+   * against one `columns` array.
+   */
+  radar: RadarRow[];
+  /**
+   * Slots per roster, from `leagues.settings.roster_template` — the room's
+   * "3 of 13". Read here rather than recomputed in the page, because the
+   * template is a league setting and the blueprint leaves open whether a
+   * twelve-member league drops to eleven-man rosters.
+   */
+  rosterTotal: number;
 };
 
 export async function getDraftView(
@@ -272,6 +288,21 @@ export async function getDraftView(
       };
     }),
     availableCount: players.filter((player) => !heldBy.has(player.id)).length,
+    radar: buildRadar(
+      // Draft order, not the order PocketBase returned the memberships in.
+      draft.order.map((memberId) => ({
+        memberId,
+        picks: picks
+          .filter((pick) => pick.memberId === memberId)
+          .map((pick) => ({
+            overallNo: pick.overallNo,
+            playerId: pick.playerId,
+            position: pick.position,
+          })),
+      })),
+      settings.roster_template,
+    ),
+    rosterTotal: radarSize(settings.roster_template),
   };
 }
 
