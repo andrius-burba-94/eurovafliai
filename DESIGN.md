@@ -11,9 +11,9 @@ colors:
   rail: "oklch(0.52 0.042 245)"
   live: "oklch(0.548 0.198 27)"
   live-sunk: "oklch(0.925 0.055 27)"
-  pos-g: "oklch(0.505 0.082 235)"
-  pos-f: "oklch(0.508 0.079 128)"
-  pos-c: "oklch(0.505 0.093 305)"
+  pos-g: "oklch(0.49 0.082 235)"
+  pos-f: "oklch(0.49 0.079 128)"
+  pos-c: "oklch(0.5 0.093 305)"
 typography:
   display:
     fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
@@ -499,6 +499,14 @@ heavy rule; each `Slot` is an `<li>` whose **top border is its state**.
   (`-mx-3 -my-3` plus matching padding) so the entire slot is the hit area;
   hover is a 5% ink wash, active 10%.
 
+**A keyboard cursor is a rule, not a wash.** `Slot`'s `current` draws a 2px
+**ink** outline inside the row (ink, because marker is the clock's) and sets
+`aria-current`. It was a 5% ink wash alone, which measures **1.10:1** — the one
+place in this system where a state was carried by a fill and no rule at all. The
+wash stays as an echo. `nowrap` belongs to the same story: a thirty-row list
+must not move its trailing action between rows depending on how long the name
+above it is.
+
 **The Material-Carries-State Rule.** A slot's state is its own top border. Never
 add a coloured pill, chip or badge beside an otherwise normal row to say
 "waiting" or "on the clock". This system has no chip component and does not want
@@ -548,6 +556,15 @@ A form on card stock. Character: a ruled line to write on, not a box to type in.
 
 ### Action — `SubmitButton`
 
+`liveOnField` is the one act sitting *inside* a live row — the pool's armed
+pick. Its label cannot be the marker's own red: `live` on `live-sunk` is 4.15:1
+and the Ink-on-Blush Rule forbids it by name. So the border goes to
+full-strength marker at 2px (4.15:1, which clears the 3:1 boundary floor) and
+the label goes to ink (12.62:1). The act is still struck in marker; it is the
+rule that says so, which is how this system says everything else. 3.3 shipped
+`tone="live"` there and broke a named rule on the one control it matters most
+for — the last thing read before an action only a commissioner can undo.
+
 `compact` drops the full-width phone treatment for a button that belongs to a
 *row* rather than to a surface: a list of thirty rows each with a full-width
 button is a column of buttons with names above them, not a pool of players.
@@ -583,6 +600,12 @@ A filter, in the board's own material. `aria-pressed` button, slot-label type,
 system has no chip and no coloured dot, so a filter's state is the weight of its
 own underline. Ink and not marker, because a filter is not the one act on a
 surface and must not compete with the act that is.
+
+The label sits **on** its own rule (`flex items-end pb-1.5`), not centred in the
+44px box — centred, the dashed rule that carries the state sat 18px below the
+word it belonged to and read as a stray tick. And the target is `min-h-11`
+**and `min-w-11`**: the Do's rule was written as `min-h-11`, i.e. height only,
+and a single-letter toggle fell straight through it at 24–27px wide.
 
 Filters group by kind, on their own rows with their own slot label — *which*
 (Position: G F C) above *whether* (Show: hide drafted, fit to play, legal for
@@ -704,6 +727,15 @@ opposite of all three, and `tokens.test.ts` was green throughout, because until
 3.1 it could only compare one opaque token with another and had no way to express
 an alpha background at all. It can now, and these pairs are asserted.
 
+**The Composite-In-Gamma Rule.** A browser blends translucent colour in the
+gamma-encoded space its pixels live in, not in linear light. 3.1's `wash()`
+helper blended in linear light — more physically correct, not what the screen
+does, and wrong in the worst available direction: it reads about **0.2 too high**
+on dark text over a light wash, so it lets a real failure pass. It scored the
+position letter on its own wash at 4.50 and asserted ≥4.5 while the browser
+rendered 4.30. Encode, blend, decode. Every alpha pairing in `tokens.test.ts`
+moved by 0.2 when this was fixed, and two of them turned out to be failing.
+
 **The gutter header must stay in flow.** It is a `role="columnheader"` wrapping
 an `sr-only` span, not an `sr-only` span itself. `sr-only` is absolutely
 positioned, so hiding the whole element takes it out of the grid and slides every
@@ -725,8 +757,10 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
   `src/app/tokens.test.ts`. Text and patch colours clear **4.5:1** on stock;
   meaningful non-text boundaries clear **3:1**. The test parses the stylesheet, so
   it cannot drift from the values it guards.
-- **Do** give any new interactive element a 44px minimum target (`min-h-11`) and
-  a `focus-visible` 2px marker outline at 2px offset.
+- **Do** give any new interactive element a 44px minimum target on **both** axes
+  (`min-h-11 min-w-11`) and a `focus-visible` 2px marker outline at 2px offset.
+  This rule used to say `min-h-11`, and 3.3's single-letter position toggles
+  went out 44px tall and 24px wide because of it.
 - **Do** render empty slots. Show the shape of the board, not the length of the
   list. `DraftBoard` draws all 156 of them.
 - **Do** use CONTEXT.md's words. A **slot** is a position on the **board**. An
@@ -858,7 +892,20 @@ rather than deleted, so the decision and the question it settled stay together.
 6. **Input error and disabled states are unstyled.** `Correction` carries every
    failure today. Per-field validation (which a player search or a trade form
    will want) has no visual language yet.
-7. **The patch and button opacity modifiers are *partly* verified now.** 3.1
+7. ~~**The patch and button opacity modifiers are partly verified.**~~
+   **Answered in 3.3** for the patch: measured with gamma compositing, the
+   position letter on its own 10% wash was **4.30:1 (G)** and **4.22:1 (F)** —
+   failing, on the element that *is* the colour-blind fallback for position, and
+   the pool renders about thirty of them per screen. `pos-g` and `pos-f` were
+   darkened to L 0.49 and `pos-c` to 0.50; all three now clear 4.56:1 on their
+   own wash and 5.2:1 on stock, and `tokens.test.ts` asserts it. **Still open:**
+   `PositionPatch`'s 55% borders (2.16–2.23:1) and `SubmitButton`'s 35% resting
+   border (**2.11:1** — the border *is* the button, and hover at 80% is the only
+   state that clears 3:1, which a phone never reaches). Both are measured now
+   rather than eyeballed; neither is fixed, because both change every button and
+   patch in the app. Superseded text follows.
+
+   **The patch and button opacity modifiers are *partly* verified now.** 3.1
    taught `tokens.test.ts` to composite an alpha token over an opaque one, and
    used it to assert every pair the board renders on a 10% position wash — which
    is how the three failures behind the Wash-Costs-A-Tenth Rule were found. Still

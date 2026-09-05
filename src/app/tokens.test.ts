@@ -73,6 +73,12 @@ const rgbOf = (name: string): number[] =>
 const luminanceOf = ([r, g, b]: number[]): number =>
   0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 
+/** Linear sRGB → gamma-encoded sRGB, and back. */
+const encode = (v: number): number =>
+  v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+const decode = (v: number): number =>
+  v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+
 /**
  * A token at partial opacity, composited over an opaque one.
  *
@@ -85,11 +91,21 @@ const luminanceOf = ([r, g, b]: number[]): number =>
  * every ratio above it. The first version of the board put `ink-faint` numbers
  * (4.42:1) and same-hue letters on them, and this file was 13/13 green the
  * whole time.
+ *
+ * ## It composites in gamma-encoded sRGB, and the first version did not
+ *
+ * A browser blends translucent colour in the gamma-encoded space its pixels are
+ * stored in, not in linear light. 3.1 wrote this helper blending in linear
+ * light, which is more "physically correct" and is **not** what the screen
+ * does — and it is wrong in the worst available direction: it reads about 0.2
+ * too *high* on dark text over a light wash, so it lets a real failure pass.
+ * It scored `pos-g` on its own wash at 4.50 and asserted ≥4.5; the browser
+ * renders 4.30. Encode, blend, decode.
  */
 const wash = (name: string, alpha: number, over: string): number[] => {
-  const fg = rgbOf(name);
-  const bg = rgbOf(over);
-  return fg.map((v, i) => v * alpha + bg[i]! * (1 - alpha));
+  const fg = rgbOf(name).map(encode);
+  const bg = rgbOf(over).map(encode);
+  return fg.map((v, i) => decode(v * alpha + bg[i]! * (1 - alpha)));
 };
 
 /** Contrast of a token against an already-composited background. */
@@ -178,6 +194,60 @@ describe("the draft board's slots clear AA on their position wash", () => {
       round(contrastOn("ink-soft", onBlush)),
       `ink-soft on live-sunk was ${round(contrastOn("ink-soft", onBlush))}:1`,
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("a position patch carries its own letter", () => {
+  // Open question 7 left these eyeballed for two slices, and measured they were
+  // failing: the patch sets its letter in the position's own colour on a 10%
+  // wash of the same hue, which is the tightest pairing in the app. The letter
+  // is the colour-blind fallback for position (PRODUCT.md), so this is an
+  // accessibility floor twice over, and 3.3's pool renders about thirty of
+  // them per screen.
+  for (const position of ["pos-g", "pos-f", "pos-c"] as const) {
+    it(`--color-${position} clears 4.5:1 on its own 10% wash`, () => {
+      const ratio = contrastOn(position, wash(position, 0.1, "stock"));
+      expect(
+        round(ratio),
+        `${position} on its own wash was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});
+
+describe("the pool's armed row", () => {
+  // 3.3 struck the armed row in marker — correctly, it is the one act — and put
+  // the button's own marker-red label on the blush that strike brings with it.
+  // That is 4.15:1 and DESIGN.md forbids it by name, in two places. The test
+  // below asserted the failure existed and stayed green while the pool rendered
+  // it, which is the same shape of blind spot as the washes one slice earlier:
+  // a pairing nobody thought to assert.
+  const blush = () => rgbOf("live-sunk");
+
+  it("labels its action in ink, because marker on the blush is 4.15:1", () => {
+    expect(round(contrastOn("live", blush()))).toBeLessThan(4.5);
+    const ratio = contrastOn("ink", blush());
+    expect(
+      round(ratio),
+      `ink on live-sunk was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("bounds that action in full-strength marker, which clears the 3:1 boundary floor", () => {
+    // `border-live/60` over the blush measures 2.40:1 — under the floor for a
+    // boundary that means something, and the button *is* its border here: no
+    // fill, no radius, and now no coloured label either.
+    const ratio = contrastOn("live", blush());
+    expect(
+      round(ratio),
+      `live border on live-sunk was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("keeps a muted row's own text readable when that row is the armed one", () => {
+    // A row can be both muted and armed, so `ink-faint` lands on the blush at
+    // 4.37:1. The pool therefore does not fade an armed row.
+    expect(round(contrastOn("ink-faint", blush()))).toBeLessThan(4.5);
   });
 });
 

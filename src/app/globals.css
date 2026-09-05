@@ -55,10 +55,19 @@
    * Guards, Forwards, Centers. Three hue families, muted enough to sit beside
    * twenty club colours, dark enough to carry text on stock. Colour NEVER
    * carries position alone: the letter is always present (PRODUCT.md).
+   *
+   * Darkened in 3.3 from L 0.505/0.508/0.505, and the reason is a measurement
+   * rather than a preference. `PositionPatch` sets its letter in these colours
+   * on a 10% wash of the same hue, and composited the way a browser actually
+   * composites — in gamma-encoded sRGB, not in linear light — that letter
+   * measured 4.30:1 (G) and 4.22:1 (F) against a 4.5 floor. It is the
+   * colour-blind fallback for position, so it is an accessibility floor twice
+   * over, and 3.3's pool renders about thirty of them per screen. Now 4.56:1 on
+   * its own wash and 5.2:1 on stock. `tokens.test.ts` asserts both.
    */
-  --color-pos-g: oklch(0.505 0.082 235);
-  --color-pos-f: oklch(0.508 0.079 128);
-  --color-pos-c: oklch(0.505 0.093 305);
+  --color-pos-g: oklch(0.49 0.082 235);
+  --color-pos-f: oklch(0.49 0.079 128);
+  --color-pos-c: oklch(0.5 0.093 305);
 
   /* --- Type -------------------------------------------------------------
    * One family, Archivo, the way a kit room has one label maker. Numbers are

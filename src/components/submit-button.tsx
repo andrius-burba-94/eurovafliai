@@ -21,10 +21,20 @@ export function SubmitButton({
   tone = "ink",
   pendingLabel,
   compact = false,
+  ariaLabel,
 }: {
   children: ReactNode;
   testId?: string;
-  tone?: "ink" | "live";
+  /**
+   * `live` is the one act on a surface. `liveOnField` is that act sitting
+   * *inside* a live row — the pool's armed pick — where the marker's own red
+   * cannot be the label: `live` text on `live-sunk` is 4.15:1 and DESIGN.md
+   * forbids the pairing by name. So the border goes to full-strength marker
+   * (4.15:1, which clears the 3:1 boundary floor) and the label goes to ink
+   * (12.62:1). The act is still struck in marker; it is the *rule* that says
+   * so, which is how this system says everything else.
+   */
+  tone?: "ink" | "live" | "liveOnField";
   pendingLabel?: string;
   /**
    * A row's action rather than a surface's. Drops the full-width phone
@@ -32,12 +42,15 @@ export function SubmitButton({
    * column of buttons with names above them rather than a pool of players.
    */
   compact?: boolean;
+  /** An accessible name, when the visible label is not distinguishing enough. */
+  ariaLabel?: string;
 }) {
   const { pending } = useFormStatus();
 
   const tones = {
     ink: "border-ink/35 hover:border-ink/80 active:bg-ink/5",
     live: "border-live/60 text-live hover:border-live active:bg-live/8",
+    liveOnField: "border-2 border-live text-ink active:bg-live/8",
   };
 
   return (
@@ -47,6 +60,10 @@ export function SubmitButton({
       aria-busy={pending}
       data-testid={testId}
       data-pending={pending ? "true" : undefined}
+      // Thirty rows in the pool each said only "Pick", so a screen-reader
+      // rotor read "Pick, Pick, Pick…" with the player's name in a sibling
+      // span it had no way to connect.
+      aria-label={ariaLabel}
       className={`${tones[tone]} min-h-11 border px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-progress disabled:opacity-60 ${compact ? "" : "w-full sm:w-auto"}`}
     >
       {pending ? (pendingLabel ?? "Working…") : children}
