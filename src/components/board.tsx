@@ -276,8 +276,18 @@ export function Field({
 }
 
 /** 44px minimum: draft night is one-handed, on a phone (PRODUCT.md). */
+/**
+ * A field on card stock: a ruled line to write on.
+ *
+ * `/50`, not `/30`. DESIGN.md's own words are that the ruled line **is** the
+ * input — it is the entire affordance, since there is no box, no fill and no
+ * radius — so it is a boundary that means something and takes the 3:1 floor.
+ * Measured with gamma compositing, `ink/30` was **1.87:1**, the lowest boundary
+ * in the app; `/50` is 3.10:1. The same value the buttons moved to, for the
+ * same reason.
+ */
 export const inputStyles =
-  "min-h-11 w-full border-b border-ink/30 bg-transparent px-1 py-2 text-base " +
+  "min-h-11 w-full border-b border-ink/50 bg-transparent px-1 py-2 text-base " +
   "placeholder:text-ink-faint focus:border-live focus:outline-none";
 
 /**
@@ -344,7 +354,7 @@ export function FilterToggle({
  * choosing them.
  */
 export const selectStyles =
-  "min-h-11 w-full appearance-none border-b border-ink/30 bg-transparent px-1 py-2 " +
+  "min-h-11 w-full appearance-none border-b border-ink/50 bg-transparent px-1 py-2 " +
   "text-base focus:border-live focus:outline-none";
 
 /**

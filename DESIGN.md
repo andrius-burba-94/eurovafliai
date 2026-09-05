@@ -1005,8 +1005,10 @@ rather than deleted, so the decision and the question it settled stay together.
    `border-pos-*/55` on a patch **2.22–2.26:1**, both under the 3:1 boundary
    floor, and on a button the border *is* the control. Now `ink/50` (3.10:1) and
    `pos-*/80` (3.05–3.11:1 against the wash it encloses, which is the binding
-   side). Both stay inside the 35–80% range this document already declared, and
-   both are asserted.
+   side). And the one that had been missed twice: an input's and a select's
+   bottom rule at `ink/30` was **1.87:1**, the lowest boundary in the app — and
+   this document's own claim is that the ruled line *is* the input, so it is the
+   whole affordance and takes the 3:1 floor. Also `/50` now. All of it asserted.
 8. **Two tracking values are one-offs, not tokens.** `tracking-[0.32em]` on the
    code input and `tracking-[0.36em]` on the displayed code. Both are display
    treatments of the same six characters and want to stay in sync; if a third
