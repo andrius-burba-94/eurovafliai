@@ -257,9 +257,14 @@ test("a position the picker has filled is muted, but still offered to the server
   await expect(remaining).toContainText("Centree");
   await expect(page.getByTestId("pool-no-room")).toBeVisible();
 
-  // The button is still there, and the server still says no — in its words.
+  // The button is still there, and the server still says no — in its words,
+  // and **on the row that was tapped**. That placement is the whole argument
+  // for muting a row rather than hiding it: `Correction` alone renders above
+  // the search box, which on a phone can be thirty rows away from the tap.
   await remaining.getByRole("button").click();
   await expect(page.getByTestId("pick-error")).toContainText(/all the Cs/i);
+  await expect(page.getByTestId("pool-refused")).toContainText(/all the Cs/i);
+  await expect(remaining).toHaveAttribute("data-state", "correction");
 
   // And "legal for me" is what removes them, opt in.
   await page.getByTestId("filter-legal-only").click();

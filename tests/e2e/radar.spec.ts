@@ -180,7 +180,35 @@ test("the radar marks your own roster", async ({ page, context }) => {
   // heavier rule — the same treatment the board gives your column.
   const yours = page.getByTestId("radar-row").filter({ hasText: "· you" });
   await expect(yours).toHaveCount(1);
-  await expect(yours).toContainText(/, you: 0 of 13 filled/);
+  // ", on the clock" may sit between the two when it is your turn.
+  await expect(yours).toContainText(/, you.*: 0 of 13 filled/);
+});
+
+test("the radar says whose turn it is", async ({ page, context }) => {
+  // CONTEXT.md calls the radar "filling live", and it was the one live surface
+  // in the room with no marker on the live member — so "whose turn is it, and
+  // what do they need" took two surfaces to answer.
+  const { commissioner, league, players } = await radarLeague("Clock League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const onClock = page.locator(
+    '[data-testid="radar-row"][data-on-clock="true"]',
+  );
+  await expect(onClock).toHaveCount(1);
+  await expect(onClock).toHaveAttribute("data-state", "live");
+  await expect(onClock).toContainText("on the clock");
+
+  // It follows the clock, rather than sitting on whoever drafted first.
+  const first = await onClock.getAttribute("data-member");
+  await page.getByTestId("filter-club").selectOption(TEST_CLUB);
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
+    "data-state",
+    "filled",
+  );
+  await expect(onClock).toHaveCount(1);
+  expect(await onClock.getAttribute("data-member")).not.toBe(first);
 });
 
 test("the radar follows a rollback back down", async ({ page, context }) => {
