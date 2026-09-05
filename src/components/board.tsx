@@ -14,12 +14,18 @@
  */
 import type { ReactNode } from "react";
 
-type SlotState = "waiting" | "filled" | "live";
+type SlotState = "waiting" | "filled" | "live" | "correction";
 
 const SLOT_RULE: Record<SlotState, string> = {
   waiting: "slot-waiting",
   filled: "slot-filled",
   live: "slot-live",
+  // `slot-correction` has existed in `globals.css` since 1.4 and was
+  // unreachable through this component: a row that had just been refused could
+  // not be struck in ink, which is exactly what this system's error material
+  // is for. The pool needed it so a refusal can be shown *on the row that was
+  // tapped* rather than only above the search box.
+  correction: "slot-correction",
 };
 
 /**
@@ -208,10 +214,21 @@ export function CardName({
   );
 }
 
+/**
+ * A patch's three parts, and why the border is 80% rather than 55%.
+ *
+ * The border separates the 10% wash inside it from the stock outside, so it has
+ * to clear the 3:1 boundary floor against **both** neighbours, and the wash side
+ * is the binding one. Measured with gamma compositing: `/55` was 2.22–2.26:1
+ * against stock and worse against the wash; `/80` is 3.05–3.11:1 against the
+ * wash and higher against stock. Still inside the 35–80% range DESIGN.md
+ * declares — this settles the border half of its open question 7 rather than
+ * moving the system.
+ */
 const PATCH: Record<"G" | "F" | "C", string> = {
-  G: "text-pos-g border-pos-g/55 bg-pos-g/10",
-  F: "text-pos-f border-pos-f/55 bg-pos-f/10",
-  C: "text-pos-c border-pos-c/55 bg-pos-c/10",
+  G: "text-pos-g border-pos-g/80 bg-pos-g/10",
+  F: "text-pos-f border-pos-f/80 bg-pos-f/10",
+  C: "text-pos-c border-pos-c/80 bg-pos-c/10",
 };
 
 /**

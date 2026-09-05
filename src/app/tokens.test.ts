@@ -108,6 +108,14 @@ const wash = (name: string, alpha: number, over: string): number[] => {
   return fg.map((v, i) => decode(v * alpha + bg[i]! * (1 - alpha)));
 };
 
+/** Contrast between two already-composited colours. */
+function contrastOn2(a: number[], b: number[]): number {
+  const la = luminanceOf(a);
+  const lb = luminanceOf(b);
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 /** Contrast of a token against an already-composited background. */
 function contrastOn(name: string, background: number[]): number {
   const la = luminanceOf(rgbOf(name));
@@ -249,6 +257,38 @@ describe("the pool's armed row", () => {
     // 4.37:1. The pool therefore does not fade an armed row.
     expect(round(contrastOn("ink-faint", blush()))).toBeLessThan(4.5);
   });
+});
+
+describe("a control's own border is a boundary that means something", () => {
+  // The last thing open question 7 left eyeballed. On a button the border *is*
+  // the control — no fill, no radius, and in the pool no coloured label — and a
+  // patch's border is the only thing making a patch a patch rather than a
+  // coloured letter. Both were under the 3:1 floor and both were unasserted.
+  it("a button's resting border clears 3:1 on stock", () => {
+    // `ink/35` measured 2.10:1, and hover at 80% was the only state that
+    // cleared the floor — which a phone never reaches.
+    expect(round(contrastOn("ink", rgbOf("stock")))).toBeGreaterThan(3);
+    const ratio = contrastOn2(wash("ink", 0.5, "stock"), rgbOf("stock"));
+    expect(
+      round(ratio),
+      `ink/50 on stock was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  for (const position of ["pos-g", "pos-f", "pos-c"] as const) {
+    it(`a ${position} patch's border clears 3:1 against the wash it encloses`, () => {
+      // The border separates the wash inside from the stock outside, so the
+      // wash side is the binding comparison. `/55` failed both.
+      const ratio = contrastOn2(
+        wash(position, 0.8, "stock"),
+        wash(position, 0.1, "stock"),
+      );
+      expect(
+        round(ratio),
+        `${position}/80 against its own wash was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
 });
 
 describe("the board's ruling is perceivable", () => {
