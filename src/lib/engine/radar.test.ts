@@ -47,7 +47,7 @@ describe("buildRadar — the empty roster", () => {
     expect(radar.overflow).toEqual([]);
   });
 
-  it("orders the slots guards, forwards, centres", () => {
+  it("orders the slots guards, forwards, centers", () => {
     // The room reads a row left to right and expects the template's own order,
     // not the order picks happened to arrive in.
     const radar = row([pick("C", 1), pick("F", 2), pick("G", 3)]);
@@ -71,7 +71,7 @@ describe("buildRadar — filling up", () => {
   });
 
   it("reports a full bucket beside empty ones", () => {
-    // The case the room actually asks about: somebody is done at centre and
+    // The case the room actually asks about: somebody is done at center and
     // still has eight slots to fill.
     const radar = row([pick("C", 1), pick("C", 2), pick("C", 3)]);
     expect(radar.needs).toEqual({ G: 5, F: 5, C: 0 });
@@ -115,7 +115,7 @@ describe("buildRadar — a template that is not 5/5/3", () => {
 describe("buildRadar — the surplus that should never exist", () => {
   it("shows a pick that does not fit rather than dropping it", () => {
     // `isLegalPick` refuses this and every write path re-checks it, so a fourth
-    // centre means the referee failed. A radar that drew thirteen slots and
+    // center means the referee failed. A radar that drew thirteen slots and
     // silently discarded the fourteenth pick would hide exactly that.
     const radar = row([pick("C", 1), pick("C", 2), pick("C", 3), pick("C", 4)]);
     expect(radar.slots.filter((slot) => slot.position === "C")).toHaveLength(3);

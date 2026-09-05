@@ -5,10 +5,10 @@ import { rosterSize, type Position, type RosterTemplate } from "./types";
  * The roster radar — slice 3.2.
  *
  * What every member still needs, laid out as the template they are filling:
- * five guard slots, five forward slots, three centre slots, each either holding
+ * five guard slots, five forward slots, three center slots, each either holding
  * a pick or waiting for one. `legality.ts` answers "may this member take this
  * player"; this answers the question the room asks out loud all evening —
- * *who still needs a centre* — which is the same arithmetic seen from the
+ * *who still needs a center* — which is the same arithmetic seen from the
  * roster's side instead of the pick's.
  *
  * Pure, and in the engine rather than in the view, because the template is a
@@ -40,7 +40,7 @@ export type RadarSlot = {
 export type RadarRow = {
   readonly memberId: string;
   /**
-   * Template-ordered: every guard slot, then every forward, then every centre.
+   * Template-ordered: every guard slot, then every forward, then every center.
    * Always `rosterSize(template)` long, however few picks the member has.
    */
   readonly slots: readonly RadarSlot[];

@@ -128,7 +128,7 @@ test("the position and club filters narrow the pool", async ({
   const { commissioner, league } = await poolLeague("Filter League");
   await createFoldedPlayer("Guardone", { position: "G" });
   await createFoldedPlayer("Forwardone", { position: "F" });
-  const centre = await createFoldedPlayer("Centreone", { position: "C" });
+  const center = await createFoldedPlayer("Centreone", { position: "C" });
   const elsewhere = otherClub();
   await createFoldedPlayer("Awayguard", {
     position: "G",
@@ -166,9 +166,9 @@ test("the position and club filters narrow the pool", async ({
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
   await expect(rows(page)).toHaveCount(3);
 
-  // The centre is still pickable with the filters back off, so narrowing the
+  // The center is still pickable with the filters back off, so narrowing the
   // list did not quietly break the act the list exists for.
-  await page.getByTestId(`pick-${centre.id}`).click();
+  await page.getByTestId(`pick-${center.id}`).click();
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",
@@ -212,13 +212,13 @@ test("a position the picker has filled is muted, but still offered to the server
   page,
   context,
 }) => {
-  // 3.2's word is *muted*, not removed: which centres are left matters even
+  // 3.2's word is *muted*, not removed: which centers are left matters even
   // when you cannot take one. And the button stays, because the server is the
   // authority and a refusal in the league's own words beats a missing control.
   const { commissioner, league } = await poolLeague("Muted League");
-  const centres = [];
+  const centers = [];
   for (const label of ["Centrea", "Centreb", "Centrec", "Centred", "Centree"]) {
-    centres.push(await createFoldedPlayer(label, { position: "C" }));
+    centers.push(await createFoldedPlayer(label, { position: "C" }));
   }
   const guards = [
     await createFoldedPlayer("Guarda", { position: "G" }),
@@ -229,17 +229,17 @@ test("a position the picker has filled is muted, but still offered to the server
   await enterDraft(page, league.id);
 
   // Two members and a snake, so the picks go A B B A A B: the *second* member
-  // owns 2, 3 and 6. Three centres into those three slots fills their C bucket
+  // owns 2, 3 and 6. Three centers into those three slots fills their C bucket
   // and leaves them on the clock for pick 7. (Written out because the first
   // version of this test gave picks 1 and 4 to one member — both of which
   // belong to the member who drafts *first* — and filled nobody's bucket.)
   const order = [
-    centres[0]!, // 1 · first member
-    centres[1]!, // 2 · second
-    centres[2]!, // 3 · second
+    centers[0]!, // 1 · first member
+    centers[1]!, // 2 · second
+    centers[2]!, // 3 · second
     guards[0]!, // 4 · first
     guards[1]!, // 5 · first
-    centres[3]!, // 6 · second — their third centre
+    centers[3]!, // 6 · second — their third center
   ];
   for (const [index, player] of order.entries()) {
     await page.getByTestId(`pick-${player.id}`).click();
@@ -249,8 +249,8 @@ test("a position the picker has filled is muted, but still offered to the server
     );
   }
 
-  // Pick 7 belongs to the member now holding three centres, so the fifth
-  // centre is muted — for them, not for the commissioner looking at the screen.
+  // Pick 7 belongs to the member now holding three centers, so the fifth
+  // center is muted — for them, not for the commissioner looking at the screen.
   await page.getByTestId("filter-position-C").click();
   await expect(rows(page)).toHaveCount(1);
   const remaining = rows(page).first();

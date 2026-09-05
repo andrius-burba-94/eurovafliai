@@ -40,7 +40,7 @@ type PoolProps = {
    *
    * Eleven of twelve people in this league are spectators at any moment, and
    * the pool was muting against the *picker's* roster for all of them — so a
-   * member holding four open centre slots watched the centres dim and read
+   * member holding four open center slots watched the centers dim and read
    * "No room". Legality is only somebody else's business while you are the one
    * entering their pick.
    */
