@@ -449,6 +449,22 @@ boundary) and `src/components/submit-button.tsx` (the only client component in
 the design system). Build new surfaces out of these; add to this file when you
 add to that one.
 
+### On the clock — the room's sticky band
+
+The draft room's on-the-clock block is `sticky top-0 z-20`. It is the one band in
+the app that never leaves, because the pool sits below it and the countdown and
+the search box otherwise could not both be on a 390px screen — so "under a
+minute to find a player and commit" was not an instruction anybody could follow
+while watching the minute. The precedent is the board's own `sticky left-0`
+round gutter; it needs no shadow, no blur and no second surface colour.
+
+**Do not add `bg-stock` to it unconditionally.** `slot-live` brings its own
+opaque blush, and a plain `bg-stock` alongside it paints straight over that —
+both set `background-color`, and the plain utility wins. Only the finished state
+(`slot-filled`, a border and nothing else) needs a field, or the board scrolls
+through it. Shipped broken once, and `tests/e2e/draft.spec.ts` now asserts the
+computed background and the 2px marker rule.
+
 ### Top rail — `TopRail`
 
 The board's top rail. Character: a label on the frame, not a navigation bar.
@@ -488,6 +504,10 @@ heavy rule; each `Slot` is an `<li>` whose **top border is its state**.
   place. Rendered with a faint-ink "Slot 07" number.
 - **`filled`** — 1px solid heavy-grey, `0.75rem` vertical padding. The default.
 - **`live`** — 2px solid marker + `live-sunk` fill. On the clock.
+- **`correction`** — 2px solid ink (`slot-correction`). An error, struck in ink
+  rather than in marker. The utility shipped in 1.4 and `Slot` could not express
+  it until 3.3's critique needed a refused pool row to say so *on the row that
+  was tapped*.
 - **`standing`** — 2px **dashed** marker, no fill. Where a paused draft stands.
   Board only (`slot-standing`). It exists because 3.1 first struck a paused slot
   exactly like a live one, which is one material carrying two opposite
@@ -976,27 +996,17 @@ rather than deleted, so the decision and the question it settled stay together.
 6. **Input error and disabled states are unstyled.** `Correction` carries every
    failure today. Per-field validation (which a player search or a trade form
    will want) has no visual language yet.
-7. ~~**The patch and button opacity modifiers are partly verified.**~~
-   **Answered in 3.3** for the patch: measured with gamma compositing, the
-   position letter on its own 10% wash was **4.30:1 (G)** and **4.22:1 (F)** —
-   failing, on the element that *is* the colour-blind fallback for position, and
-   the pool renders about thirty of them per screen. `pos-g` and `pos-f` were
-   darkened to L 0.49 and `pos-c` to 0.50; all three now clear 4.56:1 on their
-   own wash and 5.2:1 on stock, and `tokens.test.ts` asserts it. **Still open:**
-   `PositionPatch`'s 55% borders (2.16–2.23:1) and `SubmitButton`'s 35% resting
-   border (**2.11:1** — the border *is* the button, and hover at 80% is the only
-   state that clears 3:1, which a phone never reaches). Both are measured now
-   rather than eyeballed; neither is fixed, because both change every button and
-   patch in the app. Superseded text follows.
-
-   **The patch and button opacity modifiers are *partly* verified now.** 3.1
-   taught `tokens.test.ts` to composite an alpha token over an opaque one, and
-   used it to assert every pair the board renders on a 10% position wash — which
-   is how the three failures behind the Wash-Costs-A-Tenth Rule were found. Still
-   eyeballed: `PositionPatch`'s own 55% borders and its coloured letter on its
-   own 10% wash (4.21–4.50:1 — the board moved off that pairing, the patch has
-   not), and the 35/60/80% button borders. The machinery to check them exists;
-   somebody has to point it at them.
+7. ~~**The patch and button opacity modifiers are unverified.**~~ **Answered,
+   in three passes.** 3.3 taught `tokens.test.ts` to composite an alpha token
+   over an opaque one, which found the position letter failing on its own wash
+   (darkened to L 0.49/0.49/0.50). 3.2's critique corrected the compositing to
+   gamma-encoded sRGB — see the Composite-In-Gamma Rule — and then measured the
+   two remaining modifiers: `border-ink/35` on a button was **2.10:1** and
+   `border-pos-*/55` on a patch **2.22–2.26:1**, both under the 3:1 boundary
+   floor, and on a button the border *is* the control. Now `ink/50` (3.10:1) and
+   `pos-*/80` (3.05–3.11:1 against the wash it encloses, which is the binding
+   side). Both stay inside the 35–80% range this document already declared, and
+   both are asserted.
 8. **Two tracking values are one-offs, not tokens.** `tracking-[0.32em]` on the
    code input and `tracking-[0.36em]` on the displayed code. Both are display
    treatments of the same six characters and want to stay in sync; if a third
