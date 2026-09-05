@@ -108,14 +108,29 @@ export default async function DraftPage({
       <Sheet testId="draft-room">
         {/* On the clock owns the top of the phone viewport, sharing it with
             nothing — the raise the direction contract took from the vertical
-            feed. */}
+            feed. And it **stays** there: `sticky top-0`.
+            
+            Without it the countdown and the search box could not both be on a
+            390px screen once you had scrolled into the pool, so "under a minute
+            to find a player and commit" was an instruction you could not follow
+            while watching the clock. The precedent is in this app already — the
+            board's round gutter is `sticky left-0` on stock — and it needs no
+            new material: `slot-live` and `slot-filled` are both opaque, and
+            `bg-stock` covers the case where neither applies so rows cannot show
+            through. `py-3` on a phone rather than `py-5`, because a band that
+            never leaves should cost the viewport less. */}
         <div
           data-testid="on-the-clock"
-          className={
-            isPaused || onClock
-              ? "slot-live px-3 py-5"
-              : "slot-filled px-3 py-5"
-          }
+          // `bg-stock` only where the state does not bring its own opaque
+          // field. `slot-live` carries the blush, and adding `bg-stock`
+          // alongside it painted straight over that — the banner lost the
+          // live tint it has had since 1.4, because both set `background-color`
+          // and the plain utility wins. A finished draft is `slot-filled`,
+          // which is a border and nothing else, so that one does need a field
+          // or the board would scroll through it.
+          className={`sticky top-0 z-20 px-3 py-3 sm:py-5 ${
+            isPaused || onClock ? "slot-live" : "slot-filled bg-stock"
+          }`}
         >
           {isPaused ? (
             <>
@@ -236,6 +251,7 @@ export default async function DraftPage({
             rows={view.radar}
             columns={columns}
             total={view.rosterTotal}
+            onClockMemberId={onClock?.memberId ?? null}
           />
         </Bank>
 
