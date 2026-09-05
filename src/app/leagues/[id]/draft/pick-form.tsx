@@ -40,7 +40,7 @@ type PoolProps = {
    *
    * Eleven of twelve people in this league are spectators at any moment, and
    * the pool was muting against the *picker's* roster for all of them — so a
-   * member holding four open centre slots watched the centres dim and read
+   * member holding four open center slots watched the centers dim and read
    * "No room". Legality is only somebody else's business while you are the one
    * entering their pick.
    */
@@ -370,13 +370,28 @@ export function PickForm({
         {shortlist.map((player, position) => {
           const isHighlighted = position === cursor;
           const isArmed = armedId === player.id;
+          const isRefused =
+            result.error !== null && result.playerId === player.id;
           return (
             <Slot
               key={player.id}
               // Four states, and the drafted one is not `waiting`. A dashed
               // rule is this system's word for an empty place; a player
               // somebody already owns is the most settled row in the list.
-              state={isArmed ? "live" : player.drafted ? "filled" : "waiting"}
+              // A refused row is struck in ink — `slot-correction` — because
+              // that is this system's word for an error, and because the whole
+              // argument for muting a row rather than hiding it is that the
+              // refusal explains itself *where the tap was*. It was explaining
+              // itself above the search box, up to thirty rows away.
+              state={
+                isRefused
+                  ? "correction"
+                  : isArmed
+                    ? "live"
+                    : player.drafted
+                      ? "filled"
+                      : "waiting"
+              }
               testId="pool-row"
               current={keyboardUsed && isHighlighted && !isArmed}
               nowrap
@@ -406,6 +421,15 @@ export function PickForm({
                 {/* Every one of these is a word, not a colour. */}
                 {player.status !== "active" ? (
                   <span className="slot-label shrink-0">{player.status}</span>
+                ) : null}
+                {isRefused ? (
+                  <span
+                    className="slot-label shrink-0 text-ink"
+                    data-testid="pool-refused"
+                    role="alert"
+                  >
+                    {result.error}
+                  </span>
                 ) : null}
                 {player.drafted ? (
                   <span

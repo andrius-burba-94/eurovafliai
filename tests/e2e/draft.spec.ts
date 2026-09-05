@@ -95,6 +95,47 @@ test("a commissioner starts the draft and the room opens", async ({
   await expect(page.getByTestId("on-the-clock")).toContainText(/on the clock/i);
 });
 
+test("the clock stays on screen, and keeps its blush", async ({
+  page,
+  context,
+}) => {
+  // The pool sits below the clock, so once you scrolled into the list the
+  // countdown and the search box could not both be on a 390px screen — and
+  // "under a minute to find a player and commit" is not an instruction you can
+  // follow while unable to see the minute.
+  //
+  // The blush assertion is here because fixing that broke it once: `bg-stock`
+  // added alongside `slot-live` painted straight over the live tint, since both
+  // set `background-color` and the plain utility wins.
+  const { commissioner, league } = await readyLeague("Sticky League");
+  await signIn(context, commissioner);
+
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+
+  const banner = page.getByTestId("on-the-clock");
+  const paint = await banner.evaluate((node) => {
+    const style = window.getComputedStyle(node);
+    return {
+      position: style.position,
+      top: style.top,
+      background: style.backgroundColor,
+      borderTopWidth: style.borderTopWidth,
+    };
+  });
+  expect(paint.position).toBe("sticky");
+  expect(paint.top).toBe("0px");
+  // The live tint and the 2px marker rule, both still there.
+  expect(paint.background).not.toBe("rgba(0, 0, 0, 0)");
+  expect(paint.borderTopWidth).toBe("2px");
+
+  // And it is still on screen after scrolling past the pool.
+  await page.evaluate(() => window.scrollBy(0, 1200));
+  await expect(banner).toBeInViewport();
+});
+
 test("the member on the clock picks, and the draft advances", async ({
   page,
   context,
@@ -480,10 +521,7 @@ test("a pick by somebody else moves the room, with nobody reloading", async ({
   await expect(page.getByTestId("on-the-clock")).toContainText("Pick 2");
 });
 
-test("a pause reaches a room nobody is touching", async ({
-  page,
-  context,
-}) => {
+test("a pause reaches a room nobody is touching", async ({ page, context }) => {
   // The `drafts` record topic rather than the `picks` one: a pause is a change
   // to the draft itself, and a room that missed it would keep offering a pick
   // the server is about to refuse.

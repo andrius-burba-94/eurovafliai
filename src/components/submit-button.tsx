@@ -48,7 +48,13 @@ export function SubmitButton({
   const { pending } = useFormStatus();
 
   const tones = {
-    ink: "border-ink/35 hover:border-ink/80 active:bg-ink/5",
+    // `/50`, not `/35`: measured, `ink/35` over stock is **2.10:1** — under
+    // this system's own 3:1 floor for a boundary that means something, and on
+    // a button the border *is* the control: no fill, no radius, and in the pool
+    // no coloured label either. Hover at `/80` was 7.72:1 and was the only
+    // state that cleared the floor, which a phone never reaches. `/50` is
+    // 3.10:1 and stays inside the 35–80% range DESIGN.md already declares.
+    ink: "border-ink/50 hover:border-ink/80 active:bg-ink/5",
     live: "border-live/60 text-live hover:border-live active:bg-live/8",
     liveOnField: "border-2 border-live text-ink active:bg-live/8",
   };
