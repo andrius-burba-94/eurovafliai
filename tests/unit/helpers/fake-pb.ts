@@ -29,12 +29,16 @@ import type PocketBase from "pocketbase";
 export type FakeRecord = Record<string, unknown> & { id: string };
 export type FakeDb = Record<string, FakeRecord[]>;
 
-/** Mirrors the composite indexes in the `picks` migration. */
+/** Mirrors the unique indexes the migrations declare. */
 const DEFAULT_UNIQUE: Record<string, string[][]> = {
   picks: [
     ["draft", "overall_no"],
     ["draft", "player"],
   ],
+  // `unique(member)` — one cheat sheet per membership. Single-column, and safe
+  // as one because a relation is never the unset `0` that makes a unique index
+  // on a bare number a trap.
+  cheat_sheets: [["member"]],
 };
 
 export type FakeHooks = {
