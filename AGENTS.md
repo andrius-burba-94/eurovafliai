@@ -30,8 +30,10 @@ src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   half (session, permissions, revalidation). One pipeline, so a
                   human pick and an autodraft cannot diverge
 src/lib/sheets/   cheat sheets: pure parse + fuzzy match, the stored shape
-                  (`ranking.ts`), and `store.ts` — framework-free like the
-                  pipeline, because the worker autodrafts from a sheet
+                  (`ranking.ts`), `reorder.ts` (the edit arithmetic, run once
+                  optimistically and once authoritatively) and `store.ts` —
+                  framework-free like the pipeline, because the worker
+                  autodrafts from a sheet
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
 src/lib/positions.ts  the position words and the one list-join ("5 guards, 5
                   forwards and 3 centers"). Shared by the radar and the sheet;
@@ -133,6 +135,40 @@ make broken code pass.
   not exist — a board with its entire state language missing still looks
   plausible in a screenshot. Write the map out (`SLOT_RULE` in `board.tsx` and
   `draft-board.tsx` both do).
+- **Two `border-top` utilities on one element do not reliably compose.** Tailwind
+  v4 emits `@utility` blocks **alphabetically**, not in source order, and the dev
+  server splits them across chunks — so `class="slot-filled slot-transit"`
+  composited to **1px dashed**: the width from one rule, the style from the
+  other, a material that exists in neither. A slot's state belongs in `Slot`'s
+  `state` union, one rule per row, which is what DESIGN.md already asks for.
+- **A computed style read in the same frame as the class change is stale.**
+  Chromium reported `1px dashed` for an element already carrying `slot-transit`
+  and `data-state="transit"`, then `2px dashed` on every read from 60ms on. Assert
+  computed styles with `expect.poll`, not a single `evaluate`, or the test fails
+  against a material that is perfectly correct.
+- **A hand-rolled drag must not read its drop target out of React state.**
+  `pointerup` can arrive in the same task as the last `pointermove`, so a handler
+  reading `drag.overId` from state sees the pre-move value and the drag silently
+  does nothing. Keep the target in a `useRef` and let state drive only the
+  drawing. It survived the mouse — Playwright's moves are far enough apart — and
+  died under a finger, which is why `cheat-sheet.spec.ts` drives a real touch
+  drag through CDP `Input.dispatchTouchEvent`. `page.touchscreen` can only tap,
+  and synthetic `PointerEvent`s carry no live pointer id, so `setPointerCapture`
+  throws and you end up testing the fallback.
+- **A `sticky bottom-0` control bar covers the rows it acts on.** While the page
+  is scrolled short of its end, the bar paints over whatever is at the foot of
+  the viewport — measured on a Pixel 7 at **218px** tall, sitting exactly on the
+  row that had just been picked up, so the first touch of a drag hit the bar and
+  Chromium answered `pointercancel`. Reserve space below the list *and* scroll
+  the acted-on row to `block: "center"`. Invisible on a desktop viewport, which
+  is tall enough that the two never meet.
+- **Re-keying a form to re-seed it throws away its `useActionState`.** The cheat
+  sheet's paste box has to follow a sheet edited above it, and `key={view.asText}`
+  looked like the tidy way — but remounting discarded the action result, so
+  saving no longer rendered its own "Saved" confirmation, un-fixing a defect
+  3.4a's critique had fixed. Adjust the state during render against the last
+  seeded prop instead, and only when the box is untouched, so unsaved typing
+  survives.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so
