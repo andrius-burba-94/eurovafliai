@@ -13,7 +13,7 @@
  */
 import { mkdirSync } from "node:fs";
 
-import { chromium, devices } from "playwright";
+import { chromium, devices, expect, type Page } from "@playwright/test";
 
 import {
   cleanupTestData,
@@ -120,12 +120,166 @@ try {
       .update(draft.id, { current_pick: 2 }, { requestKey: null });
   }
 
-  const surfaces = [
-    { name: "login", path: "/login", signedIn: false },
-    { name: "home", path: "/", signedIn: true },
-    { name: "lobby", path: `/leagues/${league.id}`, signedIn: true },
-    { name: "players", path: "/players", signedIn: true },
-    { name: "draft", path: `/leagues/${league.id}/draft`, signedIn: true },
+  /**
+   * A cheat sheet for the commissioner — slice 3.4.
+   *
+   * Fourteen real players across three tiers, so the sheet photographs as a
+   * sheet (tier runs, two-digit ranks) and the room photographs with its
+   * pinned shortlist and its `#rank` marks rather than without them. Planted
+   * through the same `saveSheet` the server action uses, so what is on screen
+   * is what the app would have written.
+   */
+  const sheetPlayers = await pb.collection("players").getFullList({
+    filter: "status != 'left'",
+    sort: "name",
+    requestKey: null,
+  });
+  const rankedFor = sheetPlayers
+    .filter((player) => player.id !== topOfPool?.id)
+    .slice(0, 14)
+    .map((player) => player.id);
+
+  const { saveSheet } = await import("../src/lib/sheets/store");
+  await saveSheet(
+    pb,
+    members[0].id,
+    { ranking: rankedFor, tiers: [4, 9] },
+    "csv",
+  );
+
+  /**
+   * A second league with no sheet in it, so the empty state is photographed
+   * from the real route rather than staged by deleting one. A member who has
+   * never written a sheet is the common case on the night before a draft.
+   */
+  const otherLeague = await createLeagueFor(commissioner, "Vafliai Reserves");
+
+  const surfaces: {
+    name: string;
+    path: string;
+    signedIn: boolean;
+    /** Drive the page into the state worth photographing. */
+    before?: (page: Page) => Promise<void>;
+    /**
+     * One assertion about the picture's own content, before the shutter.
+     *
+     * Not optional and not ceremony. A script that drives a surface and then
+     * screenshots it can fail half way and still produce a plausible image:
+     * two identical pictures once went to a design review as "the radar at 20
+     * picks and at 60 picks", and both were the radar at one pick. The
+     * reviewer caught it. One `expect` on a rendered count or string is the
+     * whole fix, and it is cheaper than the review it protects.
+     */
+    assert: (page: Page) => Promise<void>;
+  }[] = [
+    {
+      name: "login",
+      path: "/login",
+      signedIn: false,
+      assert: async (page) => {
+        await expect(
+          page.getByRole("button", { name: /google/i }),
+        ).toBeVisible();
+      },
+    },
+    {
+      name: "home",
+      path: "/",
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByText("Vafliai 2027")).toBeVisible();
+      },
+    },
+    {
+      name: "lobby",
+      path: `/leagues/${league.id}`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("lobby-sheet")).toBeVisible();
+      },
+    },
+    {
+      name: "players",
+      path: "/players",
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      },
+    },
+    {
+      name: "draft",
+      path: `/leagues/${league.id}/draft`,
+      signedIn: true,
+      assert: async (page) => {
+        // The room at rest *with* a sheet: the pool is in the sheet's order,
+        // eight rows deep, each carrying its place — and the pinned block is
+        // deliberately absent, because at rest it would be these same rows
+        // again. All four are things 3.4a decided and all four would be
+        // silently wrong in a picture that merely looked like a draft room.
+        await expect(page.getByTestId("pool-row")).toHaveCount(8);
+        await expect(
+          page.getByTestId("pool-row").first().getByTestId("pool-sheet-rank"),
+        ).toHaveText("#1");
+        await expect(page.getByTestId("sheet-pinned")).toHaveCount(0);
+        await expect(page.getByTestId("edit-sheet")).toBeVisible();
+      },
+    },
+    {
+      name: "draft-pinned",
+      path: `/leagues/${league.id}/draft`,
+      signedIn: true,
+      before: async (page) => {
+        // Narrowed, which is the only state the pinned shortlist is drawn in.
+        await page.getByTestId("filter-position-G").click();
+      },
+      assert: async (page) => {
+        await expect(page.getByTestId("sheet-pinned-row")).toHaveCount(3);
+      },
+    },
+    {
+      name: "sheet",
+      path: `/leagues/${league.id}/sheet`,
+      signedIn: true,
+      assert: async (page) => {
+        // Three tier runs, fourteen rows, and the ranks reaching two digits —
+        // the density the surface actually has to survive.
+        await expect(page.getByTestId("sheet-row")).toHaveCount(14);
+        await expect(page.getByTestId("sheet-tier-3")).toBeVisible();
+        await expect(page.getByTestId("sheet-row").nth(13)).toContainText("14");
+      },
+    },
+    {
+      name: "sheet-plan",
+      path: `/leagues/${league.id}/sheet`,
+      signedIn: true,
+      before: async (page) => {
+        // A paste with one line of each outcome: two that resolve, one the
+        // pool has never heard of. The confirm step and the left-out run are
+        // the halves of this surface a saved sheet never shows.
+        await page
+          .getByTestId("sheet-input")
+          .fill(
+            `1,1,${sheetPlayers[3]?.name}\n2,1,${sheetPlayers[4]?.name}\n3,2,Zdenek Vopicka`,
+          );
+        await page.getByTestId("sheet-preview").click();
+        await page.getByTestId("sheet-apply").waitFor();
+      },
+      assert: async (page) => {
+        await expect(page.getByTestId("sheet-resolved")).toBeVisible();
+        await expect(page.getByTestId("sheet-unresolved")).toContainText(
+          "Zdenek Vopicka",
+        );
+      },
+    },
+    {
+      name: "sheet-empty",
+      path: `/leagues/${otherLeague.id}/sheet`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("sheet-row")).toHaveCount(0);
+        await expect(page.getByText("not ranked anybody")).toBeVisible();
+      },
+    },
   ];
 
   for (const { name: sizeName, ...device } of VIEWPORTS) {
@@ -144,6 +298,8 @@ try {
       await page
         .addStyleTag({ content: "nextjs-portal{display:none!important}" })
         .catch(() => {});
+      await surface.before?.(page);
+      await surface.assert(page);
       // Fonts settle after networkidle often enough to photograph a fallback.
       await page.evaluate(() => document.fonts.ready);
       const file = `${OUT}/${sizeName}-${surface.name}.png`;
