@@ -1,4 +1,5 @@
 import type { Position, RadarRow, RadarSlot } from "@/lib/engine";
+import { positionSentence } from "@/lib/positions";
 
 import type { BoardColumn } from "./draft-board";
 
@@ -53,24 +54,9 @@ const PATCH_WASH: Record<Position, string> = {
   C: "bg-pos-c/10",
 };
 
-const POSITION_WORD: Record<Position, [string, string]> = {
-  G: ["guard", "guards"],
-  F: ["forward", "forwards"],
-  C: ["center", "centers"],
-};
-
 /** "3 guards, 4 forwards and 3 centers", or "nothing" when a roster is full. */
-function needsSentence(needs: Record<Position, number>): string {
-  const parts = (["G", "F", "C"] as const)
-    .filter((position) => needs[position] > 0)
-    .map((position) => {
-      const [one, many] = POSITION_WORD[position];
-      return `${needs[position]} ${needs[position] === 1 ? one : many}`;
-    });
-  if (parts.length === 0) return "nothing";
-  if (parts.length === 1) return parts[0]!;
-  return `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
-}
+const needsSentence = (needs: Record<Position, number>) =>
+  positionSentence(needs);
 
 /**
  * The whole row, spoken.

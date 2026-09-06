@@ -5,7 +5,7 @@ import { countByPosition, type Position } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 
-import { tierOfRank } from "./ranking";
+import { sheetToText, tierOfRank } from "./ranking";
 import { readMatchablePool, readSheet } from "./store";
 
 /**
@@ -133,9 +133,7 @@ export async function getCheatSheetView(
     source: sheet?.source ?? "csv",
     poolSize: pool.length,
     drafting: league.status === "drafting",
-    asText: rows
-      .map((row) => `${row.rank},${row.tier},"${row.name}"`)
-      .join("\n"),
+    asText: sheetToText(rows),
     cover: {
       G: { ranked: counts.G, needed: template.G },
       F: { ranked: counts.F, needed: template.F },

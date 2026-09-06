@@ -1,5 +1,6 @@
 import { Bank, CardName, PositionPatch, Slot, Slots } from "@/components/board";
 import type { Position } from "@/lib/engine";
+import { positionSentence } from "@/lib/positions";
 import type { CheatSheetView, SheetPlayerRow } from "@/lib/sheets/queries";
 
 /**
@@ -77,11 +78,20 @@ export function SheetList({
           className="max-w-prose text-sm text-ink-soft"
           data-testid="sheet-short"
         >
-          A full roster needs{" "}
-          {short
-            .map((position) => `${cover[position].needed} ${position}`)
-            .join(" and ")}
-          . Autodraft can only pick from what you have ranked — below that it
+          You have ranked{" "}
+          {positionSentence(
+            Object.fromEntries(
+              short.map((position) => [position, cover[position].ranked]),
+            ),
+            "none of them",
+          )}
+          , and a full roster needs{" "}
+          {positionSentence(
+            Object.fromEntries(
+              short.map((position) => [position, cover[position].needed]),
+            ),
+          )}
+          . Autodraft can only pick from what you have ranked; below that it
           falls back to an arbitrary legal player.
         </p>
       ) : null}

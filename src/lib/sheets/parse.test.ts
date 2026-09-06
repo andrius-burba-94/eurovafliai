@@ -24,6 +24,18 @@ describe("parseCheatSheet", () => {
     ]);
   });
 
+  it("tolerates spaces after the commas, which the UI now tells people to use", () => {
+    // `rank, tier, name` is what the paste box says, so it has to parse. Every
+    // field is trimmed by the shared splitter, so it does — asserted because
+    // the copy is a promise.
+    const { rows, problems } = parseCheatSheet("1, 1, Nunn\n2, 2, Sloukas");
+    expect(problems).toEqual([]);
+    expect(rows).toEqual([
+      { lineNo: 1, rank: 1, tier: "1", name: "Nunn" },
+      { lineNo: 2, rank: 2, tier: "2", name: "Sloukas" },
+    ]);
+  });
+
   it("reads rank, tier and name", () => {
     const { rows } = parseCheatSheet("1,1,Nunn\n2,1,Sloukas\n3,2,Mirotic");
     expect(rows.map((row) => row.tier)).toEqual(["1", "1", "2"]);

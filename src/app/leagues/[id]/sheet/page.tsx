@@ -67,7 +67,7 @@ export default async function CheatSheetPage({
 
         <SheetForm
           leagueId={id}
-          hasSheet={view.rows.length > 0}
+          rankedCount={view.rows.length}
           poolSize={view.poolSize}
           initialText={view.asText}
         />

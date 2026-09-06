@@ -407,8 +407,10 @@ test("the sheet comes back as editable text, so a replace is not a cliff", async
   // reason the paste box is an edit box.
   await page.goto(`/leagues/${league.id}/sheet`);
   const box = page.getByTestId("sheet-input");
-  await expect(box).toHaveValue(/#?1,1,"?Aaaplayer/);
-  await expect(box).toHaveValue(/2,2,"?Bbbplayer/);
+  // The format the box itself documents — `rank, tier, name`, spaces and all.
+  // It wrote `1,2,"Name"` at first, instructing one format and emitting another.
+  await expect(box).toHaveValue(/^1, 1, "?Aaaplayer/);
+  await expect(box).toHaveValue(/\n2, 2, "?Bbbplayer/);
 
   // And it round-trips: read it straight back and both players still resolve.
   await page.getByTestId("sheet-preview").click();
@@ -506,9 +508,14 @@ test("a sheet that cannot fill a roster says so", async ({ page, context }) => {
   await saveSheet(page, league.id, forwards.map((p) => p.name).join("\n"));
   await page.goto(`/leagues/${league.id}/sheet`);
 
+  // Words, and one list-join: "5 G and 5 F and 3 C" was what a second,
+  // hand-rolled join produced before `positionSentence` was shared.
   const short = page.getByTestId("sheet-short");
-  await expect(short).toContainText("5 G");
-  await expect(short).toContainText("3 C");
+  await expect(short).toContainText("You have ranked 2 forwards");
+  await expect(short).toContainText(
+    "a full roster needs 5 guards, 5 forwards and 3 centers",
+  );
+  await expect(short).not.toContainText("and 5 forwards and");
 });
 
 test("every tier run is named, so three lists are not 'list, 4 items' three times", async ({
