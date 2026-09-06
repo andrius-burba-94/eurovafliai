@@ -952,6 +952,13 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 - **Don't** use `slot-live` for anything that is not a slot on the clock. It is
   the 2px marker and it has exactly one meaning. 3.4a used it for a "Saved"
   confirmation on a page that is open *during* a live draft, on the same phone.
+- **Don't** splice a sentence out of conditional JSX fragments. A string, a
+  `null` and a bare `". "` compose into something that reads fine in the source
+  and badly on screen — it shipped "and so does rank,tier,name" with no spaces.
+  Write each alternative as a whole sentence and pick one.
+- **Don't** let a surface instruct one format and emit another. The paste box
+  documents `rank, tier, name`; `sheetToText` writes exactly that, and is tested
+  as a round trip against the parser rather than against a literal.
 - **Don't** let a sentence wear `slot-label`. Eleven-pixel caps at 0.14em is
   right for "L3" or "Which one?" and wrong for sixty-five characters of prose,
   which wraps into two shouting lines and is what the detector's `all-caps-body`

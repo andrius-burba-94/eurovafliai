@@ -33,6 +33,10 @@ src/lib/sheets/   cheat sheets: pure parse + fuzzy match, the stored shape
                   (`ranking.ts`), and `store.ts` — framework-free like the
                   pipeline, because the worker autodrafts from a sheet
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
+src/lib/positions.ts  the position words and the one list-join ("5 guards, 5
+                  forwards and 3 centers"). Shared by the radar and the sheet;
+                  it existed twice before, and the second copy joined with
+                  " and " so three positions read "5 G and 5 F and 3 C"
 src/worker/       PM2 worker: the ~1s sweep — pick deadlines, autodraft and the
                   repairs no request would notice. Nightly stats join it in 4.3
 pb/VERSION        pinned PocketBase version — the download script reads it
