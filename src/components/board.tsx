@@ -15,7 +15,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-type SlotState = "waiting" | "filled" | "live" | "correction";
+type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
 
 const SLOT_RULE: Record<SlotState, string> = {
   waiting: "slot-waiting",
@@ -27,6 +27,17 @@ const SLOT_RULE: Record<SlotState, string> = {
   // is for. The pool needed it so a refusal can be shown *on the row that was
   // tapped* rather than only above the search box.
   correction: "slot-correction",
+  // A row in your hand, on its way somewhere — 3.4b's cheat-sheet reorder.
+  //
+  // It is a *state* rather than a class the caller composes on, and that is a
+  // correctness point rather than a tidiness one. The first version passed
+  // `slot-filled` and added `slot-transit` through `className`, which requires
+  // one `border-top` shorthand to reliably beat another at equal specificity —
+  // and in the dev server's split stylesheets it does not. The computed style
+  // came back **1px dashed**: the width from one rule and the style from the
+  // other, a material that exists in neither. Two rules for one border is the
+  // bug; one state is the fix.
+  transit: "slot-transit",
 };
 
 /**

@@ -144,6 +144,28 @@ body {
   border-top: 2px solid var(--color-ink);
 }
 
+/* A row in your hand: picked up, on its way somewhere, not yet put down.
+ *
+ * Dashed, because dashed is already this system's word for *unsettled* — the
+ * same argument `slot-standing` makes for a paused draft. Ink rather than
+ * marker, because the marker means one thing only (who is on the clock) and a
+ * sheet is edited while a draft runs on the same phone; and 2px because being
+ * held is a state you must be able to find with a glance after looking away.
+ *
+ * It is reached through `Slot`'s `state`, never composed onto another slot
+ * rule, and that is worth knowing before anybody "simplifies" it. The first
+ * version drew a held row as `slot-filled slot-transit` and relied on this
+ * block winning the cascade. Tailwind v4 emits `@utility` blocks
+ * **alphabetically**, not in source order, and the dev server splits them
+ * across chunks — so the computed style came back **1px dashed**, taking the
+ * width from one rule and the style from the other and painting a material
+ * that exists in neither. `cheat-sheet.spec.ts` asserts the computed width and
+ * style for that reason.
+ */
+@utility slot-transit {
+  border-top: 2px dashed var(--color-ink);
+}
+
 /* Slot labels: the board's own small caps, used for every column head, status
  * and code. Tracking is wide because marker caps on card stock are. */
 @utility slot-label {

@@ -514,6 +514,18 @@ heavy rule; each `Slot` is an `<li>` whose **top border is its state**.
   instructions — act, and wait — and the banner that disambiguates them is
   several screens up on a phone. Dashed is already this system's word for
   unsettled, so "paused" is the marker at the same weight, unsettled.
+- **`transit`** — 2px **dashed** ink (`slot-transit`). A row picked up and on
+  its way somewhere: 3.4b's cheat-sheet reorder. Dashed for the same reason
+  `standing` is dashed — it is this system's word for *unsettled* — and ink
+  rather than marker because the marker means one thing only, and a sheet is
+  edited while a draft runs on the same phone. It is a **state**, never a class
+  composed onto another slot rule: the first version drew a held row as
+  `slot-filled slot-transit` and needed one `border-top` shorthand to beat
+  another at equal specificity. Tailwind v4 emits `@utility` blocks
+  *alphabetically* rather than in source order, and the dev server splits them
+  across chunks, so the browser composited **1px dashed** — the width from one
+  rule and the style from the other, a material that exists in neither. Two
+  rules for one border is the bug; one state is the fix.
 - **Content layout:** `flex-wrap`, baseline-aligned, primary content left and
   metadata right, `1rem` / `0.25rem` gaps. Typically a `CardName` on the left and
   a slot label on the right.
@@ -1031,8 +1043,14 @@ budget is spent: a third animation is a change to this document, not a variant.
 The board's auto-scroll is not one of them — following the clock is scrolling,
 not animation, and it uses `behavior: "auto"` under reduced motion. Colour transitions on hover
 (`transition-colors`) are not animation and are permitted on interactive
-elements. A spinner, a skeleton, a page transition, a parallax or an entrance
-animation on a static element is out of scope for this world.
+elements. **A transform driven directly by a pointer is not animation either**
+— no keyframes, no transition, no duration: the element is where the finger is,
+and it stops when the finger stops. 3.4b's cheat-sheet drag is the only use, and
+it is deliberately austere because of this rule rather than in spite of it: the
+row tracks the pointer, the gaps jump, the drop is instant. A settle on release,
+a lift, or a gap that eases open would each be a third animation and a change to
+this document. A spinner, a skeleton, a page transition, a parallax or an
+entrance animation on a static element is out of scope for this world.
 
 ## Open questions
 
