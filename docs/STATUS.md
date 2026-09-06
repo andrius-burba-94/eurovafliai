@@ -11,16 +11,21 @@ defines the target and this file is wrong.
 
 > **Production tracks `main`.** Every merge deploys itself — CI green on `main`
 > triggers the deploy workflow — so "what is live" is always just `main`, and
-> this file will not try to name a SHA it cannot keep current. The last
-> code-bearing slice to reach production was 3.2's critique fixes, `99a1fe9`;
-> anything merged after that is deployed too. Live at
+> this file names no SHA, because a SHA here is a line that goes stale on the
+> next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 >
 > Everything below marked `done` was checked *after* its deploy by more than an
 > HTTP 200 — the classes the slice added were grepped out of the stylesheet the
 > box actually serves, and realtime was re-verified through the `/pb/` proxy
-> (`PB_CONNECT` inside 0.3s, unbuffered), because that is the thing a deploy
-> breaks silently. Do the same after yours.
+> (`PB_CONNECT` on the first frame, stream held open, unbuffered), because that
+> is the thing a deploy breaks silently. Do the same after yours.
+>
+> 3.4a was checked that way: `color-mix(in oklab,var(--color-pos-g)`,
+> `border-live\/80`, `resize-y`, `max-w-prose` and the global
+> `prefers-reduced-motion` transition guard are all in the stylesheet the box
+> serves, `/leagues/<id>/sheet` redirects to login rather than 404ing, and
+> `PB_CONNECT` still arrives through the proxy.
 >
 > **Phase 3 is four slices in**: the board (3.1), the radar (3.2), the pool
 > (3.3, partial) and cheat sheets (3.4a). The first three were each followed by
