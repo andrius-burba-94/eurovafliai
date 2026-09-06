@@ -259,6 +259,47 @@ describe("the pool's armed row", () => {
   });
 });
 
+/**
+ * The patch's field is read out of the component, not out of the stylesheet.
+ *
+ * Everything else in this file is a number; this one is a *shape*, and the
+ * shape is the fix. A `bg-pos-<hue>` at 10% alpha is a wash, so whatever row
+ * the patch sits in decides the letter's contrast — on the live blush of an
+ * armed pool row that composited to 4.10–4.18:1, under the floor, on the one
+ * element that exists to be the colour-blind fallback for position. An opaque
+ * `color-mix(…, stock)` field cannot do that, and no arithmetic over
+ * `globals.css` can tell the two apart, because the difference is in
+ * `board.tsx`. So this reads the source, the way `purity.test.ts` does.
+ */
+describe("a position patch brings its own field", () => {
+  const board = readFileSync(
+    resolve(process.cwd(), "src/components/board.tsx"),
+    "utf8",
+  );
+  const patchMap = /const PATCH: Record<[^>]+> = \{([\s\S]*?)\};/.exec(board);
+
+  it("the PATCH map is where this test thinks it is", () => {
+    expect(patchMap, "PATCH map not found in board.tsx").not.toBeNull();
+  });
+
+  for (const position of ["g", "f", "c"] as const) {
+    it(`pos-${position}'s field is opaque, not an alpha wash`, () => {
+      const line = patchMap![1]!
+        .split("\n")
+        .find((row) => row.includes(`text-pos-${position}`));
+      expect(line, `no pos-${position} row in PATCH`).toBeDefined();
+      expect(
+        line,
+        `bg-pos-${position}/N is an alpha wash — the row behind the patch then ` +
+          `decides the letter's contrast, which is 4.1:1 on the live blush`,
+      ).not.toMatch(new RegExp(`bg-pos-${position}/`));
+      expect(line).toContain(
+        `color-mix(in_oklab,var(--color-pos-${position})_10%,var(--color-stock))`,
+      );
+    });
+  }
+});
+
 describe("a control's own border is a boundary that means something", () => {
   // The last thing open question 7 left eyeballed. On a button the border *is*
   // the control — no fill, no radius, and in the pool no coloured label — and a
@@ -273,6 +314,31 @@ describe("a control's own border is a boundary that means something", () => {
       round(ratio),
       `ink/50 on stock was ${round(ratio)}:1`,
     ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the primary action's border clears 3:1 on stock AND on the live blush", () => {
+    // `border-live/60` measured **2.60:1** on stock — the primary action of six
+    // surfaces, the login page's only button among them. Found by 3.4a's
+    // critique measuring in a browser, three slices after the pass that fixed
+    // `ink/35` in the same object and never looked at this one.
+    //
+    // Both grounds are asserted because a `tone="live"` button can sit on the
+    // live blush (the room's sticky band is `slot-live`), and the blush is the
+    // harsher of the two: `/70` clears stock at 3.07 and fails the blush at
+    // 2.81. `/80` clears both.
+    for (const [ground, background] of [
+      ["stock", rgbOf("stock")],
+      ["the live blush", rgbOf("live-sunk")],
+    ] as const) {
+      const ratio = contrastOn2(
+        wash("live", 0.8, ground === "stock" ? "stock" : "live-sunk"),
+        background,
+      );
+      expect(
+        round(ratio),
+        `live/80 on ${ground} was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("an input's ruled line clears 3:1 on stock", () => {

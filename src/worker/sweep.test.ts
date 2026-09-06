@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { deadlineFrom } from "@/lib/drafts/pipeline";
 
-import { fakePb, type FakeDb, type FakeRecord } from "../../tests/unit/helpers/fake-pb";
+import {
+  fakePb,
+  type FakeDb,
+  type FakeRecord,
+} from "../../tests/unit/helpers/fake-pb";
 import { sweepOnce, type SweepReport } from "./sweep";
 
 /**
@@ -53,13 +57,16 @@ type World = {
  * The pool is named so that alphabetical order is the ranking — `readPool`
  * sorts by name, and until Phase 4.4 there is nothing else to rank on.
  */
-function world(overrides: {
-  draft?: Partial<FakeRecord>;
-  members?: Partial<FakeRecord>[];
-  picks?: FakeRecord[];
-  players?: FakeRecord[];
-  league?: Partial<FakeRecord>;
-} = {}): World {
+function world(
+  overrides: {
+    draft?: Partial<FakeRecord>;
+    members?: Partial<FakeRecord>[];
+    picks?: FakeRecord[];
+    players?: FakeRecord[];
+    league?: Partial<FakeRecord>;
+    cheat_sheets?: FakeRecord[];
+  } = {},
+): World {
   const db: FakeDb = {
     leagues: [
       {
@@ -70,8 +77,18 @@ function world(overrides: {
       },
     ],
     league_members: [
-      { id: "m1", league: "lg1", team_name: "First FC", autodraft_enabled: false },
-      { id: "m2", league: "lg1", team_name: "Second FC", autodraft_enabled: false },
+      {
+        id: "m1",
+        league: "lg1",
+        team_name: "First FC",
+        autodraft_enabled: false,
+      },
+      {
+        id: "m2",
+        league: "lg1",
+        team_name: "Second FC",
+        autodraft_enabled: false,
+      },
     ].map((member, index) => ({ ...member, ...overrides.members?.[index] })),
     drafts: [
       {
@@ -89,6 +106,7 @@ function world(overrides: {
       },
     ],
     picks: overrides.picks ?? [],
+    cheat_sheets: overrides.cheat_sheets ?? [],
     players: overrides.players ?? [
       { id: "aaron", name: "Aaron", position: "G", status: "active" },
       { id: "bravo", name: "Bravo", position: "F", status: "active" },
@@ -214,6 +232,173 @@ describe("autodraft armed on purpose", () => {
   });
 });
 
+describe("autodraft from a cheat sheet", () => {
+  it("picks the member's own top-ranked player, not the pool's", async () => {
+    // Without a sheet this pick is "aaron" — alphabetically first, and really
+    // the lowest player id, which is the engine's total tiebreak. m1 wrote a
+    // sheet, so their sheet decides.
+    const sheeted = world({
+      draft: { deadline: deadlineAt(-5_000) },
+      cheat_sheets: [
+        {
+          id: "cs1",
+          member: "m1",
+          ranking: ["zane", "dana"],
+          tiers: [],
+          source: "csv",
+        },
+      ],
+    });
+    const { report, db } = await sheeted.run();
+
+    expect(report.autopicked).toBe(1);
+    expect(onlyPick(db)).toMatchObject({ member: "m1", player: "zane" });
+    // The log says where the pick came from, which is the only place anybody
+    // can check that a ranking is being obeyed at all.
+    expect(sheeted.log[0]).toContain("sheet #1");
+  });
+
+  it("reads the sheet of whoever is on the clock, not of whoever wrote one", async () => {
+    // m2's sheet must not decide m1's pick.
+    const { db } = await world({
+      draft: { deadline: deadlineAt(-5_000) },
+      cheat_sheets: [
+        {
+          id: "cs2",
+          member: "m2",
+          ranking: ["zane"],
+          tiers: [],
+          source: "csv",
+        },
+      ],
+    }).run();
+
+    expect(onlyPick(db)).toMatchObject({ member: "m1", player: "aaron" });
+  });
+
+  it("walks down the sheet when the top of it would not be legal", async () => {
+    // Rank first, filter second (§6). m1 holds a guard already, so the guard
+    // at the top of their sheet is skipped for the forward below it — and not
+    // for the pool's own first forward, which would mean the sheet had been
+    // filtered before it was read.
+    const { db } = await world({
+      draft: { current_pick: 4, deadline: deadlineAt(-5_000) },
+      picks: [
+        {
+          id: "p1",
+          draft: "d1",
+          overall_no: 1,
+          round: 1,
+          slot: 1,
+          member: "m1",
+          player: "dana",
+        },
+        {
+          id: "p2",
+          draft: "d1",
+          overall_no: 2,
+          round: 1,
+          slot: 2,
+          member: "m2",
+          player: "aaron",
+        },
+        {
+          id: "p3",
+          draft: "d1",
+          overall_no: 3,
+          round: 2,
+          slot: 1,
+          member: "m2",
+          player: "zane",
+        },
+      ],
+      cheat_sheets: [
+        {
+          id: "cs1",
+          member: "m1",
+          ranking: ["charlie", "elin", "bravo"],
+          tiers: [],
+          source: "csv",
+        },
+      ],
+    }).run();
+
+    // charlie is a C and this template has no C slot; elin is the forward the
+    // sheet asked for next. `bravo` is the pool's first forward by id.
+    expect(db.picks.find((pick) => pick.overall_no === 4)).toMatchObject({
+      player: "elin",
+    });
+  });
+
+  it("falls through to the pool when the sheet is exhausted", async () => {
+    const { db } = await world({
+      draft: { deadline: deadlineAt(-5_000) },
+      cheat_sheets: [
+        // Nobody in this pool. A sheet is allowed to name players who are not
+        // in it — it is fuzzy-matched by hand — and a tick must not stall.
+        {
+          id: "cs1",
+          member: "m1",
+          ranking: ["nobody", "also-nobody"],
+          tiers: [],
+          source: "csv",
+        },
+      ],
+    }).run();
+
+    expect(onlyPick(db)).toMatchObject({ member: "m1", player: "aaron" });
+  });
+
+  it("picks without the sheet rather than missing the turn when the read fails", async () => {
+    // §7: a worse pick is not the same failure as a member's clock running out
+    // twice. The sheet read is the one query in the tick that is allowed to
+    // fail quietly.
+    const broken = world({
+      draft: { deadline: deadlineAt(-5_000) },
+      cheat_sheets: [
+        {
+          id: "cs1",
+          member: "m1",
+          ranking: ["zane"],
+          tiers: [],
+          source: "csv",
+        },
+      ],
+    });
+    const { report, db } = await broken.run({
+      hooks: () => ({
+        beforeList(collection) {
+          if (collection === "cheat_sheets") throw new Error("sheet is down");
+        },
+      }),
+    });
+
+    expect(report.autopicked).toBe(1);
+    expect(onlyPick(db)).toMatchObject({ member: "m1", player: "aaron" });
+    expect(broken.log.join("\n")).toContain("could not read");
+  });
+
+  it("ignores a ranking that is not a list of ids", async () => {
+    // A JSON column holds whatever was last written to it. Numbers and nulls
+    // reaching `rankForMember` would be looked up as player ids, miss, and
+    // turn the sheet into no sheet with nothing saying so.
+    const { db } = await world({
+      draft: { deadline: deadlineAt(-5_000) },
+      cheat_sheets: [
+        {
+          id: "cs1",
+          member: "m1",
+          ranking: [null, 7, "", "zane"],
+          tiers: "nope",
+          source: "csv",
+        },
+      ],
+    }).run();
+
+    expect(onlyPick(db)).toMatchObject({ player: "zane" });
+  });
+});
+
 describe("legality, through the engine", () => {
   it("walks past a top-ranked player who would not be legal", async () => {
     // m1 holds a guard already and needs a forward. Aaron (G) still leads the
@@ -221,9 +406,33 @@ describe("legality, through the engine", () => {
     const { report, db } = await world({
       draft: { current_pick: 4, deadline: deadlineAt(-5_000) },
       picks: [
-        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
-        { id: "p2", draft: "d1", overall_no: 2, round: 1, slot: 2, member: "m2", player: "elin" },
-        { id: "p3", draft: "d1", overall_no: 3, round: 2, slot: 1, member: "m2", player: "zane" },
+        {
+          id: "p1",
+          draft: "d1",
+          overall_no: 1,
+          round: 1,
+          slot: 1,
+          member: "m1",
+          player: "dana",
+        },
+        {
+          id: "p2",
+          draft: "d1",
+          overall_no: 2,
+          round: 1,
+          slot: 2,
+          member: "m2",
+          player: "elin",
+        },
+        {
+          id: "p3",
+          draft: "d1",
+          overall_no: 3,
+          round: 2,
+          slot: 1,
+          member: "m2",
+          player: "zane",
+        },
       ],
     }).run();
 
@@ -236,7 +445,9 @@ describe("legality, through the engine", () => {
     // Only centers left, and this template has no center slot.
     const stuck = world({
       draft: { deadline: deadlineAt(-5_000) },
-      players: [{ id: "charlie", name: "Charlie", position: "C", status: "active" }],
+      players: [
+        { id: "charlie", name: "Charlie", position: "C", status: "active" },
+      ],
     });
     const { report, writes } = await stuck.run();
 
@@ -248,7 +459,9 @@ describe("legality, through the engine", () => {
   it("reports a draft it cannot help once, not once a second", async () => {
     const stuck = world({
       draft: { deadline: deadlineAt(-5_000) },
-      players: [{ id: "charlie", name: "Charlie", position: "C", status: "active" }],
+      players: [
+        { id: "charlie", name: "Charlie", position: "C", status: "active" },
+      ],
     });
     const reported = new Set<string>();
     await stuck.run({ reported });
@@ -265,7 +478,9 @@ describe("legality, through the engine", () => {
     // past a draft it could move.
     const stuck = world({
       draft: { deadline: deadlineAt(-5_000) },
-      players: [{ id: "charlie", name: "Charlie", position: "C", status: "active" }],
+      players: [
+        { id: "charlie", name: "Charlie", position: "C", status: "active" },
+      ],
     });
     const reported = new Set<string>();
 
@@ -273,7 +488,12 @@ describe("legality, through the engine", () => {
     expect(stuck.log).toHaveLength(1);
 
     // A guard turns up in the pool, the pick lands, and the complaint is spent.
-    stuck.db.players.push({ id: "dana", name: "Dana", position: "G", status: "active" });
+    stuck.db.players.push({
+      id: "dana",
+      name: "Dana",
+      position: "G",
+      status: "active",
+    });
     await stuck.run({ reported });
 
     // Back to a pool with nothing legal in it, and the sweep says so again.
@@ -281,7 +501,9 @@ describe("legality, through the engine", () => {
       { id: "charlie", name: "Charlie", position: "C", status: "active" },
     ];
     await stuck.run({ reported });
-    expect(stuck.log.filter((line) => line.includes("no legal player"))).toHaveLength(2);
+    expect(
+      stuck.log.filter((line) => line.includes("no legal player")),
+    ).toHaveLength(2);
   });
 
   it("does not autodraft a player who has left the Euroleague", async () => {
@@ -303,7 +525,15 @@ describe("the repairs nobody else would notice", () => {
     const { report, db } = await world({
       draft: { current_pick: 1, deadline: deadlineAt(30_000) },
       picks: [
-        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
+        {
+          id: "p1",
+          draft: "d1",
+          overall_no: 1,
+          round: 1,
+          slot: 1,
+          member: "m1",
+          player: "dana",
+        },
       ],
     }).run();
 
@@ -320,7 +550,15 @@ describe("the repairs nobody else would notice", () => {
     const repaired = world({
       draft: { current_pick: 1, deadline: deadlineAt(-5_000) },
       picks: [
-        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
+        {
+          id: "p1",
+          draft: "d1",
+          overall_no: 1,
+          round: 1,
+          slot: 1,
+          member: "m1",
+          player: "dana",
+        },
       ],
     });
     const { report, db } = await repaired.run();
@@ -337,10 +575,42 @@ describe("the repairs nobody else would notice", () => {
     const finished = world({
       draft: { current_pick: 4, deadline: deadlineAt(-5_000) },
       picks: [
-        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
-        { id: "p2", draft: "d1", overall_no: 2, round: 1, slot: 2, member: "m2", player: "elin" },
-        { id: "p3", draft: "d1", overall_no: 3, round: 2, slot: 1, member: "m2", player: "zane" },
-        { id: "p4", draft: "d1", overall_no: 4, round: 2, slot: 2, member: "m1", player: "bravo" },
+        {
+          id: "p1",
+          draft: "d1",
+          overall_no: 1,
+          round: 1,
+          slot: 1,
+          member: "m1",
+          player: "dana",
+        },
+        {
+          id: "p2",
+          draft: "d1",
+          overall_no: 2,
+          round: 1,
+          slot: 2,
+          member: "m2",
+          player: "elin",
+        },
+        {
+          id: "p3",
+          draft: "d1",
+          overall_no: 3,
+          round: 2,
+          slot: 1,
+          member: "m2",
+          player: "zane",
+        },
+        {
+          id: "p4",
+          draft: "d1",
+          overall_no: 4,
+          round: 2,
+          slot: 2,
+          member: "m1",
+          player: "bravo",
+        },
       ],
     });
     const { report, writes, db } = await finished.run();
@@ -355,10 +625,42 @@ describe("the repairs nobody else would notice", () => {
     const { report, db } = await world({
       draft: { current_pick: 5, deadline: deadlineAt(-60_000) },
       picks: [
-        { id: "p1", draft: "d1", overall_no: 1, round: 1, slot: 1, member: "m1", player: "dana" },
-        { id: "p2", draft: "d1", overall_no: 2, round: 1, slot: 2, member: "m2", player: "elin" },
-        { id: "p3", draft: "d1", overall_no: 3, round: 2, slot: 1, member: "m2", player: "zane" },
-        { id: "p4", draft: "d1", overall_no: 4, round: 2, slot: 2, member: "m1", player: "bravo" },
+        {
+          id: "p1",
+          draft: "d1",
+          overall_no: 1,
+          round: 1,
+          slot: 1,
+          member: "m1",
+          player: "dana",
+        },
+        {
+          id: "p2",
+          draft: "d1",
+          overall_no: 2,
+          round: 1,
+          slot: 2,
+          member: "m2",
+          player: "elin",
+        },
+        {
+          id: "p3",
+          draft: "d1",
+          overall_no: 3,
+          round: 2,
+          slot: 1,
+          member: "m2",
+          player: "zane",
+        },
+        {
+          id: "p4",
+          draft: "d1",
+          overall_no: 4,
+          round: 2,
+          slot: 2,
+          member: "m1",
+          player: "bravo",
+        },
       ],
     }).run();
 
@@ -386,9 +688,33 @@ describe("the repairs nobody else would notice", () => {
     const holed = world({
       draft: { current_pick: 5, deadline: deadlineAt(-60_000) },
       picks: [
-        { id: "p2", draft: "d1", overall_no: 2, round: 1, slot: 2, member: "m2", player: "elin" },
-        { id: "p3", draft: "d1", overall_no: 3, round: 2, slot: 1, member: "m2", player: "zane" },
-        { id: "p4", draft: "d1", overall_no: 4, round: 2, slot: 2, member: "m1", player: "bravo" },
+        {
+          id: "p2",
+          draft: "d1",
+          overall_no: 2,
+          round: 1,
+          slot: 2,
+          member: "m2",
+          player: "elin",
+        },
+        {
+          id: "p3",
+          draft: "d1",
+          overall_no: 3,
+          round: 2,
+          slot: 1,
+          member: "m2",
+          player: "zane",
+        },
+        {
+          id: "p4",
+          draft: "d1",
+          overall_no: 4,
+          round: 2,
+          slot: 2,
+          member: "m1",
+          player: "bravo",
+        },
       ],
     });
     const { report, writes } = await holed.run();

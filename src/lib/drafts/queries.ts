@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import {
   buildRadar,
   countByPosition,
+  isLegalPick,
+  rankForMember,
   whoIsOnClock,
   type EnginePick,
   type Position,
@@ -13,6 +15,8 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import type { PoolPlayer } from "@/lib/pool/search";
 import { createUserClient } from "@/lib/pb/server";
+import { tierOfRank } from "@/lib/sheets/ranking";
+import { readSheet } from "@/lib/sheets/store";
 
 import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
 
@@ -96,7 +100,41 @@ export type DraftView = {
    * twelve-member league drops to eleven-man rosters.
    */
   rosterTotal: number;
+  /**
+   * The **viewer's own** cheat sheet, flattened to one entry per ranked player
+   * — slice 3.4. Nobody else's: a sheet is private, and the read rule on
+   * `cheat_sheets` refuses another member's even to this query's own token.
+   *
+   * An array rather than a `Map`, because it crosses the server/client boundary
+   * and the component memoises it into a lookup once.
+   */
+  sheet: { playerId: string; rank: number; tier: number }[];
+  /**
+   * Best available from your sheet, pinned — the top few players you ranked who
+   * are still there and still legal for you.
+   *
+   * Computed with the engine's own `rankForMember`, which is the function
+   * `selectAutoPick` walks, and filtered by the engine's own `isLegalPick`. The
+   * comment on `rankForMember` asked for exactly this: two rankings that
+   * disagreed would make the pinned suggestion a lie about what the worker
+   * would do if this member's clock ran out.
+   *
+   * Empty for a member with no sheet, and empty once a sheet is exhausted —
+   * which is the honest answer to "best available *from my sheet*" rather than
+   * quietly widening to the pool.
+   */
+  bestFromSheet: {
+    id: string;
+    name: string;
+    club: string;
+    position: Position;
+    rank: number;
+    tier: number;
+  }[];
 };
+
+/** How many pinned rows. Three is a shortlist; ten is the pool again. */
+const BEST_FROM_SHEET = 3;
 
 export async function getDraftView(
   leagueId: string,
@@ -241,6 +279,71 @@ export async function getDraftView(
     requestKey: null,
   });
 
+  /**
+   * The viewer's own sheet — slice 3.4.
+   *
+   * Read with the *user's* token like everything else here, which is doing real
+   * work: the `cheat_sheets` read rule is `member.user = @request.auth.id`, so
+   * a bug that asked for somebody else's would be refused by the database
+   * rather than quietly answered.
+   *
+   * A failure is swallowed on purpose. A sheet is a convenience — an ordering
+   * and a shortlist — and a room that 500s because one JSON column could not be
+   * read is a room nobody can draft in. The same call in the sweep takes the
+   * same view for the same reason.
+   */
+  const sheet = youId ? await readSheet(pb, youId).catch(() => null) : null;
+  const ranking = sheet?.ranking ?? [];
+  const tiers = sheet?.tiers ?? [];
+  const placeOf = new Map(
+    ranking.map((playerId, index) => [
+      playerId,
+      { rank: index + 1, tier: tierOfRank(index + 1, tiers) },
+    ]),
+  );
+
+  const takenPlayerIds = new Set(picks.map((pick) => pick.playerId));
+  const yourRoster = rosterOf(youId);
+  const byPlayerId = new Map(players.map((player) => [player.id, player]));
+
+  /**
+   * Walked through the engine rather than over `ranking` directly, so this list
+   * and the pick the sweep would make for you come out of the *same* function.
+   * `rankForMember` puts the sheet first in the sheet's own order, so the walk
+   * stops of its own accord the moment it leaves the sheet.
+   */
+  const bestFromSheet: DraftView["bestFromSheet"] = [];
+  if (placeOf.size > 0) {
+    const ranked = rankForMember(
+      players.map((player) => ({ id: player.id, position: player.position })),
+      ranking,
+    );
+    for (const candidate of ranked) {
+      if (bestFromSheet.length >= BEST_FROM_SHEET) break;
+      const place = placeOf.get(candidate.id);
+      // Past the end of the sheet. Everything below is the pool's order, not
+      // this member's, and has no business under a heading with "your" in it.
+      if (!place) break;
+      const legal = isLegalPick({
+        player: candidate,
+        roster: yourRoster,
+        template: settings.roster_template,
+        takenPlayerIds,
+      });
+      if (!legal.ok) continue;
+      const player = byPlayerId.get(candidate.id);
+      if (!player) continue;
+      bestFromSheet.push({
+        id: player.id,
+        name: player.name,
+        club: player.club_code,
+        position: player.position,
+        rank: place.rank,
+        tier: place.tier,
+      });
+    }
+  }
+
   return {
     draft,
     picks,
@@ -303,6 +406,8 @@ export async function getDraftView(
       settings.roster_template,
     ),
     rosterTotal: radarSize(settings.roster_template),
+    sheet: [...placeOf].map(([playerId, place]) => ({ playerId, ...place })),
+    bestFromSheet,
   };
 }
 

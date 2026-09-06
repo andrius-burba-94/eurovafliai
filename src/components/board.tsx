@@ -12,6 +12,7 @@
  * earlier draft of this file invented "bay" and put it in a page headline,
  * which is exactly the drift CONTEXT.md exists to prevent.
  */
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 type SlotState = "waiting" | "filled" | "live" | "correction";
@@ -167,14 +168,30 @@ export function Slot({
 export function Slots({
   children,
   testId,
+  label,
 }: {
   children: ReactNode;
   testId?: string;
+  /**
+   * An accessible name for the run.
+   *
+   * Added in 3.4a's critique, which found the cheat sheet rendering its three
+   * tier runs as three *unnamed* sibling lists — "list, 4 items" three times,
+   * where the tier is the entire point of the structure. The visible caption
+   * was a `<p>` outside the `<ul>` with nothing wiring the two together.
+   *
+   * It is a prop rather than something each caller hand-rolls because this
+   * component is the only place that knows it renders a `<ul>`: a caller
+   * adding `aria-labelledby` from outside has to know that, and half of them
+   * will not.
+   */
+  label?: string;
 }) {
   // The frame closes the run the way a board's bottom rail does, at the heavier
   // of the two rule weights.
   return (
     <ul
+      aria-label={label}
       data-testid={testId}
       // Stated, not inherited. Tailwind's preflight sets `list-style: none` and
       // this is a flex column, and Safari + VoiceOver drop the list/listitem
@@ -225,10 +242,30 @@ export function CardName({
  * declares — this settles the border half of its open question 7 rather than
  * moving the system.
  */
+/**
+ * The patch carries **its own field**, opaque, rather than tinting whatever is
+ * behind it.
+ *
+ * A 10% alpha background made the letter's contrast depend on the row it
+ * happened to sit in. On stock that is 4.54–4.64:1; on the live blush of an
+ * armed pool row it composites to **4.10–4.18:1**, under the 4.5 floor —
+ * measured in a browser by 3.4a's critique. `pick-form.tsx` reasons carefully
+ * about `ink-faint` (4.37) and the Pick label (4.15) on that same blush and
+ * dodges both; the patch was never considered, and it is the one element that
+ * exists to be the colour-blind fallback for position.
+ *
+ * `color-mix(…, var(--color-stock))` pre-composites the same tint against the
+ * ground once, so the patch reads identically in every state — which is what a
+ * patch *is*: a thing laid on the board, not a tint of the board. The border
+ * stays an alpha because it is a boundary and is measured against both sides.
+ *
+ * `tokens.test.ts` reads this map and fails if the alpha comes back; it cannot
+ * be caught by arithmetic over `globals.css`, because the difference is here.
+ */
 const PATCH: Record<"G" | "F" | "C", string> = {
-  G: "text-pos-g border-pos-g/80 bg-pos-g/10",
-  F: "text-pos-f border-pos-f/80 bg-pos-f/10",
-  C: "text-pos-c border-pos-c/80 bg-pos-c/10",
+  G: "text-pos-g border-pos-g/80 bg-[color-mix(in_oklab,var(--color-pos-g)_10%,var(--color-stock))]",
+  F: "text-pos-f border-pos-f/80 bg-[color-mix(in_oklab,var(--color-pos-f)_10%,var(--color-stock))]",
+  C: "text-pos-c border-pos-c/80 bg-[color-mix(in_oklab,var(--color-pos-c)_10%,var(--color-stock))]",
 };
 
 /**
@@ -440,6 +477,37 @@ export function BoardPlan({
 }
 
 /** A short arrow drawn in the board's own grammar: one stroke, no icon font. */
+/**
+ * The way back, at a real tap target.
+ *
+ * Every surface hand-rolled this link, and every one of them was **16px tall**
+ * — 32px on a phone only because the label wrapped to two lines. DESIGN.md's
+ * own Do says 44px on *both* axes and records `FilterToggle` learning it the
+ * hard way; the rail's back links fell straight through the same gap, and
+ * 3.4a's critique measured them (`The room` 83.8×32 mobile, 90.3×16 desktop).
+ *
+ * `items-center` with `min-h-11` rather than padding, so the label keeps its
+ * position on the rail and only the box grows. `whitespace-nowrap` because the
+ * two-line wrap was the only reason the mobile number was not 16 either.
+ */
+export function BackLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="slot-label inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+    >
+      <BackArrow />
+      {children}
+    </Link>
+  );
+}
+
 export function BackArrow() {
   return (
     <svg

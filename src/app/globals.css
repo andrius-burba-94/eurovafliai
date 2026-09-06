@@ -168,6 +168,30 @@ body {
   }
 }
 
+/**
+ * Reduced motion means *transitions* too, not only the two named animations.
+ *
+ * Both `@utility` blocks below guard their own keyframes, which DESIGN.md
+ * records as the rule — a guard inside the utility cannot be forgotten by a new
+ * caller. What nothing guarded was `transition-colors`, which Tailwind v4
+ * applies to `outline-color` as well as to text and borders: so every
+ * focus-visible ring in the app **faded in from `currentColor` over 150ms**,
+ * including for somebody who has asked their phone for no motion. 3.4a's
+ * critique caught it by measuring a focus ring mid-fade and briefly concluding
+ * that `outline-live` was not applying at all.
+ *
+ * A focus ring that animates is a focus ring that is the wrong colour at the
+ * moment it appears, which is the one moment it exists for.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
 @utility card-lands {
   animation: card-lands 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 

@@ -22,6 +22,7 @@ import {
   type Position,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
+import { readSheet } from "@/lib/sheets/store";
 
 /**
  * The sweep — one tick of the worker, and the only thing in this app that
@@ -37,7 +38,8 @@ import { parseLeagueSettings } from "@/lib/leagues/settings";
  * Four jobs, in order of how much they matter:
  *
  * 1. **Autodraft.** A member who is out of time, or who armed autodraft on
- *    purpose, gets their pick made for them with `is_auto: true`.
+ *    purpose, gets their pick made for them with `is_auto: true` — from their
+ *    own cheat sheet (3.4) when they wrote one.
  * 2. **Repair an unadvanced pick.** ADR-0003's one intermediate state. Done
  *    before anything else on every live draft, and idempotent.
  * 3. **Close a draft whose last advance was lost.** All picks in, status still
@@ -261,13 +263,30 @@ async function sweepDraft(
 
   const pool = await readPool(pb);
   const roster = await rosterPositionsOf(pb, picks, onClock.memberId);
+  /**
+   * The member's own cheat sheet — slice 3.4, and the whole point of it.
+   *
+   * Read here rather than passed in, because the sweep is the only caller that
+   * knows *whose* turn it is. A member who never wrote one gets `null`, and the
+   * engine then falls through to projection rank (4.4) and finally to its own
+   * total tiebreak, the lowest player id: arbitrary, and identical on every
+   * replay, which is the property that matters when there is nothing real to
+   * rank on.
+   *
+   * A read that fails must not stop the pick. An unreachable sheet is a worse
+   * pick, not a missed turn — and a missed turn is a member's clock running out
+   * twice, which is the one outcome §7 says the worker must never cause.
+   */
+  const sheet = await readSheet(pb, onClock.memberId).catch((error) => {
+    log(
+      `draft ${draft.id} · could not read ${onClock.memberId}'s cheat sheet, picking without it: ${describeError(error)}`,
+    );
+    return null;
+  });
 
   const choice = selectAutoPick({
     candidates: pool,
-    // Cheat sheets are Phase 3.4 and projections 4.4, so the engine has
-    // nothing to rank on and falls through to its own total tiebreak, the
-    // player id. Arbitrary, and identical on every replay — which is the
-    // property that matters until there is something real to rank on.
+    cheatSheet: sheet?.ranking,
     roster,
     template,
     takenPlayerIds: new Set(picks.map((pick) => pick.playerId)),
@@ -333,10 +352,16 @@ async function sweepDraft(
   }
 
   report.autopicked += 1;
+  // Whether the sheet decided it, said in the log, because it is the only place
+  // anybody can check that a member's ranking is actually being obeyed — a
+  // sheet that silently failed to load picks *something*, and something is what
+  // a working autodraft looks like too.
+  const fromSheet = sheet?.ranking.indexOf(choice.id) ?? -1;
   log(
     `draft ${draft.id} · pick ${onClock.overallNo} auto · ` +
       `${member?.team_name || onClock.memberId} ← ${nameOf(pool, choice.id)}` +
-      `${armed ? " (autodraft armed)" : " (out of time)"}`,
+      `${armed ? " (autodraft armed" : " (out of time"}` +
+      `${fromSheet >= 0 ? `, sheet #${fromSheet + 1})` : ")"}`,
   );
   return "handled";
 }
@@ -347,12 +372,13 @@ async function sweepDraft(
  * pick somebody the room would not have offered.
  *
  * The `sort` is for the log and for a readable database read; it does **not**
- * decide the pick. With no cheat sheet and no projections, `selectAutoPick`
- * falls through to its own total tiebreak — the player id — so the autopick is
- * arbitrary and identical on every replay until Phase 4.4 gives it something
- * real to rank on. (It used to decide the pick, by accident, through a NaN in
- * the engine's comparator that made the id tiebreak dead code. Fixed there,
- * with a test.)
+ * decide the pick. A member with a cheat sheet (3.4) is picked for from their
+ * own ranking; below it, and for a member without one, `selectAutoPick` falls
+ * through to projection rank — nothing until Phase 4.4 — and finally to its own
+ * total tiebreak, the player id: arbitrary, and identical on every replay,
+ * which is the property that matters when there is nothing real to rank on.
+ * (It used to decide the pick, by accident, through a NaN in the engine's
+ * comparator that made the id tiebreak dead code. Fixed there, with a test.)
  */
 async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
   const players = await pb

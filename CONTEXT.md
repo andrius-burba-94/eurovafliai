@@ -16,8 +16,8 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **column** | One member's whole roster, read down the board. Columns are in round 1's order — never in pick order, which in a snake draft would put two people's players in one column. | `BoardShape.columns` |
 | **the pool** | Every player still available to draft. | filtered `players` |
 | **radar** | The 5G/5F/3C slot matrix per team, filling live; shows what a roster still needs. Live since 3.2. | `RosterRadar`, `buildRadar()` |
-| **cheat sheet** | A member's private ranked player list, with optional tier breaks. Drives autodraft. | `cheat_sheets` |
-| **tier** | A break in a cheat sheet grouping players of similar value. | `cheat_sheets.tiers` |
+| **cheat sheet** | A member's private ranked player list, with optional tier breaks. Drives autodraft, and orders that member's own view of the pool. Private in the strong sense: nobody else in the league can read it, not even the commissioner. One per **membership**, so it survives a "start over" and exists before the draft does. | `cheat_sheets`, `cheat_sheets.ranking` |
+| **tier** | A break in a cheat sheet grouping players of similar value. Stored as the **positions of the breaks** (`[3, 7]` means 1–3, 4–7, 8–), never as a label on a player — a break sits between two places and stays put when the players either side of it move. | `cheat_sheets.tiers`, `tierOfRank()` |
 | **the roll** | The seeded shuffle that determines draft order, revealed live one slot at a time. | `order_mode: 'roll'`, `drafts.seed` |
 | **order mode** | How draft order is decided: `roll`, `manual` or `reverse_standings`. Orthogonal to format. | `drafts.settings.order_mode` |
 | **format** | How order repeats across rounds: `linear`, `snake`, `snake3rr`, `keeper`. | `drafts.format` |

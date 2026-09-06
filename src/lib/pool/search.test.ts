@@ -6,6 +6,7 @@ import {
   selectPool,
   type PoolFilters,
   type PoolPlayer,
+  type SheetPlaces,
 } from "./search";
 
 import type { Position } from "@/lib/engine";
@@ -73,13 +74,19 @@ const run = (
   filters: Partial<PoolFilters> = {},
   needs: Record<Position, number> | null = OPEN,
   pool: PoolPlayer[] = POOL,
+  sheet?: SheetPlaces,
 ) =>
   selectPool({
     pool,
     filters: { ...NO_FILTERS, ...filters },
     query,
     needs,
+    sheet,
   });
+
+/** A cheat sheet in the shape the pool reads it: player id → rank and tier. */
+const sheetOf = (...entries: [string, number, number][]): SheetPlaces =>
+  new Map(entries.map(([id, rank, tier]) => [id, { rank, tier }]));
 
 describe("selectPool — search", () => {
   it("finds a player by part of their surname", () => {
@@ -264,5 +271,98 @@ describe("clubsIn", () => {
 
   it("is empty for an empty pool", () => {
     expect(clubsIn([])).toEqual([]);
+  });
+});
+
+/**
+ * The cheat sheet's effect on the pool — slice 3.4, and the close of 3.3's
+ * "the pool is still 30 rows tall before you touch it".
+ */
+describe("selectPool — the viewer's cheat sheet", () => {
+  const SHEET = sheetOf(["nunn", 1, 1], ["shengelia", 2, 1], ["larkin", 3, 2]);
+
+  it("puts the sheet first, in the sheet's own order", () => {
+    // The pool arrives alphabetical. Nunn is fourth in it and first here,
+    // because that is where their owner put them.
+    const rows = run("", {}, OPEN, POOL, SHEET);
+    expect(ids(rows).slice(0, 3)).toEqual(["nunn", "shengelia", "larkin"]);
+  });
+
+  it("leaves everyone else in the order the server sent", () => {
+    const rows = ids(run("", {}, OPEN, POOL, SHEET));
+    const unsheeted = rows.slice(3);
+    expect(unsheeted).toEqual(
+      ids(run("")).filter(
+        (id) => !["nunn", "shengelia", "larkin"].includes(id),
+      ),
+    );
+  });
+
+  it("changes nothing at all for a viewer with no sheet", () => {
+    expect(ids(run("", {}, OPEN, POOL, new Map()))).toEqual(ids(run("")));
+  });
+
+  it("does not re-order a search — relevance is what a query asked for", () => {
+    // Larkin is third on the sheet; a query for their name must still rank
+    // them first, or the sheet has overruled the thing the user just typed.
+    expect(ids(run("larkin", {}, OPEN, POOL, SHEET))[0]).toBe("larkin");
+  });
+
+  it("carries the rank and tier onto the row", () => {
+    const row = run("", {}, OPEN, POOL, SHEET).find(
+      (one) => one.id === "larkin",
+    );
+    expect(row).toMatchObject({ sheetRank: 3, sheetTier: 2 });
+  });
+
+  it("leaves rank and tier null for somebody who was never ranked", () => {
+    const row = run("", {}, OPEN, POOL, SHEET).find(
+      (one) => one.id === "sloukas",
+    );
+    expect(row).toMatchObject({ sheetRank: null, sheetTier: null });
+  });
+
+  it("filters to the sheet", () => {
+    expect(ids(run("", { sheetOnly: true }, OPEN, POOL, SHEET))).toEqual([
+      "nunn",
+      "shengelia",
+      "larkin",
+    ]);
+  });
+
+  it("filters to one tier of it", () => {
+    expect(ids(run("", { tier: 1 }, OPEN, POOL, SHEET))).toEqual([
+      "nunn",
+      "shengelia",
+    ]);
+    expect(ids(run("", { tier: 2 }, OPEN, POOL, SHEET))).toEqual(["larkin"]);
+  });
+
+  it("puts somebody who is not on the sheet in no tier, not in every tier", () => {
+    expect(ids(run("", { tier: 1 }, OPEN, POOL, SHEET))).not.toContain(
+      "sloukas",
+    );
+  });
+
+  it("does not let a drafted player lead the list because you ranked them first", () => {
+    // With "hide drafted" off, your taken number one led the pool: sheet rank
+    // beat availability. A sheet ranks who you *want*; somebody else already
+    // has them.
+    const taken = POOL.map((player) =>
+      player.id === "nunn"
+        ? { ...player, takenBy: "B Ballers", takenAt: 3 }
+        : player,
+    );
+    const rows = ids(run("", { hideDrafted: false }, OPEN, taken, SHEET));
+    expect(rows[0]).toBe("shengelia");
+    expect(rows).toContain("nunn");
+    // Still ranked, just no longer first.
+    expect(rows.indexOf("nunn")).toBeGreaterThan(rows.indexOf("larkin"));
+  });
+
+  it("empties the list rather than ignoring a sheet filter with no sheet", () => {
+    // The alternative — treating "no sheet" as "no filter" — would silently
+    // show the whole pool under a control that says it is showing three rows.
+    expect(run("", { sheetOnly: true }, OPEN, POOL, new Map())).toEqual([]);
   });
 });

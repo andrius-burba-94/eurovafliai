@@ -131,6 +131,9 @@ The five canonical labels, unchanged: `needs-triage`, `needs-info`, `ready-for-a
   says so and the claim is true. If a PR defers part of its scope, that
   deferral is recorded in STATUS.md, not only in the PR description: the next
   agent reads the repo, not your merged pull requests.
+- **Every slice ends with a "Try it on localhost" note in `docs/STATUS.md`** —
+  a handful of lines: the commands to run, the URL to open, and the one thing to
+  look at. Short enough to follow without reading the PR.
 - Schema changes ship as migration files in the same PR as the code needing them.
 - `.env.example` is updated in the same PR that introduces a new variable.
 - UI slices are mobile-first (draft night is phones on a couch), respect

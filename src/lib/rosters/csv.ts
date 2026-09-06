@@ -11,6 +11,8 @@
  * respect our column order, and supporting both is cheaper than explaining
  * either.
  */
+import { splitCsvLine } from "@/lib/csv/split";
+
 import { mapCsvPosition, normalizeName } from "./normalize";
 import type { NormalizedPlayer, PlayerStatus } from "./types";
 
@@ -50,40 +52,6 @@ const DEFAULT_COLUMNS: ParsedColumns = {
   status: 4,
 };
 
-/**
- * Split one CSV line, honouring double quotes.
- *
- * Written out rather than pulled in: names arrive as "Surname, Firstname", so
- * quoted commas are the common case rather than an edge one, and a dependency
- * for thirty lines that the rest of the pipeline would have to trust is a poor
- * trade.
- */
-function splitLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = "";
-  let quoted = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      // A doubled quote inside a quoted field is an escaped quote.
-      if (quoted && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (char === "," && !quoted) {
-      fields.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  fields.push(current.trim());
-  return fields;
-}
-
 /** Read a header row, if the first line looks like one. */
 function readHeader(fields: string[]): ParsedColumns | null {
   const mapped = fields.map((field) => HEADERS[field.trim().toLowerCase()]);
@@ -119,7 +87,7 @@ export function parseCsvRoster(text: string): {
 
   for (const [index, raw] of lines.entries()) {
     if (!raw.trim()) continue;
-    const header = readHeader(splitLine(raw));
+    const header = readHeader(splitCsvLine(raw));
     if (header) {
       columns = header;
       headerLine = index;
@@ -130,7 +98,7 @@ export function parseCsvRoster(text: string): {
   for (const [index, raw] of lines.entries()) {
     if (index === headerLine || !raw.trim()) continue;
     const lineNo = index + 1;
-    const fields = splitLine(raw);
+    const fields = splitCsvLine(raw);
 
     const at = (column: number) =>
       column >= 0 && column < fields.length ? (fields[column] ?? "") : "";

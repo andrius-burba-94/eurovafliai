@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useMemo, useState, type KeyboardEvent } from "react";
 
 import {
@@ -23,6 +24,7 @@ import {
   poolIndex,
   selectPool,
   type PoolFilters,
+  type SheetPlaces,
 } from "@/lib/pool/search";
 
 /**
@@ -47,6 +49,10 @@ type PoolProps = {
   yourNeeds: DraftView["yourNeeds"];
   /** Whose legality is being shown, when it is not the viewer's. */
   clockMemberName: string | null;
+  /** The viewer's own cheat sheet — slice 3.4. Empty when they have not written one. */
+  sheet: DraftView["sheet"];
+  /** Best available from it, already ranked and legality-checked by the server. */
+  bestFromSheet: DraftView["bestFromSheet"];
 };
 
 /**
@@ -82,8 +88,22 @@ type PoolProps = {
  */
 const START: DraftResult = { error: null };
 
-/** How many rows the list draws. The pool is 324; a phone is not. */
-const VISIBLE_ROWS = 30;
+/**
+ * How many rows the list draws at rest, and how many when asked for more.
+ *
+ * Eight, not thirty. 3.3 shipped thirty and logged the reason it was wrong: an
+ * untouched pool listed thirty of 324 players alphabetically, which is the
+ * least useful thirty the app could pick, and it pushed the board a very long
+ * scroll down a phone for anybody who was only watching. The honest answer was
+ * always that a resting pool should be short and *ranked* — and ranked means a
+ * cheat sheet, which is this slice.
+ *
+ * So eight rows, in the viewer's own order when they have a sheet, with the
+ * pinned shortlist above them. Forty is there for browsing, behind a toggle,
+ * because a pool you cannot scroll is a different loss.
+ */
+const RESTING_ROWS = 8;
+const EXPANDED_ROWS = 40;
 
 const POSITIONS: Position[] = ["G", "F", "C"];
 
@@ -113,6 +133,8 @@ export function PickForm({
    * is a permanently selected-looking row that means nothing.
    */
   const [keyboardUsed, setKeyboardUsed] = useState(false);
+  /** The list has been asked for more than its resting eight rows. */
+  const [expanded, setExpanded] = useState(false);
 
   /**
    * A manager entering somebody else's pick.
@@ -135,12 +157,56 @@ export function PickForm({
   // (your turn, or a manager entering it for them), otherwise your own.
   const needs = canPick ? view.clockNeeds : view.yourNeeds;
 
-  const rows = useMemo(
-    () => selectPool({ pool: view.pool, filters, query, needs, index }),
-    [view.pool, filters, query, needs, index],
+  /**
+   * The viewer's sheet, as a lookup. Memoised against the array the server
+   * sent, because the room re-renders on every pick in the league and rebuilding
+   * a 60-entry map 156 times over is work nobody asked for.
+   */
+  const sheet: SheetPlaces = useMemo(
+    () =>
+      new Map(
+        view.sheet.map((entry) => [
+          entry.playerId,
+          { rank: entry.rank, tier: entry.tier },
+        ]),
+      ),
+    [view.sheet],
+  );
+  const hasSheet = sheet.size > 0;
+  /** Which tiers the sheet actually has, so the filter offers only real ones. */
+  const sheetTiers = useMemo(
+    () =>
+      [...new Set(view.sheet.map((entry) => entry.tier))].sort((a, b) => a - b),
+    [view.sheet],
   );
 
-  const shortlist = rows.slice(0, VISIBLE_ROWS);
+  const rows = useMemo(
+    () => selectPool({ pool: view.pool, filters, query, needs, index, sheet }),
+    [view.pool, filters, query, needs, index, sheet],
+  );
+
+  /**
+   * Whether the list has been narrowed by hand.
+   *
+   * The pinned shortlist and the pool are the *same three players* whenever the
+   * pool is at rest, because `selectPool` orders it by the same sheet — 3.4a's
+   * critique confirmed the player ids matched, so six of the eleven Pick
+   * buttons on a phone were for three players. The block earns its place the
+   * moment the pool stops showing them, and not before.
+   */
+  const narrowed =
+    query.trim().length > 0 ||
+    filters.positions.length > 0 ||
+    filters.club !== "" ||
+    filters.tier > 0 ||
+    filters.sheetOnly ||
+    filters.legalOnly ||
+    filters.hideUnavailable ||
+    !filters.hideDrafted;
+
+  const pinned = narrowed ? view.bestFromSheet : [];
+
+  const shortlist = rows.slice(0, expanded ? EXPANDED_ROWS : RESTING_ROWS);
   const clubs = useMemo(() => clubsIn(view.pool), [view.pool]);
 
   // Both of these are **derived**, not synced in an effect. Narrowing the list
@@ -258,6 +324,106 @@ export function PickForm({
         <Correction testId="pick-error">{result.error}</Correction>
       ) : null}
 
+      {/* Best available from your sheet — the blueprint's "always pinned", and
+          what "pinned" turned out to have to mean.
+          
+          Not `position: sticky`: the room already spends a band on the clock,
+          and a second one costs a 390px phone the rows it exists to show.
+          
+          And not *always drawn*, which is the correction 3.4a's critique
+          forced. At rest the pool below is already this list — `selectPool`
+          ranks it by the same sheet — so the block was three players restated
+          in a second set of rows with a second set of buttons. It is drawn only
+          once the pool has been narrowed away from them, which is exactly when
+          "best available from my sheet" stops being visible on its own.
+          
+          The *caption and the way back to the sheet* are unconditional, though,
+          for anyone who has one. They used to live inside the rows, so a member
+          whose sheet had run out — round nine, the moment the page's own doc
+          comment says a sheet earns its keep — lost their only route to it from
+          the room.
+          
+          The rows come from the engine's own `rankForMember` and `isLegalPick`,
+          so this list and the pick the sweep would make if the clock ran out
+          are the same answer. */}
+      {hasSheet ? (
+        <div className="flex flex-col gap-1.5">
+          {/* `ink-soft`, not `ink-faint`: this was the faintest heading in a
+              room where "The radar" and "The board" are `ink-soft`, on the
+              block the slice exists for. */}
+          <p className="slot-label flex flex-wrap items-end gap-x-2 text-ink-soft">
+            <span className="pb-1.5">
+              {pinned.length > 0
+                ? "Best on your sheet"
+                : view.bestFromSheet.length > 0
+                  ? "Your sheet is at the top of the pool"
+                  : "Nobody left on your sheet fits your roster"}
+            </span>
+            {/* `min-h-11 items-end` rather than a bare inline link, and for the
+                reason DESIGN.md records `FilterToggle` learning it: the 44px
+                rule is both axes, and an inline link in a 12px caption is a
+                target a thumb misses. The label still sits on the caption's
+                own baseline; only the tappable box is 44px. It is the room's
+                only way *back* to a sheet for somebody who already has one —
+                "editable during the draft" needs a door. */}
+            <Link
+              href={`/leagues/${leagueId}/sheet`}
+              data-testid="edit-sheet"
+              className="inline-flex min-h-11 min-w-11 items-end pb-1.5 underline decoration-dotted underline-offset-4 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+            >
+              edit it
+            </Link>
+          </p>
+          {pinned.length > 0 ? (
+            <Slots
+              testId="sheet-pinned"
+              label="Best available from your cheat sheet"
+            >
+              {pinned.map((player) => (
+                // `waiting`, like every other *available* player in this room.
+                // The default `filled` is a solid rule, and three rows below it
+                // the pool uses solid to mean "somebody already owns this" — so
+                // the three players you most want were drawn in the material that
+                // means gone. It also makes the two runs share a rhythm: 61px
+                // each, rather than 69 above 61.
+                <Slot
+                  key={player.id}
+                  testId="sheet-pinned-row"
+                  state="waiting"
+                  nowrap
+                >
+                  <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
+                    <span className="slot-label w-8 shrink-0 text-right tabular-nums text-ink-soft">
+                      #{player.rank}
+                    </span>
+                    <span className="min-w-0 truncate" title={player.name}>
+                      <CardName scale="slot">{player.name}</CardName>
+                    </span>
+                    <span className="slot-label">{player.club}</span>
+                    <PositionPatch position={player.position} />
+                  </span>
+                  {canPick ? (
+                    <form action={action} className="shrink-0">
+                      <input type="hidden" name="leagueId" value={leagueId} />
+                      <input type="hidden" name="playerId" value={player.id} />
+                      <SubmitButton
+                        testId={`pin-${player.id}`}
+                        tone="ink"
+                        compact
+                        ariaLabel={`Pick ${player.name}, number ${player.rank} on your sheet`}
+                        pendingLabel="Picking…"
+                      >
+                        Pick
+                      </SubmitButton>
+                    </form>
+                  ) : null}
+                </Slot>
+              ))}
+            </Slots>
+          ) : null}
+        </div>
+      ) : null}
+
       <Field label="Find a player">
         <input
           value={query}
@@ -282,7 +448,14 @@ export function PickForm({
       {/* Said once, next to the box it describes, rather than left for
           somebody to discover. It is also what makes the keyboard path
           discoverable at all — nothing else on the surface hints at it. */}
-      <p id="pool-keys" className="slot-label text-ink-faint">
+      {/* `sm` and up. Sixty-seven characters of caps telling a phone about
+          arrow keys and Escape is noise on the device draft night happens on,
+          and it sat between the search box and the first player. The keyboard
+          path is still there for anyone with a keyboard; `aria-describedby`
+          still points at it, and a screen-reader user on a phone with a
+          Bluetooth keyboard is exactly who benefits from it being announced
+          rather than drawn. */}
+      <p id="pool-keys" className="slot-label hidden text-ink-faint sm:block">
         {canPick
           ? "Arrows to move · Enter to arm · Enter again to pick · Esc to cancel"
           : "Arrows to move through the pool"}
@@ -330,24 +503,61 @@ export function PickForm({
             ? `Legal for ${view.clockMemberName}`
             : "Legal for me"}
         </FilterToggle>
+        {/* Only offered to somebody who has a sheet. A filter that can only
+            ever empty the list is not a control, it is a trap. */}
+        {hasSheet ? (
+          <FilterToggle
+            testId="filter-sheet-only"
+            pressed={filters.sheetOnly}
+            onPressedChange={(next) => setFilter("sheetOnly", next)}
+          >
+            On my sheet
+          </FilterToggle>
+        ) : null}
       </div>
 
-      <label className="flex flex-col gap-1">
-        <span className="slot-label">Club</span>
-        <select
-          value={filters.club}
-          onChange={(event) => setFilter("club", event.target.value)}
-          data-testid="filter-club"
-          className={selectStyles}
-        >
-          <option value="">Every club</option>
-          {clubs.map((club) => (
-            <option key={club} value={club}>
-              {club}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <label className="flex min-w-40 flex-1 flex-col gap-1">
+          <span className="slot-label">Club</span>
+          <select
+            value={filters.club}
+            onChange={(event) => setFilter("club", event.target.value)}
+            data-testid="filter-club"
+            className={selectStyles}
+          >
+            <option value="">Every club</option>
+            {clubs.map((club) => (
+              <option key={club} value={club}>
+                {club}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* 3.3's last deferred filter. It was blocked on there being tiers to
+            filter by, and it stays hidden for a sheet that has no breaks in it
+            — a "Tier 1" that is the whole sheet filters nothing. */}
+        {sheetTiers.length > 1 ? (
+          <label className="flex min-w-40 flex-1 flex-col gap-1">
+            <span className="slot-label">Tier on my sheet</span>
+            <select
+              value={String(filters.tier)}
+              onChange={(event) =>
+                setFilter("tier", Number(event.target.value))
+              }
+              data-testid="filter-tier"
+              className={selectStyles}
+            >
+              <option value="0">Every tier</option>
+              {sheetTiers.map((tier) => (
+                <option key={tier} value={String(tier)}>
+                  Tier {tier}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
 
       {/* What the list did, spoken — and only what the list did.
           
@@ -366,7 +576,7 @@ export function PickForm({
           : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`}
       </p>
 
-      <Slots testId="pick-pool">
+      <Slots testId="pick-pool" label="The player pool">
         {shortlist.map((player, position) => {
           const isHighlighted = position === cursor;
           const isArmed = armedId === player.id;
@@ -405,6 +615,21 @@ export function PickForm({
               }
             >
               <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
+                {/* Where this player sits on *your* sheet — leading, fixed
+                    width, right-aligned, so `#1`…`#8` form a column that can be
+                    read down. Trailing the position patch, they landed at eight
+                    different x-positions, which is the radar critique's fixed
+                    finding #4 re-broken 20px away. The column is rendered even
+                    when empty so a sheeted and an unsheeted row still align.
+                    Only drawn at all when the viewer has a sheet. */}
+                {hasSheet ? (
+                  <span
+                    className="slot-label w-8 shrink-0 text-right tabular-nums text-ink-soft"
+                    data-testid="pool-sheet-rank"
+                  >
+                    {player.sheetRank === null ? "" : `#${player.sheetRank}`}
+                  </span>
+                ) : null}
                 {/* `CardName scale="slot"`, not a bespoke class. The board
                     already made this mistake once — a one-off `text-xs` at
                     *display* tracking — and DESIGN.md records fixing it. */}
@@ -482,10 +707,31 @@ export function PickForm({
         ) : null}
       </Slots>
 
-      <p className="slot-label text-ink-faint" data-testid="pool-count">
-        {rows.length > shortlist.length
-          ? `Showing ${shortlist.length} of ${rows.length} matches`
-          : `${rows.length} ${rows.length === 1 ? "match" : "matches"}`}
+      {/* The count, and — next to it — the control that changes it.
+          
+          "More rows" used to sit in the "Show" filter row, which made it a
+          fifth *data* filter beside four that change which players are in the
+          set, and wrapped that row to three lines on a phone. It is not a
+          whether; it is about the length of the list, so it belongs at the
+          bottom of the list, where the truncation is what you are looking at. */}
+      <p className="flex flex-wrap items-end justify-between gap-x-4">
+        <span
+          className="slot-label pb-1.5 text-ink-faint"
+          data-testid="pool-count"
+        >
+          {rows.length > shortlist.length
+            ? `Showing ${shortlist.length} of ${rows.length} matches`
+            : `${rows.length} ${rows.length === 1 ? "match" : "matches"}`}
+        </span>
+        {rows.length > RESTING_ROWS ? (
+          <FilterToggle
+            testId="filter-more-rows"
+            pressed={expanded}
+            onPressedChange={setExpanded}
+          >
+            {expanded ? "Fewer rows" : `Show ${EXPANDED_ROWS}`}
+          </FilterToggle>
+        ) : null}
       </p>
     </div>
   );

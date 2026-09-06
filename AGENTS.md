@@ -29,6 +29,10 @@ src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   verbatim with the worker; `actions.ts` is the request-facing
                   half (session, permissions, revalidation). One pipeline, so a
                   human pick and an autodraft cannot diverge
+src/lib/sheets/   cheat sheets: pure parse + fuzzy match, the stored shape
+                  (`ranking.ts`), and `store.ts` — framework-free like the
+                  pipeline, because the worker autodrafts from a sheet
+src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
 src/worker/       PM2 worker: the ~1s sweep — pick deadlines, autodraft and the
                   repairs no request would notice. Nightly stats join it in 4.3
 pb/VERSION        pinned PocketBase version — the download script reads it
@@ -89,7 +93,20 @@ make broken code pass.
   `src/lib/leagues/queries.ts`). Cost us a real debugging session; the write was
   landing in the database all along.
 - **React 19 resets uncontrolled inputs** after a server-action transition. Chat
-  and pick forms must handle it; E2E specs must refill.
+  and pick forms must handle it; E2E specs must refill. The durable fix is to
+  *control* the input, which both paste boxes now do.
+- **A `<textarea>` submits CRLF.** Form serialisation normalises newlines, so
+  `formData.get("csv")` comes back with `\r\n` where React state holds `\n`.
+  Any code comparing a server-echoed value against the state in the box must
+  normalise first, or the comparison is false for every multi-line paste — which
+  is every paste — and the feature looks silently broken. `sameText` in
+  `import-form.tsx`.
+- **Two `useActionState`s on one form are a trap.** The component then has to
+  decide which result is current, and the natural expression of that
+  (`applied.plan ? applied : preview`) pins the surface to the last *applied*
+  result forever: a new preview changes nothing and React's input reset hands
+  back stale text. Prefer one action with an `intent` field
+  (`submitCheatSheet`). Shipped broken in 2.1b, found by 3.4a's design critique.
 - **The sweep is app-global.** `sweepOnce` looks for *every* live draft, so
   calling it — from a spec, a script or a REPL — against a database where you
   have a draft open by hand will autodraft into that draft. Pass `onlyDraft`
