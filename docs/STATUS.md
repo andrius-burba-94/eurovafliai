@@ -120,7 +120,7 @@ npm run rosters:sync   # once, if the pool is empty
 
 Sign in, open a league, **Your cheat sheet**. Paste a few surnames — misspelled
 is fine — press *Read the list*, then *Save this sheet*. Reopen the page: the
-box holds your sheet as `rank,tier,name`, and it is editable.
+box holds your sheet as `rank, tier, name`, and it is editable.
 
 Then roll the order and start the draft. In the room the pool is in **your**
 order with `#1…#8` down the left, and the board sits close to the top. Type a
@@ -258,7 +258,7 @@ touch should be fixed by that slice rather than deferred again.
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
 | **Autodraft has nothing to rank on — for a member who wrote no sheet** | Half closed. `selectAutoPick` ranks a cheat sheet first and projections second; **3.4a shipped the sheets**, so a member who wrote one is now picked for out of their own ranking, and the sweep's log line says which place on the sheet the pick came from. Projections are still 4.4, so for a member with **no** sheet every candidate still ties and the engine falls through to its own total tiebreak — the lowest player id among the legal ones. Arbitrary, and identical on every replay, which is the property that matters until there is something real to rank on; the pool is passed `projectedPoints` the moment the field exists | Nothing; autodraft quality for the unprepared, not correctness |
 | **No per-member autodraft switch for a manager** | A member arms their own autodraft from the draft room, and `setAutodraft` already permits a commissioner or deputy to set anybody's — but there is no UI for it, so a manager dealing with a phone that died has to wait the clock out and let the sweep pick, or enter the pick themselves with "Pick for them". Blueprint 3.6 owns the console | Nothing; a commissioner-comfort gap |
-| **A cheat sheet is edited as text, not by dragging** | What is left of 3.4b after the critique moved its most valuable half forward. The paste box is now seeded with your sheet as `rank,tier,name`, so editing it *is* a round trip — reorder a line, change a tier number, read it again. What is still missing is dragging: no pointer reorder, no moving a tier break by hand, and no editing from inside the room. `cheat_sheets.source` carries a `manual` value that nothing writes yet, declared for 3.4b rather than left to a second migration | 3.4b |
+| **A cheat sheet is edited as text, not by dragging** | What is left of 3.4b after the critique moved its most valuable half forward. The paste box is now seeded with your sheet as `rank, tier, name`, so editing it *is* a round trip — reorder a line, change a tier number, read it again. What is still missing is dragging: no pointer reorder, no moving a tier break by hand, and no editing from inside the room. `cheat_sheets.source` carries a `manual` value that nothing writes yet, declared for 3.4b rather than left to a second migration | 3.4b |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |
 | **A sheet outlives the season it was written for** | The consequence of keying `cheat_sheets` on the membership rather than on the draft, and the price of the argument in that migration. A league that drafts a second season on the same memberships inherits last season's ranking rather than starting blank. It is a stale sheet a member can see and replace, not a lost one; a per-season sheet is Phase 6's keeper work | Nothing yet; there is no season 2 |
 | [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34) | **`deploy.sh` rewrites itself mid-run**, so a change to it never applies to its own deploy — 2.5's worker-liveness check did not run on the deploy that shipped it, and will from the next one. Worse in principle than in practice so far: bash reads a script by byte offset, so a pull that changes a not-yet-executed part of the file can make the shell resume mid-line | Nothing yet; a deploy-tooling trap |
@@ -302,7 +302,7 @@ Last full local run, after 3.4a: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **538 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 components, auth and config, 39 the design tokens' contrast floors, **34 the pool's filtering, fuzzy search and sheet ordering**, **38 cheat sheets** (15 parsing a pasted list, 23 matching it to the pool) |
+| `npm run test` | **554 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 39 the design tokens' contrast floors, 35 components, auth and config, **46 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip), **34 the pool's filtering, fuzzy search and sheet ordering**, 8 the position list-join |
 | `npm run build` | pass |
 | `npm run test:e2e` | **222 passed** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch |
 | `npm run pb:verify` | **82 checks pass** — the eight new ones are `cheat_sheets`: its rules, its unique index, and the privacy claim driven with two members of one league |
@@ -437,6 +437,36 @@ Three findings are worth carrying forward as lessons rather than as fixes:
   covers 37% of the registry, none of it accessibility. The in-page overlay,
   which *did* run, found three real rules the CLI cannot see, including
   `line-length` on two paragraphs that had no measure cap.
+
+**And what the critique did not catch, which a human reading the screen did.**
+Worth recording because it is a gap in the method rather than in the slice. The
+pass measured contrast, tap targets, overflow, rhythm, focus order and live
+regions — and every string it quoted, it quoted correctly. What nobody looked at
+was whether the *prose* read like prose:
+
+- The helper paragraph was one sentence spliced from three conditional
+  fragments — a string, a `null`, and a bare `". "` — so it rendered "and so
+  does rank,tier,name" with no spaces after the commas. That construction reads
+  fine in JSX and badly on screen, and no test can see it.
+- **The paste box instructed one format and emitted another.** It said
+  `rank, tier, name` and wrote `5,2,"Name"`. `sheetToText` is now tested as a
+  *round trip* against the parser rather than against a fixed string, which is
+  the stronger property and catches the case a hand-written expectation would
+  have missed: `"Ayayi, Joel, Jean Michel"` is four CSV fields and is
+  unrecoverable if the writer forgets to quote it.
+- **The delete confirmation named the wrong number** — "Delete your ranking of
+  these players?", branching on `poolSize`, which is 323 and has nothing to do
+  with anybody's sheet. The branch could never fire and the phrase pointed at
+  nothing on screen. It takes `rankedCount` now, because naming the number is
+  the entire point of a sentence shown before something irreversible.
+- And the shortfall line joined positions with `" and "`, so three of them read
+  "5 G and 5 F and 3 C". `needsSentence` already existed in `roster-radar.tsx`
+  and joined correctly; it is `src/lib/positions.ts` now, shared and tested.
+
+The habit that would have caught all four: **extract every user-facing string
+from a new surface, comments stripped, and read them as text** — then do it
+again for the interpolated ones, which is where the first of these hid and which
+a string grep cannot see.
 
 The rest of the pass was ordinary and useful: the pinned shortlist was the
 first three pool rows restated with a second set of buttons (confirmed at the
