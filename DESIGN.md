@@ -846,6 +846,54 @@ they are content, and they are announced. The rule is about what the element
 whose whole meaning is "this one is filled" is a picture of a number, and the
 number should be said once.
 
+### Cheat sheet — a run per tier, and a pinned shortlist
+
+Slice 3.4. Two surfaces, and both are made of `Slots` runs with no new material
+at all.
+
+- **A tier is a gap, not a band.** CONTEXT.md defines a tier as *a break in a
+  cheat sheet*, so the sheet is drawn as one `Slots` run per tier with the
+  ordinary gap between them and a faint caption above each. No coloured band,
+  no chip, no rule weight of its own — a break between two runs is already how
+  this board says a run has ended, and inventing a fourth slot state for
+  "tier 2 starts here" would be a state that carries no state.
+- **The caption is suppressed when there is one tier**, because a sheet with no
+  breaks in it should not grow a heading that says "Tier 1" over the whole of
+  it.
+- **A place on a sheet is a number in ink**, `#4`, in the same tabular
+  `slot-label` the ticker uses for a pick number. Never a colour and never a
+  badge: a tier is a place in a list, and the place is the thing to print.
+- **"Best on your sheet" is pinned, not sticky.** The room already has one
+  sticky band — the clock — and a second one costs a 390px phone the rows it
+  exists to show. What *pinned* has to mean here is that it survives typing and
+  filtering, and it does: it is the server's answer to a different question and
+  nothing on the surface narrows it. Its buttons are ink, because the pool's
+  armed row is still the one marker action on that surface.
+- **The pool rests at eight rows**, not thirty, and opens to forty. Thirty
+  alphabetical rows of 323 was a wall between the pick path and the board; eight
+  in the viewer's own ranked order is a shortlist. The control is a
+  `FilterToggle` — no new affordance — but it sits **beside the count**, not in
+  the "Show" row: the four toggles there change *which players are in the set*
+  and this one changes how many are drawn, and as a fifth chip it both read as a
+  data filter and wrapped that row to three lines on a phone.
+- **A rank is `#N`, right-aligned, in a fixed-width leading column.** One
+  format, one position, one alignment, on both surfaces. It shipped as `01` on
+  the sheet, a leading `#1` in the pinned block and a *trailing* `#1` on a pool
+  row — and trailing the position patch it landed at eight different
+  x-positions, so a ranked list could not be read down. The column is drawn
+  empty for an unranked row so the rows still align.
+- **The pinned shortlist is drawn only when the pool is narrowed.** At rest the
+  pool is already in the sheet's order, so the block was the same three players
+  in a second set of rows with a second set of buttons — six of eleven Pick
+  buttons on a phone for three players. The *caption and the link back to the
+  sheet* stay unconditional, because losing the door to your sheet exactly when
+  your sheet runs out is the other half of that mistake.
+- **A patch brings its own opaque field.** `bg-pos-*` at 10% alpha let the row
+  behind it decide the letter's contrast — 4.10–4.18:1 on the live blush of an
+  armed row, under the floor, on the element that *is* the colour-blind fallback
+  for position. `color-mix(…, stock)` composites once. `tokens.test.ts` reads
+  the map in `board.tsx` and fails if the alpha returns.
+
 ### Back arrow — `BackArrow`
 
 See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
@@ -901,6 +949,17 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
   (`slot-correction`) — an error and an invite code must never look alike.
 - **Don't** put marker-red text on the live tint: 4.15:1. Ink on the live tint is
   12.62:1.
+- **Don't** use `slot-live` for anything that is not a slot on the clock. It is
+  the 2px marker and it has exactly one meaning. 3.4a used it for a "Saved"
+  confirmation on a page that is open *during* a live draft, on the same phone.
+- **Don't** let a sentence wear `slot-label`. Eleven-pixel caps at 0.14em is
+  right for "L3" or "Which one?" and wrong for sixty-five characters of prose,
+  which wraps into two shouting lines and is what the detector's `all-caps-body`
+  rule exists to catch. Card names are the deliberate exception.
+- **Don't** put a whole sentence in a `shrink-0` sibling inside a `flex-nowrap`
+  row. A 65-character note took 502px in a 350px row: the page overflowed 161px
+  at 390px, *clipped and unscrollable*, and the content it sat beside was
+  crushed to zero width. Let the note wrap onto its own line.
 - **Don't** encode position or status by colour alone. The G / F / C letter is
   always present.
 - **Don't** hide the season from the top rail on small screens. If the rail must
