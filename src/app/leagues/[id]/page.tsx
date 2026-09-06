@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import {
-  BackArrow,
+  BackLink,
   Bank,
+  CardName,
   BoardPlan,
   PositionPatch,
   Sheet,
@@ -54,20 +55,13 @@ export default async function LobbyPage({
   const { league, settings, members, isCommissioner } = data;
   const slotsLeft = settings.max_members - members.length;
   const template = settings.roster_template;
+  // A cheat sheet belongs to a *membership*. A commissioner who has not taken a
+  // slot has no roster to rank for, so they are not offered one.
+  const viewerIsMember = members.some((member) => member.isYou);
 
   return (
     <>
-      <TopRail
-        action={
-          <Link
-            href="/"
-            className="slot-label inline-flex items-center gap-1.5 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <BackArrow />
-            Leagues
-          </Link>
-        }
-      />
+      <TopRail action={<BackLink href="/">Leagues</BackLink>} />
       <Sheet testId="lobby">
         {league.status === "drafting" ? (
           <Link
@@ -141,6 +135,30 @@ export default async function LobbyPage({
           isCommissioner={isCommissioner}
           settings={settings}
         />
+
+        {/* The cheat sheet, from the lobby — the hours before a draft are when
+            somebody actually writes one. A member's own row only: a
+            commissioner without a membership has no roster to rank for, and a
+            sheet is private to the member who owns it. */}
+        {viewerIsMember ? (
+          <Link
+            href={`/leagues/${league.id}/sheet`}
+            data-testid="lobby-sheet"
+            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          >
+            <span className="flex flex-col gap-1">
+              {/* `CardName`, not a one-off `text-lg` at display tracking.
+                  That is the exact mistake DESIGN.md records the board making
+                  and the pool's critique fixing, and it had crept back as a
+                  sixth type size on this row. */}
+              <CardName>Your cheat sheet</CardName>
+              <span className="text-sm text-ink-soft">
+                Private to you. Autodraft picks from it.
+              </span>
+            </span>
+            <span className="slot-label shrink-0">Open &rarr;</span>
+          </Link>
+        ) : null}
 
         {isCommissioner ? (
           <>

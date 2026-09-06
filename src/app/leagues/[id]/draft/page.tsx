@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
-  BackArrow,
+  BackLink,
   Bank,
   CardName,
   PositionPatch,
@@ -37,10 +37,11 @@ const RECENT_PICKS = 8;
 /**
  * The draft room — slices 2.4/2.6, live since 3.2a, with the board since 3.1.
  *
- * On the clock, a way to pick, the pool to pick from, the radar of what every
- * roster still needs, and the board itself. Still to come in Phase 3: cheat
- * sheets, chat and trades, the commissioner console. It renders server-side so
- * the state is correct before any JavaScript does anything.
+ * On the clock, a way to pick, the pool to pick from ranked by your own cheat
+ * sheet, the radar of what every roster still needs, and the board itself.
+ * Still to come in Phase 3: dragging a sheet into order (3.4b), chat and trades,
+ * the commissioner console. It renders server-side so the state is correct
+ * before any JavaScript does anything.
  *
  * `LiveDraft` is what keeps it correct *after* that: it subscribes to this
  * draft over SSE and asks this page to render again. Every fact on screen is
@@ -94,17 +95,7 @@ export default async function DraftPage({
 
   return (
     <>
-      <TopRail
-        action={
-          <Link
-            href={`/leagues/${id}`}
-            className="slot-label inline-flex items-center gap-1.5 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <BackArrow />
-            Lobby
-          </Link>
-        }
-      />
+      <TopRail action={<BackLink href={`/leagues/${id}`}>Lobby</BackLink>} />
       <Sheet testId="draft-room">
         {/* On the clock owns the top of the phone viewport, sharing it with
             nothing — the raise the direction contract took from the vertical
@@ -184,6 +175,22 @@ export default async function DraftPage({
           </p>
         ) : null}
 
+        {/* The way to a sheet for somebody who has not written one — the pool
+            pins a link for everybody who has. Shown to a member only: a
+            commissioner with no membership row has no roster to rank for. */}
+        {view.you && view.sheet.length === 0 ? (
+          <Link
+            href={`/leagues/${id}/sheet`}
+            data-testid="write-a-sheet"
+            className="slot-waiting flex min-h-11 items-baseline justify-between gap-4 px-3 py-3 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          >
+            <span className="text-sm text-ink-soft">
+              You have no cheat sheet. Autodraft has nothing of yours to go on.
+            </span>
+            <span className="slot-label shrink-0">Write one &rarr;</span>
+          </Link>
+        ) : null}
+
         {/* Your own switch, above the commissioner's controls: the common
             case is a member handing their own picks over, not a manager
             intervening. */}
@@ -231,6 +238,8 @@ export default async function DraftPage({
                 clockNeeds: view.clockNeeds,
                 yourNeeds,
                 clockMemberName: onClock?.memberName ?? null,
+                sheet: view.sheet,
+                bestFromSheet: view.bestFromSheet,
               }}
               canPick={(isYourTurn || view.canManage) && !isPaused && !!onClock}
             />
