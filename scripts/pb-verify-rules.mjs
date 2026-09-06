@@ -42,6 +42,7 @@ const created = {
   players: [],
   drafts: [],
   picks: [],
+  cheat_sheets: [],
 };
 
 const su = new PocketBase(url);
@@ -677,8 +678,89 @@ try {
     "an outsider cannot read another league's board",
   );
 
+  // --- cheat sheets, and the privacy they promise (slice 3.4) ---------------
+  //
+  // This is the only collection in the app that is private *within* a league,
+  // so it is the only one whose read rule cannot be checked by "can an outsider
+  // see it". The question that matters is whether Bob — a member of the same
+  // league, sitting at the same table — can read Alice's ranking.
+  check(!!byName.cheat_sheets, "cheat_sheets collection exists");
+  check(
+    byName.cheat_sheets.createRule === null &&
+      byName.cheat_sheets.updateRule === null &&
+      byName.cheat_sheets.deleteRule === null,
+    "cheat_sheets writes are superuser-only — every save is a server action",
+  );
+  check(
+    byName.cheat_sheets.listRule === "member.user = @request.auth.id" &&
+      byName.cheat_sheets.viewRule === "member.user = @request.auth.id",
+    "a cheat sheet is readable only by the member who owns it",
+  );
+  check(
+    byName.cheat_sheets.indexes.some((i) =>
+      /UNIQUE.*`cheat_sheets`.*\(`member`\)/.test(i),
+    ),
+    "unique index on cheat_sheets(member) — one sheet per membership",
+  );
+
+  const bobMember = (
+    await su.collection("league_members").getFullList({
+      filter: `league = '${league.id}' && user = '${bob.id}'`,
+      requestKey: null,
+    })
+  )[0];
+
+  const aliceSheet = await su.collection("cheat_sheets").create(
+    {
+      member: aliceMember.id,
+      ranking: [playerOne.id, playerTwo.id],
+      tiers: [1],
+      source: "csv",
+    },
+    { requestKey: null },
+  );
+  created.cheat_sheets.push(aliceSheet.id);
+
+  check(
+    await rejects(() =>
+      su.collection("cheat_sheets").create(
+        { member: aliceMember.id, ranking: [], tiers: [], source: "manual" },
+        { requestKey: null },
+      ),
+    ),
+    "a second cheat sheet for the same membership is refused",
+  );
+
+  const bobSheet = await su.collection("cheat_sheets").create(
+    { member: bobMember.id, ranking: [playerTwo.id], tiers: [], source: "csv" },
+    { requestKey: null },
+  );
+  created.cheat_sheets.push(bobSheet.id);
+
+  check(
+    (await listCount(aliceClient, "cheat_sheets")) === 1,
+    "a member reads their own cheat sheet",
+  );
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("cheat_sheets")
+        .getOne(bobSheet.id, { requestKey: null }),
+    ),
+    "a member of the SAME league cannot read another member's cheat sheet",
+  );
+  check(
+    (await listCount(carolClient, "cheat_sheets")) === 0,
+    "an outsider reads no cheat sheets at all",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.cheat_sheets)
+    await su
+      .collection("cheat_sheets")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.picks)
     await su
       .collection("picks")
