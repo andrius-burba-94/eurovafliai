@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
-  BackArrow,
+  BackLink,
   Bank,
   CardName,
   PositionPatch,
@@ -37,17 +37,7 @@ export default async function PlayersPage() {
 
   return (
     <>
-      <TopRail
-        action={
-          <Link
-            href="/"
-            className="slot-label inline-flex items-center gap-1.5 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <BackArrow />
-            Leagues
-          </Link>
-        }
-      />
+      <TopRail action={<BackLink href="/">Leagues</BackLink>} />
       <Sheet testId="players">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">

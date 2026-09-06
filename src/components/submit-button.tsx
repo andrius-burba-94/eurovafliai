@@ -55,7 +55,16 @@ export function SubmitButton({
     // state that cleared the floor, which a phone never reaches. `/50` is
     // 3.10:1 and stays inside the 35–80% range DESIGN.md already declares.
     ink: "border-ink/50 hover:border-ink/80 active:bg-ink/5",
-    live: "border-live/60 text-live hover:border-live active:bg-live/8",
+    // `/80`, not `/60`. Measured at **2.60:1** on stock by 3.4a's critique —
+    // under this project's own 3:1 boundary floor, on the *primary* action of
+    // six surfaces including the login page's only button. The pass that
+    // measured `border-ink/35` at 2.10:1 and fixed it to `/50` never measured
+    // the `live` tone sitting beside it in this same object, which is the kind
+    // of near-miss that is only ever caught by measuring the thing rather than
+    // the thing next to it. `/80` is 3.58:1 on stock and 3.24:1 on the live
+    // blush — both sides clear — and stays inside the 35–80% range DESIGN.md
+    // already declares.
+    live: "border-live/80 text-live hover:border-live active:bg-live/8",
     liveOnField: "border-2 border-live text-ink active:bg-live/8",
   };
 

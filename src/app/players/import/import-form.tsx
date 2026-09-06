@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import {
   Bank,
@@ -31,6 +31,20 @@ import type { RosterAuthority } from "@/lib/rosters/types";
 const START: ImportResult = { error: null };
 const AUTH_START: AuthorityResult = { error: null };
 
+/**
+ * Two blocks of pasted text, compared as text.
+ *
+ * Newlines are normalised because **a `<textarea>` submits CRLF**: the HTML
+ * form-serialisation spec says so, so `formData.get("csv")` comes back with
+ * `\r\n` where React state holds `\n`, and a raw `===` between the echoed
+ * value and the state is false for every multi-line paste. Which is every
+ * paste. Caught by `roster-import.spec.ts` the moment this comparison was
+ * introduced, and it fails in exactly the direction that looks like the feature
+ * silently not working.
+ */
+const sameText = (a: string, b: string) =>
+  a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
+
 const KIND_LABEL: Record<"add" | "change" | "leaving", string> = {
   add: "new",
   change: "changed",
@@ -41,9 +55,30 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
   const [preview, previewAction] = useActionState(previewRosterCsv, START);
   const [applied, applyAction] = useActionState(applyRosterCsv, START);
   const [auth, authAction] = useActionState(setRosterAuthority, AUTH_START);
+  /**
+   * Controlled, because React 19 clears an uncontrolled input across a
+   * server-action transition (AGENTS.md) and `defaultValue` then restores
+   * whatever the last *result* carried.
+   */
+  const [csv, setCsv] = useState("");
 
-  // Whichever ran last has the plan worth showing.
-  const result = applied.preview ? applied : preview;
+  /**
+   * A plan is only current if it belongs to the text in the box.
+   *
+   * `applied.preview ? applied : preview` was the old rule and it strands the
+   * surface: once anything has been applied, `applied.preview` stays truthy
+   * forever, so previewing a *new* paste changed nothing on screen and the
+   * textarea was refilled with the old CSV over what had just been typed. Found
+   * by slice 3.4a's critique on the cheat sheet, which had copied this line;
+   * it has been here since 2.1b. The cheat sheet fixed it by collapsing to one
+   * action with an intent, which is the better shape — this is the small,
+   * behaviour-preserving version of the same correction for a shipped surface.
+   */
+  const current = (candidate: ImportResult) =>
+    candidate.csv !== undefined && sameText(candidate.csv, csv)
+      ? candidate
+      : null;
+  const result = current(applied) ?? current(preview) ?? START;
   const plan = result.preview;
 
   return (
@@ -105,7 +140,8 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
             <textarea
               name="csv"
               rows={8}
-              defaultValue={result.csv ?? ""}
+              value={csv}
+              onChange={(event) => setCsv(event.target.value)}
               data-testid="csv-input"
               placeholder={
                 '"Valančiūnas, Jonas",ZAL,C\n"Cordinier, Isaia",IST,G'
@@ -178,7 +214,7 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
           ) : null}
 
           <form action={applyAction} className="flex flex-col gap-4">
-            <input type="hidden" name="csv" value={result.csv ?? ""} />
+            <input type="hidden" name="csv" value={csv} />
             {/* Only asked for when the plan would empty a large part of the
                 pool. A confirmation that appears every time is a confirmation
                 nobody reads. */}

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { BackArrow, Sheet, TopRail } from "@/components/board";
+import { BackLink, Sheet, TopRail } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
 import { canManageRosters, readRosterAuthority } from "@/lib/rosters/actions";
 import { getSuperuserClient } from "@/lib/pb/superuser";
@@ -26,17 +25,7 @@ export default async function ImportPage() {
 
   return (
     <>
-      <TopRail
-        action={
-          <Link
-            href="/players"
-            className="slot-label inline-flex items-center gap-1.5 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <BackArrow />
-            The pool
-          </Link>
-        }
-      />
+      <TopRail action={<BackLink href="/players">The pool</BackLink>} />
       <Sheet testId="roster-import">
         <div className="flex max-w-xl flex-col gap-3">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
