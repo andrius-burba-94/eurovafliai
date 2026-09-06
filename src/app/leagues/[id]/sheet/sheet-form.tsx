@@ -109,16 +109,27 @@ function isPlainAbbreviation(typed: string, matched: string): boolean {
 
 export function SheetForm({
   leagueId,
-  hasSheet,
+  rankedCount,
   poolSize,
   initialText,
 }: {
   leagueId: string;
-  hasSheet: boolean;
+  /**
+   * How many players your sheet currently ranks.
+   *
+   * Replaces a `hasSheet` boolean, because the confirmation before a delete
+   * has to name what is about to be lost and `poolSize` is not it — the first
+   * draft asked "Delete your ranking of these players?" while branching on the
+   * size of the *pool*, which is 323 and has nothing to do with anybody's
+   * sheet. The number is the whole point of the sentence.
+   */
+  rankedCount: number;
+  /** How many players the sheet could rank — context for the paste box. */
   poolSize: number;
-  /** Your current sheet, written back out as `rank,tier,name`. */
+  /** Your current sheet, written back out as `rank, tier, name`. */
   initialText: string;
 }) {
+  const hasSheet = rankedCount > 0;
   const [result, action] = useActionState(submitCheatSheet, START);
   /**
    * Controlled, and that is load-bearing rather than stylistic. React 19 clears
@@ -174,15 +185,22 @@ export function SheetForm({
           {/* `max-w-prose`: these ran 81 characters a line at 1440px, caught by
               the in-page detector. The `h1` block above has `max-w-xl` and
               these had no measure at all. */}
+          {/* Two whole sentences, one per branch — not one sentence spliced
+              from three conditional fragments, which is how the first draft
+              came to render "and so does rank,tier,name" with a dangling
+              ". " and no spaces after the commas. A `null` and a bare string
+              fragment in the middle of a sentence is a construction that reads
+              fine in JSX and badly on screen. */}
           <p className="max-w-prose text-sm text-ink-soft">
-            {hasSheet
-              ? "This is your sheet as it stands — edit it and read it again. "
-              : "A bare list of names works, and so does "}
-            {hasSheet ? null : (
-              <span className="whitespace-nowrap">rank,tier,name</span>
-            )}
-            {hasSheet ? null : ". "}
-            Spelling is forgiven and diacritics are not needed —{" "}
+            {hasSheet ? (
+              <>This is your sheet as it stands. Edit it and read it again.</>
+            ) : (
+              <>
+                A bare list of names works, and so does{" "}
+                <span className="whitespace-nowrap">rank, tier, name</span>.
+              </>
+            )}{" "}
+            Spelling is forgiven and diacritics are not needed:{" "}
             <span className="whitespace-nowrap">valanciunas</span> finds
             Valančiūnas. A tier break is recorded wherever the tier column
             changes. {poolSize} players are in the pool to match against.
@@ -426,8 +444,8 @@ export function SheetForm({
             {armed ? (
               <div className="slot-correction flex flex-col gap-3 px-3 py-3">
                 <p className="text-sm">
-                  Delete your ranking of{" "}
-                  {poolSize > 0 ? "these players" : "players"}? This cannot be
+                  Delete your ranking of {rankedCount}{" "}
+                  {rankedCount === 1 ? "player" : "players"}? This cannot be
                   undone.
                 </p>
                 <div className="flex flex-wrap gap-3">
