@@ -46,9 +46,13 @@ import {
  * renumbering a lot of tiers at once, or taking a copy of your sheet out as
  * text.
  *
- * The remount that re-seeds this box lives in `page.tsx`, on a `key`. Without
- * it the state below initialises once and holds the pre-move order forever, so
- * reading the list back would quietly undo every drag.
+ * The box follows a sheet edited above it — see `seeded` below. Deliberately
+ * **not** a `key` on this component in `page.tsx`: remounting re-seeds the box
+ * but throws away the `useActionState` result with everything else, so a save
+ * stopped rendering its own "Saved" confirmation. `page.tsx` says the same at
+ * length, and this comment claimed the opposite for one commit — written when
+ * the `key` went in and not updated when it came out. Caught by 3.4b's
+ * critique, in a repo where a comment is the only thing the next agent reads.
  *
  * ## One action, three intents
  *

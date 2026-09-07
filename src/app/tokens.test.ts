@@ -460,14 +460,20 @@ describe("a row in your hand says so in its own material", () => {
     expect(board).toMatch(/transit:\s*"slot-transit"/);
     expect(board).toMatch(/type SlotState =[^;]*"transit"/);
     // And the held row reaches it as a state rather than stacking it onto one.
-    // (The sticky bar does wear `slot-transit` on its own top rule, and that is
-    // deliberate — it is not a `Slot`, and the shared material is what ties the
-    // bar to the row it acts on.)
     const list = readFileSync(
       resolve(process.cwd(), "src/app/leagues/[id]/sheet/sheet-list.tsx"),
       "utf8",
     );
-    expect(list).toMatch(/isHeld \? "transit"/);
+    expect(list).toMatch(/\?\s*"transit"/);
+
+    // While the row is *travelling*, the material rides on the content and the
+    // place it left reads as an empty one. Measured before this: the `<li>`
+    // held the 2px dashed rule at y=393 while its content was at y=635 — 242px
+    // apart, so the rule marked a hole and the row in somebody's hand had no
+    // material at all. The content is a plain button rather than a `Slot`, so
+    // carrying the class here composes with nothing and is the right seam.
+    expect(list).toMatch(/"slot-transit bg-stock"/);
+    expect(list).toMatch(/dragging\s*\n?\s*\?\s*"waiting"/);
   });
 });
 
