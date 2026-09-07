@@ -20,15 +20,28 @@ export const POSITION_WORD: Record<Position, [string, string]> = {
 };
 
 /**
- * "3 guards, 4 forwards and 3 centers". Zeros are omitted, so a full roster
- * comes back as `empty` rather than as "0 guards, 0 forwards and 0 centers".
+ * "3 guards, 4 forwards and 3 centers".
+ *
+ * Zeros are omitted by default, so a roster that needs nothing comes back as
+ * `empty` rather than as "0 guards, 0 forwards and 0 centers". That is right
+ * for the radar, which is answering *what is still missing*.
+ *
+ * It is wrong — dangerously so — when the sentence is answering *what you
+ * have*. The cheat sheet's shortfall line read "You have ranked 4 guards and 1
+ * center, and a full roster needs 5 guards, 5 forwards and 3 centers": the
+ * position with **none** of them is the one the sentence dropped, and it is the
+ * one that will strand autodraft. Pass `keepZeros` when a nought is the whole
+ * point of saying it. Found by 3.4b's critique.
  */
 export function positionSentence(
   counts: Readonly<Partial<Record<Position, number>>>,
   empty = "nothing",
+  { keepZeros = false }: { keepZeros?: boolean } = {},
 ): string {
   const parts = (["G", "F", "C"] as const)
-    .filter((position) => (counts[position] ?? 0) > 0)
+    .filter((position) =>
+      keepZeros ? counts[position] !== undefined : (counts[position] ?? 0) > 0,
+    )
     .map((position) => {
       const count = counts[position] ?? 0;
       const [one, many] = POSITION_WORD[position];

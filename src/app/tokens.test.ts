@@ -405,6 +405,78 @@ describe("the board's ruling is perceivable", () => {
   });
 });
 
+describe("a row in your hand says so in its own material", () => {
+  // 3.4b's `slot-transit`. The whole state language depends on this rule being
+  // both visible and distinguishable from the four beside it, because a held
+  // row is the one thing on the surface that behaves differently from every
+  // other row — dragging it moves it, and tapping another row moves it there.
+
+  it("--color-ink clears 3:1 on stock as a boundary", () => {
+    const ratio = contrast("ink", "stock");
+    expect(round(ratio), `ink was ${round(ratio)}:1`).toBeGreaterThanOrEqual(3);
+  });
+
+  it("is 2px dashed ink — unsettled, and not the marker", () => {
+    // Dashed because dashed is this system's word for unsettled, the same
+    // argument `slot-standing` makes. Ink rather than marker because the marker
+    // means one thing only, and a sheet is edited while a draft runs on the
+    // same phone.
+    const transit = css.match(/@utility slot-transit \{([^}]*)\}/)?.[1] ?? "";
+    expect(transit).toMatch(/border-top:\s*2px dashed var\(--color-ink\)/);
+  });
+
+  it("is not confusable with the four rules it sits beside", () => {
+    // Every slot rule must be a distinct (weight, style, colour) triple, or two
+    // states look identical on a row and the material stops carrying anything.
+    const rule = (name: string) =>
+      (css.match(new RegExp(`@utility ${name} \\{([^}]*)\\}`))?.[1] ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
+    const transit = rule("slot-transit");
+    expect(transit).not.toBe("");
+    for (const other of [
+      "slot-waiting",
+      "slot-filled",
+      "slot-live",
+      "slot-standing",
+      "slot-correction",
+    ]) {
+      expect(rule(other), `${other} matched slot-transit`).not.toBe(transit);
+    }
+  });
+
+  it("is reached as a state, never composed onto another slot rule", () => {
+    // The first version drew a held row as `slot-filled slot-transit` and
+    // trusted source order to settle which `border-top` won. Tailwind v4 emits
+    // `@utility` blocks alphabetically and the dev server splits them across
+    // chunks, so the browser composited **1px dashed** — the width from one
+    // rule, the style from the other, a material in neither. Two rules for one
+    // border was the bug. This asserts the fix is still the fix: `Slot` maps a
+    // state to exactly one rule, and `transit` is one of them.
+    const board = readFileSync(
+      resolve(process.cwd(), "src/components/board.tsx"),
+      "utf8",
+    );
+    expect(board).toMatch(/transit:\s*"slot-transit"/);
+    expect(board).toMatch(/type SlotState =[^;]*"transit"/);
+    // And the held row reaches it as a state rather than stacking it onto one.
+    const list = readFileSync(
+      resolve(process.cwd(), "src/app/leagues/[id]/sheet/sheet-list.tsx"),
+      "utf8",
+    );
+    expect(list).toMatch(/\?\s*"transit"/);
+
+    // While the row is *travelling*, the material rides on the content and the
+    // place it left reads as an empty one. Measured before this: the `<li>`
+    // held the 2px dashed rule at y=393 while its content was at y=635 — 242px
+    // apart, so the rule marked a hole and the row in somebody's hand had no
+    // material at all. The content is a plain button rather than a `Slot`, so
+    // carrying the class here composes with nothing and is the right seam.
+    expect(list).toMatch(/"slot-transit bg-stock"/);
+    expect(list).toMatch(/dragging\s*\n?\s*\?\s*"waiting"/);
+  });
+});
+
 describe("the live slot is visibly live", () => {
   // There is deliberately no ratio assertion on `--color-live-sunk`. It is a
   // background against a background, so WCAG has no threshold for it, and the

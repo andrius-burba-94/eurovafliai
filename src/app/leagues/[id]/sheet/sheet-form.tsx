@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import {
   Bank,
@@ -34,13 +34,25 @@ import {
  * ## The box is an edit box, not just an in-tray
  *
  * It is seeded with the sheet you already have, written back out as
- * `rank,tier,name`. Before 3.4a's critique the only way to change a ranking was
- * to compose a whole new one somewhere else and paste it, which made
+ * `rank, tier, name`. Before 3.4a's critique the only way to change a ranking
+ * was to compose a whole new one somewhere else and paste it, which made
  * "this replaces the sheet you have now, whole" a cliff: there was no way to
  * *get* the current sheet as text, so a replace — or a delete — threw away the
- * only copy of an hour's thinking. Reading it back turns whole-replace into a
- * round trip, and it is most of what a drag-to-reorder would buy, for none of
- * the machinery.
+ * only copy of an hour's thinking.
+ *
+ * Since 3.4b this is the **secondary** door, and the bank says so — the list
+ * above is where a sheet is edited a row at a time. This one still earns its
+ * place for the edits a list is bad at: pasting a ranking from somewhere else,
+ * renumbering a lot of tiers at once, or taking a copy of your sheet out as
+ * text.
+ *
+ * The box follows a sheet edited above it — see `seeded` below. Deliberately
+ * **not** a `key` on this component in `page.tsx`: remounting re-seeds the box
+ * but throws away the `useActionState` result with everything else, so a save
+ * stopped rendering its own "Saved" confirmation. `page.tsx` says the same at
+ * length, and this comment claimed the opposite for one commit — written when
+ * the `key` went in and not updated when it came out. Caught by 3.4b's
+ * critique, in a repo where a comment is the only thing the next agent reads.
  *
  * ## One action, three intents
  *
@@ -138,8 +150,52 @@ export function SheetForm({
    * result* carried — which after a save is the text they had already replaced.
    */
   const [text, setText] = useState(initialText);
+  /**
+   * The `initialText` this box was last seeded from.
+   *
+   * 3.4b made the sheet editable *above* this form, so `initialText` now moves
+   * under it: move a row and the server's text changes. Without this the state
+   * above would hold the pre-move order forever, and pressing *Read the list*
+   * then *Save this sheet* would silently undo every edit made in the list —
+   * the same class of defect 3.4a's critique found in `useActionState`, one
+   * slice later and one layer down.
+   *
+   * Adjusting state during render is React's own documented answer for this,
+   * and it is used rather than a `key` on the component: remounting re-seeds
+   * the box but discards the action result with everything else, so a save's
+   * own "Saved" confirmation disappears the moment the page revalidates.
+   *
+   * The `text === seeded` guard is the half that matters. An **untouched** box
+   * follows the sheet; a box somebody has typed a new list into keeps what they
+   * typed, because a paste in progress is unsaved work and a stray tap on a row
+   * must not throw it away.
+   */
+  const [seeded, setSeeded] = useState(initialText);
+  if (seeded !== initialText) {
+    setSeeded(initialText);
+    if (text === seeded) setText(initialText);
+  }
   /** The delete has been pressed once and is waiting to be meant. */
   const [armed, setArmed] = useState(false);
+  /**
+   * The outcome, scrolled to.
+   *
+   * 3.4a's critique measured `sheet-saved` at 133px *above* the viewport with
+   * nothing scrolling to it, and fixed it by moving the box down to sit over
+   * the button. 3.4b re-broke that from the other end: an interactive list is
+   * taller than a static one, so saving a first sheet now grows the page above
+   * this form by more than a phone's height and pushes the confirmation back
+   * off screen. Moving the box again would not help — the growth is above it.
+   *
+   * Scrolling is not animation; DESIGN.md says so where the board's own
+   * auto-scroll is exempted, and `block: "nearest"` does nothing at all when
+   * the box is already in view.
+   */
+  const saidRef = useRef<HTMLDivElement>(null);
+  const saidFor = result.saved ? `${result.saved.ranked}-${result.saved.tiers}` : null;
+  useEffect(() => {
+    if (saidFor) saidRef.current?.scrollIntoView({ block: "nearest" });
+  }, [saidFor]);
 
   const plan = result.plan;
   const needsAnswer =
@@ -154,7 +210,7 @@ export function SheetForm({
 
   return (
     <>
-      <Bank label="Paste a list">
+      <Bank label={hasSheet ? "Replace the whole sheet" : "Paste a list"}>
         {result.error ? (
           <Correction testId="sheet-error">{result.error}</Correction>
         ) : null}
@@ -193,7 +249,10 @@ export function SheetForm({
               fine in JSX and badly on screen. */}
           <p className="max-w-prose text-sm text-ink-soft">
             {hasSheet ? (
-              <>This is your sheet as it stands. Edit it and read it again.</>
+              <>
+                This is your sheet as text, and reading it back in replaces the
+                whole ranking. To move or remove one player, use the list above.
+              </>
             ) : (
               <>
                 A bare list of names works, and so does{" "}
@@ -390,6 +449,7 @@ export function SheetForm({
                 a draft is running on the same phone. */}
             {result.saved ? (
               <div
+                ref={saidRef}
                 data-testid="sheet-saved"
                 role="status"
                 className="slot-filled px-3 py-3"

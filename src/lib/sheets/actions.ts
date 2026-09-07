@@ -13,7 +13,8 @@ import {
   type SheetEntryStatus,
 } from "./match";
 import { parseCheatSheet } from "./parse";
-import { deleteSheet, readMatchablePool, saveSheet } from "./store";
+import { applyOperation, type SheetOperation } from "./reorder";
+import { deleteSheet, readMatchablePool, readSheet, saveSheet } from "./store";
 
 /**
  * The cheat sheet's front door — slice 3.4.
@@ -273,4 +274,87 @@ export async function submitCheatSheet(
       tiers: tiers.length,
     },
   };
+}
+
+/**
+ * What an edit gives back. The sheet itself arrives by revalidation.
+ *
+ * It has a caller now, which it did not at first: both call sites did
+ * `await editCheatSheet(...)` and dropped the result on the floor, so an expired
+ * session, a lost membership or a dropped connection all produced the same
+ * thing — the row moved optimistically, `useOptimistic` reverted it on the next
+ * render, and **nothing was said or shown anywhere**. 3.4b's critique scored
+ * Error Recovery 0/4 on it, against PRODUCT.md's "degrade, never corrupt".
+ */
+export type EditResult = { readonly error: string | null };
+
+const EDIT_OK: EditResult = { error: null };
+
+/**
+ * Move, remove, or break a tier — **one operation, applied to stored state**.
+ *
+ * The wire carries `move b to 8`, never the whole new ranking. That is the
+ * difference between an edit and a replacement: a tab holding a stale view of
+ * the sheet would, posting an array, silently overwrite an edit made somewhere
+ * else — and PocketBase has no transaction to notice. Applied as an operation,
+ * a late or replayed request lands against whatever is stored now.
+ *
+ * It is also why `applyOperation` tolerates nonsense: a player already removed,
+ * a rank past the end. Those are reachable states here, not padding.
+ *
+ * ## Failure recovery
+ *
+ * One write. `saveSheet` upserts the whole record, so an operation either
+ * landed or it did not — there is no half-applied edit, and no repair to run.
+ * A member with no sheet at all is a no-op rather than an error: there is
+ * nothing to reorder, and the surface offering the control has already gone.
+ */
+export async function editCheatSheet(
+  leagueId: string,
+  operation: SheetOperation,
+): Promise<EditResult> {
+  const context = await loadSheetContext(leagueId);
+  if (!context) return NOT_YOURS;
+
+  const stored = await readSheet(context.pb, context.memberId);
+  // No sheet to edit. This *is* worth saying: the only way to reach it is a
+  // stale tab whose sheet was deleted under it, and a row that springs back
+  // with no explanation is the thing the critique caught.
+  if (!stored) {
+    return {
+      error: "Your sheet is not there any more. Reload the page to see it.",
+    };
+  }
+
+  const next = applyOperation(stored, operation);
+  // Nothing moved — a `↑` on rank 1, a remove of somebody already gone. Skip
+  // the write rather than touching `updated` and flipping `source` for an edit
+  // that did not happen.
+  if (
+    next.ranking.join() === stored.ranking.join() &&
+    next.tiers.join() === stored.tiers.join()
+  ) {
+    return EDIT_OK;
+  }
+
+  // `manual`, because it now is. The value was declared by 3.4a's migration for
+  // exactly this slice and nothing wrote it until now; a later paste sets it
+  // back to `csv`.
+  //
+  // The one write, and the one place this can fail in a way the member must be
+  // told about. PocketBase being unreachable, the record having moved, the
+  // index refusing a race: all of them end here, and all of them used to end in
+  // silence.
+  try {
+    await saveSheet(context.pb, context.memberId, next, "manual");
+  } catch {
+    return { error: "That did not save. Your sheet is unchanged." };
+  }
+
+  revalidatePath(`/leagues/${leagueId}/sheet`);
+  // The room reads the sheet through `rankForMember`, so its pool order and its
+  // pinned shortlist follow from this write with no code of their own.
+  revalidatePath(`/leagues/${leagueId}/draft`);
+
+  return EDIT_OK;
 }

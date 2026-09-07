@@ -60,11 +60,21 @@ export default async function CheatSheetPage({
         </div>
 
         <SheetList
+          leagueId={id}
           rows={view.rows}
+          tiers={view.tiers}
           poolSize={view.poolSize}
           cover={view.cover}
         />
 
+        {/* `initialText` moves now — a reorder above rewrites it — and
+            `SheetForm` re-seeds its box from it. Deliberately *not* a `key`:
+            remounting the form was the first attempt and it threw away the
+            `useActionState` result with the rest of the component, so a save
+            re-rendered the page and its own "Saved" confirmation vanished.
+            3.4a's critique fixed that confirmation into existence; a `key`
+            here would have quietly un-fixed it. Caught by that slice's own
+            spec. */}
         <SheetForm
           leagueId={id}
           rankedCount={view.rows.length}

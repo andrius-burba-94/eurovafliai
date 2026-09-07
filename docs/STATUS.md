@@ -40,13 +40,22 @@ defines the target and this file is wrong.
 > **Phase 1 — walking skeleton** — auth, league creation, join-by-code, the
 > design foundation, the live lobby and the deploy all landed long ago.
 
-**Next up: slice 3.4b, dragging a sheet into order** — dnd-kit reorder and
-moving tier breaks by hand, editable inside the room. 3.4a has landed
-everything a sheet needs to *exist* and to *matter* — pasting one, matching it
-to the pool with a confirm step, autodraft picking from it, the pool ordered by
-it — and left the one thing that is genuinely a separate piece of work: editing
-it by hand rather than by re-pasting it. See the 3.4 row below for the split and
-what it costs.
+**Next up: slice 3.5, league chat and draft trade offers** — and the place a
+rollback finally gets the system message 2.4 deferred. Nothing else in Phase 3
+is blocked on it.
+
+**3.4b has landed**: a cheat sheet is now edited by acting on it. Pick a row up,
+move it with the controls, drop it on another row, or drag it — by mouse, by
+finger or by keyboard — and take a player off the sheet in one tap. That closes
+the 3.4a critique's central finding, which was not about any of its pixels:
+*"There is no path from the pool into the sheet. No add, no remove, no move."*
+Two of those three verbs exist now. Adding a player from the pool does not, and
+is recorded below.
+
+The blueprint's word for this was **dnd-kit**, and there is no dnd-kit in the
+repo. That is a decision with an argument, not an omission — see the 3.4b row —
+and the drag it asks for is there, hand-rolled in about 150 lines of Pointer
+Events.
 
 Still outstanding, and it needs people rather than code: the **Phase 2
 rehearsal**, a full 13-round draft with one member on autodraft and a rollback
@@ -110,6 +119,30 @@ Two Phase 1 items are still open and both are listed under Open debt: the last
 step of the two-device confirmation, and nightly `pb_data` backups.
 
 ---
+
+## Try it on localhost — slice 3.4b
+
+```bash
+npm run dev            # Next :3007 + PocketBase :8095
+npm run rosters:sync   # once, if the pool is empty
+```
+
+Sign in, open a league, **Your cheat sheet**, and paste a few surnames if you
+have no sheet yet. Then, in **Your ranking**:
+
+- **Tap a row.** It is struck in 2px dashed ink and a bar appears at the bottom
+  of the screen with every verb on it.
+- **Press ↑ twice quickly.** It must move *two* places. That is the one thing
+  worth looking at, because the first version moved one — a nudge computed as an
+  absolute rank resolves to the same destination both times.
+- **Tap a different row** to drop the held one there, or **drag** the held row.
+  Try the drag with a mouse *and* with the device toolbar in touch mode; the
+  list must still scroll while a row is held.
+- **Remove** a player, and **New tier** to break the sheet where you are
+  standing. Reload: all of it is still there.
+
+Then check the paste box below has followed you — it should read back the order
+you just made, not the one you started with.
 
 ## Try it on localhost — slice 3.4a
 
@@ -217,7 +250,7 @@ now landed on top of them.
 | **3.2 Live Roster Radar** | done | `3d218e5`, critique `3cd3230` | Shipped in three pieces across three slices, which is worth knowing when reading the blueprint's one bullet: the **realtime half** belonged to 2.6, the **legality muting** landed with 3.3, and this slice is the **radar itself** — one row per member, one mark per roster slot, grouped the way the template is written. Rows are in draft order so the radar reads *down* the same order the board reads *across*; the two answer different questions, because the board is sorted by when a pick happened and the radar by what a roster is missing. It fits a phone with no scrolling at all, which the board cannot, for the plain reason that a mark is not a name. The layout is a pure engine function (`buildRadar`) because the template is a **rule** read from league settings — the blueprint leaves open whether a twelve-member league drops to eleven-man rosters, and a radar that had assumed 5/5/3 would be a second place to correct when that lands. A pick that does not fit the template is **drawn** as a correction rather than dropped: there should never be one, and a radar that discarded it would hide the only state that would mean the referee had failed. 3.1's board is the closest thing to it today: a column *is* a member's roster, and the position letter and wash are in every filled slot, so "who still needs a center" is readable off the wall by eye rather than stated |
 | **3.3 Player pool: filters + fuzzy search** | **partial** | `cdb1e51`, critique `66f7fe7` | Landed: fuse.js over the whole pool in the browser (no round trip per keystroke), position, club, hide-drafted and fit-to-play filters, legality muting brought forward from 3.2, and a keyboard path — type, arrow, **Enter to arm**, Enter again to pick, Escape to cancel. The blueprint says "enter to queue pick" and there is no queue until 3.4, so arming is what Enter does: a pick is undoable only by a commissioner rollback and Enter is the key people press to dismiss things. Diacritic folding is not reimplemented — the browser is sent ingestion's own `name_normalized`, so "valanciunas" finds Valančiūnas because 2.1a already folded it. The pool now arrives **whole**, drafted players included and marked with who took them, because "hide drafted" is a filter and a filter needs something to filter. **Deferred:** the *projected points* filter, which needs 4.4's projections and has nothing to filter on yet. The *cheat-sheet tier* filter is no longer deferred — 3.4a shipped it, along with an "on my sheet" toggle, because the working agreement is that debt a slice touches is debt that slice fixes |
 | **3.4a Cheat sheets — the sheet, the door and autodraft** | done | — | Paste a ranked list at `/leagues/[id]/sheet`, read what it matched, answer whatever was ambiguous, save. Autodraft then picks from it. **The sheet is keyed on the membership, not on the draft**, which is a deliberate divergence from the blueprint's `unique(member, draft)` and is argued in the migration: `startDraft` creates the `drafts` record, so a sheet keyed on one could not exist until the moment it stopped being useful to write — and 3.6a's "start over" deletes the draft, which would have thrown away every member's preparation. It is **private**, and that is the only collection in the app private *within* a league: `pb:verify` drives two members of one league and asserts the second cannot read the first's. Matching is fuzzy with a **confirm step** — two players the pool cannot tell apart resolve to nothing until a human chooses, because a sheet drives autodraft and a silently wrong match is a player drafted for somebody who never wrote them down. Applying **re-parses and re-matches** rather than trusting the preview, the same discipline as 2.1b, and here it earns its keep: ingestion runs nightly between writing a sheet and drafting from it. The room's pool is now ordered by the viewer's sheet and pins the best three still available from it, computed through the engine's own `rankForMember` and `isLegalPick` so the pinned shortlist and the pick the sweep would make are the same answer |
-| **3.4b Cheat sheets — dragging one into order** | **next** | — | dnd-kit reorder, moving tier breaks by hand, and the room-side editing the blueprint calls a sidebar. Everything 3.4a defers, in one place: today a sheet is only edited by re-pasting it, and `cheat_sheets.source` has a `manual` value nothing writes yet |
+| **3.4b Cheat sheets — editing one by hand** | done | — | **Arm, then move.** Tap a row to pick it up — 2px dashed ink, a new `slot-transit` state on `Slot` — and every verb appears in one sticky bar rather than three controls on each of sixty rows: at 44px on both axes that is 132px of buttons beside `#N`, a name, a club and a patch inside 390px, and 3.4a already overflowed this surface by 161px once. Tap another row to drop it there, **drag** the held row, or press `↑`/`↓`; `Escape` puts it down. A player comes off the sheet in one tap. `cheat_sheets.source` finally has something writing `manual`, and no migration was needed because 3.4a declared the value for this slice. **Three things are worth knowing before touching it.** (1) A nudge is a **relative** operation. Written as "move to rank − 1" it was computed on the client from the rank last rendered, so two quick presses of `↑` both resolved to the same destination and the second did nothing — found by a spec that pressed the button twice. (2) The wire carries the **operation**, not the new ranking, and the server applies it to the sheet *as stored*: a tab holding a stale view cannot overwrite an edit made elsewhere, which matters because PocketBase has no transaction to notice. `applyOperation` is pure and runs twice — optimistically here, authoritatively there — the same one-pipeline discipline as `commitPick`. (3) Breaks are **places, not labels**: moving a player past one changes that player's tier and leaves the break where it was put, which is the argument `ranking.ts` makes where the type is declared. A remove is the one edit that moves breaks, because every rank above it shifts down. **The blueprint says dnd-kit and there is none** — argued below rather than deferred. **Followed by an `/impeccable critique` that scored it 17/40 and whose every finding is fixed in the slice**, 3.4a-style, rather than in a follow-up PR: see the critique section below for the five that were defects |
 | 3.5 League chat + draft trade offers | todo | — | Also where a rollback finally gets its system message (2.4's one deferred line) |
 | **3.6a Start over** | done | `0540606` | Out of 3.6's slice, brought forward by draft-night feedback: pause is reversible and undo walks the board back, but nothing threw a draft away, so a practice run could only be cleared by editing the database. "Start over" deletes the draft and its picks (`picks.draft` cascades, so the board goes in one operation rather than a delete loop that can stop half way) and returns the league to the lobby, keeping the draft order — somebody who started too early should not have to re-roll. Behind a typed word, because it is the only control in the room that destroys work. Deletes the draft **first** so the only crash state is a league claiming to draft with no draft to open, which `reconcileLeagueStatus` now repairs; the reverse order would leave a `setup` league with a live draft that `startDraft` would silently resume, ignoring a fresh roll. A room whose draft is gone now redirects to the lobby rather than 404ing, which is also what every other member's room does the instant the delete event arrives |
 | **3.6b Delete the league** | done | `281bbe1` | The way out. Commissioner only and **not delegable** — a deputy is trusted to help run the league, not to end it, the same line `setMemberPermission` draws. Confirmed by typing the league's **name** rather than a fixed word, because a commissioner with three leagues open should have to look at which one they are deleting; case and stray spaces are forgiven. Deletes the drafts first, then the league: deleting the league alone *does* work — PocketBase walks the cascade tree — but that leans on an order nothing here pins, while a **direct** delete of a member or player a pick points at is genuinely refused. Both halves measured against 0.39.11 and written into the `pocketbase-patterns` skill, because the difference between "refuses" and "happens to work" is exactly the kind of thing this repo should not have to rediscover. A lobby somebody else has open no longer sits there empty afterwards: every membership vanishing at once means the league is gone, so the list hands back to the server and the page says so — which also, for free, ejects a member who has just been kicked |
@@ -252,18 +285,46 @@ touch should be fixed by that slice rather than deferred again.
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
 | **"You are on the clock" is not perceivable without looking** | PRODUCT.md commits to it being "announced to assistive tech via a live region, with sound and vibration cues". **None of the three exists.** The on-the-clock banner is a plain `div` whose text swaps on an SSE re-render, so a screen reader is told nothing and a phone face-down on a couch says nothing. Three slices have chipped at the edges — the board's marked slot says "on the clock" in an `sr-only` span, the pool announces its match count, the radar names the member on the clock — but the *banner*, which is the one that matters, still says nothing out loud. It is blueprint **3.7**'s, alongside the sound and vibration cues, and it is the oldest unmet product commitment in the file | Nothing; a written PRODUCT.md promise, unmet since 2.6 |
 | **Every alpha boundary is measured now — one is not** | Closed, and recorded here because the thread ran across four slices and the next person should not re-open it: 3.3 darkened the position letter (`pos-g`/`pos-f` to L 0.49) after `tokens.test.ts` learned to composite; 3.2's critique corrected that compositing to gamma-encoded sRGB, which is how a browser actually blends and is ~0.2 *stricter*; and #48/#49 fixed the last three sub-floor boundaries — the button border (2.10:1), the patch border (2.22–2.26:1) and an input's ruled line (1.87:1, the lowest in the app, and the one DESIGN.md itself calls the whole affordance). All now clear 3:1 and all are asserted. **What is left:** nothing measured. If a new colour or modifier is added, `tokens.test.ts` is where it has to be proved, and `wash()`/`contrastOn2()` are the helpers for it | Nothing |
-| **The design detector cannot see this app's real risks** | Three runs now have reported zero findings on the surfaces under review, and the third pass established why: on `.tsx` input only the regex engine runs, and **37 of the registry's 59 rules never execute** — including `low-contrast`, `tiny-text`, `undersized-ui-text`, `all-caps-body`, `wide-tracking` and `text-overflow`, which are precisely this system's failure modes. The static-HTML engine needs `htmlparser2`/`css-select`/`css-tree`/`domutils` and the browser engine needs `puppeteer`; none is installed, and `.tsx` would not route to them anyway. `design-system-radius` also cannot read Tailwind `rounded-*` in source. A clean `design-detect` in CI means "no purple gradients and no bounce easing", which was never the risk here — every real finding in three critiques came from measurement or from reading. Worth knowing before anybody trusts that green tick | Nothing; but the CI check is far weaker evidence than it looks |
+| **The design detector cannot see this app's real risks** | Four runs now have reported zero findings on the surfaces under review, and 3.4b's pass re-traced the regex engine's own module graph to put a firmer number on it: **only about 15 of the registry's 59 rules can fire on a `.tsx` file at all.** (The earlier figure in this row was "37 of 59 never execute", which *understated* it — six more are gated behind `shouldRunPageAnalyzers()`, which requires an extension in `{.html,.htm,.astro,.vue,.svelte}`.) On `.tsx` input only the regex engine runs — including `low-contrast`, `tiny-text`, `undersized-ui-text`, `all-caps-body`, `wide-tracking` and `text-overflow`, which are precisely this system's failure modes. The static-HTML engine needs `htmlparser2`/`css-select`/`css-tree`/`domutils` and the browser engine needs `puppeteer`; none is installed, and `.tsx` would not route to them anyway. `design-system-radius` also cannot read Tailwind `rounded-*` in source. A clean `design-detect` in CI means "no purple gradients and no bounce easing", which was never the risk here — every real finding in three critiques came from measurement or from reading. Worth knowing before anybody trusts that green tick | Nothing; but the CI check is far weaker evidence than it looks |
 | **A radar row cannot reach that member's column** | The last open finding from 3.2's critique, and the only one not fixed. The radar answers "who needs a center" and the board answers "what did they take" — and getting from a name on one to a column on the other means scrolling the board sideways by hand. An enhancement rather than a defect, and it wants a decision first: whether a radar row is a link at all, given the board is a horizontally scrolling region and this system has no idiom for "scroll that thing to here" | Nothing; two surfaces that answer adjacent questions do not connect |
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **No system chat message on a rollback** | 2.4's blueprint text asks for one; there is no chat until 3.4. An undo is currently silent to anyone who was not looking at the room when it happened | Nothing; a 3.4 follow-up |
 | **Autodraft has nothing to rank on — for a member who wrote no sheet** | Half closed. `selectAutoPick` ranks a cheat sheet first and projections second; **3.4a shipped the sheets**, so a member who wrote one is now picked for out of their own ranking, and the sweep's log line says which place on the sheet the pick came from. Projections are still 4.4, so for a member with **no** sheet every candidate still ties and the engine falls through to its own total tiebreak — the lowest player id among the legal ones. Arbitrary, and identical on every replay, which is the property that matters until there is something real to rank on; the pool is passed `projectedPoints` the moment the field exists | Nothing; autodraft quality for the unprepared, not correctness |
 | **No per-member autodraft switch for a manager** | A member arms their own autodraft from the draft room, and `setAutodraft` already permits a commissioner or deputy to set anybody's — but there is no UI for it, so a manager dealing with a phone that died has to wait the clock out and let the sweep pick, or enter the pick themselves with "Pick for them". Blueprint 3.6 owns the console | Nothing; a commissioner-comfort gap |
-| **A cheat sheet is edited as text, not by dragging** | What is left of 3.4b after the critique moved its most valuable half forward. The paste box is now seeded with your sheet as `rank, tier, name`, so editing it *is* a round trip — reorder a line, change a tier number, read it again. What is still missing is dragging: no pointer reorder, no moving a tier break by hand, and no editing from inside the room. `cheat_sheets.source` carries a `manual` value that nothing writes yet, declared for 3.4b rather than left to a second migration | 3.4b |
+| **No path from the pool *into* a sheet** | What is left of 3.4a's central critique finding after 3.4b closed two thirds of it. A sheet can now be reordered and a player removed from it, but the only way to *add* somebody is still to paste a list — there is no "put this player on my sheet" from the pool or from the room. It needs a picker over 323 players and a decision about where it lives, so it is its own piece of work rather than a rough edge | Nothing; a sheet can still be built, just not incrementally |
+| **A sheet still cannot be edited from inside the room** | The third thing blueprint 3.4 asks for, and the only part of that line still unmet: "editable before *and during* the draft in a sidebar". It is a page, and the room links to it and pins the best three from it. On a phone that is arguably the right answer — this app is one column and a sixty-row list does not sit beside a board — but it is a divergence rather than a finished thought | Nothing; the sheet is reachable mid-draft, just not beside the board |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |
 | **A sheet outlives the season it was written for** | The consequence of keying `cheat_sheets` on the membership rather than on the draft, and the price of the argument in that migration. A league that drafts a second season on the same memberships inherits last season's ranking rather than starting blank. It is a stale sheet a member can see and replace, not a lost one; a per-season sheet is Phase 6's keeper work | Nothing yet; there is no season 2 |
 | [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34) | **`deploy.sh` rewrites itself mid-run**, so a change to it never applies to its own deploy — 2.5's worker-liveness check did not run on the deploy that shipped it, and will from the next one. Worse in principle than in practice so far: bash reads a script by byte offset, so a pull that changes a not-yet-executed part of the file can make the shell resume mid-line | Nothing yet; a deploy-tooling trap |
 | [#35](https://github.com/andrius-burba-94/eurovafliai/issues/35) | **The nginx vhost drift warning can never be silenced.** The committed vhost is the plain `:80` one *by design* (certbot needs a working vhost to answer the ACME challenge and then rewrites the file in place), so every deploy warns. The whole drift is certbot's own `# managed by Certbot` lines; `/pb/` is byte-identical. A warning that fires every time is one nobody reads, which is a problem because the thing it exists to catch — a hand-edit that loses `proxy_buffering off` — kills realtime silently | Nothing; the check protects nothing until it is quiet |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
+
+One decision recorded here rather than as debt, because it is settled:
+
+- **There is no dnd-kit in this repo, and 3.4b's drag is hand-rolled.** The
+  blueprint names the library; it was researched and rejected on facts. The
+  classic line (`@dnd-kit/core` 6.3.1, `sortable` 10.0.0) is **EOL** — nothing
+  published in 21 months, `packages/core`/`sortable`/`utilities` deleted from
+  `main`, `docs.dndkit.com` redirecting and the v6 API moved under
+  `dndkit.com/legacy/`, and the React 19 issues bulk-closed as "opened against a
+  previous version". Its published `.d.ts` also emits bare `JSX.Element` in five
+  places, which is `TS2503` against `@types/react@19` and is masked only by this
+  repo's `skipLibCheck`; the fix PR was closed unmerged and the source is gone.
+  The current line (`@dnd-kit/react` 0.5.0) is broken under **React 19
+  StrictMode** — its `DragDropProvider` creates the manager during render and
+  destroys it from a `useInsertionEffect` cleanup, so React's dev effect-replay
+  leaves the mounted provider holding a destroyed manager
+  ([#2116](https://github.com/clauderic/dnd-kit/issues/2116), open, and verified
+  unfixed in the 2026-09-05 beta). App Router enables StrictMode by default, so
+  adopting it means `reactStrictMode: false` for the whole app. Neither line
+  ships a `"use client"` directive
+  ([#1654](https://github.com/clauderic/dnd-kit/issues/1654)). On top of that it
+  would have wanted `Slot` widened to accept `ref`/`style`/`on*` — the design
+  system's signature component, changed for one route — and a third animation
+  the motion budget forbids. Against all that: ~150 lines of Pointer Events,
+  tractable *because* of the interaction design, since tap-to-drop owns long
+  distances and the drag therefore needs no auto-scroll. Revisit at 1.0 or when
+  #2116 closes; nothing here is load-bearing against it.
 
 Closed since the last update:
 
@@ -296,18 +357,141 @@ Closed since the last update:
 
 ## Verification status
 
-Last full local run, after 3.4a: **all green.**
+Last full local run, after 3.4b: **all green.**
 
 | Check | Result |
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **554 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 39 the design tokens' contrast floors, 35 components, auth and config, **46 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip), **34 the pool's filtering, fuzzy search and sheet ordering**, 8 the position list-join |
+| `npm run test` | **598 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 components, auth and config, **75 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip, **36 the edit arithmetic** — moving, nudging, removing, breaking and putting a removed player back, with the break behaviour under each and the one case an undo provably cannot restore), **34 the pool's filtering, fuzzy search and sheet ordering**, **43 the design tokens** including `slot-transit`, **12 the position list-join** including the zeros a "what you have" sentence must keep |
 | `npm run build` | pass |
-| `npm run test:e2e` | **222 passed** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch |
+| `npm run test:e2e` | **263 passed, 1 skipped** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch, 13 more for 3.4b and **8 more for its critique** — one per finding that was a defect, each of which failed before the fix it guards. The one skip is deliberate and is the interesting one: the **touch** drag runs on the `mobile` project only, because desktop Chrome has no touch support enabled and `Input.dispatchTouchEvent` is accepted and then silently dropped there, so on `chromium` the spec would pass or fail for reasons having nothing to do with a phone |
 | `npm run pb:verify` | **82 checks pass** — the eight new ones are `cheat_sheets`: its rules, its unique index, and the privacy claim driven with two members of one league |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs. Re-running is idempotent against an unchanged feed, but the feed itself moves — this run added 2, changed 5 and marked 2 as left, which is the pipeline working rather than a problem. Do not treat the count as a constant |
+
+**What 3.4b's five real bugs were, and which test found each.** Worth recording
+in this shape because every one of them was invisible in the place you would
+look for it, and four of the five were found by a test rather than by reading.
+
+- **A nudge computed as an absolute rank.** `↑` was `move to rank − 1`, resolved
+  on the client from the rank it had last rendered — so two quick presses both
+  named the same destination and the second moved nothing. Found by an E2E spec
+  that pressed the button twice, which it did only because the first draft of
+  that spec needed two presses to reach the position it wanted. The operation is
+  relative now, and it composes against the optimistic state and the stored
+  sheet alike.
+- **A hand-rolled drag reading its drop target out of React state.**
+  `pointerup` can arrive in the same task as the last `pointermove`, so the
+  handler saw `overId: null` and the drag silently did nothing. It **survived
+  the mouse** — Playwright's moves are far enough apart — and died under a
+  finger. Only the touch spec could find it, which is the argument for having
+  one.
+- **The sticky bar covering the row it acts on.** Measured on a Pixel 7 at
+  **218px** tall, sitting at 621–839 with the just-picked-up row at 625: the
+  first touch of the drag landed on the bar and Chromium answered
+  `pointercancel`. You could pick a row up and then not move it, on the device
+  this app is designed around, and a desktop viewport is tall enough that the
+  two never meet. Fixed by reserving space below the list, scrolling the held row
+  to `block: "center"`, and cutting the bar down — it was carrying a hint
+  sentence beside five wrapping buttons, a quarter of a phone screen, over the
+  list it exists to edit. **This was an acceptance criterion of the slice that
+  was written down and never asserted**; it now has a spec that measures the two
+  rectangles against each other.
+- **Two `border-top` utilities on one element.** A held row was drawn
+  `slot-filled slot-transit`, which needs one shorthand to beat another at equal
+  specificity. Tailwind v4 emits `@utility` blocks **alphabetically** rather than
+  in source order and the dev server splits them across chunks, so the browser
+  composited **1px dashed** — a width from one rule and a style from the other, a
+  material that exists in neither, on the row whose whole job is to look
+  different. `Slot` has a fifth state now. Note that the first fix attempt was a
+  comment in `globals.css` asserting source order, and a unit test asserting the
+  same thing: **both were confidently wrong about the mechanism**, and green.
+- **Re-keying the paste box threw away its `useActionState`.** The box has to
+  follow a sheet edited above it or *Read the list* → *Save this sheet* quietly
+  undoes every move — a real defect, and the reason the named regression spec
+  exists. `key={view.asText}` looked like the tidy fix and remounting discarded
+  the action result, so saving stopped rendering its own "Saved" confirmation:
+  **a defect 3.4a's critique had specifically fixed, un-fixed by 3.4b, caught by
+  3.4a's own spec.** It adjusts state during render against the last seeded prop
+  now, and only when the box is untouched, so unsaved typing survives a stray
+  tap on a row.
+
+And one measurement worth keeping because it will waste somebody's afternoon
+otherwise: **a computed style read in the same frame as the class change is
+stale.** Chromium reported `1px dashed` for an element already carrying
+`slot-transit` *and* `data-state="transit"`, then `2px dashed` on every read from
+60ms on. A single `evaluate` fails against a material that is perfectly correct.
+`expect.poll`, always.
+
+**3.4b's critique, and the three findings that were mine.** The pass scored the
+surface **17/40** — lower than 3.4a's 19, and lower than the board, radar and
+pool (23, 21, 24) — on a slice whose material it rated 9/10. That gap is the
+point: it scored the *mechanics*, and three of its findings were functional
+defects introduced by this slice. Both assessments drove the real signed-in app,
+and every P0 was re-verified in the browser before being accepted — which
+mattered, because **two of the review's headline claims did not survive that
+check** and are recorded as corrections in the snapshot rather than acted on.
+
+The three that were real, all fixed here:
+
+- **The material did not travel with the row.** `slot-transit` was on the `<li>`
+  and the transform on the button inside it, so mid-drag the 2px dashed rule
+  stayed at the origin — measured **242px** from the content it was supposed to
+  be marking — while the row in somebody's hand had no material at all and two
+  names printed on top of each other. The state language went missing at exactly
+  the moment it was the only thing explaining what was happening. The content
+  carries the rule and a `bg-stock` ground now, and the place it left reads as
+  `waiting`, which is what an empty place is called here.
+- **A drag could not cross a tier boundary.** The hit test used *containment*,
+  and a tier run is closed by a 34px gap plus a 16px caption — **36px measured
+  on a Pixel 7** — so a drop released in there matched no row and the drag
+  silently did nothing. On a tiered sheet that band is precisely where the
+  intention lives. Nearest-midpoint has no dead space anywhere, by construction.
+  A second defect hid behind it: `pointerup` is followed by a `click`, and while
+  pointer capture kept both on the row, that click picked the row straight back
+  up — so the next tap moved it somewhere nobody chose. Only reachable on a
+  *failed* drop, which is why the original drag specs never saw it.
+- **Nothing on the surface could report a failure.** Both call sites did
+  `await editCheatSheet(...)` and dropped the result, so an expired session or a
+  dropped connection moved the row optimistically, reverted it on the next
+  render, and **said nothing anywhere**. Error Recovery scored 0/4 against
+  PRODUCT.md's own "degrade, never corrupt". The action's result is read now, a
+  `Correction` renders in the bar, and the row goes back into your hand so the
+  gesture can be repeated.
+
+Two more were judgement rather than mechanism, and both are better for it. A
+**removal now has an undo** rather than a confirmation — the page was guarding
+*deleting the whole sheet* behind two presses while a single player went in one
+tap with no acknowledgement and no way back, and an undo taxes nobody. It needed
+an `insert` operation, which turned up a genuine limit worth knowing: **`remove`
+is lossy at a tier boundary.** A break *at* the removed rank and a break *just
+above* it collapse to the same stored number, so no undo can tell them apart
+afterwards. The ranking round-trips exactly, the tiers round-trip for every
+player who was not sitting on a break, and the exception is pinned by a test
+rather than discovered later. And the **shortfall sentence was hiding the
+position you have none of**: `positionSentence` omits zeros — right for the
+radar's "still needs", wrong here — so a member with no forwards read "You have
+ranked 4 guards and 1 center, and a full roster needs 5 guards, 5 forwards and 3
+centers". The position that strands autodraft was the one the sentence dropped.
+
+The rest was craft, and measured: 426px of chrome above rank #1 at 390px (half
+the viewport) from a permanent 140-character instruction that told a phone to
+press Escape; a fixed `pb-48` reserve against a bar that is 174px on a phone and
+102px on a desktop, leaving a 205px dead band bracketed by two identical dashed
+rules; `Remove` sitting 52px directly under `↑ Up` in the same column, in
+byte-identical material, because 407px of buttons wrap inside a 350px bar; a
+49-character sentence set in `slot-label`'s 11px caps; focus dropping to `<body>`
+after *every* edit that ended a hold; `↑ Up` sitting **12 Tab presses** from a
+held row, because the bar follows every row in DOM order; and the position patch
+landing at ten different x-positions down a desktop column, which is the defect
+3.3's critique had already fixed for pool rows.
+
+**And one lesson about the method, not the slice.** My own first fix for the
+material bug was a comment in `globals.css` and a unit test, both asserting that
+Tailwind emits `@utility` blocks in source order. It emits them
+**alphabetically**. Both were confidently wrong, and both were green. The fix
+that worked was to stop composing two `border-top` rules at all.
 
 **What 3.4a is tested by, and where the line falls.** The two questions that are
 really about functions live in `src/lib/sheets/`: `parse.test.ts` asks whether a
