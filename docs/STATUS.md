@@ -27,6 +27,25 @@ defines the target and this file is wrong.
 > serves, `/leagues/<id>/sheet` redirects to login rather than 404ing, and
 > `PB_CONNECT` still arrives through the proxy.
 >
+> **3.4b was checked the same way**, and the check is worth reading as a
+> template. `slot-transit` is in the stylesheet the box serves *with its
+> declaration intact* — `border-top:2px dashed var(--color-ink)` — which is the
+> assertion that matters for this slice, because a state language reduced to a
+> class name that emits no CSS still looks plausible in a screenshot.
+> `touch-action:none` is there too, and `slot-standing` and `slot-correction`
+> are still beside it. `/leagues/<id>/sheet` answers 307 to
+> `/login?error=unauthorized` rather than 404ing. Realtime through the `/pb/`
+> proxy: `PB_CONNECT` on the **first frame at 0.09s** and the stream held open
+> for a full 12 seconds, closed by the client's own timeout rather than by the
+> server — which is the pair of facts that proves `proxy_buffering off`
+> survived, since a buffered stream delivers nothing until it flushes. And the
+> deploy log shows what a whole deploy looks like when it works: `lockfile
+> unchanged — skipping npm ci`, a clean `next build`, `No migration changes —
+> leaving eurovafliai-pb alone`, both PM2 apps reloaded, `worker is online (pid
+> 1894028)`, and `Deployed 193cd8a…` matching `main`. That worker-liveness line
+> is [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34)'s check
+> finally running on a deploy of its own.
+>
 > **Phase 3 is four slices in**: the board (3.1), the radar (3.2), the pool
 > (3.3, partial) and cheat sheets (3.4a). The first three were each followed by
 > an `/impeccable critique` pass whose fixes are their own merged PRs, and
