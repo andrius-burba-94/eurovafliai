@@ -511,7 +511,15 @@ test("a sheet that cannot fill a roster says so", async ({ page, context }) => {
   // Words, and one list-join: "5 G and 5 F and 3 C" was what a second,
   // hand-rolled join produced before `positionSentence` was shared.
   const short = page.getByTestId("sheet-short");
-  await expect(short).toContainText("You have ranked 2 forwards");
+  // **The noughts are said.** This read "You have ranked 2 forwards, and a full
+  // roster needs 5 guards, 5 forwards and 3 centers" — dropping guards and
+  // centers from the first list precisely *because* the member had none, which
+  // is the fact that strands autodraft. `positionSentence` omits zeros by
+  // default, which is right for the radar's "still needs" and wrong here.
+  // Found by 3.4b's critique.
+  await expect(short).toContainText(
+    "You have ranked 0 guards, 2 forwards and 0 centers",
+  );
   await expect(short).toContainText(
     "a full roster needs 5 guards, 5 forwards and 3 centers",
   );
@@ -1011,4 +1019,329 @@ test("a reorder reaches the room's pool", async ({ page, context }) => {
   await expect(rows.nth(1)).toContainText(a.name);
   await expect(rows.nth(2)).toContainText(b.name);
   await expect(rows.nth(0).getByTestId("pool-sheet-rank")).toHaveText("#1");
+});
+
+/* ── what 3.4b's design critique found ───────────────────────────────────────
+ *
+ * The pass scored the surface 17/40 and three of its findings were functional.
+ * Each spec below is named after the defect it would catch, and each one failed
+ * before the fix it guards.
+ */
+
+test("a drag that ends between two tiers still lands", async ({
+  page,
+  context,
+}) => {
+  // The hit test used containment, so the 34px gap that closes a tier run plus
+  // its 16px caption belonged to no row: a drop released in there matched
+  // nothing and the drag silently did nothing — on a tiered sheet, at exactly
+  // the boundary a tiered sheet is edited at. Measured at 36px on a Pixel 7,
+  // one dead band per tier break. Nearest-midpoint has no dead space anywhere.
+  const { a, b, c } = await threeRanked(page, context);
+
+  // Break after the first player, which puts a real gutter between a and b.
+  await rowFor(page, b.id).click();
+  await page.getByTestId("sheet-break").click();
+  await expect(page.getByTestId("sheet-tier-2")).toBeVisible();
+  await page.getByTestId("sheet-putdown").click();
+  await settled(page);
+
+  const gutter = await page.evaluate(() => {
+    const rows = [
+      ...document.querySelectorAll('[data-testid="sheet-row-grab"]'),
+    ];
+    for (let i = 0; i < rows.length - 1; i += 1) {
+      const top = rows[i]!.getBoundingClientRect();
+      const next = rows[i + 1]!.getBoundingClientRect();
+      if (next.top - top.bottom > 8) {
+        return {
+          x: top.left + top.width / 2,
+          y: (top.bottom + next.top) / 2,
+          size: Math.round(next.top - top.bottom),
+        };
+      }
+    }
+    return null;
+  });
+  expect(gutter, "no tier gutter to drag into").not.toBeNull();
+  expect(gutter!.size).toBeGreaterThan(8);
+
+  // Drag the last row up and release it *in the gutter*, not on a row.
+  await rowFor(page, c.id).click();
+  const from = await rowFor(page, c.id).boundingBox();
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(gutter!.x, from!.y + (gutter!.y - from!.y) / 2);
+  await page.mouse.move(gutter!.x, gutter!.y);
+  // A target is shown even over dead space, because there is no dead space.
+  await expect(page.locator('[data-current="true"]')).toHaveCount(1);
+  await page.mouse.up();
+
+  // It moved, rather than being silently put back down where it started.
+  await expect.poll(() => orderOf(page)).not.toEqual([a.id, b.id, c.id]);
+  await settled(page);
+});
+
+test("a drag does not pick the row straight back up", async ({
+  page,
+  context,
+}) => {
+  // `pointerup` is followed by a `click`, and while pointer capture keeps both
+  // on the row the click re-ran `onRowActivate` — so a drag released over dead
+  // space put the row down and immediately picked it back up, and the next tap
+  // moved it somewhere nobody chose. Reachable only on a failed drop, which is
+  // why the original drag specs never saw it.
+  const { a, c } = await threeRanked(page, context);
+
+  await rowFor(page, c.id).click();
+  const from = await rowFor(page, c.id).boundingBox();
+  const onto = await rowFor(page, a.id).boundingBox();
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(onto!.x + onto!.width / 2, from!.y + (onto!.y - from!.y) / 2);
+  await page.mouse.move(onto!.x + onto!.width / 2, onto!.y + onto!.height / 2);
+  await page.mouse.up();
+
+  // Put down, and stays down.
+  await expect(page.getByTestId("sheet-bar")).toBeHidden();
+  await expect(page.getByTestId("sheet-say")).not.toContainText(/picked up/i);
+  await settled(page);
+
+  // And the flag that suppresses that click must not eat the next honest tap.
+  await rowFor(page, a.id).click();
+  await expect(page.getByTestId("sheet-bar")).toBeVisible();
+});
+
+test("the row in your hand keeps its material while it travels", async ({
+  page,
+  context,
+}) => {
+  // The `<li>` carried `slot-transit` and the transform sat on the button
+  // inside it, so mid-drag the 2px dashed rule stayed at the origin — measured
+  // 242px away from the content it was supposed to be marking — and the row in
+  // your hand had no material at all while two names printed on top of each
+  // other. The state language has to travel with the thing it describes.
+  const { b, c } = await threeRanked(page, context);
+
+  await rowFor(page, c.id).click();
+  const from = await rowFor(page, c.id).boundingBox();
+  const onto = await rowFor(page, b.id).boundingBox();
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(onto!.x + onto!.width / 2, onto!.y + onto!.height / 2);
+
+  const drawn = await page.evaluate(() => {
+    const button = document.querySelector(
+      '[data-held="true"]',
+    ) as HTMLElement | null;
+    const li = button?.closest(
+      '[data-testid="sheet-row"]',
+    ) as HTMLElement | null;
+    const style = button ? getComputedStyle(button) : null;
+    return {
+      // The content carries the rule, and a ground so nothing shows through it.
+      contentWidth: style?.borderTopWidth ?? "",
+      contentStyle: style?.borderTopStyle ?? "",
+      opaque: (style?.backgroundColor ?? "").includes("rgba(0, 0, 0, 0)")
+        ? "transparent"
+        : "opaque",
+      // And the place it left behind reads as an empty place, which it is.
+      origin: li?.getAttribute("data-state") ?? "",
+    };
+  });
+  expect(drawn.contentWidth).toBe("2px");
+  expect(drawn.contentStyle).toBe("dashed");
+  expect(drawn.opaque).toBe("opaque");
+  expect(drawn.origin).toBe("waiting");
+
+  await page.mouse.up();
+  await settled(page);
+});
+
+test("a removal can be undone, and puts the player back where they were", async ({
+  page,
+  context,
+}) => {
+  // Remove was one tap with no confirmation, no visible acknowledgement and no
+  // way back, on a page that guards deleting the *whole* sheet behind two
+  // presses. An undo is the answer rather than a confirm: it taxes nobody and
+  // closes visibility, control and recovery at once.
+  const { league, a, b, c } = await threeRanked(page, context);
+
+  await rowFor(page, b.id).click();
+  await page.getByTestId("sheet-remove").click();
+  await expect.poll(() => orderOf(page)).toEqual([a.id, c.id]);
+
+  // Visible, not just announced.
+  await expect(page.getByTestId("sheet-undo")).toBeVisible();
+  await settled(page);
+
+  await page.getByTestId("sheet-undo").click();
+  await expect.poll(() => orderOf(page)).toEqual([a.id, b.id, c.id]);
+  await settled(page);
+
+  // And it really went back, at the rank it held.
+  await page.goto(`/leagues/${league.id}/sheet`);
+  expect(await orderOf(page)).toEqual([a.id, b.id, c.id]);
+});
+
+test("an edit that cannot save says so, and keeps the row in your hand", async ({
+  page,
+  context,
+}) => {
+  // There was no error surface here at all: both call sites awaited the action
+  // and dropped its result, so an expired session or a dropped connection moved
+  // the row, reverted it on the next render, and said nothing anywhere.
+  // PRODUCT.md asks this app to degrade, never corrupt — this degraded
+  // invisibly.
+  const { league, b } = await threeRanked(page, context);
+
+  // Take the sheet away underneath the tab, which is the reachable version of
+  // this: another tab deleted it, or the membership went.
+  //
+  // Scoped to *this* league's members. The first version read every
+  // `cheat_sheets` record in the database and deleted the lot, which is
+  // app-global — specs in this file run in parallel, so it silently pulled the
+  // sheet out from under whichever sibling happened to be mid-test. Same shape
+  // as the `sweepOnce` trap in AGENTS.md.
+  const pb = await superuser();
+  const mine = await pb.collection("league_members").getFullList<{ id: string }>(
+    { filter: `league = '${league.id}'` },
+  );
+  for (const member of mine) {
+    const sheets = await pb
+      .collection("cheat_sheets")
+      .getFullList<{ id: string }>({ filter: `member = '${member.id}'` });
+    for (const sheet of sheets) {
+      await pb.collection("cheat_sheets").delete(sheet.id);
+    }
+  }
+
+  await rowFor(page, b.id).click();
+  await page.getByTestId("sheet-up").click();
+
+  await expect(page.getByTestId("sheet-edit-error")).toBeVisible();
+  await expect(page.getByTestId("sheet-edit-error")).toContainText(
+    /not there any more/i,
+  );
+  // Still in hand, so the gesture can simply be repeated.
+  await expect(page.getByTestId("sheet-bar-held")).toBeVisible();
+  // And said out loud, not only drawn.
+  await expect(page.getByTestId("sheet-say")).toContainText(
+    /not there any more/i,
+  );
+});
+
+test("a held row can be moved and removed from the keyboard alone", async ({
+  page,
+  context,
+}) => {
+  // From a held row, `↑ Up` measured **12 Tab presses** away, because the bar
+  // follows every row in DOM order — so the fastest keyboard path to "move this
+  // up one" was to leave the row, walk the rest of the list and come back. The
+  // bar is an affordance; the keys are the path.
+  const { league, a, b, c } = await threeRanked(page, context);
+
+  await rowFor(page, c.id).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("sheet-bar")).toBeVisible();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  await expect.poll(() => orderOf(page)).toEqual([c.id, a.id, b.id]);
+  await settled(page);
+
+  // Focus never left the row, so the next key still lands on it.
+  await page.keyboard.press("Delete");
+  await expect.poll(() => orderOf(page)).toEqual([a.id, b.id]);
+  await settled(page);
+
+  await page.goto(`/leagues/${league.id}/sheet`);
+  expect(await orderOf(page)).toEqual([a.id, b.id]);
+});
+
+test("focus lands on a row after every edit, never on the document", async ({
+  page,
+  context,
+}) => {
+  // Measured before this: after a drop, a put-down *and* a removal,
+  // `document.activeElement` was `<body>`, so a keyboard or switch user had to
+  // Tab from the top of the document to carry on editing.
+  const { a, b, c } = await threeRanked(page, context);
+  const active = () =>
+    page.evaluate(() => ({
+      tag: document.activeElement?.tagName ?? "",
+      player: document.activeElement?.getAttribute("data-player") ?? "",
+    }));
+
+  // Put down.
+  await rowFor(page, b.id).click();
+  await page.getByTestId("sheet-putdown").click();
+  await expect.poll(active).toEqual({ tag: "BUTTON", player: b.id });
+
+  // A drop onto another row.
+  await rowFor(page, a.id).click();
+  await rowFor(page, c.id).click();
+  await expect.poll(async () => (await active()).tag).toBe("BUTTON");
+  await settled(page);
+
+  // A removal focuses whoever took the removed row's place.
+  const before = await orderOf(page);
+  await rowFor(page, before[0]!).click();
+  await page.getByTestId("sheet-remove").click();
+  await expect.poll(async () => (await active()).tag).toBe("BUTTON");
+  await settled(page);
+});
+
+test("the bar reserves its own height, and its caption is not a shouted sentence", async ({
+  page,
+  context,
+}) => {
+  // Two measured findings. The reserve was a fixed `pb-48` (192px) against a
+  // bar that is 166px on a phone and 98px on a desktop, leaving a 205px dead
+  // gap below the last held row at both sizes — bracketed by two identical
+  // dashed rules, so it read as a rendering fault. And the caption was a
+  // 49-character sentence in `slot-label`: 11px uppercase at wide tracking,
+  // which the in-page detector flagged as `all-caps-body`.
+  const { c } = await threeRanked(page, context);
+
+  await rowFor(page, c.id).click();
+  await expect(page.getByTestId("sheet-bar")).toBeVisible();
+
+  // Polled, not read once: the bar renders first and the effect that measures
+  // it commits on the *next* render, so a single read catches a reserve of 0
+  // against a bar that is already 102px tall. Same one-frame lesson as the
+  // held row's border.
+  const geometry = () =>
+    page.evaluate(() => {
+      const bar = document.querySelector(
+        '[data-testid="sheet-bar"]',
+      ) as HTMLElement;
+      const list = document.querySelector(
+        '[data-testid="sheet-list"]',
+      ) as HTMLElement;
+      return {
+        barHeight: Math.round(bar.getBoundingClientRect().height),
+        reserved: Math.round(
+          parseFloat(getComputedStyle(list).paddingBottom || "0"),
+        ),
+      };
+    });
+
+  // The reserve tracks the bar rather than a fixed guess. It was `pb-48`
+  // (192px) against a bar that is ~100px on a desktop and ~174px on a phone,
+  // which left a 205px dead band below the last held row at both sizes.
+  await expect
+    .poll(async () => {
+      const { barHeight, reserved } = await geometry();
+      return Math.abs(reserved - barHeight) <= 24;
+    })
+    .toBe(true);
+
+  // The caption is a sentence, set as one. The player's name stays in the
+  // board's caps because that is how this system writes a name.
+  const caption = page.getByTestId("sheet-bar-held");
+  const transform = await caption.evaluate(
+    (node) => getComputedStyle(node).textTransform,
+  );
+  expect(transform).toBe("none");
 });
