@@ -29,7 +29,6 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **start over** | Discarding a draft entirely — the draft and every pick in it — and returning the league to the lobby with the draft order intact. Distinct from a rollback, which keeps the draft and walks it back to a pick. | `resetDraft()` |
 | **delete the league** | Ending the league itself: the league, its memberships, every draft it has run and every pick on those boards. The furthest of the three undoings — rollback walks a board back, starting over discards a board, this discards the league. Commissioner only, never a deputy. | `deleteLeague()` |
 | **commissioner mode** | The commissioner entering picks made offline, or for a member whose phone has died. | Live since 2.4: the room shows a manager a "Pick for them" button for whoever is on the clock. The fuller offline-entry flow is Phase 3.6 |
-| **draft trade offer** | One offer per member per draft, announced in chat before the offerer's next pick. | `draft_trade_offers` |
 
 ## League & season
 
@@ -69,8 +68,10 @@ change the name — not the list. Add a term here in the PR that introduces it.
 
 ## Words we do not use
 
-- **"draft pick" as a tradeable asset slot** — say *pick* for the selection; a
-  future pick being traded is stated explicitly as a *pick swap*.
+- **"draft pick" as a tradeable asset slot** — say *pick* for the selection. The
+  app does not trade picks at all (blueprint D10 cut draft-time offers), so if a
+  keeper or slow format ever needs the idea, it is a *pick swap*, named
+  explicitly and never smuggled in as "a pick".
 - **"team"** alone is ambiguous (Euroleague club vs. a member's fantasy squad).
   Say **club** for the real team, **roster** or **member's team** for ours.
 - **"points"** alone — say **PIR**, **fantasy points**, or **standings points**.
