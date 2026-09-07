@@ -5,6 +5,12 @@ import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth/session";
 import {
+  announcePause,
+  announceRollback,
+  announceStartOver,
+} from "@/lib/chat/messages";
+import { announce } from "@/lib/chat/store";
+import {
   computeRollback,
   isLegalPick,
   whoIsOnClock,
@@ -304,6 +310,15 @@ export async function makePick(
 
   // Both writes, in the fixed order, through the same pipeline the worker's
   // autodraft uses — so a human pick and an automatic one cannot diverge.
+  // The team on the clock, for the announcement. A read rather than `own`,
+  // because a commissioner may be picking *for* somebody — "Pick for them" —
+  // and the chat line has to name whose roster the player joined, not whose
+  // thumb pressed the button.
+  const onClockTeam = await pb
+    .collection("league_members")
+    .getOne<{ team_name?: string }>(onClock.memberId, { requestKey: null })
+    .catch(() => null);
+
   const outcome = await commitPick(pb, {
     draft,
     onClock,
@@ -311,6 +326,10 @@ export async function makePick(
     isAuto: false,
     picks,
     now,
+    say: {
+      teamName: onClockTeam?.team_name || "A team",
+      playerName: player.name,
+    },
   });
   if (outcome === "raced") {
     // An index caught a race. Whoever won, this caller's pick did not land.
@@ -353,6 +372,11 @@ export async function setDraftPaused(
     },
     { requestKey: null },
   );
+
+  // The room's banner shows a pause *while it is happening*; nothing recorded
+  // that it did, or for how long. Announced after the write, like every system
+  // line — see `src/lib/chat/store.ts`.
+  await announce(pb, draft.league, announcePause(pause));
 
   revalidatePath(`/leagues/${leagueId}/draft`);
   return OK;
@@ -463,6 +487,22 @@ export async function rollbackDraft(
       .update(draft.league, { status: "drafting" }, { requestKey: null })
       .catch(() => {});
   }
+
+  // **The line this whole slice exists for.** 2.4 asked for it and there was no
+  // chat to put it in, so an undo has been silent to anybody who was not
+  // watching the room ever since — and the picks simply are not there any more,
+  // which is the least explicable state this app can be in. It names the count
+  // *and* the pick, because "the draft was rolled back" tells somebody who was
+  // away nothing about whether their own pick survived.
+  await announce(
+    pb,
+    draft.league,
+    announceRollback({
+      discarded: deletePickIds.length,
+      toPick: targetPickNo,
+      byTeamName: context.own?.team_name || "The commissioner",
+    }),
+  );
 
   revalidatePath(`/leagues/${leagueId}`);
   revalidatePath(`/leagues/${leagueId}/draft`);
@@ -603,6 +643,16 @@ export async function resetDraft(
   await pb
     .collection("leagues")
     .update(leagueId, { status: "setup" }, { requestKey: null });
+
+  // The draft and every pick in it are gone, so the transcript is the only
+  // place a board that existed for an hour is now recorded. Said after the
+  // deletes — announcing first would risk announcing something that then did
+  // not happen.
+  await announce(
+    pb,
+    leagueId,
+    announceStartOver(context.own?.team_name || "The commissioner"),
+  );
 
   revalidatePath(`/leagues/${leagueId}`);
   revalidatePath(`/leagues/${leagueId}/draft`);

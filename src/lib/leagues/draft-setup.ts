@@ -6,6 +6,8 @@ import { rollOrder } from "@/lib/engine";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
 import { requireSession } from "@/lib/auth/session";
+import { announceRoll } from "@/lib/chat/messages";
+import { announce } from "@/lib/chat/store";
 
 import { isManager } from "./lobby";
 
@@ -187,6 +189,25 @@ export async function updateDraftSettings(
  * partial pass is repaired by running it again rather than by re-deciding
  * anything.
  */
+/**
+ * Member ids in draft order, as team names in draft order.
+ *
+ * `rollOrder` returns ids because the engine is pure and knows nothing about
+ * names; the announcement needs the names, and the lobby already read the
+ * members. A member whose row is somehow missing falls back to a placeholder
+ * rather than dropping out of the list, because a numbered order with a gap in
+ * it is worse than one with an unnamed slot.
+ */
+function teamNamesInOrder(
+  members: readonly { id: string; team_name?: string }[],
+  order: readonly string[],
+): string[] {
+  const byId = new Map(members.map((member) => [member.id, member]));
+  return order.map(
+    (id, index) => byId.get(id)?.team_name || `Team ${index + 1}`,
+  );
+}
+
 async function writePositions(
   pb: Awaited<ReturnType<typeof getSuperuserClient>>,
   order: readonly string[],
@@ -253,6 +274,15 @@ export async function reshuffleDraftOrder(
   );
   const failures = await writePositions(pb, order);
 
+  // Announced in the lobby, which is where a roll happens and where people are
+  // looking. A reshuffle changes who picks first, so it is the one order event
+  // somebody will want a record of.
+  await announce(
+    pb,
+    league.id,
+    announceRoll({ order: teamNamesInOrder(members, order), reshuffle: true }),
+  );
+
   revalidatePath(`/leagues/${league.id}`);
 
   if (failures.length > 0) {
@@ -304,6 +334,12 @@ export async function rollDraftOrder(
   );
 
   const failures = await writePositions(pb, order);
+
+  await announce(
+    pb,
+    league.id,
+    announceRoll({ order: teamNamesInOrder(members, order), reshuffle: false }),
+  );
 
   revalidatePath(`/leagues/${league.id}`);
 

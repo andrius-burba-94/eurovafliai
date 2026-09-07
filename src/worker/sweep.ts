@@ -341,6 +341,12 @@ async function sweepDraft(
     isAuto: true,
     picks,
     now: clock(),
+    // Both already in hand — the member was read for `autodraft_enabled` and
+    // the pool for the pick itself. No extra query to announce.
+    say: {
+      teamName: member?.team_name || "A team",
+      playerName: nameOf(pool, choice.id),
+    },
   });
 
   if (outcome === "raced") {
