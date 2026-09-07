@@ -405,6 +405,33 @@ describe("the board's ruling is perceivable", () => {
   });
 });
 
+describe("the app's own voice in chat", () => {
+  // 3.5 draws a system message in `--color-rail`, which already existed as the
+  // rail's own colour and had no competing job. Marker was not available: it
+  // has exactly two (who is on the clock, what just landed) and DESIGN.md calls
+  // a third a regression.
+  //
+  // The token was previously asserted only as a **boundary** at 3:1. As body
+  // text it has to clear the text floor, which is a stricter question nobody
+  // had asked of it.
+  it("--color-rail clears 4.5:1 on stock as text", () => {
+    const ratio = contrast("rail", "stock");
+    expect(
+      round(ratio),
+      `rail as text was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("is distinguishable from the ink a member's own message is set in", () => {
+    // Colour is never the only carrier here — a system line also has no team
+    // name — but if the two colours were near-identical the colour-coding would
+    // be a lie rather than a redundancy.
+    const rail = contrast("rail", "stock");
+    const ink = contrast("ink", "stock");
+    expect(Math.abs(rail - ink)).toBeGreaterThan(1);
+  });
+});
+
 describe("a row in your hand says so in its own material", () => {
   // 3.4b's `slot-transit`. The whole state language depends on this rule being
   // both visible and distinguishable from the four beside it, because a held

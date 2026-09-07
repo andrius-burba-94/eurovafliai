@@ -166,6 +166,28 @@ body {
   border-top: 2px dashed var(--color-ink);
 }
 
+/* The app's own voice: a system line in chat.
+ *
+ * Rail blue, which already existed for the rail and has no competing job —
+ * every neutral in this palette leans toward it, so a rail-tinted line reads as
+ * the app speaking rather than as a person. It is measured at **4.64:1** on
+ * stock, which clears the text floor rather than only the 3:1 boundary floor
+ * the token had previously been asserted against; `tokens.test.ts` now asks the
+ * stricter question.
+ *
+ * Explicitly **not** the marker. DESIGN.md gives marker exactly two jobs — who
+ * is on the clock, and what just landed — and a third is a regression, not a
+ * variant. 3.3's critique already caught marker used as decoration here.
+ *
+ * Colour is never the only carrier: a system line also has no team name beside
+ * it, so the distinction survives greyscale and a colour-vision simulation —
+ * which is the failure 3.2's critique measured in the radar's washes, where
+ * two of them were pixel-identical under deuteranopia.
+ */
+@utility chat-system {
+  color: var(--color-rail);
+}
+
 /* Slot labels: the board's own small caps, used for every column head, status
  * and code. Tracking is wide because marker caps on card stock are. */
 @utility slot-label {

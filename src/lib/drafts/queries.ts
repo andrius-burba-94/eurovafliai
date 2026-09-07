@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
+import { readMessages, type ChatMessage } from "@/lib/chat/store";
 import {
   buildRadar,
   countByPosition,
@@ -58,6 +59,16 @@ export type DraftView = {
    * else's flag is Phase 3.6's console.
    */
   you: { memberId: string; autodraftEnabled: boolean } | null;
+  /**
+   * The league's chat, oldest first — slice 3.5.
+   *
+   * Server-rendered on first load so the transcript is there before any
+   * JavaScript runs, and so the collapsed header can carry the latest line.
+   * After that the component keeps itself current from the realtime payload
+   * rather than asking this query to run again: a chat message has no derived
+   * state, unlike everything else on this page.
+   */
+  chat: ChatMessage[];
   /**
    * The viewer is the commissioner or a deputy, so they may enter a pick for
    * whoever is on the clock. `makePick` has always permitted this — a phone
@@ -293,6 +304,14 @@ export async function getDraftView(
    * same view for the same reason.
    */
   const sheet = youId ? await readSheet(pb, youId).catch(() => null) : null;
+  /**
+   * The transcript, read with the *viewer's* token like everything else here —
+   * so `chat_messages`' read rule is what scopes it to this league, not a
+   * filter this query happened to remember. A failure degrades to an empty
+   * conversation rather than a broken room: chat is the least important thing
+   * on this page and must never be the reason it does not render.
+   */
+  const chat = await readMessages(pb, leagueId).catch(() => []);
   const ranking = sheet?.ranking ?? [];
   const tiers = sheet?.tiers ?? [];
   const placeOf = new Map(
@@ -363,6 +382,7 @@ export async function getDraftView(
           autodraftEnabled: Boolean(you.autodraft_enabled),
         }
       : null,
+    chat,
     canManage:
       league.commissioner === session.user.id || Boolean(you?.can_manage),
     members: memberRecords.map((record) => ({

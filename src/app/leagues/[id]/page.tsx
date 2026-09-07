@@ -11,6 +11,9 @@ import {
   TopRail,
 } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
+import { LeagueChat } from "@/components/league-chat";
+import { readMessages } from "@/lib/chat/store";
+import { createUserClient } from "@/lib/pb/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { rosterSize } from "@/lib/leagues/settings";
 import { DeleteLeague } from "./delete-league";
@@ -54,6 +57,10 @@ export default async function LobbyPage({
   // matters.
   const { league, settings, members, isCommissioner } = data;
   const slotsLeft = settings.max_members - members.length;
+  // The same conversation as the room's — `chat_messages` is league-scoped, so
+  // the hours before a roll and the draft itself are one thread. Read with the
+  // viewer's own token, so the collection's read rule is what scopes it.
+  const chat = await readMessages(createUserClient(session.token), id).catch(() => []);
   const template = settings.roster_template;
   // A cheat sheet belongs to a *membership*. A commissioner who has not taken a
   // slot has no roster to rank for, so they are not offered one.
@@ -134,6 +141,16 @@ export default async function LobbyPage({
           justArrived={justArrived}
           isCommissioner={isCommissioner}
           settings={settings}
+        />
+
+        {/* The lobby half of league chat. The roll announces itself here,
+            which is where people are looking when it happens, and it is the
+            same thread the room shows. */}
+        <LeagueChat
+          leagueId={id}
+          authToken={session.token}
+          initial={chat}
+          myMemberId={members.find((member) => member.isYou)?.id ?? null}
         />
 
         {/* The cheat sheet, from the lobby — the hours before a draft are when
