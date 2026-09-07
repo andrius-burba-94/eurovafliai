@@ -27,6 +27,24 @@ defines the target and this file is wrong.
 > serves, `/leagues/<id>/sheet` redirects to login rather than 404ing, and
 > `PB_CONNECT` still arrives through the proxy.
 >
+> **3.5 was checked the same way, and it is the first slice since 1.5 to ship a
+> migration** — so the deploy log is the interesting half. It reads
+> `Migrations changed — restarting eurovafliai-pb to apply them`, which is the
+> branch of `deploy.sh` that every slice since 2.4 has skipped, followed by both
+> PM2 apps reloading, `worker is online (pid 1916116)` and
+> `Deployed c3588989…` matching `main`. The migration really applied:
+> `/pb/api/collections/chat_messages/records` answers **200 with an empty list**
+> rather than 404 — and 200-with-nothing is the *correct* answer for a non-null
+> list rule, because an unauthenticated request matches no records rather than
+> being refused. (The rule itself is proved with real data by `pb:verify` in CI,
+> not by this check; production has no messages yet, so this only proves the
+> collection exists.) `chat-system`, `color:var(--color-rail)`, `line-clamp` and
+> `break-words` are all in the stylesheet the box serves, alongside 3.4b's
+> `slot-transit`. Realtime through the `/pb/` proxy: `PB_CONNECT` on the **first
+> frame at 0.07s**, stream held open the full 12 seconds and closed by the
+> client — which matters more than usual for this slice, since 3.5's worst bug
+> was a *second* realtime client making the first one hang.
+
 > **3.4b was checked the same way**, and the check is worth reading as a
 > template. `slot-transit` is in the stylesheet the box serves *with its
 > declaration intact* — `border-top:2px dashed var(--color-ink)` — which is the
