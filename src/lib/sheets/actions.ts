@@ -276,7 +276,16 @@ export async function submitCheatSheet(
   };
 }
 
-/** What an edit gives back. The sheet itself arrives by revalidation. */
+/**
+ * What an edit gives back. The sheet itself arrives by revalidation.
+ *
+ * It has a caller now, which it did not at first: both call sites did
+ * `await editCheatSheet(...)` and dropped the result on the floor, so an expired
+ * session, a lost membership or a dropped connection all produced the same
+ * thing — the row moved optimistically, `useOptimistic` reverted it on the next
+ * render, and **nothing was said or shown anywhere**. 3.4b's critique scored
+ * Error Recovery 0/4 on it, against PRODUCT.md's "degrade, never corrupt".
+ */
 export type EditResult = { readonly error: string | null };
 
 const EDIT_OK: EditResult = { error: null };
@@ -308,10 +317,14 @@ export async function editCheatSheet(
   if (!context) return NOT_YOURS;
 
   const stored = await readSheet(context.pb, context.memberId);
-  // No sheet to edit. Not an error: the only way to reach this is a stale tab
-  // whose sheet was deleted under it, and the honest outcome is that nothing
-  // happened.
-  if (!stored) return EDIT_OK;
+  // No sheet to edit. This *is* worth saying: the only way to reach it is a
+  // stale tab whose sheet was deleted under it, and a row that springs back
+  // with no explanation is the thing the critique caught.
+  if (!stored) {
+    return {
+      error: "Your sheet is not there any more. Reload the page to see it.",
+    };
+  }
 
   const next = applyOperation(stored, operation);
   // Nothing moved — a `↑` on rank 1, a remove of somebody already gone. Skip
@@ -327,7 +340,16 @@ export async function editCheatSheet(
   // `manual`, because it now is. The value was declared by 3.4a's migration for
   // exactly this slice and nothing wrote it until now; a later paste sets it
   // back to `csv`.
-  await saveSheet(context.pb, context.memberId, next, "manual");
+  //
+  // The one write, and the one place this can fail in a way the member must be
+  // told about. PocketBase being unreachable, the record having moved, the
+  // index refusing a race: all of them end here, and all of them used to end in
+  // silence.
+  try {
+    await saveSheet(context.pb, context.memberId, next, "manual");
+  } catch {
+    return { error: "That did not save. Your sheet is unchanged." };
+  }
 
   revalidatePath(`/leagues/${leagueId}/sheet`);
   // The room reads the sheet through `rankForMember`, so its pool order and its

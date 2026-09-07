@@ -59,7 +59,35 @@ export type SheetOperation =
    * that already starts one clears that break, which is what makes a break
    * movable by hand: clear it here, set it there.
    */
-  | { readonly kind: "break"; readonly atRank: number };
+  | { readonly kind: "break"; readonly atRank: number }
+  /**
+   * Put a player back at this rank — the undo behind a removal.
+   *
+   * 3.4b's critique scored User Control 1/4 and Error Recovery 0/4 on one
+   * finding: five one-tap irreversible edits and no way back from any of them,
+   * on a page that guards *deleting the whole sheet* behind two presses. An
+   * undo is the better answer than a confirm, and it is this operation — which
+   * the operation-on-the-wire design already tolerates, because the server
+   * applies it to whatever is stored rather than to what the client last saw.
+   *
+   * Idempotent on the way in: a player already on the sheet is left where they
+   * are rather than duplicated, so pressing "put him back" twice cannot rank
+   * the same person in two places.
+   *
+   * **It is not a perfect inverse of `remove`, and it cannot be.** `remove` is
+   * lossy at a tier boundary: a break *at* the removed rank and a break *just
+   * above* it both collapse to the same stored number, so nothing in the stored
+   * sheet can tell them apart afterwards. So an undo restores the ranking
+   * exactly and the tiers exactly for every player who was not sitting on a
+   * break; for one who was, the boundary stays where the removal left it and
+   * costs one tap of `New tier` to re-open. Asserted both ways in
+   * `reorder.test.ts` — the exception is pinned, not accidental.
+   */
+  | {
+      readonly kind: "insert";
+      readonly playerId: string;
+      readonly atRank: number;
+    };
 
 /** A break is only meaningful strictly inside the sheet — `asBreaks` agrees. */
 const tidyBreaks = (breaks: readonly number[], size: number): number[] =>
@@ -88,6 +116,8 @@ export function applyOperation(
       return remove(sheet, operation.playerId);
     case "break":
       return toggleBreak(sheet, operation.atRank);
+    case "insert":
+      return insert(sheet, operation.playerId, operation.atRank);
   }
 }
 
@@ -123,6 +153,30 @@ function remove(sheet: SheetRanking, playerId: string): SheetRanking {
   // to 0 or past the new end — a break describing a tier with nobody in it.
   const tiers = tidyBreaks(
     sheet.tiers.map((brk) => (brk >= rank ? brk - 1 : brk)),
+    ranking.length,
+  );
+  return { ranking, tiers };
+}
+
+function insert(
+  sheet: SheetRanking,
+  playerId: string,
+  atRank: number,
+): SheetRanking {
+  // Already there. Not an error — an undo pressed twice, or replayed.
+  if (sheet.ranking.includes(playerId)) return sheet;
+
+  const ranking = [...sheet.ranking];
+  // Clamped to the ends: the sheet may have shrunk under a stale tab, and a
+  // rank past the end should still put the player back rather than refuse.
+  const at = Math.min(Math.max(atRank - 1, 0), ranking.length);
+  ranking.splice(at, 0, playerId);
+  const rank = at + 1;
+  // Every break at or above the restored rank goes back up by one, which undoes
+  // what `remove` did to it. See the note on the operation: this is exact for
+  // every player who was not sitting on a break, and cannot be for one who was.
+  const tiers = tidyBreaks(
+    sheet.tiers.map((brk) => (brk >= rank ? brk + 1 : brk)),
     ranking.length,
   );
   return { ranking, tiers };

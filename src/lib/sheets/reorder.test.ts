@@ -223,6 +223,90 @@ describe("applyOperation — remove", () => {
   });
 });
 
+describe("applyOperation — insert, the undo behind a removal", () => {
+  it("puts a player back at the given rank", () => {
+    const gone = apply(TEN, { kind: "remove", playerId: "d" });
+    const back = apply(gone, { kind: "insert", playerId: "d", atRank: 4 });
+    expect(back.ranking).toEqual(TEN.ranking);
+  });
+
+  it("round-trips the ranking for every player, without exception", () => {
+    for (const playerId of TEN.ranking) {
+      const rank = TEN.ranking.indexOf(playerId) + 1;
+      const gone = apply(TEN, { kind: "remove", playerId });
+      const back = apply(gone, { kind: "insert", playerId, atRank: rank });
+      expect(back.ranking, `ranking lost ${playerId}'s place`).toEqual(
+        TEN.ranking,
+      );
+    }
+  });
+
+  it("round-trips the tiers for every player not sitting on a break", () => {
+    for (const playerId of TEN.ranking) {
+      const rank = TEN.ranking.indexOf(playerId) + 1;
+      if (TEN.tiers.includes(rank)) continue;
+      const gone = apply(TEN, { kind: "remove", playerId });
+      const back = apply(gone, { kind: "insert", playerId, atRank: rank });
+      expect(back.tiers, `tiers moved undoing ${playerId}`).toEqual(TEN.tiers);
+    }
+  });
+
+  it("cannot restore a break the removed player was sitting on — pinned", () => {
+    // Not a defect to fix later; an impossibility to know about. `remove` maps
+    // a break AT the removed rank and a break JUST ABOVE it onto the same
+    // stored number, so the information is gone before any undo runs.
+    //
+    // `c` is #3 and the break is at 3 — the last player of tier 1. Removing it
+    // pulls the break to 2, and putting `c` back cannot know whether that 2
+    // means "was always 2" or "was 3". It stays 2, and one tap of `New tier`
+    // re-opens it.
+    const gone = apply(TEN, { kind: "remove", playerId: "c" });
+    expect(gone.tiers).toEqual([2, 6]);
+    const back = apply(gone, { kind: "insert", playerId: "c", atRank: 3 });
+    expect(back.ranking).toEqual(TEN.ranking);
+    expect(back.tiers).toEqual([2, 7]);
+    // And what it actually costs to finish the job by hand: two taps, not one.
+    // `New tier` on rank 3 *clears* the break at 2 (the control is a toggle on
+    // the row that starts a tier), and `New tier` on rank 4 then opens the one
+    // at 3. Worth spelling out, because "one tap" was the first guess and it
+    // deletes a boundary instead of moving it.
+    const cleared = apply(back, { kind: "break", atRank: 3 });
+    expect(cleared.tiers).toEqual([7]);
+    expect(apply(cleared, { kind: "break", atRank: 4 }).tiers).toEqual(
+      TEN.tiers,
+    );
+  });
+
+  it("refuses to duplicate a player already on the sheet", () => {
+    // An undo pressed twice, or replayed against a sheet that already got the
+    // player back. Ranking the same person in two places would be worse than
+    // doing nothing.
+    expect(apply(TEN, { kind: "insert", playerId: "c", atRank: 1 })).toEqual(
+      TEN,
+    );
+  });
+
+  it("clamps a rank past either end rather than refusing", () => {
+    const gone = apply(TEN, { kind: "remove", playerId: "a" });
+    expect(
+      apply(gone, { kind: "insert", playerId: "a", atRank: 99 }).ranking.at(-1),
+    ).toBe("a");
+    expect(
+      apply(gone, { kind: "insert", playerId: "a", atRank: 0 }).ranking[0],
+    ).toBe("a");
+  });
+
+  it("puts a player back onto an empty sheet", () => {
+    expect(
+      apply({ ranking: [], tiers: [] }, {
+        kind: "insert",
+        playerId: "a",
+        atRank: 1,
+      }),
+    ).toEqual({ ranking: ["a"], tiers: [] });
+  });
+});
+
 describe("applyOperation — tier breaks", () => {
   it("starts a new tier at the given rank", () => {
     const next = apply(TEN, { kind: "break", atRank: 5 });
