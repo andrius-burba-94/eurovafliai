@@ -127,3 +127,70 @@ export function checkMessage(input: {
   }
   return { ok: true, body };
 }
+
+/**
+ * The panel's own strings.
+ *
+ * These lived in JSX until 3.5's critique pointed out the obvious: this file
+ * exists *because* strings assembled in JSX shipped four copy defects in #54,
+ * and then the component that reads it assembled five of its own — three of
+ * them sentence fragments sitting in a run of full-stopped sentences. They are
+ * functions now, and `messages.test.ts` reads them as prose like everything
+ * else.
+ */
+export const CHAT_UI = {
+  /** The closed panel, when there is nothing to show yet. */
+  emptyLatest: "Nothing said yet.",
+  /** The open panel, same case. */
+  empty:
+    "Nothing said yet. Picks, pauses and rollbacks are announced here as they happen.",
+  /** A retracted message, in place of its body. */
+  retracted: "Message deleted.",
+  /** The realtime stream is down. A sentence, not a shouted label. */
+  disconnected: "Reconnecting, so new messages may be missing.",
+  /** The transcript region, named for a screen reader and the tab order. */
+  transcriptLabel: "League chat transcript",
+  /** Prefix on a system line, read instead of a team name. */
+  systemPrefix: "The app: ",
+} as const;
+
+/** "45 messages" / "1 message" — the panel's total, always the total. */
+export function chatTotal(count: number): string {
+  return `${count} ${count === 1 ? "message" : "messages"}`;
+}
+
+/** "3 new" — unseen since this viewer last read it. */
+export function chatUnread(count: number): string {
+  return `${count} new`;
+}
+
+/** How close to the cap before the count is worth showing. */
+export const CHAT_LENGTH_WARN_AT = CHAT_MAX_LENGTH - 200;
+
+/** "1,847 / 2,000" — only once it starts to matter. */
+export function chatRemaining(length: number): string | null {
+  if (length < CHAT_LENGTH_WARN_AT) return null;
+  return `${length.toLocaleString("en-GB")} / ${CHAT_MAX_LENGTH.toLocaleString("en-GB")}`;
+}
+
+/**
+ * A message's time, for a `<time>` element.
+ *
+ * The ISO string goes in `dateTime`; this is the human half. CONTEXT.md calls
+ * chat "the record of draft night" and a record read the morning after needs a
+ * clock — 3.5 shipped without one, which was the critique's Recognition
+ * finding.
+ *
+ * Hours and minutes only, 24-hour, no seconds and no date: draft night is one
+ * sitting, and a date on every row of a hundred-and-fifty-line transcript is
+ * noise. A day separator is the answer if this ever spans one, and it is not
+ * this slice's job.
+ */
+export function chatTime(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "";
+  return at.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

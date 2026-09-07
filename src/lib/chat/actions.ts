@@ -82,6 +82,7 @@ async function loadChatContext(leagueId: string) {
 export async function sendChatMessage(
   leagueId: string,
   body: string,
+  { restoring = false }: { restoring?: boolean } = {},
 ): Promise<ChatResult> {
   const context = await loadChatContext(leagueId);
   if (!context) return NOT_YOURS;
@@ -90,7 +91,17 @@ export async function sendChatMessage(
   // per-process state, because there are two processes (web and worker) and a
   // web app can be reloaded between two keystrokes. The database is the only
   // thing that remembers.
-  const lastAt = await lastMessageAt(context.pb, context.memberId);
+  //
+  // **A restore skips the gap, and that is a fix rather than a hole.** The
+  // limit exists so a held-down paste key cannot fill the transcript of draft
+  // night; putting back a message you just deleted is not a new message, and it
+  // happens *within* the gap by definition — press Delete, change your mind,
+  // and the undo was refused with "Slow down a moment". Found by the spec
+  // written for the undo itself. The length cap still applies, and this is an
+  // authenticated member of a private league restoring their own words.
+  const lastAt = restoring
+    ? null
+    : await lastMessageAt(context.pb, context.memberId);
   const verdict = checkMessage({ body, now: Date.now(), lastAt });
   if (!verdict.ok) return { error: verdict.error };
 

@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CHAT_LENGTH_WARN_AT,
   CHAT_MAX_LENGTH,
   CHAT_MIN_GAP_MS,
+  CHAT_UI,
+  chatRemaining,
+  chatTime,
+  chatTotal,
+  chatUnread,
   announceComplete,
   announcePause,
   announcePick,
@@ -217,5 +223,81 @@ describe("checkMessage — the rate limit and the cap", () => {
   it("is pure — the clock is an argument, like every deadline in the engine", () => {
     const input = { body: "hi", now, lastAt: null } as const;
     expect(checkMessage(input)).toEqual(checkMessage(input));
+  });
+});
+
+describe("the panel's own strings, read as prose", () => {
+  // These were assembled in JSX until 3.5's critique noticed the irony: this
+  // file exists *because* strings built in JSX shipped four copy defects, and
+  // the component that imports it had built five of its own — three of them
+  // fragments sitting in a run of full-stopped sentences.
+  const sentences = [
+    CHAT_UI.emptyLatest,
+    CHAT_UI.empty,
+    CHAT_UI.retracted,
+    CHAT_UI.disconnected,
+  ];
+
+  it.each(sentences)("is a whole sentence: %s", (line) => {
+    expect(line).toMatch(/\.$/);
+    expect(line[0]).toBe(line[0]!.toUpperCase());
+    expect(line).not.toMatch(/ {2}/);
+    expect(line).not.toMatch(/ [.,]/);
+  });
+
+  it("does not shout, and does not use an em dash", () => {
+    // The reconnect notice was a 42-character sentence set in 11px caps, which
+    // is the `all-caps-body` defect two earlier critiques already flagged. The
+    // fix was the *material*, but the copy is asserted too so a future rewrite
+    // does not reach for a dash where a comma reads better.
+    for (const line of sentences) {
+      expect(line).not.toBe(line.toUpperCase());
+      expect(line).not.toContain("—");
+    }
+  });
+
+  it("leaves a trailing space on the system prefix", () => {
+    // Without it a screen reader reads "The app:The draft is complete…" —
+    // measured verbatim in the browser by both assessments.
+    expect(CHAT_UI.systemPrefix).toBe("The app: ");
+    expect(CHAT_UI.systemPrefix).toMatch(/ $/);
+  });
+});
+
+describe("the panel's counts", () => {
+  it("agrees its noun with one message", () => {
+    expect(chatTotal(1)).toBe("1 message");
+    expect(chatTotal(0)).toBe("0 messages");
+    expect(chatTotal(45)).toBe("45 messages");
+  });
+
+  it("says how many are new", () => {
+    expect(chatUnread(3)).toBe("3 new");
+  });
+
+  it("shows a length only once it is close to the cap", () => {
+    // A counter on every keystroke is noise; a counter that appears when it
+    // starts to matter is a warning. The critique's Error Prevention finding
+    // was that the cap existed and the component never mentioned it.
+    expect(chatRemaining(10)).toBeNull();
+    expect(chatRemaining(CHAT_LENGTH_WARN_AT - 1)).toBeNull();
+    expect(chatRemaining(CHAT_LENGTH_WARN_AT)).toBe("1,800 / 2,000");
+    expect(chatRemaining(CHAT_MAX_LENGTH)).toBe("2,000 / 2,000");
+  });
+});
+
+describe("a message's time", () => {
+  it("is hours and minutes, 24-hour", () => {
+    // CONTEXT.md calls chat "the record of draft night", and 3.5 shipped it
+    // without a clock — so reconstructing "did my pick survive the rollback?"
+    // meant reading upward through prose.
+    expect(chatTime("2026-09-07T20:05:00Z")).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it("returns nothing for a value that is not a date", () => {
+    // `created` is a string off a JSON API. An "Invalid Date" on every row is
+    // worse than no time at all.
+    expect(chatTime("")).toBe("");
+    expect(chatTime("not a date")).toBe("");
   });
 });
