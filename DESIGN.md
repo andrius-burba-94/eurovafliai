@@ -1047,9 +1047,23 @@ elements. **A transform driven directly by a pointer is not animation either**
 — no keyframes, no transition, no duration: the element is where the finger is,
 and it stops when the finger stops. 3.4b's cheat-sheet drag is the only use, and
 it is deliberately austere because of this rule rather than in spite of it: the
-row tracks the pointer, the gaps jump, the drop is instant. A settle on release,
-a lift, or a gap that eases open would each be a third animation and a change to
-this document. A spinner, a skeleton, a page transition, a parallax or an
+row tracks the pointer, the drop is instant, and the row it will land on is
+marked with the 2px ink outline `Slot` already has. **The list does not reflow
+under the finger** — the gaps do not open, and the first draft of this paragraph
+said they did, which was a promise the code never made. Corrected by 3.4b's own
+critique, which measured the DOM order unchanged throughout a drag. Reflowing
+live is a legitimate future choice and needs no new motion; claiming it here
+while the code marks a target instead was the mistake. A settle on release, a
+lift, or a gap that eases open would each be a third animation and a change to
+this document.
+
+**A row in transit carries its own material.** The rule that says "this is in
+your hand" travels with the content, not with the place the content came from,
+and the place it came from reads as `waiting` — an empty slot, which is what it
+now is. This is written down because the first version had it the other way
+round and the failure was invisible in code review: the `<li>` kept the dashed
+rule while its contents translated 242px away, so the marker sat on a hole and
+the row somebody was holding had no material at all. A spinner, a skeleton, a page transition, a parallax or an
 entrance animation on a static element is out of scope for this world.
 
 ## Open questions

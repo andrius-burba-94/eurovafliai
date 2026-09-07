@@ -169,6 +169,31 @@ make broken code pass.
   3.4a's critique had fixed. Adjust the state during render against the last
   seeded prop instead, and only when the box is untouched, so unsaved typing
   survives.
+- **A hand-rolled drag must hit-test by nearest midpoint, not by containment.**
+  A `Slots` run is closed by a gap, and a tier caption sits in it — 36px on a
+  Pixel 7 — so containment leaves one dead band per boundary where a drop
+  matches no row and silently does nothing. On a tiered list that band is
+  exactly where the user aims. Nearest-midpoint has no dead space by
+  construction, including above the first row and below the last.
+- **`pointerup` is followed by a `click`, and it will undo your drag.** While
+  pointer capture keeps both events on the row, the click re-runs the row's own
+  activate handler — so a drag released over dead space put the row down and
+  picked it straight back up, and the next tap moved it somewhere nobody chose.
+  Suppress it with a ref set in the drag's end handler, and **disarm that ref on
+  the next macrotask**: on a *successful* drop the click lands on a common
+  ancestor and never reaches the handler that would clear it, so a flag left
+  armed swallows the next honest tap.
+- **A row that travels must take its material with it.** Put the transform on
+  the element that carries the state, or move the state onto the element that
+  travels. Getting this backwards left a 2px dashed rule sitting on the origin
+  while its content translated 242px away — the marker on a hole, the row in
+  your hand blank, and two names printed over each other. The place a row left
+  should read as `waiting`; that is what an empty place is called here.
+- **A test that deletes every row of a collection is app-global.** A spec that
+  read all of `cheat_sheets` and deleted the lot pulled the sheet out from under
+  whichever sibling spec was mid-test, because `tests/e2e` runs `fullyParallel`.
+  Scope destructive fixtures to the league or member under test — the same trap
+  as `sweepOnce` above.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so
