@@ -53,6 +53,23 @@ async function chatLeague(name: string) {
 }
 
 const messages = (page: Page) => page.getByTestId("chat-message");
+/** The row's inner span, which carries `data-kind` and the focus target. */
+const rows = (page: Page) => page.locator("[data-row]");
+
+/**
+ * Wait for the realtime stream to be up.
+ *
+ * Realtime does not replay, so a message written before the first `PB_CONNECT`
+ * is simply missed — and a direct database write does not `revalidatePath`, so
+ * nothing re-renders to heal it. Any spec that writes behind the page's back
+ * has to wait for this first. Cost one of these specs on the first run.
+ */
+async function subscribed(page: Page) {
+  await expect(page.getByTestId("chat-live")).toHaveAttribute(
+    "data-live",
+    "true",
+  );
+}
 
 async function openChat(page: Page) {
   await expect(page.getByTestId("chat-toggle")).toBeVisible();
@@ -181,8 +198,14 @@ test("a pick announces itself, in the app's own voice", async ({
     .toEqual(expect.arrayContaining([expect.stringMatching(/drafted/i)]));
 
   await openChat(page);
-  const system = messages(page).filter({ hasText: /drafted/i }).last();
+  const system = rows(page).filter({ hasText: /drafted/i }).last();
   await expect(system).toHaveAttribute("data-kind", "system");
+  // And the material: a system line is `waiting` — dashed, this system's word
+  // for something nobody has to act on — which is a second non-colour carrier
+  // beside the absent team name and the sr-only prefix.
+  await expect(
+    messages(page).filter({ hasText: /drafted/i }).last(),
+  ).toHaveAttribute("data-state", "waiting");
 
   // Rail blue, and — because colour must never be the only carrier — no team
   // name beside it. The `sr-only` "The app:" is what a screen reader gets
@@ -252,7 +275,7 @@ test("a system announcement offers nobody a delete", async ({
   await page.goto(`/leagues/${league.id}`);
   await openChat(page);
   await expect(messages(page)).toHaveCount(1);
-  await expect(messages(page).first()).toHaveAttribute("data-kind", "system");
+  await expect(rows(page).first()).toHaveAttribute("data-kind", "system");
   await expect(page.getByTestId("chat-retract")).toHaveCount(0);
 });
 
@@ -332,4 +355,291 @@ test("the roll announces itself in the lobby, where it happens", async ({
   await openChat(page);
   await expect(messages(page).last()).toContainText("1.");
   await expect(messages(page).last()).toContainText("Chief FC");
+});
+
+/* ── what 3.5's design critique found ────────────────────────────────────────
+ *
+ * The pass scored the surface 21/40, and two of its findings were P0. Each spec
+ * below is named after the defect it would catch, and each failed before the
+ * fix it guards.
+ */
+
+test("the collapsed header shows the rollback, not a third of it", async ({
+  page,
+  context,
+}) => {
+  // The P0. Measured at 390x844 before the fix: the rollback line got 212px of
+  // 350px — 43.7% of it visible — and a six-team roll showed 36 of 142
+  // characters. Worse, the line *widened* when the panel was opened, because
+  // the badge beside it hid: more room in the state where it is redundant.
+  //
+  // The panel being collapsed is justified entirely by that header being
+  // readable, so this is the assertion the design rests on.
+  const { commissioner, league } = await chatLeague("Clamp League");
+  const pb = await superuser();
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    body: "Chief FC rolled the draft back to #9, discarding 4 picks. The draft is paused.",
+    kind: "system",
+  });
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await expect(page.getByTestId("chat-toggle")).toHaveAttribute(
+    "data-open",
+    "false",
+  );
+
+  const shown = await page.getByTestId("chat-latest").evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      clamp: style.webkitLineClamp,
+      wrap: style.overflowWrap,
+      // How much of the sentence actually fits in the box it is given.
+      visible: node.clientHeight / (parseFloat(style.lineHeight) || 1),
+      hidden: node.scrollHeight - node.clientHeight,
+    };
+  });
+  // **Nothing hidden** is the property that matters, and it holds at both
+  // widths. Two lines was the first attempt and still hid 20px of the sentence
+  // at 390px — 78 characters over a ~212px line is three lines, not two.
+  expect(shown.clamp).toBe("3");
+  expect(shown.hidden).toBe(0);
+  // And an unbroken token cannot push the header wide.
+  expect(shown.wrap).toBe("break-word");
+});
+
+test("an announcement is said out loud; a member's message is not", async ({
+  page,
+  context,
+}) => {
+  // The other P0: there was **no live region on this surface at all**, so the
+  // rollback this slice exists for was silent to a screen reader whether the
+  // panel was open or shut.
+  //
+  // The limit is as important as the region. 3.3's critique found the pool's
+  // live region narrating a rebuilt row on every keystroke and every pick in
+  // the league — so this one carries announcements only. A conversation that
+  // interrupts whatever you were reading is worse than one you go and look at.
+  const { commissioner, league } = await chatLeague("Spoken League");
+  const pb = await superuser();
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  const said = page.getByTestId("chat-said");
+  await expect(said).toHaveAttribute("aria-live", "polite");
+  await subscribed(page);
+
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    body: "The draft is paused. Nobody is on the clock.",
+    kind: "system",
+  });
+  // Arrived at all, first — so a failure below names the live region rather
+  // than the subscription.
+  await expect(page.getByTestId("chat-latest")).toContainText(
+    "Nobody is on the clock",
+  );
+  await expect(said).toContainText("Nobody is on the clock");
+
+  // A member's line changes the transcript and the header, and says nothing.
+  await openChat(page);
+  await page.getByTestId("chat-input").fill("what happened");
+  await page.getByTestId("chat-send").click();
+  await expect(page.getByTestId("chat-latest")).toContainText("what happened");
+  // Never spoken. The region is a *channel*, not a record — it holds whatever
+  // was last worth saying and goes quiet otherwise, which is why this asserts
+  // the absence of the chatter rather than the persistence of the
+  // announcement. Asserting the latter was the first version and it was wrong
+  // about what a live region is for.
+  await expect(said).not.toContainText("what happened");
+});
+
+test("the transcript is reachable by keyboard with nothing in it of yours", async ({
+  page,
+  context,
+}) => {
+  // WCAG 2.1.1, and the identical defect 3.1 fixed on the board's scrollport:
+  // a scrolling region with no focusable children cannot be scrolled by
+  // keyboard at all. Measured before the fix for a member with no messages of
+  // their own: `tabindex: null, role: null, aria-label: null,
+  // focusableDescendants: 0`, over a 2304px transcript in a 338px box.
+  const { other, league } = await chatLeague("Keyboard League");
+  const pb = await superuser();
+  for (let i = 0; i < 12; i += 1) {
+    await pb.collection("chat_messages").create({
+      league: league.id,
+      body: `The draft order was rolled: 1. Chief FC · 2. Other FC. Line ${i}.`,
+      kind: "system",
+    });
+  }
+
+  // Signed in as the member who has said nothing.
+  await signIn(context, other);
+  await page.goto(`/leagues/${league.id}`);
+  await openChat(page);
+
+  const region = page.getByTestId("chat-list");
+  await expect(region).toHaveAttribute("role", "region");
+  await expect(region).toHaveAttribute("tabindex", "0");
+  await expect(region).toHaveAttribute("aria-label", /transcript/i);
+
+  // And it genuinely scrolls from the keyboard. Opening lands on the newest
+  // message, so start from the top or there is nowhere further to go.
+  await region.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await region.focus();
+  await page.keyboard.press("End");
+  await expect
+    .poll(() => region.evaluate((node) => node.scrollTop))
+    .toBeGreaterThan(0);
+});
+
+test("deleting a message can be undone, and never drops focus", async ({
+  page,
+  context,
+}) => {
+  // Third slice running that this project has concluded a destructive action
+  // wants a way back rather than a confirmation in front of it — 3.4a said it
+  // about the whole sheet, 3.4b about a row, and here delete was one tap with
+  // no confirm, no undo, focus on `<body>`, and the body genuinely cleared in
+  // the database.
+  const { commissioner, league } = await chatLeague("Undo Chat League");
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await openChat(page);
+  await page.getByTestId("chat-input").fill("something regrettable");
+  await page.getByTestId("chat-send").click();
+  await expect(messages(page).last()).toContainText("something regrettable");
+
+  // Focus stays in the box after sending. It used to land on `<body>`, because
+  // clearing the box disables the button that was just clicked.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.activeElement?.getAttribute("data-testid") ?? "",
+      ),
+    )
+    .toBe("chat-input");
+
+  await page.getByTestId("chat-retract").last().click();
+  await expect(messages(page).last()).toContainText("Message deleted");
+  // Focus moved to the row that became the tombstone, not to the document.
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.tagName ?? ""))
+    .not.toBe("BODY");
+
+  // And there is a way back.
+  await expect(page.getByTestId("chat-undone")).toBeVisible();
+  await page.getByTestId("chat-putback").click();
+  await expect
+    .poll(() => page.getByTestId("chat-list").textContent())
+    .toContain("something regrettable");
+});
+
+test("the transcript is made of the board's material, and closes", async ({
+  page,
+  context,
+}) => {
+  // It was `<p>` rows in an unruled `overflow-y-auto` div: measured
+  // `border-bottom: 0px`, no top rule, nothing closing it — while every other
+  // list in this app is a `Slots` run whose top border *is* its state. The
+  // radar's critique fixed "the list used to just stop"; 3.5 re-introduced it,
+  // and swapping the strings would have dropped this panel into any app.
+  const { commissioner, league } = await chatLeague("Material League");
+  const pb = await superuser();
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    body: "The draft is running again.",
+    kind: "system",
+  });
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await openChat(page);
+
+  const drawn = await page.getByTestId("chat-run").evaluate((node) => {
+    const style = getComputedStyle(node);
+    const row = node.querySelector('[data-testid="chat-message"]')!;
+    return {
+      closes: style.borderBottomWidth,
+      role: node.getAttribute("role"),
+      rowRule: getComputedStyle(row).borderTopWidth,
+      rowStyle: getComputedStyle(row).borderTopStyle,
+    };
+  });
+  // The run closes, the way every `Slots` in this app does.
+  expect(drawn.closes).toBe("1px");
+  expect(drawn.role).toBe("list");
+  // And the row carries a rule rather than floating in a gap.
+  expect(drawn.rowRule).not.toBe("0px");
+  expect(drawn.rowStyle).toBe("dashed");
+});
+
+test("a pasted URL cannot push the panel sideways", async ({
+  page,
+  context,
+}) => {
+  // Measured: a 118-character URL hid **526px** inside the panel at 390px,
+  // because `overflow-y-auto` makes `overflow-x` compute to `auto` and an
+  // unbroken token simply pushed the row wide. The 302-character message
+  // wrapped fine — it was specifically the token.
+  const { commissioner, league } = await chatLeague("URL League");
+  const pb = await superuser();
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    author: null,
+    body: "https://www.euroleaguebasketball.net/en/euroleague/news/a-very-long-slug-that-nobody-would-ever-shorten-before-pasting-it-here/",
+    kind: "system",
+  });
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await openChat(page);
+
+  const overflow = await page.getByTestId("chat-list").evaluate((node) => ({
+    hidden: node.scrollWidth - node.clientWidth,
+    page:
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  }));
+  expect(overflow.hidden).toBe(0);
+  expect(overflow.page).toBe(0);
+});
+
+test("every message carries a time, and the panel keeps its total", async ({
+  page,
+  context,
+}) => {
+  // CONTEXT.md calls chat "the record of draft night" and it shipped with no
+  // clock, so working out whether your pick survived a rollback meant reading
+  // upward through prose.
+  //
+  // And the Bank aside used to be *replaced* by the unread count exactly when
+  // there was unread — losing the one number that gives the badge its scale.
+  const { commissioner, league } = await chatLeague("Clock League");
+  const pb = await superuser();
+  for (let i = 0; i < 3; i += 1) {
+    await pb.collection("chat_messages").create({
+      league: league.id,
+      body: `The draft is paused. Nobody is on the clock. (${i})`,
+      kind: "system",
+    });
+  }
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+
+  // The total is on the closed panel, alongside the unread badge rather than
+  // instead of it.
+  await expect(page.getByText("3 messages")).toBeVisible();
+  await expect(page.getByTestId("chat-unread")).toContainText("3 new");
+
+  await openChat(page);
+  const times = page.locator("[data-row] time");
+  await expect(times).toHaveCount(3);
+  await expect(times.first()).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}/);
+  await expect(times.first()).toHaveText(/^\d{2}:\d{2}$/);
 });
