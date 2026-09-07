@@ -34,6 +34,14 @@ src/lib/sheets/   cheat sheets: pure parse + fuzzy match, the stored shape
                   optimistically and once authoritatively) and `store.ts` —
                   framework-free like the pipeline, because the worker
                   autodrafts from a sheet
+src/lib/chat/     league chat: `messages.ts` (every sentence the app can say,
+                  pure, so each is testable as prose), `store.ts`
+                  (framework-free like the pipeline — the worker announces
+                  autodrafted picks) and `actions.ts`. `announce()` never
+                  throws: an announcement is the least important write in a
+                  pick's sequence and must never fail the pick
+src/lib/pb/browser.ts  the page's ONE shared realtime client. A second client
+                  makes the first one hang — see the gotcha below
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
 src/lib/positions.ts  the position words and the one list-join ("5 guards, 5
                   forwards and 3 centers"). Shared by the radar and the sheet;
@@ -194,6 +202,45 @@ make broken code pass.
   whichever sibling spec was mid-test, because `tests/e2e` runs `fullyParallel`.
   Scope destructive fixtures to the league or member under test — the same trap
   as `sweepOnce` above.
+- **One PocketBase client per page, shared.** Each live surface used to create
+  its own in its own effect, which was fine while there was only ever one. Add a
+  second and the *first* one breaks: `await pb.realtime.subscribe(...)` **never
+  resolves and never throws**, so the room silently stops hearing picks and
+  pauses — the regression 2.6 exists to prevent, reintroduced by putting chat
+  beside it. Each client opens its own `EventSource` and a browser allows only a
+  handful per origin; in dev, where StrictMode mounts every effect twice, the
+  budget is gone before the second surface asks. Use `src/lib/pb/browser.ts`,
+  and respect its two rules: never call `pb.realtime.unsubscribe()` in cleanup
+  (it closes the shared connection and deafens everything else — unsubscribe
+  only your own topics), and never assign `pb.realtime.onDisconnect` (one slot,
+  last writer wins; use `onConnectionLost`). The default `LocalAuthStore` is a
+  second trap behind the first: it persists to one key and reconnects realtime
+  when it changes, so two instances fight over it. The shared client uses an
+  in-memory store.
+- **A realtime subscription needs its own `expand`.** `getFullList({expand})`
+  expands; the SSE payload does not unless the `subscribe` options say so. Chat
+  rendered every *server-loaded* message with its author's team name and every
+  message that *arrived* as "A member", including your own the moment you sent
+  it. The two surfaces disagreed and only a two-device spec could see it.
+- **A list seeded from a prop must follow the prop.** `useState(initial)`
+  initialises once, and a subscription connects asynchronously — so anything
+  that happens between mount and `PB_CONNECT` is never delivered (realtime does
+  not replay) and, with the list frozen, never recovered. Every write here calls
+  `revalidatePath`, so merging the server's re-render back in closes that window
+  with no special case. Merge by id rather than replace, or a local echo is lost
+  while the server render is in flight.
+- **Removing a surface breaks the specs that used it as a lens.** The pick
+  ticker was how a dozen specs across four files observed "a pick landed" and
+  "the room updated over SSE". Deleting it failed 40 tests that were not about
+  the ticker at all. The board (`[data-board-slot][data-state="filled"]`) is the
+  durable count and the chat transcript is the durable *sentence* — and note the
+  board's cell **truncates** a long player name where the announcement carries it
+  in full, so translate a name assertion to the transcript, not the board.
+- **A test fixture that fakes a display name will hide a real defect.** The
+  `commitPick` fixtures passed `say: {teamName: "Fixture FC", playerName:
+  "Fixture Player"}`, which made the one spec that checks a pick arriving from
+  another device by name assert against a placeholder. Fixtures should read the
+  names the way the product does.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so

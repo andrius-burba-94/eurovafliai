@@ -28,6 +28,9 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **rollback** | Undoing the draft back to a chosen pick number; later picks are deleted and the draft re-pointed. | `computeRollback()` |
 | **start over** | Discarding a draft entirely — the draft and every pick in it — and returning the league to the lobby with the draft order intact. Distinct from a rollback, which keeps the draft and walks it back to a pick. | `resetDraft()` |
 | **delete the league** | Ending the league itself: the league, its memberships, every draft it has run and every pick on those boards. The furthest of the three undoings — rollback walks a board back, starting over discards a board, this discards the league. Commissioner only, never a deputy. | `deleteLeague()` |
+| **system message** | A line in chat the app wrote rather than a person: a pick, a pause, a rollback, a roll, a start-over, a completed draft. `author` is null and `kind` is `system`; drawn in rail blue with no team name beside it. Never deletable. | `announce()`, `src/lib/chat/messages.ts` |
+| **transcript** | The whole of a league's chat, oldest first — the record of draft night. Distinct from the **board**, which is derived from `picks` and therefore forgets an undone pick; the transcript records that the pick happened *and* that it was rolled back. | `readMessages()` |
+| **retract** | Deleting your own chat message. The body is cleared and the row stays as a tombstone reading "Message deleted", with the team name intact. | `retractMessage()` |
 | **commissioner mode** | The commissioner entering picks made offline, or for a member whose phone has died. | Live since 2.4: the room shows a manager a "Pick for them" button for whoever is on the clock. The fuller offline-entry flow is Phase 3.6 |
 
 ## League & season
