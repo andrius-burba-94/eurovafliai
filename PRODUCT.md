@@ -56,7 +56,9 @@ phone, and a mid-draft rollback is a supported operation rather than a disaster.
 - **Draft night.** One sitting, 13 rounds × up to 12 members. Mixed devices,
   mostly phones, in one room with the TV on and everyone talking. Some members
   are absent and drafted for automatically. Picks are sometimes made offline and
-  entered by the commissioner. Trade offers get announced out loud and in chat.
+  entered by the commissioner. Trades get argued about out loud and in chat, but
+  the app does not broker them mid-draft: a swap is a season transaction, agreed
+  between people and recorded afterwards.
 - **The season.** 38 EuroLeague rounds. Stats arrive overnight, unattended.
   Members look at standings and trade deltas in short phone sessions.
 - **Roster ingestion.** Player data comes from the EuroLeague API all summer and

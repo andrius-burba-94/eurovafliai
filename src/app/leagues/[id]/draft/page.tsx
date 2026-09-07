@@ -39,9 +39,9 @@ const RECENT_PICKS = 8;
  *
  * On the clock, a way to pick, the pool to pick from ranked by your own cheat
  * sheet, the radar of what every roster still needs, and the board itself.
- * Still to come in Phase 3: dragging a sheet into order (3.4b), chat and trades,
- * the commissioner console. It renders server-side so the state is correct
- * before any JavaScript does anything.
+ * Still to come in Phase 3: chat (3.5) and the rest of the commissioner
+ * console (3.6). It renders server-side so the state is correct before any
+ * JavaScript does anything.
  *
  * `LiveDraft` is what keeps it correct *after* that: it subscribes to this
  * draft over SSE and asks this page to render again. Every fact on screen is

@@ -45,8 +45,13 @@ Validation can be raced; an index cannot. The database physically rejects the
 second writer even when both passed validation microseconds apart. The loser
 gets a clean "already taken" error and the UI re-reads state.
 
-`draft_trade_offers` uses the same trick for "one offer per member per draft":
-`unique(draft, from_member)`.
+`cheat_sheets` uses the same trick for "one sheet per membership":
+`unique(member)` — and it is exercised, not merely declared, by
+`npm run pb:verify`, which drives a second create and asserts the refusal.
+
+*(This example was `draft_trade_offers`, `unique(draft, from_member)`, until
+blueprint D10 cut draft trade offers. The illustration moved to a collection
+that exists; the decision this ADR records did not change.)*
 
 Note the PocketBase caveat that shapes these: unset numbers are stored as `0`,
 not `null`, so a unique index on a *bare numeric field* produces false
@@ -89,7 +94,6 @@ missing pick, and no invariant would reveal it.
 ## Applies to
 
 Everything with more than one write: `makePick`, rollback (delete N picks +
-re-point the draft), accepted draft trade offers, trades and add/drops in
-Phase 5 (close memberships + open new ones + write the transaction), and stats
+re-point the draft), trades and add/drops in Phase 5 (close memberships + open new ones + write the transaction), and stats
 ingestion (upsert stats + recompute standings). Ingestion additionally relies on
 `unique(player, season, game_code)` to make re-imports idempotent.

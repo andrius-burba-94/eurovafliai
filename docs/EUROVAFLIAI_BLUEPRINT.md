@@ -29,6 +29,7 @@ A private, invite-based fantasy draft platform for a friend group. One commissio
 | D7 | Issue tracker for skills | **GitHub Issues** (matches PR discipline + `gh` CLI). ✔ |
 | D8 | Player data | **Dual-source, one canonical table, commissioner-controlled authority.** Two equal ingestion paths — Euroleague API sync (season `E2026`; 20 teams / 38 rounds confirmed, provisional rosters already published) and CSV upload — feed the **same** `players` table through one shared pipeline with a diff preview. An app-level `roster_authority: api \| csv` switch decides which source is allowed to write; the other still runs but in report-only mode (shows what it *would* change). Per-player `manual_lock` protects admin corrections from both sources. Typical season flow: API-authority all summer → confirmed-roster CSV uploaded near draft night → flip authority to `csv` → flip back (or stay) once the season is running. Every import from either source is stored as a `roster_imports` batch — separate, auditable, re-applicable. ✔ |
 | D9 | Participants | 8–10 expected, 12 max. At 12 the draft consumes 156 of ~350+ pool players — comfortably deep; at 8 the free-agent pool is rich, which makes Phase 5 add/drops more interesting. No structural impact. ✔ |
+| D10 | Draft trade offers | **Cut** (2026-09-07). 3.5 was "League chat + draft trade offers": one offer per member per draft, announced as a system message before the offerer's next pick, accepted swaps executed by the engine. Removed because the league will not use it — eight friends in one room negotiate out loud, and the thing they actually need is for the *result* to be recordable, which is Phase 5's transaction builder. It also carried real cost for a feature nobody asked for: a `draft_trade_offers` collection, an accept/decline flow racing a running clock, and swaps executed mid-draft — a second write path into a board whose whole design principle is that only the engine moves it. **Season trades are untouched** and remain a headline (Phase 5.2/5.3); what is gone is brokering them *during* the draft. Reversible: nothing was built, so the door is a new slice rather than a migration. ✔ |
 
 ---
 
@@ -86,7 +87,6 @@ All base collections get manual `created`/`updated` autodate fields (PB doesn't 
 | `picks` | draft, overall_no, round, slot, member, player, is_auto | **unique(draft,overall_no)**, **unique(draft,player)** — the race-condition safety net |
 | `cheat_sheets` | member, draft, ranking JSON (ordered player ids), tiers JSON, source `csv\|manual` | unique(member,draft) |
 | `chat_messages` | league, author (null = system), body, kind `user\|system` | rate-limit via PB settings; realtime |
-| `draft_trade_offers` | draft, from_member, to_member, payload JSON, status | **unique(draft,from_member)** — enforces "one offer per player per draft" |
 | `player_game_stats` | player, season, round, game_code, date, min/pts/reb/ast/stl/blk/to/fouls…, **pir**, **fantasy_pts** | unique(player,season,game_code) — idempotent upserts |
 | `roster_memberships` | league, member, player, from_date, to_date (null = active), acquired_via `draft\|trade\|signing` | the backbone of trade-impact tracking |
 | `transactions` | league, type `trade\|add\|drop`, date, members JSON, players_in/out JSON, note | |
@@ -194,7 +194,7 @@ Every Claude Code prompt starts with "Read CLAUDE.md". One slice per prompt. Whe
 - **3.2 Live Roster Radar.** Per-member matrix of 5G/5F/3C slots filling in real time; own-team panel highlights remaining needs ("needs: 1 C, 2 F"); legality preview (players you *can't* legally pick are visually muted in the pool).
 - **3.3 Player pool: filters + search.** Filters: position, team, injury status (admin-editable player flag), projected points, custom tier (from user's cheat sheet), **hide drafted** (default on). Search: fuse.js fuzzy over the pool (~350 players — client-side, instant) with diacritic folding and typo tolerance; keyboard-first (type → arrow → enter to queue pick). This satisfies "predictive text + auto-correct" without any server round-trips.
 - **3.4 Cheat sheets.** CSV upload (rank[,tier],player name — fuzzy-matched to pool with a confirm step for ambiguous names) + dnd-kit drag-to-reorder + tier breaks; editable before *and during* the draft in a sidebar; drives autodraft; "best available from my sheet" always pinned.
-- **3.5 League chat + draft trade offers.** Chat panel (realtime; system messages for picks, roll results, rollbacks, pauses); **one trade offer per member per draft** (unique index enforced): offer targets picks/players, is announced as a system message **before the offerer's next pick**, recipient accepts/declines; accepted swaps are executed by the engine (another rollback-adjacent tested path).
+- **3.5 League chat.** Chat panel (realtime; system messages for picks, roll results, rollbacks, pauses). This is where a rollback finally gets the system message 2.4 deferred, which is the one piece of it that is load-bearing rather than sociable: an undo is currently silent to anybody who was not looking at the room when it happened. *(Draft trade offers were cut — see D10. Trades between members are Phase 5, after the draft.)*
 - **3.6 Commissioner console.** Pause/resume, rollback UI, toggle autodraft for absent members, adjust timer mid-draft, **manual pick entry** (commissioner mode / offline draft support).
 - **3.7 Draft-day polish.** Pick-confirmation (no fat-finger picks on mobile), sound/vibration cues on "you're on the clock", toasts, `/impeccable polish` + `/impeccable audit` + `/impeccable harden` (empty states, overflow, error paths), responsive QA on real devices.
 
@@ -241,7 +241,7 @@ Every Claude Code prompt starts with "Read CLAUDE.md". One slice per prompt. Whe
 Hard rule: **nothing latency-critical or fairness-critical depends on an LLM.** Auto-draft and pick legality stay deterministic (Phase 2). AI is commentary and analysis:
 
 - **7.1 Pick advisor.** Deterministic shortlist (best available × roster needs × your cheat sheet) + one-line Gemini rationale per candidate. Cached per pick state, never blocking.
-- **7.2 Trade analyzer.** For a proposed trade: stats-based comparison (deterministic) + Gemini narrative verdict. Reused in Phase 5 trade builder and Phase 3 draft offers.
+- **7.2 Trade analyzer.** For a proposed trade: stats-based comparison (deterministic) + Gemini narrative verdict. Used by Phase 5's trade builder — and only there, since D10 cut draft-time offers.
 - **7.3 Draft recap.** Post-draft Gemini-written article: grades per team, steals, reaches — pure fun, zero risk, high league-chat value.
 - **7.4 (Optional) chat pundit.** A system persona that posts one snarky observation per round of picks. Rate-limited, toggleable, off by default.
 
@@ -281,7 +281,7 @@ Hard rule: **nothing latency-critical or fairness-critical depends on an LLM.** 
 | Responsive everywhere | DoD on every UI slice + 8 |
 | Cheat sheets: upload, drag-drop, editable pre/during draft | 3.4 |
 | Live Roster Radar (5G/5F/3C matrix) | 3.2 |
-| League chat + one announced trade offer per member during draft | 3.5 |
+| League chat, with system messages for picks, rolls, pauses and rollbacks | 3.5 |
 | Draft rollback / reset without restart | 2.4 + 3.6 |
 
 ---
