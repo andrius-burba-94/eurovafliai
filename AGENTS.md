@@ -241,6 +241,34 @@ make broken code pass.
   "Fixture Player"}`, which made the one spec that checks a pick arriving from
   another device by name assert against a placeholder. Fixtures should read the
   names the way the product does.
+- **A scrolling region with no focusable children is keyboard-unreachable.**
+  It needs `tabIndex={0}`, `role="region"` and an `aria-label` — WCAG 2.1.1. The
+  board's scrollport was fixed for this in 3.1 and league chat shipped with the
+  identical defect in 3.5, passing in Chromium both times because a mouse wheel
+  does not care. If you build a `overflow-y-auto` box, those three lines are
+  part of it.
+- **`overflow-y-auto` makes `overflow-x` compute to `auto`.** So an unbroken
+  token — a pasted URL — silently pushes the content wide and the box becomes
+  horizontally scrollable instead of wrapping: measured at **526px hidden**
+  inside a 350px panel. Long *prose* wraps fine, so this only shows up with a
+  URL. `break-words` on any element that renders text somebody pasted.
+- **Only one bare `getByRole("status")` can exist per page.** Adding a second
+  polite live region broke a pool spec by strict-mode violation. Two regions is
+  usually correct — one for what a list did, one for what the draft did — but
+  give each a `data-testid` and address it by name.
+- **A live region is a channel, not a record.** It holds whatever was last worth
+  saying and goes quiet otherwise, so do not assert that an old announcement
+  persists. And keep announcements *only* in it: 3.3's critique found the pool's
+  region narrating a rebuilt row on every keystroke, which queued eleven
+  sentences about players nobody had navigated to.
+- **A rate limit will refuse an undo.** Putting back something you just deleted
+  happens inside the gap by definition, so a restore has to be exempt. Found by
+  the spec written for the undo itself, not by using it.
+- **Wait for a subscription before writing behind the page's back.** Realtime
+  does not replay, so a record created before the first `PB_CONNECT` is simply
+  missed — and a direct database write does not `revalidatePath`, so nothing
+  re-renders to heal it. Expose the fact (`data-live`) and wait for it, the way
+  the board exposes `data-advanced`. Never wait for a duration.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so
