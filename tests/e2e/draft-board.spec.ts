@@ -91,6 +91,29 @@ async function pickBehindTheirBack(leagueId: string, playerId: string) {
     isAuto: false,
     picks,
     now: new Date(),
+    // The *real* names, read the way the product reads them. Placeholders were
+    // the first version and they made the announcement say "Fixture Player" —
+    // which broke the one spec that checks a pick made on another device
+    // arrives here by name, and would have hidden a real defect in exactly the
+    // surface that replaced the ticker.
+    say: {
+      teamName:
+        (
+          await pb
+            .collection("league_members")
+            .getOne<{ team_name?: string }>(onClock.memberId, {
+              requestKey: null,
+            })
+            .catch(() => null)
+        )?.team_name || "A team",
+      playerName:
+        (
+          await pb
+            .collection("players")
+            .getOne<{ name: string }>(playerId, { requestKey: null })
+            .catch(() => null)
+        )?.name ?? "A player",
+    },
   });
   if (outcome !== "landed") throw new Error(`pick did not land: ${outcome}`);
 }
@@ -244,7 +267,7 @@ test("the live rule advances for a viewer who was watching, and not for one who 
   await expect(page.locator("[data-advanced]")).toHaveCount(0);
 });
 
-test("the ticker keeps the last eight; the board keeps all of them", async ({
+test("the board keeps every pick, and so does the transcript", async ({
   page,
   context,
 }) => {
@@ -258,15 +281,13 @@ test("the ticker keeps the last eight; the board keeps all of them", async ({
 
   await page.reload();
 
-  // Nine picks made, eight in the run — the board below the fold is no longer
-  // the history, because the board above it is.
-  await expect(page.getByTestId("board-pick")).toHaveCount(8);
-  await expect(page.getByTestId("pick-list")).not.toContainText(
-    surname(players[0]!.name),
-  );
-  await expect(page.getByTestId("pick-list")).toContainText(
-    surname(players[8]!.name),
-  );
+  // This test used to pin the ticker's cap: nine picks made, eight in the run.
+  // 3.5 replaced the ticker with league chat, which has no cap — it announces
+  // every pick and keeps them all, so the thing worth asserting now is that
+  // *nothing* is dropped by either surface.
+  await expect(
+    page.locator('[data-board-slot][data-state="filled"]'),
+  ).toHaveCount(9);
 
   // The board still has the first pick, in the first slot, where it happened.
   await expect(page.getByTestId("board-slot-1")).toContainText(

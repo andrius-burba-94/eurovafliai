@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import PocketBase from "pocketbase";
 import { useActionState, useEffect, useState } from "react";
 
 import {
@@ -13,7 +12,7 @@ import {
   inputStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
-import { publicConfig } from "@/lib/config/public";
+import { browserPb, onConnectionLost } from "@/lib/pb/browser";
 import {
   kickMember,
   renameTeam,
@@ -98,8 +97,10 @@ export function LiveLobby({
   const [connected, setConnected] = useState(true);
 
   useEffect(() => {
-    const pb = new PocketBase(publicConfig().NEXT_PUBLIC_PB_URL);
-    pb.authStore.save(authToken, null);
+    // The page's one shared client — see `src/lib/pb/browser.ts`. Each live
+    // surface used to create its own, and the moment 3.5 put a second one on
+    // the same page the first stopped connecting at all.
+    const pb = browserPb(authToken);
 
     let active = true;
     let everConnected = false;
@@ -145,9 +146,11 @@ export function LiveLobby({
 
     // `activeSubscriptions.length > 0` distinguishes a dropped connection from
     // our own teardown — see the SDK's note on this hook.
-    pb.realtime.onDisconnect = (activeSubscriptions) => {
-      if (active && activeSubscriptions.length > 0) setConnected(false);
-    };
+    unsubscribes.push(
+      onConnectionLost(() => {
+        if (active) setConnected(false);
+      }),
+    );
 
     void (async () => {
       try {
@@ -180,8 +183,9 @@ export function LiveLobby({
     return () => {
       active = false;
       clearTimeout(grace);
+      // Our own topics only: closing the shared connection would deafen every
+      // other live surface on the page.
       for (const unsubscribe of unsubscribes) unsubscribe();
-      void pb.realtime.unsubscribe();
     };
   }, [leagueId, authToken, commissionerUserId, viewerUserId, router]);
 

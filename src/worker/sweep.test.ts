@@ -618,7 +618,16 @@ describe("the repairs nobody else would notice", () => {
     expect(report).toMatchObject({ repaired: 1, finished: 0, autopicked: 0 });
     expect(db.drafts[0]).toMatchObject({ status: "complete", current_pick: 5 });
     expect(db.leagues[0].status).toBe("season");
-    expect(writes).toEqual(["update drafts:d1", "update leagues:lg1"]);
+    // The announcement is **last**, after the draft is complete and the league
+    // has moved to `season`. That ordering is the whole of 3.5's failure story:
+    // a system message is written after the state change and can never fail it.
+    // Asserting the sequence rather than a set is deliberate — it is the only
+    // thing that would catch the announcement drifting in front of a write.
+    expect(writes).toEqual([
+      "update drafts:d1",
+      "update leagues:lg1",
+      "create chat_messages",
+    ]);
   });
 
   it("closes a draft whose every slot is filled", async () => {

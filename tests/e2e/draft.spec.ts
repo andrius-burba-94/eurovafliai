@@ -69,6 +69,29 @@ async function pickBehindTheirBack(leagueId: string, playerId: string) {
     isAuto: false,
     picks,
     now: new Date(),
+    // The *real* names, read the way the product reads them. Placeholders were
+    // the first version and they made the announcement say "Fixture Player" —
+    // which broke the one spec that checks a pick made on another device
+    // arrives here by name, and would have hidden a real defect in exactly the
+    // surface that replaced the ticker.
+    say: {
+      teamName:
+        (
+          await pb
+            .collection("league_members")
+            .getOne<{ team_name?: string }>(onClock.memberId, {
+              requestKey: null,
+            })
+            .catch(() => null)
+        )?.team_name || "A team",
+      playerName:
+        (
+          await pb
+            .collection("players")
+            .getOne<{ name: string }>(playerId, { requestKey: null })
+            .catch(() => null)
+        )?.name ?? "A player",
+    },
   });
   if (outcome !== "landed") throw new Error(`pick did not land: ${outcome}`);
 }
@@ -159,8 +182,15 @@ test("the member on the clock picks, and the draft advances", async ({
   // may pick on their behalf, which is the manual-entry path 3.6 formalises.
   await page.getByTestId(`pick-${players[0]!.id}`).click();
 
-  await expect(page.getByTestId("pick-list")).toContainText(players[0]!.name);
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  // The ticker used to be the sentence naming who took whom; league chat is
+  // now, and it announces the player's *full* name where the board's cell
+  // truncates it. Asserting here rather than on the board is the faithful
+  // translation, and it exercises the surface that replaced the one this line
+  // used to read.
+  await expect(page.getByTestId("chat-latest")).toContainText(
+    players[0]!.name,
+  );
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
   // The slot moved on.
   await expect(onClock).not.toHaveText(before ?? "");
   await expect(onClock).toContainText("round 1");
@@ -190,12 +220,12 @@ test("a stale tab cannot draft a player who is already gone", async ({
   await expect(stale.getByTestId(`pick-${players[0]!.id}`)).toBeVisible();
 
   await page.getByTestId(`pick-${players[0]!.id}`).click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // The stale tab submits anyway. The server refuses, and says why.
   await stale.getByTestId(`pick-${players[0]!.id}`).click();
   await expect(stale.getByTestId("pick-error")).toBeVisible();
-  await expect(stale.getByTestId("board-pick")).toHaveCount(1);
+  await expect(stale.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // And after the refusal the pool is honest again.
   await stale.getByTestId("pool-search").fill(TEST_CLUB);
@@ -245,7 +275,7 @@ test("a pick that would break the roster template is refused", async ({
   for (const [index, player] of order.entries()) {
     await page.getByTestId("pool-search").fill(TEST_CLUB);
     await page.getByTestId(`pick-${player.id}`).click();
-    await expect(page.getByTestId("board-pick")).toHaveCount(index + 1);
+    await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(index + 1);
   }
 
   // Pick 7 belongs to the member already holding C one, C two and C three.
@@ -253,13 +283,13 @@ test("a pick that would break the roster template is refused", async ({
   await page.getByTestId(`pick-${centers[3]!.id}`).click();
   // The engine's own words: "You have all the Cs you can hold."
   await expect(page.getByTestId("pick-error")).toContainText(/all the Cs/i);
-  await expect(page.getByTestId("board-pick")).toHaveCount(6);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(6);
 
   // A legal pick still goes through, so the refusal was about the bucket and
   // not about the draft having wedged itself.
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await page.getByTestId(`pick-${guards[3]!.id}`).click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(7);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(7);
 });
 
 test("the commissioner pauses the draft, and picking stops", async ({
@@ -333,7 +363,7 @@ test("a pick from a tab that has not seen the pause is refused", async ({
   // The first tab never learned. Its submission has to be refused server-side.
   await page.getByTestId(`pick-${players[0]!.id}`).click();
   await expect(page.getByTestId("pick-error")).toContainText(/paused/i);
-  await expect(other.getByTestId("board-pick")).toHaveCount(0);
+  await expect(other.locator('[data-board-slot][data-state="filled"]')).toHaveCount(0);
   await other.close();
 });
 
@@ -356,7 +386,7 @@ test("the commissioner undoes a pick, and the board goes back", async ({
   for (const [index, player] of players.entries()) {
     await page.getByTestId("pool-search").fill(TEST_CLUB);
     await page.getByTestId(`pick-${player.id}`).click();
-    await expect(page.getByTestId("board-pick")).toHaveCount(index + 1);
+    await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(index + 1);
   }
 
   await page.getByTestId("draft-undo-toggle").click();
@@ -364,11 +394,25 @@ test("the commissioner undoes a pick, and the board goes back", async ({
   await page.getByTestId("draft-undo").click();
 
   // Picks 2 and 3 are gone; pick 1 stands.
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
-  await expect(page.getByTestId("pick-list")).toContainText(players[0]!.name);
-  await expect(page.getByTestId("pick-list")).not.toContainText(
-    players[1]!.name,
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
+  // The collapsed header carries the *rollback*, which is the newest thing that
+  // happened and the whole reason 3.5 exists — so the surviving pick is checked
+  // in the transcript, which keeps everything.
+  await expect(page.getByTestId("chat-latest")).toContainText(
+    /rolled the draft back/i,
   );
+  // The **board** is what forgets an undone pick. The transcript does not, and
+  // must not: it records that pick 2 happened *and* that it was rolled back,
+  // which is the difference between a record and a view. The ticker this line
+  // used to read was derived from `picks`, so it forgot; chat is a transcript.
+  const board = page.getByTestId("draft-board");
+  const shown = (name: string) => name.split(",")[0]!;
+  await expect(board).toContainText(shown(players[0]!.name));
+  await expect(board).not.toContainText(shown(players[1]!.name));
+
+  await page.getByTestId("chat-toggle").click();
+  await expect(page.getByTestId("chat-list")).toContainText(players[0]!.name);
+  await expect(page.getByTestId("chat-list")).toContainText(players[1]!.name);
   await expect(page.getByTestId("on-the-clock")).toContainText(/paused/i);
 
   // And the two undone players are pickable again.
@@ -376,7 +420,7 @@ test("the commissioner undoes a pick, and the board goes back", async ({
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(page.getByTestId(`pick-${players[1]!.id}`)).toBeVisible();
   await page.getByTestId(`pick-${players[1]!.id}`).click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(2);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(2);
 });
 
 test("the undo refuses a pick number that has nothing behind it", async ({
@@ -392,7 +436,7 @@ test("the undo refuses a pick number that has nothing behind it", async ({
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await page.getByTestId(`pick-${players[0]!.id}`).click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   await page.getByTestId("draft-undo-toggle").click();
   // Nothing has been picked at 5 or later, so there is nothing to discard —
@@ -400,7 +444,7 @@ test("the undo refuses a pick number that has nothing behind it", async ({
   await page.getByTestId("draft-undo-target").fill("5");
   await page.getByTestId("draft-undo").click();
   await expect(page.getByTestId("draft-undo-error")).toBeVisible();
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 });
 
 test("an ordinary member gets no draft controls at all", async ({
@@ -444,7 +488,7 @@ test("undoing pauses the draft before it deletes anything", async ({
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await page.getByTestId(`pick-${players[0]!.id}`).click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // A second tab, rendered before the undo and deaf to it.
   const other = await context.newPage();
@@ -456,7 +500,7 @@ test("undoing pauses the draft before it deletes anything", async ({
   await page.getByTestId("draft-undo-toggle").click();
   await page.getByTestId("draft-undo-target").fill("1");
   await page.getByTestId("draft-undo").click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(0);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(0);
 
   // The stale tab's pick has to be refused, not accepted into a paused draft.
   await other.getByTestId(`pick-${players[1]!.id}`).click();
@@ -507,16 +551,19 @@ test("a pick by somebody else moves the room, with nobody reloading", async ({
   await page.getByTestId("enter-draft").click();
 
   await expect(page.getByTestId("on-the-clock")).toContainText("Pick 1");
-  await expect(page.getByTestId("board-pick")).toHaveCount(0);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(0);
 
   // Somebody else's phone, in another room.
   await pickBehindTheirBack(league.id, players[0].id);
 
   // No `page.reload()` anywhere below, and that is the whole point.
-  await expect(page.getByTestId("board-pick")).toHaveCount(1, {
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1, {
     timeout: 15_000,
   });
-  await expect(page.getByTestId("board-pick")).toContainText(players[0].name);
+  // The board's cell truncates a long name, so the *sentence* is where the full
+  // one lives — and it arrived over the same subscription with nobody
+  // reloading, which is what this spec is really about.
+  await expect(page.getByTestId("chat-latest")).toContainText(players[0].name);
   // The clock moved on to the next member, which is the part that was wrong.
   await expect(page.getByTestId("on-the-clock")).toContainText("Pick 2");
 });
@@ -562,7 +609,7 @@ test("the commissioner starts over, and the league is back in the lobby", async 
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await page.getByTestId(`pick-${players[0]!.id}`).click();
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   await page.getByTestId("draft-reset-toggle").click();
 
@@ -570,7 +617,7 @@ test("the commissioner starts over, and the league is back in the lobby", async 
   await page.getByTestId("draft-reset-confirm").fill("reset please");
   await page.getByTestId("draft-reset").click();
   await expect(page.getByTestId("draft-reset-error")).toContainText("RESET");
-  await expect(page.getByTestId("board-pick")).toHaveCount(1);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // The form stays open behind the refusal — but React 19 empties an
   // uncontrolled input across a server-action transition (AGENTS.md), so the

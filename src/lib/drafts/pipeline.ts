@@ -9,6 +9,9 @@ import {
   type Position,
 } from "@/lib/engine";
 
+import { announceComplete, announcePick } from "@/lib/chat/messages";
+import { announce } from "@/lib/chat/store";
+
 import type { DraftRecord, PickRecord } from "./types";
 
 /**
@@ -198,6 +201,10 @@ export async function advance(
       .collection("leagues")
       .update(draft.league, { status: "season" }, { requestKey: null })
       .catch(() => {});
+    // Announced here rather than in `commitPick`, because this is the function
+    // that *decides* the draft is over — and it is reached by a repair as well
+    // as by a pick, so a draft finished by the sweep's repair says so too.
+    await announce(pb, draft.league, announceComplete(draft.rounds));
   }
 
   return patch;
@@ -241,6 +248,21 @@ export type CommitPickInput = {
   /** The picks as read before this one, used to decide whether the draft is now finished. */
   readonly picks: readonly EnginePick[];
   readonly now: Date;
+  /**
+   * The two names the announcement needs, and they are **required**.
+   *
+   * A pick is announced in chat (3.5), and that announcement has to happen in
+   * exactly one place for the same reason the two writes do: a human pick and
+   * an autodraft must not diverge. Making these required rather than optional
+   * is what enforces it — the compiler makes both callers supply them, so
+   * neither can quietly stop announcing. `commitPick` does not read them
+   * itself because it has no business doing two extra queries per pick when
+   * both callers already hold the facts.
+   */
+  readonly say: {
+    readonly teamName: string;
+    readonly playerName: string;
+  };
 };
 
 /**
@@ -254,7 +276,7 @@ export type CommitPickInput = {
  */
 export async function commitPick(
   pb: PocketBase,
-  { draft, onClock, playerId, isAuto, picks, now }: CommitPickInput,
+  { draft, onClock, playerId, isAuto, picks, now, say }: CommitPickInput,
 ): Promise<"landed" | "raced"> {
   // Write 1: the pick.
   try {
@@ -290,6 +312,22 @@ export async function commitPick(
     ],
     onClock.overallNo,
     now,
+  );
+
+  // Write 3, and deliberately the least important of the three: after the
+  // state change, and incapable of failing it. `announce` swallows its own
+  // errors — see `src/lib/chat/store.ts`. A dropped line costs a sentence; a
+  // pick that failed because its announcement failed would cost the draft.
+  await announce(
+    pb,
+    draft.league,
+    announcePick({
+      teamName: say.teamName,
+      playerName: say.playerName,
+      overallNo: onClock.overallNo,
+      round: onClock.round,
+      isAuto,
+    }),
   );
 
   return "landed";

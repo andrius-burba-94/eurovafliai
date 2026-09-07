@@ -4,14 +4,12 @@ import { redirect } from "next/navigation";
 import {
   BackLink,
   Bank,
-  CardName,
   PositionPatch,
   Sheet,
-  Slot,
-  Slots,
   TopRail,
 } from "@/components/board";
 import { DraftBoard, type BoardEntry } from "@/components/draft-board";
+import { LeagueChat } from "@/components/league-chat";
 import { RosterRadar } from "@/components/roster-radar";
 import { getSession } from "@/lib/auth/session";
 import { getDraftView } from "@/lib/drafts/queries";
@@ -23,16 +21,6 @@ import { LiveDraft } from "./live-draft";
 import { PickClock } from "./pick-clock";
 import { PickForm } from "./pick-form";
 
-/**
- * How many picks the ticker keeps.
- *
- * The board above it holds the whole draft — all 156 slots of a full league —
- * so the run below no longer has to be the history. What it is good at, and the
- * board's narrow columns are not, is the sentence: who took whom, under whose
- * name, and whether the worker did it. Eight is about a round and a half, which
- * is the window somebody looking up from their phone actually missed.
- */
-const RECENT_PICKS = 8;
 
 /**
  * The draft room — slices 2.4/2.6, live since 3.2a, with the board since 3.1.
@@ -279,46 +267,26 @@ export default async function DraftPage({
           />
         </Bank>
 
-        <Bank
-          label="Recent picks"
-          aside={
-            picks.length > RECENT_PICKS
-              ? `last ${RECENT_PICKS} of ${picks.length}`
-              : "newest first"
-          }
-        >
-          {picks.length === 0 ? (
-            <div className="slot-waiting px-3 py-5">
-              <p className="text-sm text-ink-soft">No picks yet.</p>
-            </div>
-          ) : (
-            <Slots testId="pick-list">
-              {[...picks]
-                .reverse()
-                .slice(0, RECENT_PICKS)
-                .map((pick) => (
-                  <Slot key={pick.id} testId="board-pick">
-                    <span className="flex flex-wrap items-baseline gap-x-3">
-                      {/* Ink, not marker. A pick number in the ticker is
-                        neither state nor the one act, and eight marker-red
-                        numbers under the board undercut the one thing red is
-                        supposed to mean in this room. */}
-                      <span className="slot-label tabular-nums text-ink-soft">
-                        {String(pick.overallNo).padStart(2, "0")}
-                      </span>
-                      <CardName>{pick.playerName}</CardName>
-                      <PositionPatch position={pick.position} />
-                      <span className="slot-label">{pick.playerClub}</span>
-                    </span>
-                    <span className="slot-label">
-                      {pick.memberName}
-                      {pick.isAuto ? " · AUTO" : ""}
-                    </span>
-                  </Slot>
-                ))}
-            </Slots>
-          )}
-        </Bank>
+        {/* Where the ticker was.
+
+            3.1's argument for a ticker was that "the board holds the history
+            and the run is better at the sentence". Chat is now the thing that
+            is better at the sentence: it carries the same chronological run of
+            who took whom — every pick announces itself — plus the rolls,
+            pauses and rollbacks the ticker never knew about, plus what people
+            are actually saying. Keeping both would put the same fact on screen
+            twice, 200px apart, which is a duplication this project's critiques
+            have caught twice already.
+
+            The trade, stated: collapsed, the room shows one line of recent
+            activity where the ticker showed eight. The board above it still
+            holds every pick, and one tap gives the full transcript. */}
+        <LeagueChat
+          leagueId={id}
+          authToken={session.token}
+          initial={view.chat}
+          myMemberId={view.you?.memberId ?? null}
+        />
       </Sheet>
     </>
   );

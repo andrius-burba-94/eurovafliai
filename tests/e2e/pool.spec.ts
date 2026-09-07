@@ -342,7 +342,10 @@ test("the pool tells a screen reader what the list did, not what it thinks", asy
   // Narrating the top row instead meant every character typed, every filter
   // toggled and every pick landing anywhere in the league queued a sentence
   // about a player nobody had navigated to.
-  const status = page.getByRole("status");
+  // The pool's own region, by name. A bare `getByRole("status")` matched two
+  // once 3.5 put league chat on this route — its announcements are about the
+  // draft, this one's are about the list.
+  const status = page.getByTestId("pool-said");
   await expect(status).toContainText("2 players match");
 
   await page.getByTestId("pool-search").fill("spokenone");

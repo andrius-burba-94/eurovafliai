@@ -570,7 +570,17 @@ export function PickForm({
           that changed — how many are left — and leaves *which row* to
           `aria-current` on the row itself, which a reader reports when the
           user asks rather than when the app decides. */}
-      <p role="status" aria-live="polite" className="sr-only">
+      {/* Named, because it is no longer the only polite region on the page:
+          3.5 put league chat on the same route, and a bare `getByRole("status")`
+          in a spec now matches both. Two independent regions is correct — this
+          one reports what the *list* did, chat's reports what the *draft* did —
+          but each needs to be addressable on its own. */}
+      <p
+        role="status"
+        aria-live="polite"
+        data-testid="pool-said"
+        className="sr-only"
+      >
         {rows.length === 0
           ? "Nobody left matching that."
           : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`}

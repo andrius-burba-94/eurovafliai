@@ -271,7 +271,7 @@ test("picking from the pinned shortlist lands a real pick", async ({
 
   // On the board, under this member's name — the same pipeline any other pick
   // goes through.
-  await expect(page.getByTestId("board-pick").first()).toContainText(
+  await expect(page.locator('[data-board-slot][data-state="filled"]').first()).toContainText(
     "Zzzplayer",
   );
   // And gone from the pinned list, because it is best *available*.
