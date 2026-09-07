@@ -230,12 +230,12 @@ test("the room counts down, and shows the autodraft that lands in it", async ({
 
   // Nobody reloaded: the countdown pulls the page for itself after zero, which
   // is what stands in for realtime until Phase 3.2.
-  await expect(page.getByTestId("board-pick")).toHaveCount(1, {
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1, {
     timeout: 20_000,
   });
   // Case-insensitive: the room writes CONTEXT.md's word in caps, and CSS is not
   // what does it — the string in the DOM is "AUTO".
-  await expect(page.getByTestId("board-pick")).toContainText(/auto/i);
+  await expect(page.locator('[data-board-slot][data-state="filled"]')).toContainText(/auto/i);
 });
 
 test("a member can hand their picks to the engine", async ({

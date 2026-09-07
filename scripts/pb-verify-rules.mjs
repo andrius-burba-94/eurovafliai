@@ -43,6 +43,7 @@ const created = {
   drafts: [],
   picks: [],
   cheat_sheets: [],
+  chat_messages: [],
 };
 
 const su = new PocketBase(url);
@@ -754,8 +755,108 @@ try {
     "an outsider reads no cheat sheets at all",
   );
 
+  // --- league chat (slice 3.5) ----------------------------------------------
+  //
+  // The opposite privacy shape to a cheat sheet: a message is readable by
+  // *everybody in the league* and by nobody outside it. So the question that
+  // matters here is the one a cheat sheet cannot ask — can Carol, who belongs
+  // to no league, read a word of it, and can Bob read Alice's message (he
+  // must).
+  check(!!byName.chat_messages, "chat_messages collection exists");
+  check(
+    byName.chat_messages.createRule === null &&
+      byName.chat_messages.updateRule === null &&
+      byName.chat_messages.deleteRule === null,
+    "chat_messages writes are superuser-only — the blueprint's client-direct exception is withdrawn",
+  );
+  check(
+    /@collection\.league_members\.league \?= league/.test(
+      byName.chat_messages.listRule ?? "",
+    ) &&
+      /@collection\.league_members\.user \?= @request\.auth\.id/.test(
+        byName.chat_messages.listRule ?? "",
+      ),
+    "chat is readable by members of that league, scoped by the rule rather than by a filter",
+  );
+  check(
+    byName.chat_messages.indexes.some((i) =>
+      /`chat_messages`.*\(`league`, ?`created`\)/.test(i),
+    ),
+    "index on chat_messages(league, created) — every read is 'this league, in order'",
+  );
+  check(
+    byName.chat_messages.fields.some(
+      (f) => f.name === "author" && f.required === false,
+    ),
+    "chat_messages.author is optional — null is how the app itself speaks",
+  );
+  check(
+    byName.chat_messages.fields.some(
+      (f) => f.name === "author" && f.cascadeDelete === false,
+    ),
+    "chat_messages.author does NOT cascade — a member leaving must not turn their messages into system announcements",
+  );
+
+  const aliceSaid = await su.collection("chat_messages").create(
+    {
+      league: league.id,
+      author: aliceMember.id,
+      body: "is everyone here",
+      kind: "user",
+      deleted: false,
+    },
+    { requestKey: null },
+  );
+  created.chat_messages.push(aliceSaid.id);
+
+  const systemSaid = await su.collection("chat_messages").create(
+    { league: league.id, body: "The draft is paused.", kind: "system" },
+    { requestKey: null },
+  );
+  created.chat_messages.push(systemSaid.id);
+
+  check(
+    (await listCount(aliceClient, "chat_messages")) === 2,
+    "a member reads the whole conversation, their own line and the app's",
+  );
+  check(
+    (await listCount(bobClient, "chat_messages")) === 2,
+    "another member of the SAME league reads it too — chat is shared, unlike a sheet",
+  );
+  check(
+    (await listCount(carolClient, "chat_messages")) === 0,
+    "an outsider reads no chat at all",
+  );
+  check(
+    await rejects(() =>
+      aliceClient.collection("chat_messages").create(
+        {
+          league: league.id,
+          author: aliceMember.id,
+          body: "straight from the browser",
+          kind: "user",
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a member cannot write chat with their own token — it goes through a server action",
+  );
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("chat_messages")
+        .delete(systemSaid.id, { requestKey: null }),
+    ),
+    "a member cannot delete a system announcement with their own token",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.chat_messages)
+    await su
+      .collection("chat_messages")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.cheat_sheets)
     await su
       .collection("cheat_sheets")
