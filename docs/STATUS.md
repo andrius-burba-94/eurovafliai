@@ -114,11 +114,12 @@ repo. That is a decision with an argument, not an omission — see the 3.4b row 
 and the drag it asks for is there, hand-rolled in about 150 lines of Pointer
 Events.
 
-Still outstanding, and it needs people rather than code: the **Phase 2
-rehearsal**, a full 13-round draft with one member on autodraft and a rollback
-in the middle. A real two-account draft *has* now been run on production — it is
-what found the two gaps Phase 3 opened with — but it was started and undone
-rather than played out, so the phase's own DoD is not met yet.
+**Phase 2's rehearsal is waived** (blueprint D12), so Phase 2 is complete. The
+human half of it did not vanish — it moved to **3.7**, whose DoD already asks for
+a rehearsal draft night with friends on mixed devices. One rehearsal against the
+finished draft-day experience is worth more than two against a half-built one,
+and by then the room will have its pick confirmation, its sound and vibration
+cues, and a transcript to read afterwards.
 
 A draft now runs itself. The worker (slice 2.5) enforces every deadline, picks
 for whoever has run out of time or has handed their picks over, and repairs the
@@ -297,7 +298,19 @@ anything.
 
 ## Phase 2 — Draft engine v1, the TDD phase
 
-**Code complete, pending the rehearsal.** DoD — *"a full 13-round mock draft on
+**Complete.** The rehearsal its DoD asked for is **waived** — blueprint **D12** —
+and the reasoning is there rather than here: every mechanism the DoD names is
+built and tested, and the ceremony had been the last open item on a phase that
+has been code-complete for five slices. A DoD nobody intends to perform makes
+every phase after it provisional.
+
+What is genuinely untested is the part only people can test: whether draft night
+*feels* right on eight phones in one room. **That is 3.7's own DoD**, which
+already asks for a rehearsal draft night with friends on mixed devices — one
+rehearsal, once, against the finished draft-day experience rather than against a
+half-built one.
+
+The original DoD read: *"a full 13-round mock draft on
 phone + PC with one member on autodraft, a mid-draft rollback, and the engine
 suite covering every format × edge case"*. Every mechanism it names now exists
 and is tested: the engine suite (2.2), the pick pipeline, the room and rollback
@@ -305,8 +318,12 @@ and is tested: the engine suite (2.2), the pick pipeline, the room and rollback
 13-round draft has been run end to end locally, but by the worker rather than by
 people — so what remains is literally the phase's own wording: **a mock draft
 with humans on two devices**, with a rollback in the middle. Until somebody runs
-it, this phase is complete-pending-rehearsal rather than complete, exactly as
-Phase 1 is complete-pending-confirmation.
+it, this phase was complete-pending-rehearsal. It is now simply complete, and
+the rehearsal lives in 3.7.
+
+**Phase 1's two-device confirmation is a separate row and is still open**, listed
+under Open debt. It is a smaller thing — two accounts, two devices, one lobby —
+and most of it has already happened incidentally.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
@@ -338,7 +355,7 @@ now landed on top of them.
 | **3.6a Start over** | done | `0540606` | Out of 3.6's slice, brought forward by draft-night feedback: pause is reversible and undo walks the board back, but nothing threw a draft away, so a practice run could only be cleared by editing the database. "Start over" deletes the draft and its picks (`picks.draft` cascades, so the board goes in one operation rather than a delete loop that can stop half way) and returns the league to the lobby, keeping the draft order — somebody who started too early should not have to re-roll. Behind a typed word, because it is the only control in the room that destroys work. Deletes the draft **first** so the only crash state is a league claiming to draft with no draft to open, which `reconcileLeagueStatus` now repairs; the reverse order would leave a `setup` league with a live draft that `startDraft` would silently resume, ignoring a fresh roll. A room whose draft is gone now redirects to the lobby rather than 404ing, which is also what every other member's room does the instant the delete event arrives |
 | **3.6b Delete the league** | done | `281bbe1` | The way out. Commissioner only and **not delegable** — a deputy is trusted to help run the league, not to end it, the same line `setMemberPermission` draws. Confirmed by typing the league's **name** rather than a fixed word, because a commissioner with three leagues open should have to look at which one they are deleting; case and stray spaces are forgiven. Deletes the drafts first, then the league: deleting the league alone *does* work — PocketBase walks the cascade tree — but that leans on an order nothing here pins, while a **direct** delete of a member or player a pick points at is genuinely refused. Both halves measured against 0.39.11 and written into the `pocketbase-patterns` skill, because the difference between "refuses" and "happens to work" is exactly the kind of thing this repo should not have to rediscover. A lobby somebody else has open no longer sits there empty afterwards: every membership vanishing at once means the league is gone, so the list hands back to the server and the page says so — which also, for free, ejects a member who has just been kicked |
 | 3.6 Commissioner console — the rest | todo | — | Rollback UI beyond the pick-number field, autodraft for another member, the timer mid-draft, offline pick entry. `setAutodraft` already permits a manager to set anybody's; there is no UI |
-| 3.7 Draft-day polish | todo | — | Pick confirmation, sound/vibration on "you're on the clock", `/impeccable` passes |
+| 3.7 Draft-day polish | todo | — | Pick confirmation, sound/vibration on "you're on the clock", `/impeccable` passes. **Also now the home of the human rehearsal**: Phase 2's was waived (blueprint D12) and 3.7's own DoD already asked for one — "a rehearsal draft night with 3+ friends, mixed devices, no commissioner intervention needed except by choice". That is the only claim in this file that no test can make |
 
 ## Phases 4–8
 
