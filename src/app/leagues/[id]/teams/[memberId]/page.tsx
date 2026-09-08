@@ -76,7 +76,7 @@ export default async function TeamPage({
           </p>
         ) : (
           <Bank label="The roster" aside={`${roster.length} of ${rosterSize}`}>
-            <Slots testId="roster-list">
+            <Slots testId="roster-list" label={`${displayName} roster`}>
               {roster.map((player) => (
                 <Slot key={player.id} testId="roster-player" state="filled">
                   <Link
@@ -90,6 +90,11 @@ export default async function TeamPage({
                         {player.clubName || player.clubCode}
                       </span>
                     </span>
+                    {player.overallNo ? (
+                      <span className="slot-label tabular-nums">
+                        #{player.overallNo}
+                      </span>
+                    ) : null}
                   </Link>
                 </Slot>
               ))}

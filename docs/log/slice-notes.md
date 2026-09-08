@@ -21,7 +21,8 @@ The UI critique caught that the first roster links covered only the name text,
 not the slot a thumb sees. Lobby, standings and player rows now use the whole
 ruled row as their target, and a player opened from a roster returns there
 instead of dropping the member into the global pool. The roster list comes
-before its radar, draws any missing slots, and uses room-facing empty copy.
+before its radar, draws any missing slots, prints the original pick number when
+there is one, names the run for assistive tech, and uses room-facing empty copy.
 Standings phase controls use names rather than unexplained feed codes and never
 show all filters off while silently scoring the regular season.
 
