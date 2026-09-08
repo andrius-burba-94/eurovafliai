@@ -1,0 +1,25 @@
+# Dependency updates, batched so they cost one review a week rather than one
+# per package. Majors are held back on purpose: Next, React, ESLint and
+# TypeScript majors each need a human reading a migration guide, and the
+# PocketBase SDK has to stay in step with the server pinned in pb/VERSION.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Vilnius
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
