@@ -7,7 +7,7 @@ import {
   CLOCK_VIBRATION,
   clockCue,
   clockSentence,
-  cueKey,
+  CUE_KEY,
   cuesEnabled,
 } from "@/lib/cues/cues";
 
@@ -51,17 +51,17 @@ function subscribeCues(listener: () => void): () => void {
   };
 }
 
-function readCues(leagueId: string): string | null {
+function readCues(): string | null {
   try {
-    return window.localStorage.getItem(cueKey(leagueId));
+    return window.localStorage.getItem(CUE_KEY);
   } catch {
     return null;
   }
 }
 
-function writeCues(leagueId: string, on: boolean): void {
+function writeCues(on: boolean): void {
   try {
-    window.localStorage.setItem(cueKey(leagueId), on ? "on" : "off");
+    window.localStorage.setItem(CUE_KEY, on ? "on" : "off");
   } catch {
     // Storage denied. The toggle still works for this page's lifetime.
   }
@@ -69,12 +69,10 @@ function writeCues(leagueId: string, on: boolean): void {
 }
 
 export function ClockCue({
-  leagueId,
   isYourTurn,
   overallNo,
   round,
 }: {
-  leagueId: string;
   isYourTurn: boolean;
   /** Null when nobody is on the clock — paused, or complete. */
   overallNo: number | null;
@@ -88,7 +86,7 @@ export function ClockCue({
    */
   const stored = useSyncExternalStore(
     subscribeCues,
-    () => readCues(leagueId),
+    () => readCues(),
     () => null,
   );
   const enabled = cuesEnabled(stored);
@@ -162,7 +160,16 @@ export function ClockCue({
 
   // ── the noise, which really is a side effect ──────────────────────────────
   useEffect(() => {
-    if (!enabled || saidFor === null) return;
+    if (!enabled) {
+      // Switching cues *off* still counts as having heard about this turn, so
+      // switching them back on does not fire retroactively for a turn the
+      // member is already looking at. Measured: enabling the toggle while on
+      // the clock buzzed immediately, which reads as a malfunction rather than
+      // a cue — the phone announcing something that happened a minute ago.
+      playedFor.current = saidFor;
+      return;
+    }
+    if (saidFor === null) return;
     if (playedFor.current === saidFor) return;
     playedFor.current = saidFor;
     playTone(audio.current);
@@ -179,7 +186,7 @@ export function ClockCue({
     <div className="mt-3 flex flex-wrap items-center gap-3">
       <button
         type="button"
-        onClick={() => writeCues(leagueId, !enabled)}
+        onClick={() => writeCues(!enabled)}
         aria-pressed={enabled}
         data-testid="cue-toggle"
         data-enabled={enabled ? "true" : "false"}
@@ -194,6 +201,21 @@ export function ClockCue({
       >
         {enabled ? "Sound on" : "Sound off"}
       </button>
+      {/* **What the control is for**, said once beside it.
+          
+          The critique scored Help &amp; Documentation 2/4 on this: nothing
+          anywhere told a member a cue existed, and the only affordance was a
+          button labelled with its own *off* state. Eleven people would draft a
+          whole night without knowing the tone was there — and it is the
+          accessibility promise that most needs to be *offered* rather than
+          discovered. One clause, in place, which is where this app reports
+          everything (toasts are cut, blueprint D14). */}
+      {enabled ? null : (
+        <p className="max-w-prose text-sm text-ink-soft" data-testid="cue-offer">
+          A short tone when your turn comes round.
+        </p>
+      )}
+
       {/* Only when it would otherwise fail silently. A promised sound that
           does not arrive is worse than one you knew was off. */}
       {enabled && !unlocked ? (

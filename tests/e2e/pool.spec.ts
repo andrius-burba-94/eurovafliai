@@ -485,20 +485,28 @@ test("the armed row's action is labelled in ink, not in marker", async ({
       };
     });
 
-  // Both rules at double weight: the row struck in marker, and the chosen
-  // button keeping the weight it had as a `SubmitButton`.
+  // **The row carries the marker; the button does not.** 3.7 first gave the
+  // chosen button `border-2 border-live` to preserve the weight it had as a
+  // `SubmitButton` — which put two marker-red primary actions on one surface,
+  // a thing DESIGN.md forbids by name, and gave "this slot is on the clock" a
+  // second meaning 400px from the first. The critique measured 12 marker edges
+  // over 6 elements. The row's own `slot-live` rule is the state; the band's
+  // `Draft` is the act; the button between them is neither.
   await expect
     .poll(async () => {
       const now = await read();
       return `${now.rowWidth} ${now.buttonWidth}`;
     })
-    .toBe("2px 2px");
+    .toBe("2px 1px");
 
   const paint = await read();
   // The blush is there, so the row really is struck.
   expect(paint.field).not.toBe("rgba(0, 0, 0, 0)");
-  // And the label is ink, not the marker: DESIGN.md forbids marker text on the
-  // live tint by name, and 3.3 shipped it here once.
-  expect(paint.label).not.toBe(paint.buttonBorder);
+  // Neither the label nor the button's border is the marker. The comparison
+  // used to be label-vs-button-border, which stopped meaning anything once 3.7's
+  // critique made *both* ink — so it asserts against the marker itself, which
+  // is what the rule is actually about: the row's rule is the marker, and
+  // nothing inside the row borrows it.
   expect(paint.label).not.toBe(paint.rowBorder);
+  expect(paint.buttonBorder).not.toBe(paint.rowBorder);
 });

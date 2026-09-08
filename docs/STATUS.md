@@ -391,7 +391,7 @@ now landed on top of them.
 | **3.6a Start over** | done | `0540606` | Out of 3.6's slice, brought forward by draft-night feedback: pause is reversible and undo walks the board back, but nothing threw a draft away, so a practice run could only be cleared by editing the database. "Start over" deletes the draft and its picks (`picks.draft` cascades, so the board goes in one operation rather than a delete loop that can stop half way) and returns the league to the lobby, keeping the draft order — somebody who started too early should not have to re-roll. Behind a typed word, because it is the only control in the room that destroys work. Deletes the draft **first** so the only crash state is a league claiming to draft with no draft to open, which `reconcileLeagueStatus` now repairs; the reverse order would leave a `setup` league with a live draft that `startDraft` would silently resume, ignoring a fresh roll. A room whose draft is gone now redirects to the lobby rather than 404ing, which is also what every other member's room does the instant the delete event arrives |
 | **3.6b Delete the league** | done | `281bbe1` | The way out. Commissioner only and **not delegable** — a deputy is trusted to help run the league, not to end it, the same line `setMemberPermission` draws. Confirmed by typing the league's **name** rather than a fixed word, because a commissioner with three leagues open should have to look at which one they are deleting; case and stray spaces are forgiven. Deletes the drafts first, then the league: deleting the league alone *does* work — PocketBase walks the cascade tree — but that leans on an order nothing here pins, while a **direct** delete of a member or player a pick points at is genuinely refused. Both halves measured against 0.39.11 and written into the `pocketbase-patterns` skill, because the difference between "refuses" and "happens to work" is exactly the kind of thing this repo should not have to rediscover. A lobby somebody else has open no longer sits there empty afterwards: every membership vanishing at once means the league is gone, so the list hands back to the server and the page says so — which also, for free, ejects a member who has just been kicked |
 | 3.6 Commissioner console — the rest | **cut** | — | Blueprint **D13**, and the argument is that each of the four already has a working path: the sweep autodrafts an absent member from their own sheet and "Pick for them" covers a manager who will not wait; the rollback field works and the board shows every pick number; the timer never needs changing mid-draft if it was set sensibly, and pause covers the rest; and "Pick for them" **is** the offline pick entry the blueprint text predates. What was left was commissioner comfort for eight friends in one room. 3.6a and 3.6b shipped and stay |
-| **3.7 Draft-day polish** | done | — | **A tap arms; the tap that drafts is in the sticky band.** Until now a tap on a pool row submitted immediately — so on the device draft night happens on, one tap drafted a player irreversibly, undoable only by a rollback that deletes every pick after it too. The confirm is in the band rather than on the row for a specific reason: with it on the row's own button **a fast double-tap armed and picked inside 200ms**, so the guard would have caught a stray single tap and missed the exact gesture it was built for. That also gives the pointer a `Cancel` it never had, since Escape was keyboard-only, and it makes the pointer path identical to the keyboard's — one idiom, and `ConfirmPick` takes focus so two keystrokes still draft and one still cannot. Same shape 3.4b reached for the sheet, independently. **And the clock can be heard.** A polite live region says "Your turn. Pick 7, round 1." when your turn arrives and **nothing** when somebody else's does; a synthesized two-note tone and `navigator.vibrate` sit behind a per-device toggle beside "Draft for me", off by default. `clockCue` is pure, so the rule that matters is tested without a browser: the cue fires on the *transition into* your turn and never on a re-render — the room re-renders on all ~156 picks of a draft. **Toasts were cut** (blueprint D14). The `/impeccable` passes and the human rehearsal are what remain of the slice's text |
+| **3.7 Draft-day polish** | done | — | **A tap arms; the tap that drafts is in the sticky band.** Until now a tap on a pool row submitted immediately — so on the device draft night happens on, one tap drafted a player irreversibly, undoable only by a rollback that deletes every pick after it too. The confirm is in the band rather than on the row for a specific reason: with it on the row's own button **a fast double-tap armed and picked inside 200ms**, so the guard would have caught a stray single tap and missed the exact gesture it was built for. That also gives the pointer a `Cancel` it never had, since Escape was keyboard-only, and it makes the pointer path identical to the keyboard's — one idiom, and `ConfirmPick` takes focus so two keystrokes still draft and one still cannot. Same shape 3.4b reached for the sheet, independently. **And the clock can be heard.** A polite live region says "Your turn. Pick 7, round 1." when your turn arrives and **nothing** when somebody else's does; a synthesized two-note tone and `navigator.vibrate` sit behind a per-device toggle beside "Draft for me", off by default. `clockCue` is pure, so the rule that matters is tested without a browser: the cue fires on the *transition into* your turn and never on a re-render — the room re-renders on all ~156 picks of a draft. **Toasts were cut** (blueprint D14). **Followed by an `/impeccable critique` that scored it 24/40 — the best in this project's corpus — and whose every finding is fixed in the slice**; see below. The human rehearsal is what remains of the slice's text |
 
 ## Phases 4–8
 
@@ -431,6 +431,8 @@ touch should be fixed by that slice rather than deferred again.
 | **A sheet outlives the season it was written for** | The consequence of keying `cheat_sheets` on the membership rather than on the draft, and the price of the argument in that migration. A league that drafts a second season on the same memberships inherits last season's ranking rather than starting blank. It is a stale sheet a member can see and replace, not a lost one; a per-season sheet is Phase 6's keeper work | Nothing yet; there is no season 2 |
 | [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34) | **`deploy.sh` rewrites itself mid-run**, so a change to it never applies to its own deploy — 2.5's worker-liveness check did not run on the deploy that shipped it, and will from the next one. Worse in principle than in practice so far: bash reads a script by byte offset, so a pull that changes a not-yet-executed part of the file can make the shell resume mid-line | Nothing yet; a deploy-tooling trap |
 | [#35](https://github.com/andrius-burba-94/eurovafliai/issues/35) | **The nginx vhost drift warning can never be silenced.** The committed vhost is the plain `:80` one *by design* (certbot needs a working vhost to answer the ACME challenge and then rewrites the file in place), so every deploy warns. The whole drift is certbot's own `# managed by Certbot` lines; `/pb/` is byte-identical. A warning that fires every time is one nobody reads, which is a problem because the thing it exists to catch — a hand-edit that loses `proxy_buffering off` — kills realtime silently | Nothing; the check protects nothing until it is quiet |
+| **Half the room gets no vibration** | `navigator.vibrate` does not exist on iOS Safari — not gated, not permission-prompted, simply absent — so on an iPhone the clock cue is the tone and the live region and nothing in the hand. `clockCue` returns the vibration pattern regardless and `clock-cue.tsx` feature-detects before calling, so there is no error and no console noise; there is also nothing telling an iPhone owner that half of what the toggle offers cannot happen for them. The toggle's own label says "Sound" rather than "Sound and vibration" for that reason, which is honest but not informative. A real fix means either detecting the absence and saying so, or dropping vibration from the copy entirely | Nothing; a silent asymmetry between the phones in one room |
+| **A commissioner with no membership row hears no clock** | `ClockCue` renders only inside the `view.you` branch, because everything it says is about *your* turn and somebody with no turn has nothing to be told. That is right for the live region and for the cue, and it means a commissioner who runs a draft without playing in it has no audible surface at all — including no way to reach the toggle. Recorded because it looks like a bug from the outside: the toggle simply is not there. If a non-playing commissioner ever needs a cue it wants a different sentence ("Pick 7 is on the clock"), not this one moved | Nothing; a deliberate gating, documented so it is not "fixed" into noise |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 One decision recorded here rather than as debt, because it is settled:
@@ -519,9 +521,9 @@ Last full local run, after 3.4b: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **652 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 components, auth and config, **75 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip, **36 the edit arithmetic** — moving, nudging, removing, breaking and putting a removed player back, with the break behaviour under each and the one case an undo provably cannot restore), **34 the pool's filtering, fuzzy search and sheet ordering**, **43 the design tokens** including `slot-transit`, **14 the on-the-clock cue** — that it fires on the transition into your turn and never on a re-render, and that the toggle governs the noise but never the announcement, **12 the position list-join** including the zeros a "what you have" sentence must keep, **38 league chat** — every sentence the app can say, read as prose (including the panel's own five, which the critique caught being assembled in JSX by the very slice that owns `messages.ts`), plus the rate limit and the body cap at their boundaries |
+| `npm run test` | **654 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 components, auth and config, **75 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip, **36 the edit arithmetic** — moving, nudging, removing, breaking and putting a removed player back, with the break behaviour under each and the one case an undo provably cannot restore), **34 the pool's filtering, fuzzy search and sheet ordering**, **43 the design tokens** including `slot-transit`, **14 the on-the-clock cue** — that it fires on the transition into your turn and never on a re-render, and that the toggle governs the noise but never the announcement, **12 the position list-join** including the zeros a "what you have" sentence must keep, **38 league chat** — every sentence the app can say, read as prose (including the panel's own five, which the critique caught being assembled in JSX by the very slice that owns `messages.ts`), plus the rate limit and the body cap at their boundaries |
 | `npm run build` | pass |
-| `npm run test:e2e` | **303 passed, 1 skipped** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch, 13 more for 3.4b **8 more for its critique** — one per finding that was a defect — and `chat.spec.ts` for 3.5, whose headline spec opens **two browser contexts** and proves a message typed in one appears in the other with no reload, which is the only place the claim can be tested — and **7 more for its critique**, one per finding that was a defect. The one skip is deliberate and is the interesting one: the **touch** drag runs on the `mobile` project only, because desktop Chrome has no touch support enabled and `Input.dispatchTouchEvent` is accepted and then silently dropped there, so on `chromium` the spec would pass or fail for reasons having nothing to do with a phone |
+| `npm run test:e2e` | **311 passed, 1 skipped** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch, 13 more for 3.4b **8 more for its critique** — one per finding that was a defect — and `chat.spec.ts` for 3.5, whose headline spec opens **two browser contexts** and proves a message typed in one appears in the other with no reload, which is the only place the claim can be tested — and **7 more for its critique**, one per finding that was a defect. The one skip is deliberate and is the interesting one: the **touch** drag runs on the `mobile` project only, because desktop Chrome has no touch support enabled and `Input.dispatchTouchEvent` is accepted and then silently dropped there, so on `chromium` the spec would pass or fail for reasons having nothing to do with a phone |
 | `npm run pb:verify` | **93 checks pass** — eight are `cheat_sheets`: its rules, its unique index, and the privacy claim driven with two members of one league. **Eleven are `chat_messages`**, and they are the mirror image — a sheet is private *within* a league, chat is shared within one and invisible outside it, so the questions are "can the other member read it" (they must) and "can an outsider" (they must not). The load-bearing one: **a member cannot write chat with their own token**, which is what makes the withdrawn client-direct exception actually closed rather than merely unused |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs. Re-running is idempotent against an unchanged feed, but the feed itself moves — this run added 2, changed 5 and marked 2 as left, which is the pipeline working rather than a problem. Do not treat the count as a constant |
@@ -579,6 +581,79 @@ stale.** Chromium reported `1px dashed` for an element already carrying
 `slot-transit` *and* `data-state="transit"`, then `2px dashed` on every read from
 60ms on. A single `evaluate` fails against a material that is perfectly correct.
 `expect.poll`, always.
+
+**3.7's critique, and the defect this project keeps shipping.** The pass scored
+**24/40** — the best of the seven, against 23, 21, 24, 19, 17 and 21 — with a
+verdict of *material 9/10, model 6/10, **copy 3/10***. Both P0s and all three
+P1s are fixed here.
+
+The one to remember is the P0, because it is the **sixth occurrence of the same
+defect**: after a refused pick, focus landed on `<body>`. 3.3, 3.4a, 3.4b twice
+and 3.5 each shipped it once, and `armed-pick.tsx` says in a comment that it
+closed the class of bug "at the source rather than per call site… before anybody
+has to measure it". It had closed three paths of four — cancel, Escape and
+confirm — and left open the one where somebody has just been told no, with a
+clock running. Fixing it needed **two** goes, and the second is the interesting
+one: adding `refused` to the effect's deps was not enough, because a refusal
+caused by a *pause* correctly unmounts the button there is nothing left to focus.
+Focus goes to the correction itself now, which is the same answer 3.4b reached
+for its tombstone.
+
+The other P0 was mine by preservation rather than by construction: the refusal
+was **announced twice**, because I kept 3.3's row-strike as a `role="alert"`
+while the band's `Correction` already announced it. 3.3's finding was that a
+refusal must be *visible on the row that was tapped* — a visual claim — so the
+row keeps the strike and loses the announcement.
+
+Two of the three P1s were caused by reasoning that was trying to avoid a
+regression:
+
+- **Two marker-red primary actions on one surface**, which DESIGN.md forbids by
+  name. I gave the chosen row's button `border-2 border-live` explicitly *to
+  preserve the weight it had as a `SubmitButton`* — and in avoiding one
+  regression created a worse one, giving "this slot is on the clock" a second
+  meaning 400px from the first. The critique measured **12 marker edges over 6
+  elements**. The row's own `slot-live` rule is the state, the band's `Draft` is
+  the act, and the button between them is neither.
+- **The band's marker act survived a paused draft**, where every `Choose` in the
+  pool had correctly withdrawn. I moved `ConfirmPick` outside the band's
+  paused/on-clock branch deliberately — the two stale-tab specs proved that a
+  correction rendered *inside* it was destroyed by the refusal that produced it —
+  and then did not gate the button. Paused, the band was **380px of a 390px
+  phone** saying the same sentence three times.
+
+The third P1 is the plainest: **two copies of one button had diverged.** The
+pinned shortlist hardcoded `forTeamName: null` where the pool row computed it, so
+a manager arming from it on somebody else's turn read "Drafting P01…" with no
+team named — a mis-pick that spends another member's turn and is undoable only by
+a rollback that deletes every pick after it. It also drew no armed material and
+kept saying `Choose` while the same player's pool row said `Chosen`. There is one
+`ChooseButton` now, so the divergence is unavailable rather than merely fixed.
+
+**And the copy score was the lowest thing in the review.** Four words for one act
+— `Choose`, `Chosen`, `Drafting X`, `Draft X` — and **CONTEXT.md defined none of
+them**, in a file whose own header says "if a name in a UI label disagrees with
+this list, change the name — not the list". The list changed: **choose** and
+**draft** (verb) are defined there now, with the note that *arming* is the code's
+word and deliberately not the interface's. The band also stopped printing the
+player's name twice — 92 characters in one line and 89 in the button, both
+flagged `all-caps-body` by the in-page detector — which took the band from 41% of
+a phone to under a third, and stopped `Cancel` wrapping onto a line of its own.
+
+**Two claims the pass got wrong**, recorded because the corrections are cheap and
+both were plausible. A said the band "swallows the row you just chose"; B
+measured the first pool row's y **unchanged** and visible rows **5 → 5**, because
+Chromium's scroll anchoring absorbs the growth exactly. And A implied `Cancel`
+sat beside `Draft`; B measured it wrapping below even at ordinary name lengths —
+worse than described. The in-page detector's `gradient-text` on `<body>` and its
+seven `text-overflow` hits were false positives, verified individually.
+
+One measurement worth keeping: `Cancel`'s border is **3.03:1** on the live blush,
+clearing the boundary floor by 0.03 — and `tokens.test.ts` asserted `ink/50` on
+*stock* only, so the near-miss was unasserted. Exactly the shape of the
+`border-live/60` = 2.60:1 miss 3.4a's critique caught: measuring the thing next
+to the thing is not measuring the thing. Both the band's button borders are
+asserted on the blush now.
 
 **3.5's critique, and the split that is the finding.** The pass scored the
 surface **21/40** — level with the radar, above 3.4a's 19 and 3.4b's 17 — and its

@@ -97,8 +97,17 @@ export const CLOCK_TONE = {
 /** Milliseconds. Two short buzzes, which reads as a signal rather than a call. */
 export const CLOCK_VIBRATION: readonly number[] = [90, 70, 90];
 
-/** The `localStorage` key, per league — one room may be loud and another quiet. */
-export const cueKey = (leagueId: string) => `eurovafliai:cues:${leagueId}`;
+/**
+ * The `localStorage` key. **Per device, not per league.**
+ *
+ * It was per league, justified as "one room may be loud and another quiet" —
+ * which sounds reasonable and is wrong for this product. PRODUCT.md describes
+ * one friend group with one league; a per-league key means a member sets the
+ * preference again in every league they ever join, for a benefit nobody here
+ * will ever use. Whether a phone should make a noise depends on the phone and
+ * the room it is in, and both are properties of the device.
+ */
+export const CUE_KEY = "eurovafliai:cues";
 
 /**
  * A stored preference, read back.

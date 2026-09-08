@@ -432,6 +432,37 @@ describe("the app's own voice in chat", () => {
   });
 });
 
+describe("a control's border on the live blush, not only on stock", () => {
+  // 3.7's critique measured `Cancel` in the on-the-clock band at **3.03:1** —
+  // clearing the 3:1 boundary floor by 0.03 — because `ink/50` loses contrast
+  // on the blush relative to the 3.10:1 it gets on stock. And this file
+  // asserted `ink/50` **on stock only**, so the near-miss was unasserted.
+  //
+  // Exactly the shape of the miss 3.4a's critique caught: that pass fixed
+  // `border-ink/35` to `/50` and never measured `border-live/60` sitting beside
+  // it in the same object, which was 2.60:1. Measuring the thing next to the
+  // thing is not measuring the thing — so every button border the band renders
+  // is asserted on the ground it is actually drawn on.
+  it("ink/50 clears 3:1 on the live blush, where the band's buttons sit", () => {
+    const ratio = contrastOn2(wash("ink", 0.5, "live-sunk"), rgbOf("live-sunk"));
+    expect(
+      round(ratio),
+      `ink/50 on the blush was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the marker border clears 3:1 on the blush it encloses", () => {
+    // `tone="liveOnField"` — the tone DESIGN.md invented because 3.3 shipped
+    // marker *text* on this blush at 4.15:1. The border is the part that has to
+    // carry the boundary.
+    const ratio = contrastOn2(rgbOf("live"), rgbOf("live-sunk"));
+    expect(
+      round(ratio),
+      `live on the blush was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("a row in your hand says so in its own material", () => {
   // 3.4b's `slot-transit`. The whole state language depends on this rule being
   // both visible and distinguishable from the four beside it, because a held

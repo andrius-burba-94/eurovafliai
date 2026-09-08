@@ -304,6 +304,35 @@ make broken code pass.
   which went through a helper. They do now (`draftPlayer`), and a spec whose
   subject is a *refusal* needs `submitPick`, which does not wait for the
   confirm control to vanish — because a refused pick deliberately keeps it.
+- **Focus after a refusal is a different path from focus after success.** Six
+  slices have now shipped `activeElement === body`, and 3.7 shipped it *while
+  claiming in a comment to have closed the class of bug at the source*. It had
+  closed cancel, Escape and confirm and missed the one path where somebody has
+  just been told no. Worse, the obvious fix is not enough: a refusal caused by a
+  pause correctly unmounts the button there was going to focus, so the
+  explanation needs `tabIndex={-1}` and the focus of last resort.
+- **Two live regions saying the same sentence is one too many.** A refusal
+  rendered in a band *and* struck on the row announced itself twice to a screen
+  reader. If a prior critique asked for a message to be visible somewhere, that
+  is usually a **visual** claim — keep the second copy and drop its
+  `role="alert"`.
+- **Preserving a weight can be worse than the regression you feared.** Replacing
+  a `SubmitButton` with a plain button, 3.7 kept `border-2 border-live` so the
+  chosen row would not "lose its strike" — and thereby put two marker-red
+  primary actions on one surface, which DESIGN.md forbids by name. Ask whether
+  the element is still the *act*; if it has become *state*, it wants the state's
+  material and none of the act's.
+- **A control that must survive a re-render still has to know when to withdraw.**
+  `ConfirmPick` sits outside the band's paused branch on purpose, because a
+  refusal revalidates the room and would otherwise destroy its own explanation.
+  That is right for the *correction* and wrong for the *button*: paused, the band
+  offered a marker-red act the server was about to refuse while the pool had
+  correctly withdrawn every one of its own.
+- **Never assume who the roll put first.** The draft order comes from a random
+  seed, so "the commissioner picks first" is a coin flip — and two specs passed
+  by luck until unrelated copy changed under them. Read the banner and branch,
+  or assert the biconditional (the "for whom" line exists **iff** it is not your
+  turn), which is the stronger claim anyway.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so

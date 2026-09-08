@@ -5,7 +5,7 @@ import {
   CLOCK_VIBRATION,
   clockCue,
   clockSentence,
-  cueKey,
+  CUE_KEY,
   cuesEnabled,
 } from "./cues";
 
@@ -118,9 +118,14 @@ describe("the stored preference", () => {
     }
   });
 
-  it("is keyed per league, because one room may be loud and another quiet", () => {
-    expect(cueKey("abc")).toBe("eurovafliai:cues:abc");
-    expect(cueKey("abc")).not.toBe(cueKey("def"));
+  it("is keyed per device, not per league", () => {
+    // It was per league, justified as "one room may be loud and another quiet"
+    // — which sounds reasonable and is wrong for this product: PRODUCT.md
+    // describes one friend group with one league, so a per-league key just
+    // makes a member set the preference again in every league they join.
+    // Whether a phone should make a noise is a property of the phone.
+    expect(CUE_KEY).toBe("eurovafliai:cues");
+    expect(CUE_KEY).not.toMatch(/\$\{|league/i);
   });
 });
 
