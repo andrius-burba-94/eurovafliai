@@ -90,7 +90,7 @@ export function Sheet({
 export function LoadingSheet({ label }: { label: string }) {
   return (
     <Sheet>
-      <p className="slot-label text-ink-soft" role="status">
+      <p className="text-sm text-ink-soft" role="status">
         {label}
       </p>
       <div className="slot-waiting min-h-16" aria-hidden="true" />

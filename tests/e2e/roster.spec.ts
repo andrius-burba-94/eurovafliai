@@ -86,6 +86,11 @@ test("a member opens a roster from the season lobby", async ({
   await expect(page.getByTestId("roster-list")).toBeVisible();
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
   await expect(page.getByTestId("roster-radar")).toBeVisible();
+
+  await page.getByTestId("roster-player").getByRole("link").click();
+  await expect(page.getByTestId("player-log")).toBeVisible();
+  await page.getByRole("link", { name: "The roster" }).click();
+  await expect(page.getByTestId("roster")).toBeVisible();
 });
 
 test("a member of another league cannot read this roster", async ({

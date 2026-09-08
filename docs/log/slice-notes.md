@@ -17,6 +17,13 @@ the next draft cannot write. Date windows are not applied to scoring yet.
 E2025 games are dated 2025–26; a September 2026 `from_date` would drop every
 line from the table the Try-it path still uses. Until someone can actually
 leave a roster, current owner = whole stored season, same numbers as 4.5.
+The UI critique caught that the first roster links covered only the name text,
+not the slot a thumb sees. Lobby, standings and player rows now use the whole
+ruled row as their target, and a player opened from a roster returns there
+instead of dropping the member into the global pool. The roster list comes
+before its radar, draws any missing slots, and uses room-facing empty copy.
+Standings phase controls use names rather than unexplained feed codes and never
+show all filters off while silently scoring the regular season.
 
 **4.5 has landed, and the roster it scores is still the draft.** Until 5.1
 there is no membership window, so a member's squad is their picks on the newest

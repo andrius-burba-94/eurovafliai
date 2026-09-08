@@ -51,6 +51,8 @@ export default async function TeamPage({
     template,
   );
   const displayName = member.teamName.trim() ? member.teamName : member.name;
+  const rosterSize = radarSize(template);
+  const waiting = Math.max(rosterSize - roster.length, 0);
 
   return (
     <>
@@ -68,42 +70,49 @@ export default async function TeamPage({
           </p>
         </div>
 
-        <RosterRadar
-          rows={radar}
-          columns={[{ memberId: member.id, name: displayName, isYou: member.isYou }]}
-          total={radarSize(template)}
-          onClockMemberId={null}
-        />
-
         {roster.length === 0 ? (
           <p className="text-ink-soft" data-testid="roster-empty">
-            No players on this roster yet. A finished draft writes them; they
-            go with the board if you start over.
+            No players are on this roster yet.
           </p>
         ) : (
-          <Bank label="The roster" aside={`${roster.length}`}>
+          <Bank label="The roster" aside={`${roster.length} of ${rosterSize}`}>
             <Slots testId="roster-list">
               {roster.map((player) => (
                 <Slot key={player.id} testId="roster-player" state="filled">
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="flex flex-wrap items-baseline gap-x-3">
-                      <PositionPatch position={player.position} />
-                      <Link
-                        href={`/players/${player.id}`}
-                        className="min-w-0"
-                      >
-                        <CardName>{player.name}</CardName>
-                      </Link>
+                  <Link
+                    href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
+                    className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+                  >
+                    <PositionPatch position={player.position} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <CardName>{player.name}</CardName>
+                      <span className="text-sm text-ink-soft">
+                        {player.clubName || player.clubCode}
+                      </span>
                     </span>
-                    <span className="text-sm text-ink-soft">
-                      {player.clubName || player.clubCode}
-                    </span>
+                  </Link>
+                </Slot>
+              ))}
+              {Array.from({ length: waiting }, (_, index) => (
+                <Slot key={`waiting-${index}`} state="waiting">
+                  <span className="slot-label text-ink-faint">
+                    Open roster slot{" "}
+                    {String(roster.length + index + 1).padStart(2, "0")}
                   </span>
                 </Slot>
               ))}
             </Slots>
           </Bank>
         )}
+
+        <RosterRadar
+          rows={radar}
+          columns={[
+            { memberId: member.id, name: displayName, isYou: member.isYou },
+          ]}
+          total={rosterSize}
+          onClockMemberId={null}
+        />
       </Sheet>
     </>
   );

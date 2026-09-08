@@ -95,6 +95,28 @@ test("a counted round ranks the members who scored it", async ({
     },
     { requestKey: null },
   );
+  await pb.collection("roster_memberships").create(
+    {
+      league: league.id,
+      member: chief.id,
+      player: star.id,
+      from_date: "2026-09-08 12:00:00.000Z",
+      to_date: "",
+      acquired_via: "draft",
+    },
+    { requestKey: null },
+  );
+  await pb.collection("roster_memberships").create(
+    {
+      league: league.id,
+      member: mate.id,
+      player: role.id,
+      from_date: "2026-09-08 12:00:00.000Z",
+      to_date: "",
+      acquired_via: "draft",
+    },
+    { requestKey: null },
+  );
   await pb
     .collection("leagues")
     .update(league.id, { status: "season" }, { requestKey: null });
@@ -128,6 +150,14 @@ test("a counted round ranks the members who scored it", async ({
   await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText("14.2");
   await expect(rows.nth(1)).toContainText("8.0");
+
+  const regularSeason = page.getByTestId("filter-phase-RS");
+  await expect(regularSeason).toHaveAttribute("aria-pressed", "true");
+  await regularSeason.click();
+  await expect(regularSeason).toHaveAttribute("aria-pressed", "true");
+
+  await rows.first().getByTestId("standings-team").click();
+  await expect(page.getByTestId("roster-player")).toContainText(star.name);
 });
 
 test("a signed-in member reads a player's stored game log", async ({
