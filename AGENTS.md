@@ -43,6 +43,10 @@ src/lib/chat/     league chat: `messages.ts` (every sentence the app can say,
                   autodrafted picks) and `actions.ts`. `announce()` never
                   throws: an announcement is the least important write in a
                   pick's sequence and must never fail the pick
+src/lib/euroleague/http.ts  ONE way of talking to the Euroleague feed —
+                  retry, backoff, `Retry-After`, the 429 the research file
+                  did not know about. Shared by the roster sync and the stats
+                  fetcher; it was written twice for about an hour
 src/lib/stats/    box scores and scoring: `scoring.ts` is pure (PIR, the win
                   bonus, tenths) and is checked against the Euroleague's own
                   published `valuation` by `scoring.golden.test.ts` over 168
@@ -50,8 +54,14 @@ src/lib/stats/    box scores and scoring: `scoring.ts` is pure (PIR, the win
                   `npm run stats:golden`, and `-- --check` asks the feed
                   whether it still agrees. `csv.ts` parses a pasted round,
                   `plan.ts` works out what an import would do (pure), and
-                  `store.ts` is framework-free like the pipeline because 4.3's
-                  nightly fetcher must land identical rows
+                  `store.ts` is framework-free like the pipeline because
+                  4.3's fetcher lands identical rows through it.
+                  `euroleague.ts` is the feed's front door (the only I/O) and
+                  `ingest.ts` is one pass: schedule → what is played and not
+                  stored → import, capped at 12 games. The worker runs it
+                  every 15min; `npm run stats:sync` runs the same function by
+                  hand. Both are tested by serving the **golden fixture as if
+                  it were the feed**, so the tests exercise the real payload
 src/lib/pb/browser.ts  the page's ONE shared realtime client. A second client
                   makes the first one hang — see the gotcha below
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
@@ -133,6 +143,12 @@ make broken code pass.
   result forever: a new preview changes nothing and React's input reset hands
   back stale text. Prefer one action with an `intent` field
   (`submitCheatSheet`). Shipped broken in 2.1b, found by 3.4a's design critique.
+- **The stats pass has its own in-flight guard, not the sweep's.** They share
+  the PocketBase client and nothing else. A pass talks to somebody else's API
+  over the network and can take seconds; the sweep enforces pick deadlines
+  every second. Letting one block the other would mean a slow feed response
+  stops a draft clock — the exact failure `STALL_AFTER_MS` exists to shout
+  about.
 - **The sweep is app-global.** `sweepOnce` looks for *every* live draft, so
   calling it — from a spec, a script or a REPL — against a database where you
   have a draft open by hand will autodraft into that draft. Pass `onlyDraft`

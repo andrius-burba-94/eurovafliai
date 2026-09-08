@@ -77,14 +77,25 @@ defines the target and this file is wrong.
 > **Phase 1 — walking skeleton** — auth, league creation, join-by-code, the
 > design foundation, the live lobby and the deploy all landed long ago.
 
-**Next up: 4.2 and 4.3 — reconciling the edge cases, then the nightly
-fetcher.** Phase 4 has started: **4.1 has landed**, so the app can score a real
-Euroleague game and prove it scores it the way the Euroleague does. Phase 3 is
+**Next up: 4.2 — reconciling the person codes 4.3 cannot match.** Phase 4 has
+started: **4.1 and 4.3 have landed**, so the app scores a real Euroleague game,
+proves it scores it the way the Euroleague does, and now **fetches them by
+itself every fifteen minutes**. 4.2 is next because 4.3 produces its input:
+the very first live pass reported 21 unmatched person codes, which is a real
+number from a real feed rather than a case anybody invented. Phase 3 is
 closed apart from one thing no code can finish — the **human rehearsal** its DoD
 asks for, a draft night with 3+ friends on mixed devices, inherited from Phase 2
 (blueprint D12). That is the only claim in this file no test can make. 3.3 stays
 `partial` until **4.4**, because its one deferred filter needs projections to
 filter on.
+
+**4.3 has landed, and the thing to know is what a pass asks.** Not "what
+happened tonight" but "what is played and not stored" — a question about the
+whole season, answered in one request. Everything good about the fetcher falls
+out of that: nothing to schedule, nothing to remember, no backfill to write,
+and a fortnight of downtime costs a few extra passes rather than a manual
+recovery. What it does *not* do is notice a box score the Euroleague later
+**amends**, and that is recorded as debt rather than hidden.
 
 **4.1 has landed, and the thing to know about it is the evidence.** The 2026-27
 season has not tipped off — E2026 game 1 is 24 September 2026 — so there was no
@@ -200,6 +211,33 @@ Two Phase 1 items are still open and both are listed under Open debt: the last
 step of the two-device confirmation, and nightly `pb_data` backups.
 
 ---
+
+## Try it on localhost — slice 4.3
+
+```bash
+npm run dev                                  # Next :3007 + PocketBase :8095
+npm run rosters:sync                         # the fetcher matches on person code
+npm run stats:sync -- --season=E2025 --max=3  # one pass, by hand, against last season
+```
+
+E2026 has no played games until 24 September, so point it at **E2025** to see
+it work at all. Then:
+
+- **Read the line it prints.** `3 game(s), 51 new, 21 unmatched code(s) · 402
+  outstanding` — the unmatched codes are the point: the local pool is *this*
+  season's rosters, so last season's departed players have nowhere to go. That
+  is 4.2's input, and it is honest rather than silent.
+- **Run the same command again.** It imports the *next* three games rather
+  than redoing the first three. Nothing is stored twice, and nothing had to
+  remember what the last run did.
+- **Open `/stats/import`** and look at the batch list: the newest rows say
+  `api` rather than `csv`, and both doors write the same shape.
+- **Watch the worker do it**: `npm run worker:dev`. A minute after boot it logs
+  `stats fetch on · E2026 · every 15min` and then one pass. With `E2026` there
+  is nothing to import yet, so it says nothing at all — a pass with no work is
+  deliberately silent, or the log would be useless four times an hour.
+- **Turn it off**: `STATS_FETCH=off` in `.env`. The worker says so on boot and
+  keeps enforcing pick deadlines, which is the point of the switch.
 
 ## Try it on localhost — slice 4.1
 
@@ -440,7 +478,7 @@ now landed on top of them.
 |---|---|---|---|
 | **4.1 Stats schema + scoring engine + CSV import** | done | — | **PIR is not ours to get right by reasoning, so it is checked against theirs.** The box-score feed publishes `valuation`, which *is* PIR — so `scoring.golden.test.ts` replays **168 real player rows from seven E2025 games** and asserts our sum equals the number the Euroleague printed that night, plus all fourteen team totals: **zero mismatches**. Regenerate with `npm run stats:golden`; `-- --check` asks the feed whether it still agrees with the committed fixture. The endpoint the research file left open is pinned (`/games/{code}/stats`), and it came with **one finding that would have been a silent, season-long bug**: the feed's `winner` field is the *season's champion* on every game of the season — `OLY` on all seven samples, five of which it did not play in — and the win is what the ×1.1 bonus hangs on. Derive it from the scoreline; two of the seven agreed by coincidence, so a small sample would have looked fine. **Fantasy points are integer tenths everywhere**, because `3 * 1.1` is `3.3000000000000003` and a season of those in a standings sum is a wrong number nobody can explain. **Blueprint open question 3 is settled** (D15): the ×1.1 applies uniformly, negatives included — cheap to correct later because every component is persisted, and the fixture carries 8 real negative-PIR-on-a-win rows either way. The CSV door has **no `won` column** on purpose (a stated winner is a place to disagree with the scoreline) and **self-checks**: a sheet that brings the official PIR has every line compared against what its own numbers add up to, and a disagreement is refused rather than resolved by guesswork — so the golden check runs on every real import, not only in CI. Idempotent by index, so **re-running an import is the repair**; nothing here deletes, so a partial sheet cannot erase a round |
 | 4.2 Player mapping — a light verification pass | todo | — | Reduced to reconciling the edges, because 2.1 syncs `person_code` on day one. 4.1's importer already reports every unmatched code with its line numbers, which is the input this slice acts on |
-| 4.3 Automated fetcher (worker cron) | todo | — | The endpoint and its traps are now in `docs/research/euroleague-api.md`, and `src/lib/stats/store.ts` is framework-free so the worker lands identical rows. Gate on `played`: an unplayed game answers **200 with an empty box score**, not 404 |
+| **4.3 Automated fetcher (worker cron)** | done | — | **The worker imports box scores by itself, every 15 minutes.** Not nightly, which is what the blueprint says: a Tuesday game that ends at 22:00 is argued about at 22:05, and a nightly job would have nothing to say until morning. One pass = one schedule request → the games that are **played and not already stored** → up to 12 of them, oldest first. That shape is what makes it **self-healing by construction**: a game missed because the box was down, because a parse failed, or because nobody ran the worker for a fortnight is simply still outstanding next time, so there is no backfill path because there is nothing for one to do. It runs `ingestFinishedGames`, which is also all `npm run stats:sync` does — the automatic path and the by-hand path are the same function, the way `commitPick` is shared by a tap and an autodraft. **The SDK the blueprint names was evaluated and declined** (D16): it is alive and it fits, but its schemas validate the whole payload, so a change to a field we never read could refuse a whole round and stop the automation. A tolerant schema over the ten fields we read keeps going, and the roster sync's retry/backoff moved to `src/lib/euroleague/http.ts` so there is one HTTP idiom rather than two. **Every row still self-checks against the feed's own PIR** on the way in, so 4.1's golden assertion now runs against live data four times an hour — a rulebook change would show up as a refused row with both numbers in the log. It has its **own in-flight guard**, never the sweep's: a slow feed response must not delay a pick deadline. Proved against the live feed and the real database, not only against fixtures — 107 real E2025 lines imported by hand, then the second pass moved on to the next games instead of redoing them |
 | 4.4 Projections | todo | — | Unblocks 3.3's one deferred filter and gives autodraft something to rank on for a member with no cheat sheet |
 | 4.5 Standings | todo | — | Where `phase` earns its place: whether the play-in and playoffs count is a filter here, not data 4.1 threw away |
 
@@ -488,6 +526,8 @@ touch should be fixed by that slice rather than deferred again.
 | **Scoring weights are settings that nothing reads yet** | The gap between what 4.1 *can* do and what it does. `scoreGame` takes `weights` and `winBonus` as arguments, every component is persisted so a rescore is possible, and D15 leans on exactly that when it settles the negative-PIR question — but the importer passes `OFFICIAL_WEIGHTS` unconditionally and there is **no recompute** anywhere. So "correcting it is a settings change plus a recompute" is true of the data and not yet true of the app: today it would mean re-importing every round. There is also a real tension to resolve first, and it is why this is not a five-minute job: box scores are **app-global** while weights are **per-league**, so a league with its own weights cannot use the stored `fantasy_pts` at all — it has to score from components at read time. 4.5 has to answer that before a settings screen would mean anything | Nothing yet; a claim about flexibility that is one recompute short of true |
 | **The season is fixed at E2026** | `/stats/import` imports into `E2026` and offers no way to say otherwise; `readStatsOverview` defaults to it. Right for this season and wrong the moment somebody wants to backfill E2025 to try the standings out on a season that already happened — which is a genuinely useful thing to want, given 4.5 has no real data to develop against until October. The parser and the store both take the season as an argument, so this is a field on a form rather than a change to anything underneath | Nothing; a one-season assumption in one page |
 | **Nothing displays a box score** | 4.1 stores game lines and proves they are right, and the only way to look at one is the database. No game log, no player profile, no standings — all of that is 4.5. Worth stating plainly so the slice is not mistaken for more than it is: the app can now *score* a Euroleague night, and it cannot yet *show* one | Nothing; 4.5's whole job |
+| **An amended box score is never noticed** | 4.3's pass asks "what is played and **not stored**", and that is what makes it self-healing — but it means a game whose box score the Euroleague later corrects is invisible to the fetcher for ever, because the game is stored. The Euroleague does amend them. The remedy exists and is manual: paste the game into `/stats/import`, which names every field it would change before changing it. The fix would be a second, slower pass that re-fetches recent games and compares — cheap to write, and it wants a decision about how far back "recent" reaches, because re-fetching 380 games nightly to catch one correction is not a trade worth making | Nothing; a correction needs a person to notice it |
+| **A game imported with some rows refused stays "done"** | `readStoredGameCodes` asks whether a game has *anything* stored, not whether it has all 24 lines. So a game where two players were refused — no person code, or a PIR that disagreed with its own components — counts as imported and the fetcher never returns to it. Deliberate: the refusals are named in the batch log, and re-fetching a game whose other 22 rows are already correct would rewrite them to fix nothing. It does mean the *only* record that a line is missing is a `stat_imports` log nobody reads unprompted | Nothing; two players' lines, and a log entry that has to be looked for |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 One decision recorded here rather than as debt, because it is settled:

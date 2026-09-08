@@ -39,6 +39,11 @@ const DEFAULT_UNIQUE: Record<string, string[][]> = {
   // as one because a relation is never the unset `0` that makes a unique index
   // on a bare number a trap.
   cheat_sheets: [["member"]],
+  // `unique(player, season, game_code)` — the index 4.1's whole
+  // failure-recovery story rests on, so the fake enforces it too. Without it a
+  // test of "re-running an import is safe" would pass against a fake that
+  // happily stored the same game twice.
+  player_game_stats: [["player", "season", "game_code"]],
 };
 
 export type FakeHooks = {
@@ -85,15 +90,16 @@ export function fakePb(options: {
       async getFullList<T>(options?: {
         filter?: string;
         sort?: string;
+        fields?: string;
       }): Promise<T[]> {
-        onlySupported(options, ["filter", "sort"]);
+        onlySupported(options, ["filter", "sort", "fields"]);
         hooks.beforeList?.(collection, options?.filter ?? "");
         const found = rows(collection).filter((record) =>
           matches(record, options?.filter),
         );
-        return sorted(found, options?.sort).map((record) => ({
-          ...record,
-        })) as T[];
+        return sorted(found, options?.sort).map((record) =>
+          project(record, options?.fields),
+        ) as T[];
       },
 
       async getOne<T>(id: string, options?: object): Promise<T> {
@@ -156,30 +162,85 @@ export function fakePb(options: {
 }
 
 /**
- * The subset of PocketBase's filter syntax this repo's draft code actually
- * writes. Mixed `&&`/`||` throws rather than guessing at precedence.
+ * Split on an operator at **paren depth zero**, so a bracketed group stays
+ * whole.
+ *
+ * The reason this exists rather than a `String#split`: 4.3's
+ * `readExistingStats` writes `season = "E2026" && (game_code = 1 || game_code
+ * = 2)`, and a naive split on `&&` or `||` shreds that into fragments that do
+ * not parse. The previous version refused a mixed filter outright rather than
+ * guess at precedence, which was the right call while nothing wrote one — the
+ * answer once something does is to honour the brackets, not to guess.
+ */
+function splitTop(text: string, operator: "&&" | "||"): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === "(") depth += 1;
+    else if (char === ")") depth -= 1;
+    else if (depth === 0 && text.startsWith(operator, i)) {
+      parts.push(text.slice(start, i));
+      i += operator.length - 1;
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/**
+ * The subset of PocketBase's filter syntax this repo actually writes.
+ *
+ * `&&` binds looser than `||` here, which is PocketBase's own precedence and
+ * the only reading under which the stats filter means what it says.
  */
 function matches(record: FakeRecord, filter?: string): boolean {
   const text = filter?.trim();
   if (!text) return true;
-  if (text.includes("&&") && text.includes("||")) {
-    throw new Error(`fake-pb will not guess precedence in: ${text}`);
-  }
-  if (text.includes("||")) {
-    return text.split("||").some((part) => matches(record, part));
-  }
-  if (text.includes("&&")) {
-    return text.split("&&").every((part) => matches(record, part));
-  }
-  const parsed = /^(\w+)\s*(!=|=)\s*'([^']*)'$/.exec(text);
+
+  const ands = splitTop(text, "&&");
+  if (ands.length > 1) return ands.every((part) => matches(record, part));
+
+  const ors = splitTop(text, "||");
+  if (ors.length > 1) return ors.some((part) => matches(record, part));
+
+  // A group with a single term inside it — `(game_code = 1)`, or the whole
+  // bracketed OR once it has been split down to one branch.
+  const inner = /^\(([\s\S]*)\)$/.exec(text);
+  if (inner) return matches(record, inner[1]);
+  // Three literal forms, because the app writes all three: single-quoted
+  // (the drafts pipeline), double-quoted (the stats store) and a bare number
+  // (`game_code = 1`, which PocketBase compares numerically).
+  const parsed =
+    /^(\w+)\s*(!=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+))$/.exec(text);
   if (!parsed) throw new Error(`fake-pb cannot parse filter: ${text}`);
-  const [, field, operator, value] = parsed;
+  const [, field, operator] = parsed;
+  const value = parsed[3] ?? parsed[4] ?? parsed[5] ?? "";
   // PocketBase compares an unset field as empty, not as undefined.
   const actual =
     record[field] === undefined || record[field] === null
       ? ""
       : String(record[field]);
   return operator === "=" ? actual === value : actual !== value;
+}
+
+/**
+ * `fields` as PocketBase implements it: the response carries only what was
+ * asked for.
+ *
+ * Projected rather than ignored, and that is the point of doing it at all — a
+ * fake that returned the whole record would let a caller read a field it never
+ * requested, pass here, and come back `undefined` in production. The same
+ * class of defect as `readPicks` returning the engine's shape.
+ */
+function project(record: FakeRecord, fields?: string): FakeRecord {
+  if (!fields) return { ...record };
+  const wanted = fields.split(",").map((field) => field.trim());
+  const out: FakeRecord = { id: record.id };
+  for (const field of wanted) out[field] = record[field];
+  return out;
 }
 
 /**

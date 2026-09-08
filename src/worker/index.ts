@@ -25,14 +25,21 @@
  * reason `./sweep.ts` may import the pick pipeline but not the server actions
  * that wrap it.
  *
- * Phase 4.3 adds the nightly stats fetch and standings recompute to this file,
- * on a much slower cadence than the pick sweep.
+ * **4.3 added the stats fetch**, on its own much slower cadence: every fifteen
+ * minutes, one pass that asks the Euroleague feed what has been played and
+ * imports whatever is not stored yet (`src/lib/stats/ingest.ts`). It gets its
+ * own in-flight guard rather than sharing the sweep's, because the two must not
+ * be able to block each other: a stats pass talks to somebody else's API over
+ * the network and can take seconds, and no pick deadline may wait on that.
+ * Standings recompute joins it in 4.5.
  */
 import PocketBase from "pocketbase";
 
 import { parseServerEnv, type ServerEnv } from "@/lib/config/schema";
 
 import { describeError } from "@/lib/drafts/pipeline";
+
+import { ingestFinishedGames, summariseIngest } from "@/lib/stats/ingest";
 
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
@@ -59,6 +66,25 @@ const HEARTBEAT_EVERY_TICKS = 300;
 const STALL_AFTER_MS = 30_000;
 /** A minute of consecutive failures between complaints — PocketBase being down should not fill the disk. */
 const FAILURE_LOG_EVERY = 60;
+/**
+ * A quarter of an hour between stats passes.
+ *
+ * The cadence question was "nightly, or often": often wins, because a Tuesday
+ * game that ends at 22:00 is argued about at 22:05 and a nightly job would
+ * have nothing to say until morning. The cost is one schedule request per
+ * pass — four an hour, against a feed that starts refusing somewhere past a
+ * hundred in a few minutes — and a pass with nothing to do makes exactly that
+ * one request and writes nothing at all.
+ */
+const STATS_EVERY_MS = 15 * 60_000;
+/**
+ * A minute after boot, not immediately.
+ *
+ * A deploy reloads both PM2 apps at once, and the first seconds after one are
+ * the busiest this box gets. Nothing about a box score is urgent to the
+ * second, so it waits for the deploy to settle.
+ */
+const STATS_FIRST_AFTER_MS = 60_000;
 
 function log(message: string): void {
   console.log(`[worker] ${new Date().toISOString()} ${message}`);
@@ -151,6 +177,81 @@ function main(): void {
     }
   }
 
+  /**
+   * The stats pass, on its own guard.
+   *
+   * `statsInFlight` is deliberately not the sweep's `inFlight`: a pass that
+   * hangs on a slow feed response must not stop pick deadlines being enforced,
+   * and a sweep must not delay a pass. The two share only the PocketBase
+   * client and its auth.
+   */
+  let statsInFlight: Promise<void> | null = null;
+  let statsFailures = 0;
+
+  async function statsPass(): Promise<void> {
+    try {
+      await ensureAuth(pb, env);
+      const report = await ingestFinishedGames({
+        pb,
+        season: env.EUROLEAGUE_SEASON,
+        log,
+      });
+      // A pass with nothing to do says nothing. Through most of a week that is
+      // every pass, and a line saying "0 games" four times an hour would make
+      // the log useless for the thing it is for.
+      if (report.attempted > 0 || report.problems.length > 0) {
+        log(summariseIngest(report));
+        // Every problem, not a count: an unmatched person code is 4.2's input
+        // and a PIR that disagrees with its own components is a rulebook
+        // change. Both want to be read, not tallied.
+        for (const problem of report.problems.slice(0, 20)) {
+          log(`stats · ${problem}`);
+        }
+        if (report.problems.length > 20) {
+          log(`stats · …and ${report.problems.length - 20} more problem(s)`);
+        }
+      }
+      if (statsFailures > 0) {
+        log(`stats recovered after ${statsFailures} failed pass(es)`);
+        statsFailures = 0;
+      }
+    } catch (error) {
+      statsFailures += 1;
+      // Every failure is logged, unlike the sweep's — a pass happens four times
+      // an hour rather than 3,600, so there is no flood to throttle, and the
+      // feed being down for a day is worth twenty-four lines. The batch record
+      // is deliberately absent here: `ingestFinishedGames` throws before it
+      // writes one, so nothing claims an import that never ran.
+      log(
+        `stats pass failed (${statsFailures} in a row): ${describeError(error)}`,
+      );
+      pb.authStore.clear();
+    }
+  }
+
+  function scheduleStats(): void {
+    if (env.STATS_FETCH === "off") {
+      log("stats fetch is off (STATS_FETCH=off) — box scores will not import");
+      return;
+    }
+    log(
+      `stats fetch on · ${env.EUROLEAGUE_SEASON} · every ${STATS_EVERY_MS / 60_000}min`,
+    );
+    const run = () => {
+      if (stopping || statsInFlight) return;
+      statsInFlight = statsPass().finally(() => {
+        statsInFlight = null;
+      });
+    };
+    setTimeout(() => {
+      run();
+      statsTimer = setInterval(run, STATS_EVERY_MS);
+    }, STATS_FIRST_AFTER_MS).unref?.();
+  }
+
+  let statsTimer: ReturnType<typeof setInterval> | null = null;
+  scheduleStats();
+
   const timer = setInterval(() => {
     if (stopping) return;
     ticks += 1;
@@ -193,11 +294,16 @@ function main(): void {
     if (stopping) return;
     stopping = true;
     clearInterval(timer);
+    if (statsTimer) clearInterval(statsTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and
     // if it does not, being killed mid-tick costs at most one repairable pick.
     await inFlight?.catch(() => {});
+    // A stats pass mid-flight is abandoned rather than waited for: it can be
+    // several seconds of somebody else's network, PM2 escalates SIGTERM to
+    // SIGKILL, and dying mid-pass costs nothing — the games it did not reach
+    // are simply still outstanding on the next one.
     log("stopped");
     process.exit(0);
   }

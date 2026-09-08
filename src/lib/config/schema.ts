@@ -34,6 +34,28 @@ export const serverEnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   SESSION_COOKIE_NAME: z.string().min(1).default("eurovafliai_session"),
+  /**
+   * The Euroleague season the stats fetcher imports — slice 4.3.
+   *
+   * A variable rather than a constant because a season code is the one thing
+   * about this app that is guaranteed to change, and changing it should not be
+   * a deploy of new code. `E2026` is 2026-27.
+   */
+  EUROLEAGUE_SEASON: z
+    .string()
+    .regex(/^E\d{4}$/, "must look like E2026")
+    .default("E2026"),
+  /**
+   * Whether the worker fetches box scores at all.
+   *
+   * Defaults **on**, because the whole point of 4.3 is that nobody has to
+   * remember. It exists for two honest cases: a dev machine that should not
+   * poll somebody else's API every quarter of an hour just because the worker
+   * is running, and a night when the feed is misbehaving and the right move is
+   * to stop asking rather than to stop the worker — which also enforces pick
+   * deadlines.
+   */
+  STATS_FETCH: z.enum(["on", "off"]).default("on"),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
