@@ -44,6 +44,8 @@ const created = {
   picks: [],
   cheat_sheets: [],
   chat_messages: [],
+  player_game_stats: [],
+  stat_imports: [],
 };
 
 const su = new PocketBase(url);
@@ -850,8 +852,150 @@ try {
     "a member cannot delete a system announcement with their own token",
   );
 
+  // --- 4.1 box scores -----------------------------------------------------
+  //
+  // Stats are the opposite of a cheat sheet: readable by anybody signed in,
+  // because a player profile and a standings table are the point of storing
+  // them. What must hold is that nobody writes one from a browser — the
+  // scoring rules live in git, not in a rule expression — and that the unique
+  // index really refuses a second row for the same game, since that index is
+  // the entire failure-recovery story for an import with no transaction
+  // around it.
+  check(!!byName.player_game_stats, "player_game_stats collection exists");
+  check(!!byName.stat_imports, "stat_imports collection exists");
+  check(
+    byName.player_game_stats.createRule === null &&
+      byName.player_game_stats.updateRule === null &&
+      byName.player_game_stats.deleteRule === null,
+    "player_game_stats writes are superuser-only — every import is a server action or the worker",
+  );
+  check(
+    byName.player_game_stats.listRule === '@request.auth.id != ""' &&
+      byName.player_game_stats.viewRule === '@request.auth.id != ""',
+    "a signed-in member can read any player's game log",
+  );
+  check(
+    byName.player_game_stats.indexes.some((i) =>
+      /UNIQUE.*`player_game_stats`.*\(`player`,\s*`season`,\s*`game_code`\)/.test(
+        i,
+      ),
+    ),
+    "unique index on player_game_stats(player, season, game_code) — what makes a re-run safe",
+  );
+  check(
+    byName.player_game_stats.fields.some(
+      (f) => f.name === "fantasy_pts" && f.onlyInt === true,
+    ),
+    "fantasy_pts is an integer column — tenths, never a float",
+  );
+  check(
+    byName.player_game_stats.fields.every(
+      (f) => !["pir", "fantasy_pts", "plus_minus"].includes(f.name) || f.min === null || f.min === undefined,
+    ),
+    "pir, fantasy_pts and plus_minus have no floor — a bad night is allowed to be negative",
+  );
+
+  const aliceLine = await su.collection("player_game_stats").create(
+    {
+      player: playerOne.id,
+      season: "E1999",
+      game_code: 1,
+      round: 1,
+      phase: "RS",
+      club_code: "VER",
+      team_score: 85,
+      opponent_score: 78,
+      points: 7,
+      reb_total: 3,
+      assists: 2,
+      fga2: 7,
+      fgm2: 3,
+      fga3: 4,
+      fgm3: 0,
+      fta: 1,
+      ftm: 1,
+      blocks_against: 1,
+      fouls_committed: 2,
+      fouls_drawn: 2,
+      pir: 3,
+      fantasy_pts: 33,
+    },
+    { requestKey: null },
+  );
+  created.player_game_stats.push(aliceLine.id);
+
+  check(
+    await rejects(() =>
+      su.collection("player_game_stats").create(
+        {
+          player: playerOne.id,
+          season: "E1999",
+          game_code: 1,
+          round: 1,
+          phase: "RS",
+          club_code: "VER",
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a second row for the same player, season and game is refused by the index",
+  );
+  check(
+    (await listCount(carolClient, "player_game_stats")) >= 1,
+    "a signed-in outsider still reads box scores — they are not league-private",
+  );
+  check(
+    await rejects(() =>
+      aliceClient.collection("player_game_stats").create(
+        {
+          player: playerOne.id,
+          season: "E1999",
+          game_code: 2,
+          round: 1,
+          phase: "RS",
+          club_code: "VER",
+          pir: 99,
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a member cannot invent a box score with their own token",
+  );
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("player_game_stats")
+        .update(aliceLine.id, { pir: 99 }, { requestKey: null }),
+    ),
+    "a member cannot rewrite a stored PIR with their own token",
+  );
+
+  const batch = await su.collection("stat_imports").create(
+    { source: "csv", season: "E1999", applied: false, rows: 1, plan: {} },
+    { requestKey: null },
+  );
+  created.stat_imports.push(batch.id);
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("stat_imports")
+        .update(batch.id, { applied: true }, { requestKey: null }),
+    ),
+    "a member cannot mark an import batch applied with their own token",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.stat_imports)
+    await su
+      .collection("stat_imports")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
+  for (const id of created.player_game_stats)
+    await su
+      .collection("player_game_stats")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.chat_messages)
     await su
       .collection("chat_messages")

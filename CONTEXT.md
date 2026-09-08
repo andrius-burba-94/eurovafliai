@@ -70,6 +70,10 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **PIR** | Euroleague's Performance Index Rating. Our fantasy base sum is exactly PIR. | `player_game_stats.pir` |
 | **fantasy points** | PIR plus the official 10% team-win bonus: `PIR × 1.1` on a win, `PIR` otherwise. Stored as **integer tenths** — no floats, ever. | `player_game_stats.fantasy_pts` |
 | **projection** | Rolling last-5 and season averages, materialized onto a player after each ingest. | `players` projection fields |
+| **box score** | One player's line in one game — the nineteen counted things, in the feed's own vocabulary (`blocksFavour`, `foulsCommited` with one `t`). Both import doors produce this shape, so there is one name per number. | `BoxScore` in `src/lib/stats/scoring.ts` |
+| **game code** | The Euroleague's own id for a game, unique **within a season** (E2025 ran 1–406 with gaps). With the season and the player it is the physical key a re-run of an import is refused by. | `player_game_stats.game_code` |
+| **phase** | Which part of the season a round belongs to: `RS` regular season (rounds 1–38), `PI` play-in (39–40), `PO` playoffs (41–45), `FF` Final Four (46–47). Everything is stored; what counts for fantasy is a filter. | `player_game_stats.phase` |
+| **tenths** | How fantasy points are stored and summed: an integer count of tenths, `33` meaning 3.3. Never a float, anywhere, because PIR × 1.1 is not exact in binary. | `fantasy_pts`; `formatTenths` |
 
 ## Words we do not use
 

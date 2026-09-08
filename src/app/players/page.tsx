@@ -116,6 +116,17 @@ export default async function PlayersPage() {
                   </Link>
                 </Slot>
               ) : null}
+              {canImport ? (
+                <Slot state="waiting">
+                  <span className="slot-label">Import box scores</span>
+                  <Link
+                    href="/stats/import"
+                    className="text-sm text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                  >
+                    Paste a round
+                  </Link>
+                </Slot>
+              ) : null}
               {lastImport ? (
                 <Slot state={lastImport.applied ? "filled" : "waiting"}>
                   <span className="slot-label">Last import</span>
