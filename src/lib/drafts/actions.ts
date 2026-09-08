@@ -68,6 +68,15 @@ export type DraftResult = {
    * say it too.
    */
   playerId?: string;
+  /**
+   * A pick genuinely landed.
+   *
+   * `{ error: null }` is ambiguous: it is both the initial state of a
+   * `useActionState` and the shape of a success, so a surface that has to react
+   * to a pick *landing* — 3.7's confirm control, which disarms itself — cannot
+   * tell them apart. Only `makePick` sets it.
+   */
+  picked?: boolean;
 };
 const OK: DraftResult = { error: null };
 
@@ -337,7 +346,13 @@ export async function makePick(
   }
 
   revalidatePath(`/leagues/${leagueId}/draft`);
-  return OK;
+  // Not `OK`, and it names the player. 3.7's confirm control disarms on a pick
+  // that landed — but `useActionState` keeps the *previous* result across the
+  // next arming, so `picked: true` alone is ambiguous: it cannot tell "this
+  // pick landed" from "an earlier pick landed and I am now holding a different
+  // player". The id makes it decidable, and without it a freshly armed row
+  // silently un-chose itself.
+  return { error: null, picked: true, playerId: player.id };
 }
 
 /** Pause or resume. A single write, and refused once the draft is complete. */
