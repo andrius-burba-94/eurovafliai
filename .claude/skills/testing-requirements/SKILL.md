@@ -51,6 +51,20 @@ worker, and UI behavior changes do.
 - **A test that deletes every row of a collection is app-global.**
   `tests/e2e` runs `fullyParallel`. Scope destructive fixtures to the league
   or member under test — same trap as `sweepOnce`.
+- **A local E2E run that fails in two or three scattered specs is usually the
+  dev server, not the code.** `playwright.config.ts` reuses a running
+  `next dev` and local runs have `retries: 0`, so a server that has been up for
+  hours recompiling the day's edits loses 5-second waits under eight parallel
+  workers. Measured once: three consecutive runs failed 1, 2 and 4 *different*
+  specs, every one passing alone; row counts in PocketBase were healthy;
+  restarting `npm run dev` made the suite green **and 40% faster** (3.4m vs
+  5.7m). Check row counts first, then restart the server, and only then suspect
+  the diff. CI builds fresh and runs `retries: 1`.
+- **`chat.spec.ts`'s rate-limit spec is the most load-sensitive in the suite.**
+  It sends twice inside one window on purpose, so under parallel load the two
+  sends can straddle the window and the refusal never comes. Passes in
+  isolation. Not a bug in the rate limit; do not "fix" it by widening the
+  window, which would weaken the guard it exists to prove.
 - **A fixture that fakes a display name will hide a real defect.** Read names
   the way the product does; do not pass `say: { teamName: "Fixture FC" }` into
   `commitPick` unless the spec is about that placeholder.
