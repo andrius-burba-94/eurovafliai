@@ -45,6 +45,28 @@ defines the target and this file is wrong.
 > client — which matters more than usual for this slice, since 3.5's worst bug
 > was a *second* realtime client making the first one hang.
 
+> **4.1 and 4.3 were checked that way too, and 4.1 is the second migration
+> slice since 1.5** — so the deploy log is again the interesting half. It reads
+> `Migrations changed — restarting eurovafliai-pb to apply them`, and the
+> migration really applied: `/pb/api/collections/player_game_stats/records` and
+> `/pb/api/collections/stat_imports/records` both answer **200 with an empty
+> list**, while `/pb/api/collections/not_a_collection/records` answers 404 —
+> that contrast is the proof, since 200-with-nothing is the correct answer for a
+> signed-in-only list rule when nobody is signed in. `/stats/import` answers 307
+> to `/login?error=unauthorized` rather than 404ing. Realtime through the `/pb/`
+> proxy: `PB_CONNECT` on the **first frame**, stream held open the full 12
+> seconds and closed by the client.
+>
+> **4.3's own check is the one worth copying**, because a working fetcher is
+> *silent* and silence proves nothing by itself. Three facts together do: the
+> worker logs `stats fetch on · E2026 · every 15min` immediately after the
+> deploy; **zero** `stats pass failed` lines since; and, from the box itself,
+> the feed answers the schedule request **200 in 0.6s** and reports **0 played
+> E2026 games**. So the fetcher is quiet because there is nothing to fetch
+> until 24 September, not because it cannot reach anything. 4.1 and 4.3 added
+> no new CSS utilities, so there was nothing new to grep out of the served
+> stylesheet — noted so the omission does not read as a skipped step.
+
 > **3.4b was checked the same way**, and the check is worth reading as a
 > template. `slot-transit` is in the stylesheet the box serves *with its
 > declaration intact* — `border-top:2px dashed var(--color-ink)` — which is the
@@ -77,17 +99,30 @@ defines the target and this file is wrong.
 > **Phase 1 — walking skeleton** — auth, league creation, join-by-code, the
 > design foundation, the live lobby and the deploy all landed long ago.
 
-**Next up: 4.2 — reconciling the person codes 4.3 cannot match.** Phase 4 has
-started: **4.1 and 4.3 have landed**, so the app scores a real Euroleague game,
-proves it scores it the way the Euroleague does, and now **fetches them by
-itself every fifteen minutes**. 4.2 is next because 4.3 produces its input:
-the very first live pass reported 21 unmatched person codes, which is a real
-number from a real feed rather than a case anybody invented. Phase 3 is
+**Next up: 4.4 projections, then 4.5 standings.** Phase 4 is three slices in:
+**4.1, 4.2 and 4.3 have landed**, so the app scores a real Euroleague game,
+proves it scores it the way the Euroleague does, fetches games by itself every
+fifteen minutes, and no longer splits a renamed player into two records. What
+is left is the part a human looks at — projections (which also unblock 3.3's
+one deferred filter) and standings, which is the first surface that will
+*display* a box score at all. Phase 3 is
 closed apart from one thing no code can finish — the **human rehearsal** its DoD
 asks for, a draft night with 3+ friends on mixed devices, inherited from Phase 2
 (blueprint D12). That is the only claim in this file no test can make. 3.3 stays
 `partial` until **4.4**, because its one deferred filter needs projections to
 filter on.
+
+**4.2 has landed, and it is the clearest case yet for measuring before
+building.** The blueprint called it "a light verification pass" and it was
+right about the mechanism — `person_code` joins are exact — but the pool had
+drifted in a way nobody predicted: the clubs re-registered their codeless
+signings under passport names, so a sync was one command away from marking
+fifteen real players as departed and adding fifteen duplicates. That was found
+by running the diff against the live feed and *reading the plan*, not by
+reasoning about it. The fix that followed is also a measured one: fuse.js was
+the obvious matcher and the numbers said it could not separate a rename from a
+namesake, so the confident rule is token containment and fuse only ranks what
+is left for a person to answer.
 
 **4.3 has landed, and the thing to know is what a pass asks.** Not "what
 happened tonight" but "what is played and not stored" — a question about the
@@ -211,6 +246,40 @@ Two Phase 1 items are still open and both are listed under Open debt: the last
 step of the two-device confirmation, and nightly `pb_data` backups.
 
 ---
+
+## Try it on localhost — slice 4.2
+
+```bash
+npm run dev
+npm run rosters:sync -- --dry-run   # read the plan; it writes nothing
+```
+
+The dry run is where this slice shows itself. Look for the line:
+
+```
+Plan: +6 add · ~23 change · 10 leaving · 15 suspected rename(s) held back · …
+  = Burnell, Jason → Burnell, Jason Scott (MIL, code 014782) — same player? …
+  ? Juzang, Johnny (ULK) has no code — best guess Juzang, Jonathan: …
+```
+
+Every `=` is a player a sync would otherwise have departed *and* re-added as a
+duplicate. Then, signed in as a commissioner:
+
+- **Open `/players` → `Player mapping`.** Press `Check the feed`: 21 requests,
+  a few seconds, and it writes nothing to the pool.
+- **Read one `=` row.** It names both spellings, the club, the code and *why*
+  the two names are believed to be one person — in tokens you can check.
+- **Press `Same player`.** The row goes and a sentence says what happened. Look
+  the player up in `/players`: same row, new name, code attached. That the **id
+  did not change** is the whole point — a delete-and-recreate would have
+  detached their picks, sheets and box scores.
+- **Read a `?` row.** It has a `<select>`, because a nickname is not a
+  string-distance problem: `Aj` and `Anthony` share one letter. Choose, or say
+  `Different people` — which adds the arrival and departs the stored row, i.e.
+  exactly what the sync would have done unasked.
+- **Codes from box scores** is the other direction, and it is empty until an
+  import meets one. `npm run stats:sync -- --season=E2025 --max=3` produces
+  about twenty, because the local pool is *this* season's rosters.
 
 ## Try it on localhost — slice 4.3
 
@@ -477,7 +546,7 @@ now landed on top of them.
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **4.1 Stats schema + scoring engine + CSV import** | done | — | **PIR is not ours to get right by reasoning, so it is checked against theirs.** The box-score feed publishes `valuation`, which *is* PIR — so `scoring.golden.test.ts` replays **168 real player rows from seven E2025 games** and asserts our sum equals the number the Euroleague printed that night, plus all fourteen team totals: **zero mismatches**. Regenerate with `npm run stats:golden`; `-- --check` asks the feed whether it still agrees with the committed fixture. The endpoint the research file left open is pinned (`/games/{code}/stats`), and it came with **one finding that would have been a silent, season-long bug**: the feed's `winner` field is the *season's champion* on every game of the season — `OLY` on all seven samples, five of which it did not play in — and the win is what the ×1.1 bonus hangs on. Derive it from the scoreline; two of the seven agreed by coincidence, so a small sample would have looked fine. **Fantasy points are integer tenths everywhere**, because `3 * 1.1` is `3.3000000000000003` and a season of those in a standings sum is a wrong number nobody can explain. **Blueprint open question 3 is settled** (D15): the ×1.1 applies uniformly, negatives included — cheap to correct later because every component is persisted, and the fixture carries 8 real negative-PIR-on-a-win rows either way. The CSV door has **no `won` column** on purpose (a stated winner is a place to disagree with the scoreline) and **self-checks**: a sheet that brings the official PIR has every line compared against what its own numbers add up to, and a disagreement is refused rather than resolved by guesswork — so the golden check runs on every real import, not only in CI. Idempotent by index, so **re-running an import is the repair**; nothing here deletes, so a partial sheet cannot erase a round |
-| 4.2 Player mapping — a light verification pass | todo | — | Reduced to reconciling the edges, because 2.1 syncs `person_code` on day one. 4.1's importer already reports every unmatched code with its line numbers, which is the input this slice acts on |
+| **4.2 Player mapping** | done | — | **Not the light verification pass the blueprint expected — it caught a defect that would have split fifteen real players in two.** 2.1's research said 13% of E2026 players had no `person_code` and that the count would fall "as clubs register". It fell, and the clubs registered those players **under their passport names**: `Burnell, Jason` became `Burnell, Jason Scott` *with* a code. So the name+club fallback missed and a sync planned an **add and a departure for the same human** — measured against the live feed as 18 adds and 22 departures, at least 15 of them one person. Box scores attach by `person_code`, so the points would have landed on the new row while a pick or a cheat sheet still pointed at the old one, and 4.3 fetches unattended. `diffRosters` now **quarantines** a likely pair: neither half is written, so the worst case is a stale display name rather than a split identity. On the live pool that turned 18/22 into 6/10. **The rule is token containment, not a fuse threshold** — and that is a measurement, not a preference: over 15 real pairs and 5 hard negatives, fuse's scores *overlap* (true 0.008–0.568, false 0.485–0.777), so any cut-off catching `Duarte, Chris → Theoret Duarte, Christopher` (0.531) also merges `Nunn, Kendrick` with `Nunn, Kevarrius` (0.509) — two real players, one silent identity error. Fuse still ranks the leftovers, which is where a nickname (`Juzang, Johnny → Juzang, Jonathan`) gets offered as a question rather than answered. `/players/mapping` resolves both directions: a rename, and an **unattached person code** from a box score — attaching one also re-imports the games it appeared in, without which the mapping would be cosmetic. A **merge keeps the stored player's id**, so picks, sheets, memberships and stats stay attached |
 | **4.3 Automated fetcher (worker cron)** | done | — | **The worker imports box scores by itself, every 15 minutes.** Not nightly, which is what the blueprint says: a Tuesday game that ends at 22:00 is argued about at 22:05, and a nightly job would have nothing to say until morning. One pass = one schedule request → the games that are **played and not already stored** → up to 12 of them, oldest first. That shape is what makes it **self-healing by construction**: a game missed because the box was down, because a parse failed, or because nobody ran the worker for a fortnight is simply still outstanding next time, so there is no backfill path because there is nothing for one to do. It runs `ingestFinishedGames`, which is also all `npm run stats:sync` does — the automatic path and the by-hand path are the same function, the way `commitPick` is shared by a tap and an autodraft. **The SDK the blueprint names was evaluated and declined** (D16): it is alive and it fits, but its schemas validate the whole payload, so a change to a field we never read could refuse a whole round and stop the automation. A tolerant schema over the ten fields we read keeps going, and the roster sync's retry/backoff moved to `src/lib/euroleague/http.ts` so there is one HTTP idiom rather than two. **Every row still self-checks against the feed's own PIR** on the way in, so 4.1's golden assertion now runs against live data four times an hour — a rulebook change would show up as a refused row with both numbers in the log. It has its **own in-flight guard**, never the sweep's: a slow feed response must not delay a pick deadline. Proved against the live feed and the real database, not only against fixtures — 107 real E2025 lines imported by hand, then the second pass moved on to the next games instead of redoing them |
 | 4.4 Projections | todo | — | Unblocks 3.3's one deferred filter and gives autodraft something to rank on for a member with no cheat sheet |
 | 4.5 Standings | todo | — | Where `phase` earns its place: whether the play-in and playoffs count is a filter here, not data 4.1 threw away |
@@ -528,6 +597,8 @@ touch should be fixed by that slice rather than deferred again.
 | **Nothing displays a box score** | 4.1 stores game lines and proves they are right, and the only way to look at one is the database. No game log, no player profile, no standings — all of that is 4.5. Worth stating plainly so the slice is not mistaken for more than it is: the app can now *score* a Euroleague night, and it cannot yet *show* one | Nothing; 4.5's whole job |
 | **An amended box score is never noticed** | 4.3's pass asks "what is played and **not stored**", and that is what makes it self-healing — but it means a game whose box score the Euroleague later corrects is invisible to the fetcher for ever, because the game is stored. The Euroleague does amend them. The remedy exists and is manual: paste the game into `/stats/import`, which names every field it would change before changing it. The fix would be a second, slower pass that re-fetches recent games and compares — cheap to write, and it wants a decision about how far back "recent" reaches, because re-fetching 380 games nightly to catch one correction is not a trade worth making | Nothing; a correction needs a person to notice it |
 | **A game imported with some rows refused stays "done"** | `readStoredGameCodes` asks whether a game has *anything* stored, not whether it has all 24 lines. So a game where two players were refused — no person code, or a PIR that disagreed with its own components — counts as imported and the fetcher never returns to it. Deliberate: the refusals are named in the batch log, and re-fetching a game whose other 22 rows are already correct would rewrite them to fix nothing. It does mean the *only* record that a line is missing is a `stat_imports` log nobody reads unprompted | Nothing; two players' lines, and a log entry that has to be looked for |
+| **A quarantine needs somebody to notice it** | 4.2 stops a sync splitting a player in two, and the price is that the pair stays unresolved until a person opens `/players/mapping`. Nothing chases them: the sync script prints the held-back pairs and the page lists them, but no chat announcement, no email, nothing on the lobby. Fifteen unanswered renames means fifteen players whose display name is stale and whose box scores cannot attach — which matters from 24 September, not before. The cheapest fix is a count somewhere a commissioner already looks | Nothing yet; a queue with no doorbell |
+| **A rename is only ever proposed against the *same club*** | `proposeRenames` never pairs across clubs, which is what stops it merging two unrelated players who share a surname. The cost is the case it cannot see: a player who was re-registered under a passport name **and** transferred between two syncs. That is a departure plus an add, as before 4.2, and the duplicate has to be spotted by eye. Rare, and the alternative — fuzzy matching across the whole 330-player pool — is how you merge the wrong Nunn | Nothing; a narrow blind spot, chosen over a wide one |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 One decision recorded here rather than as debt, because it is settled:

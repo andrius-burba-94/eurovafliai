@@ -23,7 +23,13 @@ src/lib/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
                   enforced by purity.test.ts, not just documented. Import
                   from its index.ts, not from the modules directly.
 src/components/   shared UI in the board's vocabulary (board.tsx) — see DESIGN.md
-src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door
+src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door.
+                  `rename.ts` (4.2) decides whether an arrival is a *rename* of
+                  a stored player — token containment, **not** a fuse
+                  threshold, because measured against 15 real pairs and 5 hard
+                  negatives fuse's scores overlap and any cut-off that catches
+                  `Duarte, Chris → Theoret Duarte, Christopher` also merges
+                  `Nunn, Kendrick` with `Nunn, Kevarrius`
 src/lib/config/   validated env: schema.ts (pure) + public.ts + server.ts
 src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   verbatim with the worker; `actions.ts` is the request-facing
@@ -43,6 +49,12 @@ src/lib/chat/     league chat: `messages.ts` (every sentence the app can say,
                   autodrafted picks) and `actions.ts`. `announce()` never
                   throws: an announcement is the least important write in a
                   pick's sequence and must never fail the pick
+src/lib/mapping/  player mapping (4.2): the reconciliation surface's server
+                  half. `queries.ts` reads the last stored feed check and the
+                  unmatched person codes 4.3 recorded; `actions.ts` confirms a
+                  merge (keeping the stored player's **id**, so picks, sheets
+                  and box scores survive), rejects one, or attaches a code and
+                  re-imports the games it appeared in
 src/lib/euroleague/http.ts  ONE way of talking to the Euroleague feed —
                   retry, backoff, `Retry-After`, the 429 the research file
                   did not know about. Shared by the roster sync and the stats
@@ -143,6 +155,12 @@ make broken code pass.
   result forever: a new preview changes nothing and React's input reset hands
   back stale text. Prefer one action with an `intent` field
   (`submitCheatSheet`). Shipped broken in 2.1b, found by 3.4a's design critique.
+- **A sync that suspects a rename writes neither half.** Before 4.2, a stored
+  player the feed had re-registered under a passport name produced an **add and
+  a departure for the same human** — measured at 15 pairs on 2026-09-08, all of
+  them codeless rows. Box scores attach by `person_code`, so the points would
+  have landed on the new row while a pick pointed at the old one. `diffRosters`
+  now quarantines the likely pairs and `/players/mapping` resolves them.
 - **The stats pass has its own in-flight guard, not the sweep's.** They share
   the PocketBase client and nothing else. A pass talks to somebody else's API
   over the network and can take seconds; the sweep enforces pick deadlines

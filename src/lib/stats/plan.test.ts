@@ -150,7 +150,10 @@ describe("planStatImport", () => {
       LINE,
     ]);
     expect(result.unmatched).toEqual([
-      { personCode: "099999", lines: [2, 3] },
+      // The club comes along, and the name would too if the source had given
+      // one — a stat CSV has no name column, so this one is null. That pair is
+      // what lets 4.2 offer a suggestion instead of just a number.
+      { personCode: "099999", lines: [2, 3], name: null, clubCode: "IST" },
     ]);
     expect(result.creates).toHaveLength(1);
     expect(result.games).toBe(1);

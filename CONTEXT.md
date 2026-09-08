@@ -65,6 +65,9 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **person code** | The Euroleague external player id. Preserved through any overwrite so stats joins survive. | `players.person_code` |
 | **normalized name** | Diacritics-folded name for search and matching — "Valančiūnas" must be findable as "valanciunas". | `players.name_normalized` |
 | **manual lock** | An admin correction that neither ingestion source may overwrite. | `players.manual_lock` |
+| **rename** | The feed listing a stored player under a different name — usually a passport name replacing the one a club first registered. Suspected pairs are *quarantined* by a sync, never applied. | `RenameProposal`; `/players/mapping` |
+| **merge** | Answering a rename with "yes": the stored row **keeps its id** and takes the feed's name and person code, so picks, cheat sheets and box scores stay attached. Never a delete-and-recreate. | `confirmRename` |
+| **unattached code** | A `person_code` in a box score that matches no player, so those points have nowhere to land. Recorded by every import that meets one. | `stat_imports.plan.unmatched` |
 | **roster authority** | Which source may write players right now: `api` or `csv`. The other runs report-only. | app setting; Phase 2.1 |
 | **import batch** | One stored ingestion run — its diff, its log, re-applicable. | `roster_imports`, `stat_imports` |
 | **PIR** | Euroleague's Performance Index Rating. Our fantasy base sum is exactly PIR. | `player_game_stats.pir` |

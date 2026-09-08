@@ -13,6 +13,8 @@
  */
 import type { Position } from "@/lib/engine";
 
+import type { RenameProposal } from "./rename";
+
 /** Which front door a player's current row came from. */
 export type PlayerSource = "api" | "csv" | "manual";
 
@@ -79,4 +81,11 @@ export type RosterDiff = {
   blocked: { id: string; name: string; fields: string[] }[];
   /** Rows the incoming set could not be read at all, with the reason. */
   problems: string[];
+  /**
+   * Suspected renames — slice 4.2. Each pair is held out of **both** `adds` and
+   * `leaving` until a person confirms or rejects it, so a player the feed has
+   * re-registered under a passport name cannot become a departed row plus a
+   * duplicate.
+   */
+  renames: RenameProposal[];
 };

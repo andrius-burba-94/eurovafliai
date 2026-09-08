@@ -110,12 +110,24 @@ export async function ingestFinishedGames({
   doFetch = fetch,
   log,
   maxGames = 12,
+  onlyGames,
 }: {
   pb: PocketBase;
   season: string;
   doFetch?: FeedFetch;
   log?: (message: string) => void;
   maxGames?: number;
+  /**
+   * Re-fetch exactly these games, whether or not anything is stored for them.
+   *
+   * The one deliberate exception to "played and not stored", added by 4.2:
+   * attaching a person code to a player does not bring back the lines that were
+   * refused before it existed, because those games now count as imported. So
+   * confirming a mapping re-runs the games that mentioned the code, and the
+   * plan handles it from there — the rows that already exist come back as
+   * `unchanged`, and only the newly matchable ones are created.
+   */
+  onlyGames?: readonly number[];
 }): Promise<IngestReport> {
   const schedule = await fetchSeasonSchedule({
     season,
@@ -124,8 +136,11 @@ export async function ingestFinishedGames({
   });
   const played = schedule.filter((game) => game.played);
 
-  const stored = await readStoredGameCodes(pb, season);
-  const outstanding = played.filter((game) => !stored.has(game.gameCode));
+  const forced = onlyGames ? new Set(onlyGames) : null;
+  const stored = forced ? new Set<number>() : await readStoredGameCodes(pb, season);
+  const outstanding = played.filter((game) =>
+    forced ? forced.has(game.gameCode) : !stored.has(game.gameCode),
+  );
 
   const report = EMPTY(season);
   if (outstanding.length === 0) {
