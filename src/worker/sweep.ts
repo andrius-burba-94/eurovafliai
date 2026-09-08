@@ -22,6 +22,7 @@ import {
   type Position,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
+import { projectedPointsFromRecord } from "@/lib/stats/project";
 import { readSheet } from "@/lib/sheets/store";
 
 /**
@@ -268,10 +269,9 @@ async function sweepDraft(
    *
    * Read here rather than passed in, because the sweep is the only caller that
    * knows *whose* turn it is. A member who never wrote one gets `null`, and the
-   * engine then falls through to projection rank (4.4) and finally to its own
-   * total tiebreak, the lowest player id: arbitrary, and identical on every
-   * replay, which is the property that matters when there is nothing real to
-   * rank on.
+   * engine then falls through to last-5 projection rank and finally to its own
+   * total tiebreak, the lowest player id. A pool with no played games still
+   * ties on id, which is identical on every replay.
    *
    * A read that fails must not stop the pick. An unreachable sheet is a worse
    * pick, not a missed turn — and a missed turn is a member's clock running out
@@ -380,25 +380,33 @@ async function sweepDraft(
  * The `sort` is for the log and for a readable database read; it does **not**
  * decide the pick. A member with a cheat sheet (3.4) is picked for from their
  * own ranking; below it, and for a member without one, `selectAutoPick` falls
- * through to projection rank — nothing until Phase 4.4 — and finally to its own
- * total tiebreak, the player id: arbitrary, and identical on every replay,
- * which is the property that matters when there is nothing real to rank on.
- * (It used to decide the pick, by accident, through a NaN in the engine's
- * comparator that made the id tiebreak dead code. Fixed there, with a test.)
+ * through to last-5 projection rank and finally to its own total tiebreak,
+ * the player id. A pool with no played games still ties on id, which is
+ * identical on every replay.
  */
 async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
   const players = await pb
     .collection("players")
-    .getFullList<{ id: string; name: string; position: Position }>({
+    .getFullList<{
+      id: string;
+      name: string;
+      position: Position;
+      proj_last5_fantasy?: number;
+      proj_last5_games?: number;
+    }>({
       filter: DRAFTABLE_PLAYERS_FILTER,
       sort: "name",
       requestKey: null,
     });
-  return players.map((player) => ({
-    id: player.id,
-    name: player.name,
-    position: player.position,
-  }));
+  return players.map((player) => {
+    const projectedPoints = projectedPointsFromRecord(player);
+    return {
+      id: player.id,
+      name: player.name,
+      position: player.position,
+      ...(projectedPoints === undefined ? {} : { projectedPoints }),
+    };
+  });
 }
 
 /**

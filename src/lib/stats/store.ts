@@ -8,6 +8,11 @@ import type {
   StatPlayer,
   StatRowFields,
 } from "./plan";
+import {
+  projectPlayer,
+  type PlayerGameLine,
+  type PlayerProjection,
+} from "./project";
 
 /**
  * Reading and writing box scores — the PocketBase half, and nothing else.
@@ -44,6 +49,14 @@ import type {
  * longer mentions stays: a partial CSV must not be able to erase a round, which
  * is the same trap 2.1b hit with `left` players and mitigated rather than
  * ignored. Correcting a game means importing it again with the right numbers.
+ *
+ * ## Projections (4.4)
+ *
+ * After the rows land, `recomputeProjections` rewrites last-5 and season
+ * averages on `players`. Stats first, cache second: a crash between them
+ * leaves stale averages on the player row, and the next ingest or
+ * `npm run stats:project` is the repair. The function writes only rows whose
+ * four numbers changed, so a second run is a no-op.
  */
 
 type StatRecord = ExistingStatRow;
@@ -274,4 +287,102 @@ export async function markStatBatchApplied(
     // Left unapplied over rows that did land — the pessimistic direction, and
     // re-running the same sheet reports them all as unchanged.
   }
+}
+
+type ProjectionRecord = {
+  id: string;
+  proj_last5_fantasy?: number;
+  proj_last5_games?: number;
+  proj_season_fantasy?: number;
+  proj_season_games?: number;
+};
+
+type ProjectionLine = {
+  player: string;
+  round: number;
+  game_code: number;
+  time_played: number;
+  fantasy_pts: number;
+};
+
+export type ProjectionRecompute = {
+  readonly season: string;
+  readonly players: number;
+  readonly updated: number;
+  readonly unchanged: number;
+};
+
+function asFields(projection: PlayerProjection) {
+  return {
+    proj_last5_fantasy: projection.last5Fantasy,
+    proj_last5_games: projection.last5Games,
+    proj_season_fantasy: projection.seasonFantasy,
+    proj_season_games: projection.seasonGames,
+  };
+}
+
+function sameProjection(
+  record: ProjectionRecord,
+  projection: PlayerProjection,
+): boolean {
+  return (
+    (record.proj_last5_fantasy ?? 0) === projection.last5Fantasy &&
+    (record.proj_last5_games ?? 0) === projection.last5Games &&
+    (record.proj_season_fantasy ?? 0) === projection.seasonFantasy &&
+    (record.proj_season_games ?? 0) === projection.seasonGames
+  );
+}
+
+/**
+ * Materialize last-5 and season averages onto every player for one season.
+ *
+ * Players with no played games in that season get games = 0, which is how
+ * autodraft and the pool tell "unprojected" from "averaged 0.0". The latest
+ * season written wins: there is one `players` row per person.
+ */
+export async function recomputeProjections(
+  pb: PocketBase,
+  season: string,
+): Promise<ProjectionRecompute> {
+  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const [players, lines] = await Promise.all([
+    pb.collection("players").getFullList<ProjectionRecord>({
+      fields:
+        "id,proj_last5_fantasy,proj_last5_games,proj_season_fantasy,proj_season_games",
+      requestKey: null,
+    }),
+    pb.collection("player_game_stats").getFullList<ProjectionLine>({
+      filter: `season = "${code}"`,
+      fields: "player,round,game_code,time_played,fantasy_pts",
+      requestKey: null,
+    }),
+  ]);
+
+  const byPlayer = new Map<string, PlayerGameLine[]>();
+  for (const row of lines) {
+    const list = byPlayer.get(row.player) ?? [];
+    list.push({
+      round: row.round,
+      gameCode: row.game_code,
+      timePlayed: row.time_played,
+      fantasyTenths: row.fantasy_pts,
+    });
+    byPlayer.set(row.player, list);
+  }
+
+  let updated = 0;
+  let unchanged = 0;
+  for (const player of players) {
+    const projection = projectPlayer(byPlayer.get(player.id) ?? []);
+    if (sameProjection(player, projection)) {
+      unchanged += 1;
+      continue;
+    }
+    await pb
+      .collection("players")
+      .update(player.id, asFields(projection), { requestKey: null });
+    updated += 1;
+  }
+
+  return { season: code, players: players.length, updated, unchanged };
 }

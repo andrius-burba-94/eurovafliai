@@ -68,9 +68,9 @@ export function rankForMember(
       // Compared before subtracting, and that is not a style choice.
       // `-Infinity - -Infinity` is NaN, which `Array#sort` coerces to +0 — so
       // subtracting first made the tiebreak below dead code for a pool with no
-      // projections at all, which is *every* pool until Phase 4.4. The sort
-      // silently became "whatever order the caller passed", and the guarantee
-      // this function is built on is that it does not depend on that.
+      // projections at all. The sort silently became "whatever order the
+      // caller passed", and the guarantee this function is built on is that
+      // it does not depend on that.
       if (left !== right) return right - left;
       // Total tiebreak. Without it, two equally projected players would be
       // ordered by whatever the database happened to return, and the same

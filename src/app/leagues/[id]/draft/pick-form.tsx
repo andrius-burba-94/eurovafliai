@@ -17,6 +17,7 @@ import {
 import { useArmedPick } from "./armed-pick";
 import type { DraftView } from "@/lib/drafts/queries";
 import type { Position } from "@/lib/engine";
+import { formatTenths } from "@/lib/stats/scoring";
 import {
   NO_FILTERS,
   clubsIn,
@@ -306,7 +307,8 @@ export function PickForm({
     filters.sheetOnly ||
     filters.legalOnly ||
     filters.hideUnavailable ||
-    !filters.hideDrafted;
+    !filters.hideDrafted ||
+    filters.minProjection > 0;
 
   const pinned = narrowed ? view.bestFromSheet : [];
 
@@ -620,6 +622,25 @@ export function PickForm({
         ) : null}
       </div>
 
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+        <span className="slot-label pb-2">Last 5</span>
+        {([100, 150, 200] as const).map((floor) => (
+          <FilterToggle
+            key={floor}
+            testId={`filter-proj-${floor}`}
+            pressed={filters.minProjection === floor}
+            onPressedChange={() =>
+              setFilter(
+                "minProjection",
+                filters.minProjection === floor ? 0 : floor,
+              )
+            }
+          >
+            {`${floor / 10}+`}
+          </FilterToggle>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-x-6 gap-y-3">
         <label className="flex min-w-40 flex-1 flex-col gap-1">
           <span className="slot-label">Club</span>
@@ -753,6 +774,14 @@ export function PickForm({
                   <CardName scale="slot">{player.name}</CardName>
                 </span>
                 <span className="slot-label">{player.club}</span>
+                {player.projectedLast5 !== null ? (
+                  <span
+                    className="slot-label shrink-0 tabular-nums text-ink-soft"
+                    data-testid="pool-proj"
+                  >
+                    {formatTenths(player.projectedLast5)}
+                  </span>
+                ) : null}
                 <PositionPatch position={player.position} />
                 {/* Every one of these is a word, not a colour. */}
                 {player.status !== "active" ? (

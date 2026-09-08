@@ -32,7 +32,8 @@
     "rosters:sync": "tsx --env-file=.env scripts/sync-rosters.mts",
     "seed:members": "tsx --env-file=.env scripts/seed-members.mts",
     "stats:golden": "tsx scripts/fetch-golden-boxscores.mts",
-    "stats:sync": "tsx --env-file=.env scripts/sync-stats.mts"
+    "stats:sync": "tsx --env-file=.env scripts/sync-stats.mts",
+    "stats:project": "tsx --env-file=.env scripts/project-stats.mts"
   },
   "dependencies": {
     "fuse.js": "^7.5.0",

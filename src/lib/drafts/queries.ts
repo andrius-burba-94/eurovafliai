@@ -14,8 +14,9 @@ import {
   radarSize,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
-import type { PoolPlayer } from "@/lib/pool/search";
 import { createUserClient } from "@/lib/pb/server";
+import type { PoolPlayer } from "@/lib/pool/search";
+import { projectedPointsFromRecord } from "@/lib/stats/project";
 import { tierOfRank } from "@/lib/sheets/ranking";
 import { readSheet } from "@/lib/sheets/store";
 
@@ -206,6 +207,8 @@ export async function getDraftView(
       club_code: string;
       position: Position;
       status: string;
+      proj_last5_fantasy?: number;
+      proj_last5_games?: number;
     }>({
       filter: DRAFTABLE_PLAYERS_FILTER,
       sort: "name",
@@ -333,7 +336,14 @@ export async function getDraftView(
   const bestFromSheet: DraftView["bestFromSheet"] = [];
   if (placeOf.size > 0) {
     const ranked = rankForMember(
-      players.map((player) => ({ id: player.id, position: player.position })),
+      players.map((player) => {
+        const projectedPoints = projectedPointsFromRecord(player);
+        return {
+          id: player.id,
+          position: player.position,
+          ...(projectedPoints === undefined ? {} : { projectedPoints }),
+        };
+      }),
       ranking,
     );
     for (const candidate of ranked) {
@@ -407,6 +417,7 @@ export async function getDraftView(
         status: player.status,
         takenBy: held?.by ?? null,
         takenAt: held?.at ?? null,
+        projectedLast5: projectedPointsFromRecord(player) ?? null,
       };
     }),
     availableCount: players.filter((player) => !heldBy.has(player.id)).length,

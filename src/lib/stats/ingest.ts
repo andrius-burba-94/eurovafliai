@@ -15,6 +15,7 @@ import {
   readStatPlayers,
   readStoredGameCodes,
   recordStatBatch,
+  recomputeProjections,
 } from "./store";
 
 /**
@@ -55,7 +56,8 @@ import {
  * game_code)` makes a re-run plan exactly the remainder. A pass that dies
  * halfway leaves some games stored and an unapplied batch saying what it
  * meant to do — and the next pass, fifteen minutes later, finishes the job
- * without being told to.
+ * without being told to. Projections recompute after any pass that wrote a
+ * row; if that write dies, `npm run stats:project` is the repair.
  */
 
 export type IngestReport = {
@@ -214,6 +216,10 @@ export async function ingestFinishedGames({
   });
 
   const applied = await applyStatPlan(pb, plan, batch.id);
+
+  if (applied.created + applied.updated > 0) {
+    await recomputeProjections(pb, season);
+  }
 
   await markStatBatchApplied(
     pb,

@@ -420,6 +420,21 @@ try {
     "unique index on players(name_normalized, club_code) backs the fallback match",
   );
 
+  for (const name of [
+    "proj_last5_fantasy",
+    "proj_last5_games",
+    "proj_season_fantasy",
+    "proj_season_games",
+  ]) {
+    const field = byName.players.fields.find((f) => f.name === name);
+    check(
+      field?.type === "number" &&
+        field?.onlyInt === true &&
+        field?.required !== true,
+      `players.${name} is an optional integer (a required 0 would be refused)`,
+    );
+  }
+
   const player = (over) => ({
     name: "Verify, Player",
     name_normalized: `verify player ${stamp}`,
