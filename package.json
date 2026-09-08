@@ -28,7 +28,8 @@
     "pb:verify:oauth2": "tsx --env-file=.env scripts/pb-verify-oauth2-signup.mjs",
     "rosters:sync": "tsx --env-file=.env scripts/sync-rosters.mts",
     "seed:members": "tsx --env-file=.env scripts/seed-members.mts",
-    "stats:golden": "tsx scripts/fetch-golden-boxscores.mts"
+    "stats:golden": "tsx scripts/fetch-golden-boxscores.mts",
+    "stats:sync": "tsx --env-file=.env scripts/sync-stats.mts"
   },
   "dependencies": {
     "fuse.js": "^7.5.0",

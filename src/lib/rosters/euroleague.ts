@@ -20,10 +20,17 @@
  */
 import { z } from "zod";
 
+import {
+  FEED_BASE,
+  type FeedFetch,
+  getFeedJson,
+  sleep,
+} from "@/lib/euroleague/http";
+
 import { normalizeApiRow } from "./normalize";
 import type { NormalizedPlayer } from "./types";
 
-const BASE = "https://api-live.euroleague.net/v2/competitions/E/seasons";
+const BASE = FEED_BASE;
 
 /** Only the fields the pipeline reads; the feed sends far more. */
 const personSchema = z.object({
@@ -65,68 +72,22 @@ const rosterResponseSchema = z.union([
 const unwrap = <T>(body: { data: T[] } | T[]): T[] =>
   Array.isArray(body) ? body : body.data;
 
-export type SyncFetch = typeof fetch;
+/**
+ * Kept as an alias rather than replaced: `SyncFetch` is this module's public
+ * vocabulary and two callers (the sync script, its tests) name it.
+ */
+export type SyncFetch = FeedFetch;
 
 /**
- * One sync is 21 requests: the clubs list plus a roster per club. That is
- * enough to meet a rate limit the research file did not know about — it
- * recorded "~50 requests during this investigation, none refused", and a run of
- * repeated syncs while building this slice earned a **429 Too Many Requests**
- * somewhere past that.
+ * Politeness gap between club requests: 20 × 150ms = 3s, well spent.
  *
- * So: a gap between club requests, and a bounded retry with backoff that
- * honours `Retry-After` when the server sends one. 5xx is retried too, because
- * a gateway blip should not cost the other nineteen clubs.
- *
- * Giving up fails in the safe direction. The throw happens before any batch is
- * stored, so there is no audit record claiming an import that never ran, and
- * nothing in `players` is touched.
+ * One sync is 21 requests — the clubs list plus a roster per club — which is
+ * enough to meet the rate limit this feed turned out to have. The retry policy
+ * that goes with it moved to `@/lib/euroleague/http` in 4.3, when the stats
+ * fetcher became its second caller; the argument for it, and the 429 that
+ * earned it, are written down there.
  */
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
-const MAX_ATTEMPTS = 4;
-/** Politeness gap between club requests: 20 × 150ms = 3s, well spent. */
 const REQUEST_GAP_MS = 150;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function getJson(
-  url: string,
-  doFetch: SyncFetch,
-  onWait?: (message: string) => void,
-): Promise<unknown> {
-  let lastStatus = 0;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const response = await doFetch(url, {
-      headers: { accept: "application/json" },
-    });
-    if (response.ok) return response.json();
-
-    lastStatus = response.status;
-    if (!RETRY_STATUSES.has(response.status) || attempt === MAX_ATTEMPTS) {
-      throw new Error(
-        `${url} answered ${response.status} ${response.statusText}` +
-          (response.status === 429
-            ? " — the feed is rate-limiting us. Wait a few minutes and re-run; the sync is idempotent."
-            : ""),
-      );
-    }
-
-    const retryAfter = Number(response.headers.get("retry-after"));
-    const waitMs =
-      Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : 1000 * 2 ** (attempt - 1);
-    onWait?.(
-      `${response.status} from ${url} — waiting ${Math.round(waitMs / 1000)}s (retry ${attempt} of ${MAX_ATTEMPTS - 1})`,
-    );
-    await sleep(waitMs);
-  }
-
-  throw new Error(
-    `${url} kept answering ${lastStatus} after ${MAX_ATTEMPTS} attempts.`,
-  );
-}
 
 /**
  * Every player on every club for a season, normalized.
@@ -159,7 +120,7 @@ export async function fetchSeasonRosters({
 }> {
   const clubs = unwrap(
     clubsResponseSchema.parse(
-      await getJson(`${BASE}/${season}/clubs`, doFetch, onProgress),
+      await getFeedJson(`${BASE}/${season}/clubs`, doFetch, onProgress),
     ),
   );
 
@@ -171,7 +132,7 @@ export async function fetchSeasonRosters({
     if (index > 0) await sleep(REQUEST_GAP_MS);
     const roster = unwrap(
       rosterResponseSchema.parse(
-        await getJson(
+        await getFeedJson(
           `${BASE}/${season}/clubs/${club.code}/people`,
           doFetch,
           onProgress,

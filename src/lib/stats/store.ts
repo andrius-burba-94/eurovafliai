@@ -96,6 +96,34 @@ export async function readExistingStats(
   return records;
 }
 
+/**
+ * Which games already have anything stored for this season.
+ *
+ * The question 4.3's pass is built on — "what is played and not stored" — and
+ * it is asked as one read of one field rather than per game, because by round
+ * 38 this table holds ~9,000 rows and the pass runs every quarter of an hour.
+ *
+ * "Anything stored" is the right granularity even though it is coarse: a game
+ * that landed with two of its 24 lines refused would be treated as done. That
+ * is deliberate, because the refusals are recorded in the batch and re-fetching
+ * a game whose rows are already correct would rewrite 22 rows to fix nothing.
+ * The remedy for a partly-imported game is the paste box, which names what it
+ * would change.
+ */
+export async function readStoredGameCodes(
+  pb: PocketBase,
+  season: string,
+): Promise<Set<number>> {
+  const records = await pb
+    .collection("player_game_stats")
+    .getFullList<{ game_code: number }>({
+      filter: `season = "${season.replace(/[^A-Za-z0-9]/g, "")}"`,
+      fields: "game_code",
+      requestKey: null,
+    });
+  return new Set(records.map((record) => record.game_code));
+}
+
 export type ApplyResult = {
   readonly created: number;
   readonly updated: number;
