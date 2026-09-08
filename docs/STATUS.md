@@ -77,9 +77,21 @@ defines the target and this file is wrong.
 > **Phase 1 — walking skeleton** — auth, league creation, join-by-code, the
 > design foundation, the live lobby and the deploy all landed long ago.
 
-**Next up: slice 3.6, the rest of the commissioner console** — the rollback UI
-beyond a pick-number field, autodraft for another member, the timer mid-draft,
-offline pick entry. Then 3.7's draft-day polish closes Phase 3.
+**Next up: Phase 4 — player stats, projections and standings.** Phase 3 is
+closed apart from two things no code can finish: the `/impeccable` passes on
+3.7's surfaces, and the **human rehearsal** its DoD asks for — a draft night
+with 3+ friends on mixed devices, inherited from Phase 2 (blueprint D12). That
+is the only claim in this file no test can make. 3.3 also stays `partial` until
+Phase 4 exists, because its one deferred filter needs projections to filter on.
+
+**3.7 has landed, and with it the oldest unmet promise in this file.** A tap on
+a pool row now *arms* it and the tap that drafts is in the sticky band — which
+is not a layout preference: with the confirm on the row's own button a fast
+double-tap armed and picked inside 200ms, so it would have guarded against a
+stray tap and missed the exact fat-finger gesture blueprint 3.7 names. And
+being on the clock is finally perceivable without looking: a live region that
+speaks for your turn and nothing else, plus a tone and a buzz behind a
+per-device toggle, off until asked for.
 
 **3.5 has landed, and the oldest open debt in this file with it.** A rollback is
 no longer silent: it announces itself in words, names how many picks it
@@ -177,6 +189,30 @@ Two Phase 1 items are still open and both are listed under Open debt: the last
 step of the two-device confirmation, and nightly `pb_data` backups.
 
 ---
+
+## Try it on localhost — slice 3.7
+
+```bash
+npm run dev            # Next :3007 + PocketBase :8095
+npm run rosters:sync   # once, if the pool is empty
+```
+
+Sign in, roll the order, start the draft and enter the room. Then:
+
+- **Tap a player's `Choose`.** Nothing is drafted. The row is struck in marker
+  and the sticky band at the top now offers `Draft <Name>` and `Cancel`.
+- **Double-tap `Choose` as fast as you can.** Still nothing drafted — that is
+  the gesture the whole design exists to stop, and the confirm is in the band so
+  it cannot be reached by it.
+- **Press Escape.** The player is put back and focus returns to the search box.
+- **Now `Draft <Name>`.** It lands on the board through the ordinary pipeline.
+- **Turn `Sound off` into `Sound on`**, then hand the clock to somebody else and
+  take it back (`npm run seed:members -- <invite-code> 1`, sign in as them in a
+  private window, and pick). Two short notes when it comes round to you. Reload:
+  the toggle remembers.
+- **With a screen reader**, or by inspecting `[data-testid="clock-said"]`: it
+  says "Your turn. Pick N, round N." when it is yours, and is **empty** when it
+  is not.
 
 ## Try it on localhost — slice 3.5
 
@@ -355,7 +391,7 @@ now landed on top of them.
 | **3.6a Start over** | done | `0540606` | Out of 3.6's slice, brought forward by draft-night feedback: pause is reversible and undo walks the board back, but nothing threw a draft away, so a practice run could only be cleared by editing the database. "Start over" deletes the draft and its picks (`picks.draft` cascades, so the board goes in one operation rather than a delete loop that can stop half way) and returns the league to the lobby, keeping the draft order — somebody who started too early should not have to re-roll. Behind a typed word, because it is the only control in the room that destroys work. Deletes the draft **first** so the only crash state is a league claiming to draft with no draft to open, which `reconcileLeagueStatus` now repairs; the reverse order would leave a `setup` league with a live draft that `startDraft` would silently resume, ignoring a fresh roll. A room whose draft is gone now redirects to the lobby rather than 404ing, which is also what every other member's room does the instant the delete event arrives |
 | **3.6b Delete the league** | done | `281bbe1` | The way out. Commissioner only and **not delegable** — a deputy is trusted to help run the league, not to end it, the same line `setMemberPermission` draws. Confirmed by typing the league's **name** rather than a fixed word, because a commissioner with three leagues open should have to look at which one they are deleting; case and stray spaces are forgiven. Deletes the drafts first, then the league: deleting the league alone *does* work — PocketBase walks the cascade tree — but that leans on an order nothing here pins, while a **direct** delete of a member or player a pick points at is genuinely refused. Both halves measured against 0.39.11 and written into the `pocketbase-patterns` skill, because the difference between "refuses" and "happens to work" is exactly the kind of thing this repo should not have to rediscover. A lobby somebody else has open no longer sits there empty afterwards: every membership vanishing at once means the league is gone, so the list hands back to the server and the page says so — which also, for free, ejects a member who has just been kicked |
 | 3.6 Commissioner console — the rest | **cut** | — | Blueprint **D13**, and the argument is that each of the four already has a working path: the sweep autodrafts an absent member from their own sheet and "Pick for them" covers a manager who will not wait; the rollback field works and the board shows every pick number; the timer never needs changing mid-draft if it was set sensibly, and pause covers the rest; and "Pick for them" **is** the offline pick entry the blueprint text predates. What was left was commissioner comfort for eight friends in one room. 3.6a and 3.6b shipped and stay |
-| 3.7 Draft-day polish | todo | — | Pick confirmation, sound/vibration on "you're on the clock", `/impeccable` passes. **Also now the home of the human rehearsal**: Phase 2's was waived (blueprint D12) and 3.7's own DoD already asked for one — "a rehearsal draft night with 3+ friends, mixed devices, no commissioner intervention needed except by choice". That is the only claim in this file that no test can make |
+| **3.7 Draft-day polish** | done | — | **A tap arms; the tap that drafts is in the sticky band.** Until now a tap on a pool row submitted immediately — so on the device draft night happens on, one tap drafted a player irreversibly, undoable only by a rollback that deletes every pick after it too. The confirm is in the band rather than on the row for a specific reason: with it on the row's own button **a fast double-tap armed and picked inside 200ms**, so the guard would have caught a stray single tap and missed the exact gesture it was built for. That also gives the pointer a `Cancel` it never had, since Escape was keyboard-only, and it makes the pointer path identical to the keyboard's — one idiom, and `ConfirmPick` takes focus so two keystrokes still draft and one still cannot. Same shape 3.4b reached for the sheet, independently. **And the clock can be heard.** A polite live region says "Your turn. Pick 7, round 1." when your turn arrives and **nothing** when somebody else's does; a synthesized two-note tone and `navigator.vibrate` sit behind a per-device toggle beside "Draft for me", off by default. `clockCue` is pure, so the rule that matters is tested without a browser: the cue fires on the *transition into* your turn and never on a re-render — the room re-renders on all ~156 picks of a draft. **Toasts were cut** (blueprint D14). The `/impeccable` passes and the human rehearsal are what remain of the slice's text |
 
 ## Phases 4–8
 
@@ -383,7 +419,6 @@ touch should be fixed by that slice rather than deferred again.
 | **Two-device confirmation** | Most of the way there. Two Google accounts have now joined one production league, rolled an order and started a draft — and the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board, so the live surface is confirmed by more than a protocol check. What is not recorded is whether that was two devices (a phone and a PC) rather than two browsers on one machine, which is the literal wording of Phase 1's DoD. One deliberate run closes this | Declaring Phase 1 finished |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
-| **"You are on the clock" is not perceivable without looking** | PRODUCT.md commits to it being "announced to assistive tech via a live region, with sound and vibration cues". **None of the three exists.** The on-the-clock banner is a plain `div` whose text swaps on an SSE re-render, so a screen reader is told nothing and a phone face-down on a couch says nothing. Three slices have chipped at the edges — the board's marked slot says "on the clock" in an `sr-only` span, the pool announces its match count, the radar names the member on the clock — but the *banner*, which is the one that matters, still says nothing out loud. It is blueprint **3.7**'s, alongside the sound and vibration cues, and it is the oldest unmet product commitment in the file | Nothing; a written PRODUCT.md promise, unmet since 2.6 |
 | **Every alpha boundary is measured now — one is not** | Closed, and recorded here because the thread ran across four slices and the next person should not re-open it: 3.3 darkened the position letter (`pos-g`/`pos-f` to L 0.49) after `tokens.test.ts` learned to composite; 3.2's critique corrected that compositing to gamma-encoded sRGB, which is how a browser actually blends and is ~0.2 *stricter*; and #48/#49 fixed the last three sub-floor boundaries — the button border (2.10:1), the patch border (2.22–2.26:1) and an input's ruled line (1.87:1, the lowest in the app, and the one DESIGN.md itself calls the whole affordance). All now clear 3:1 and all are asserted. **What is left:** nothing measured. If a new colour or modifier is added, `tokens.test.ts` is where it has to be proved, and `wash()`/`contrastOn2()` are the helpers for it | Nothing |
 | **The design detector cannot see this app's real risks** | Four runs now have reported zero findings on the surfaces under review, and 3.4b's pass re-traced the regex engine's own module graph to put a firmer number on it: **18 of the registry's 59 rules can fire on a `.tsx` file, so 41 cannot.** This number has now been derived twice and the second method is the one to trust: 3.5's pass cross-referenced the rule ids the regex engine actually references against `ANTIPATTERNS` and **enumerated all 18** (`side-tab, border-accent-on-rounded, overused-font, flat-type-hierarchy, gradient-text, ai-color-palette, monotonous-spacing, bounce-easing, dark-glow, radial-halo, marquee, em-dash-overuse, marketing-buzzword, aphoristic-cadence, broken-image, gray-on-color, layout-transition, codex-grid-background`). Earlier passes guessed "37 of 59 never execute" and then "~15 can fire"; an enumeration beats both. On `.tsx` input only the regex engine runs — including `low-contrast`, `tiny-text`, `undersized-ui-text`, `all-caps-body`, `wide-tracking` and `text-overflow`, which are precisely this system's failure modes. The static-HTML engine needs `htmlparser2`/`css-select`/`css-tree`/`domutils` and the browser engine needs `puppeteer`; none is installed, and `.tsx` would not route to them anyway. `design-system-radius` also cannot read Tailwind `rounded-*` in source. A clean `design-detect` in CI means "no purple gradients and no bounce easing", which was never the risk here — every real finding in three critiques came from measurement or from reading. Worth knowing before anybody trusts that green tick | Nothing; but the CI check is far weaker evidence than it looks |
 | **A radar row cannot reach that member's column** | The last open finding from 3.2's critique, and the only one not fixed. The radar answers "who needs a center" and the board answers "what did they take" — and getting from a name on one to a column on the other means scrolling the board sideways by hand. An enhancement rather than a defect, and it wants a decision first: whether a radar row is a link at all, given the board is a horizontally scrolling region and this system has no idiom for "scroll that thing to here" | Nothing; two surfaces that answer adjacent questions do not connect |
@@ -427,6 +462,21 @@ One decision recorded here rather than as debt, because it is settled:
 
 Closed since the last update:
 
+- **"You are on the clock" is now perceivable without looking** — the oldest
+  unmet product commitment in this file, open since 2.6. PRODUCT.md promised it
+  "announced to assistive tech via a live region, with sound and vibration
+  cues" and **none of the three existed**; three slices had chipped at the edges
+  (the board's marked slot, the pool's match count, the radar naming the member
+  on the clock) while the banner itself said nothing out loud. All three exist
+  now. The limit on the live region is as much of the design as the region: it
+  speaks when *your* turn arrives and stays silent for the ~156 other picks a
+  draft causes, which is 3.3's lesson about the pool's region narrating a
+  rebuilt row on every keystroke. The noise is off by default and per device,
+  because whether a phone should make a sound depends on the phone and the room
+  rather than on the account — and `clockCue` deliberately lets the toggle
+  govern the noise but **never** the announcement, so a preference cannot switch
+  off an accessibility commitment.
+
 - **A rollback is no longer silent.** The oldest open item in this file: 2.4's
   blueprint text asked for a system chat message and there was no chat, so an
   undo was invisible to anybody not staring at the room when it happened — and
@@ -469,9 +519,9 @@ Last full local run, after 3.4b: **all green.**
 |---|---|
 | `npm run lint` | pass |
 | `npm run typecheck` | pass |
-| `npm run test` | **638 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 components, auth and config, **75 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip, **36 the edit arithmetic** — moving, nudging, removing, breaking and putting a removed player back, with the break behaviour under each and the one case an undo provably cannot restore), **34 the pool's filtering, fuzzy search and sheet ordering**, **43 the design tokens** including `slot-transit`, **12 the position list-join** including the zeros a "what you have" sentence must keep, **38 league chat** — every sentence the app can say, read as prose (including the panel's own five, which the critique caught being assembled in JSX by the very slice that owns `messages.ts`), plus the rate limit and the body cap at their boundaries |
+| `npm run test` | **652 passed** — 224 the engine (order, board layout, radar, clock, legality, autodraft, rollback, roll, and the purity checks that run per module), 58 the sweep, the pipeline and the clock's small print, 55 the ingestion pipeline, 55 leagues and the draft setup, 35 components, auth and config, **75 cheat sheets** (16 parsing a pasted list, 23 matching it to the pool, 7 the stored-and-written text round trip, **36 the edit arithmetic** — moving, nudging, removing, breaking and putting a removed player back, with the break behaviour under each and the one case an undo provably cannot restore), **34 the pool's filtering, fuzzy search and sheet ordering**, **43 the design tokens** including `slot-transit`, **14 the on-the-clock cue** — that it fires on the transition into your turn and never on a re-render, and that the toggle governs the noise but never the announcement, **12 the position list-join** including the zeros a "what you have" sentence must keep, **38 league chat** — every sentence the app can say, read as prose (including the panel's own five, which the critique caught being assembled in JSX by the very slice that owns `messages.ts`), plus the rate limit and the body cap at their boundaries |
 | `npm run build` | pass |
-| `npm run test:e2e` | **293 passed, 1 skipped** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch, 13 more for 3.4b **8 more for its critique** — one per finding that was a defect — and `chat.spec.ts` for 3.5, whose headline spec opens **two browser contexts** and proves a message typed in one appears in the other with no reload, which is the only place the claim can be tested — and **7 more for its critique**, one per finding that was a defect. The one skip is deliberate and is the interesting one: the **touch** drag runs on the `mobile` project only, because desktop Chrome has no touch support enabled and `Input.dispatchTouchEvent` is accepted and then silently dropped there, so on `chromium` the spec would pass or fail for reasons having nothing to do with a phone |
+| `npm run test:e2e` | **303 passed, 1 skipped** (chromium + Pixel 7), every spec run on both. Phase 3 contributed `draft-board.spec.ts`, `pool.spec.ts`, `radar.spec.ts` and `cheat-sheet.spec.ts` — the last of which gained a spec per critique finding, each named after the defect it would catch, 13 more for 3.4b **8 more for its critique** — one per finding that was a defect — and `chat.spec.ts` for 3.5, whose headline spec opens **two browser contexts** and proves a message typed in one appears in the other with no reload, which is the only place the claim can be tested — and **7 more for its critique**, one per finding that was a defect. The one skip is deliberate and is the interesting one: the **touch** drag runs on the `mobile` project only, because desktop Chrome has no touch support enabled and `Input.dispatchTouchEvent` is accepted and then silently dropped there, so on `chromium` the spec would pass or fail for reasons having nothing to do with a phone |
 | `npm run pb:verify` | **93 checks pass** — eight are `cheat_sheets`: its rules, its unique index, and the privacy claim driven with two members of one league. **Eleven are `chat_messages`**, and they are the mirror image — a sheet is private *within* a league, chat is shared within one and invisible outside it, so the questions are "can the other member read it" (they must) and "can an outsider" (they must not). The load-bearing one: **a member cannot write chat with their own token**, which is what makes the withdrawn client-direct exception actually closed rather than merely unused |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs. Re-running is idempotent against an unchanged feed, but the feed itself moves — this run added 2, changed 5 and marked 2 as left, which is the pipeline working rather than a problem. Do not treat the count as a constant |
