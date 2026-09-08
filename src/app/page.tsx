@@ -4,19 +4,16 @@ import { redirect } from "next/navigation";
 import {
   Bank,
   CardName,
-  Correction,
-  Field,
   Sheet,
   Slot,
   Slots,
   TopRail,
-  inputStyles,
 } from "@/components/board";
-import { SubmitButton } from "@/components/submit-button";
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
-import { createLeague, joinLeague } from "@/lib/leagues/actions";
 import { listMyLeagues } from "@/lib/leagues/queries";
+
+import { LeagueForms } from "./league-forms";
 
 /**
  * Your leagues: the signed-in home. Create one as commissioner, or join a
@@ -33,21 +30,11 @@ const FREE_SLOTS_SHOWN = 3;
 /** Extra free slots, desktop only: a wide viewport has the height for them. */
 const FREE_SLOTS_WIDE = 5;
 
-export default async function Home({ searchParams }: PageProps<"/">) {
+export default async function Home() {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
 
   const leagues = await listMyLeagues();
-  const { error, code } = await searchParams;
-  // The league actions send finished sentences rather than codes (see
-  // `fail()` in src/lib/leagues/actions.ts), so this renders the server's own
-  // words. It is capped because the value arrives in a URL: a crafted link
-  // should not be able to put a paragraph of someone else's text in an alert.
-  const message =
-    typeof error === "string" && error.trim()
-      ? error.trim().slice(0, 160)
-      : undefined;
-  const prefilledCode = typeof code === "string" ? code : "";
 
   return (
     <>
@@ -80,10 +67,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         }
       />
       <Sheet testId="app-shell">
-        {message ? (
-          <Correction testId="home-error">{message}</Correction>
-        ) : null}
-
         <Bank
           label="Your leagues"
           aside={
@@ -135,53 +118,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </Slots>
         </Bank>
 
-        <div className="grid gap-8 sm:grid-cols-2">
-          <Bank label="Start a league">
-            <form action={createLeague} className="flex flex-col gap-5">
-              <Field label="League name">
-                <input
-                  name="name"
-                  required
-                  minLength={2}
-                  maxLength={60}
-                  placeholder="Vafliai 2027"
-                  data-testid="create-league-name"
-                  className={inputStyles}
-                />
-              </Field>
-              {/* The primary: creating a league is the act this surface exists
-                  for, so it carries the marker and joining does not. */}
-              <SubmitButton
-                testId="create-league"
-                tone="live"
-                pendingLabel="Opening the board…"
-              >
-                Create as commissioner
-              </SubmitButton>
-            </form>
-          </Bank>
-
-          <Bank label="Join a league">
-            <form action={joinLeague} className="flex flex-col gap-5">
-              <Field label="Invite code">
-                <input
-                  name="code"
-                  required
-                  defaultValue={prefilledCode}
-                  placeholder="ABC234"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  data-testid="join-league-code"
-                  className={`${inputStyles} text-lg uppercase tracking-[0.32em]`}
-                />
-              </Field>
-              <SubmitButton testId="join-league" pendingLabel="Taking a slot…">
-                Join
-              </SubmitButton>
-            </form>
-          </Bank>
-        </div>
+        <LeagueForms />
       </Sheet>
     </>
   );
