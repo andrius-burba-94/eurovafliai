@@ -103,6 +103,65 @@ const EXPANDED_ROWS = 40;
 
 const POSITIONS: Position[] = ["G", "F", "C"];
 
+/**
+ * The one control that chooses a player, used by the pool row *and* the pinned
+ * shortlist.
+ *
+ * They were two buttons, and they diverged exactly as two copies of one thing
+ * do: the pinned one hardcoded `forTeamName: null`, so a manager arming from it
+ * on somebody else's turn read "Drafting P01…" with **no team named** — a
+ * mis-pick that spends another member's turn and is undoable only by a rollback
+ * that deletes every pick after it. It also drew no armed material at all, and
+ * kept saying `Choose` while the same player's pool row said `Chosen`. Found by
+ * 3.7's critique, which measured both labels on screen at once.
+ *
+ * One component, so the divergence is unavailable rather than merely fixed.
+ */
+function ChooseButton({
+  player,
+  isArmed,
+  forTeamName,
+  arm,
+  testId,
+  ariaSuffix = "",
+}: {
+  player: { id: string; name: string };
+  isArmed: boolean;
+  forTeamName: string | null;
+  arm: (pick: {
+    playerId: string;
+    playerName: string;
+    forTeamName: string | null;
+  }) => void;
+  testId: string;
+  ariaSuffix?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        arm({ playerId: player.id, playerName: player.name, forTeamName })
+      }
+      data-testid={testId}
+      // Follows the visible label. It was static `Choose …` while the button
+      // read `Chosen`, which is a WCAG 2.5.3 Label-in-Name mismatch and offers
+      // a screen reader the chance to "choose" a row already chosen.
+      aria-label={`${isArmed ? "Chosen" : "Choose"} ${player.name}${ariaSuffix}`}
+      // **Ink, not marker, even when chosen.** The armed row's own `slot-live`
+      // rule already carries the state, and the band carries the *act* — so a
+      // marker border here made two marker-red primary actions on one surface,
+      // which DESIGN.md forbids by name, and gave "this slot is on the clock"
+      // a second meaning 400px away. Preserving the old `SubmitButton` weight
+      // avoided one regression by creating a worse one.
+      className={`slot-label min-h-11 min-w-11 shrink-0 border px-3 text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+        isArmed ? "border-ink" : "border-ink/50 hover:border-ink/80"
+      }`}
+    >
+      {isArmed ? "Chosen" : "Choose"}
+    </button>
+  );
+}
+
 export function PickForm({
   leagueId,
   view,
@@ -410,21 +469,18 @@ export function PickForm({
                     <PositionPatch position={player.position} />
                   </span>
                   {canPick ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        arm({
-                          playerId: player.id,
-                          playerName: player.name,
-                          forTeamName: null,
-                        })
+                    <ChooseButton
+                      player={player}
+                      isArmed={armedId === player.id}
+                      // The same computation the pool row does. It was
+                      // hardcoded `null` here, which is the whole finding.
+                      forTeamName={
+                        view.isYourTurn ? null : (view.clockMemberName ?? null)
                       }
-                      data-testid={`pin-${player.id}`}
-                      aria-label={`Choose ${player.name}, number ${player.rank} on your sheet`}
-                      className="slot-label min-h-11 min-w-11 shrink-0 border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                    >
-                      Choose
-                    </button>
+                      arm={arm}
+                      testId={`pin-${player.id}`}
+                      ariaSuffix={`, number ${player.rank} on your sheet`}
+                    />
                   ) : null}
                 </Slot>
               ))}
@@ -669,7 +725,13 @@ export function PickForm({
                   <span
                     className="slot-label shrink-0 text-ink"
                     data-testid="pool-refused"
-                    role="alert"
+                    // **No `role="alert"`.** The band's `Correction` announces
+                    // the refusal, and this said the same sentence in the same
+                    // render — so a screen reader heard "The draft is paused"
+                    // twice, from two polite regions mounting together. 3.3's
+                    // fix was that the refusal must be visible *on the row that
+                    // was tapped*; that is a visual claim, and the row keeps
+                    // it. Saying it once is the whole of the other half.
                   >
                     {refused?.reason}
                   </span>
@@ -696,45 +758,20 @@ export function PickForm({
                    drafted a player irreversibly — undoable only by a
                    commissioner rollback, which deletes every pick after it too.
                    Blueprint 3.7 calls that "no fat-finger picks on mobile".
-                   
+
                    The confirming tap is in the sticky band, deliberately out of
                    reach of a double-tap: with it on this button, two taps
-                   inside 200ms armed and picked, and the guard would have
-                   caught a stray single tap while missing the exact gesture it
-                   was built for. The label says `Choose` rather than `Pick`
+                   inside 200ms armed and picked. The label says `Choose`
                    because `Pick` would now be a lie. */
-                <button
-                  type="button"
-                  onClick={() =>
-                    arm({
-                      playerId: player.id,
-                      playerName: player.name,
-                      // Named only when it is somebody *else's* turn being
-                      // spent — a manager entering a pick for a dead phone.
-                      // "Drafting X for you" would be noise.
-                      forTeamName: view.isYourTurn
-                        ? null
-                        : (view.clockMemberName ?? null),
-                    })
+                <ChooseButton
+                  player={player}
+                  isArmed={isArmed}
+                  forTeamName={
+                    view.isYourTurn ? null : (view.clockMemberName ?? null)
                   }
-                  data-testid={`pick-${player.id}`}
-                  aria-label={`Choose ${player.name}`}
-                  // Armed: a **full-strength marker border at 2px with an ink
-                  // label**, which is what 3.3's critique settled. Marker text
-                  // on the live tint is 4.15:1 and DESIGN.md forbids the
-                  // pairing by name — and 3.3 had shipped it on the one control
-                  // it matters most for. The weight is preserved from the
-                  // `SubmitButton` this replaced, because a chosen row losing
-                  // its strike would be a regression nobody would notice until
-                  // a critique measured it.
-                  className={`slot-label min-h-11 min-w-11 shrink-0 px-3 text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
-                    isArmed
-                      ? "border-2 border-live"
-                      : "border border-ink/50 hover:border-ink/80"
-                  }`}
-                >
-                  {isArmed ? "Chosen" : "Choose"}
-                </button>
+                  arm={arm}
+                  testId={`pick-${player.id}`}
+                />
               ) : null}
             </Slot>
           );

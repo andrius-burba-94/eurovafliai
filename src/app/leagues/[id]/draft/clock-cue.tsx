@@ -162,7 +162,16 @@ export function ClockCue({
 
   // ── the noise, which really is a side effect ──────────────────────────────
   useEffect(() => {
-    if (!enabled || saidFor === null) return;
+    if (!enabled) {
+      // Switching cues *off* still counts as having heard about this turn, so
+      // switching them back on does not fire retroactively for a turn the
+      // member is already looking at. Measured: enabling the toggle while on
+      // the clock buzzed immediately, which reads as a malfunction rather than
+      // a cue — the phone announcing something that happened a minute ago.
+      playedFor.current = saidFor;
+      return;
+    }
+    if (saidFor === null) return;
     if (playedFor.current === saidFor) return;
     playedFor.current = saidFor;
     playTone(audio.current);

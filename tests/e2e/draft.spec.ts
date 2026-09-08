@@ -733,9 +733,30 @@ test("a tap arms a pick; it does not draft anybody", async ({
 
   // Chosen, not drafted. The board is untouched.
   await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
-  await expect(page.getByTestId("confirm-pick-who")).toContainText(
-    players[0]!.name,
+  // The **button** names the player, to a screen reader. Its visible label is
+  // just `Draft`: with the name on it, it was 89 characters of uppercase in one
+  // button — four wrapped lines at 390px, which also pushed `Cancel` onto a
+  // line of its own. 3.7's critique measured that.
+  await expect(page.getByTestId("confirm-pick-go")).toHaveAttribute(
+    "aria-label",
+    `Draft ${players[0]!.name}`,
   );
+  // And `confirm-pick-who` appears **iff** it carries something the button does
+  // not — a manager spending somebody else's turn. Asserted as the biconditional
+  // rather than as a guess about who the seeded roll put first: the order comes
+  // from a random seed, so "the commissioner picks first" is a coin flip, and
+  // that assumption is what made the first version of this spec pass by luck.
+  const yours = /you are on the clock/i.test(
+    (await page.getByTestId("on-the-clock").textContent()) ?? "",
+  );
+  const who = page.getByTestId("confirm-pick-who");
+  if (yours) {
+    // The button already names the player; a second line would be the
+    // duplication the critique measured at 41% of a phone.
+    await expect(who).toHaveCount(0);
+  } else {
+    await expect(who).toContainText(/drafting for /i);
+  }
   await expect(
     page.locator('[data-board-slot][data-state="filled"]'),
   ).toHaveCount(0);
@@ -822,32 +843,42 @@ test("coming on the clock says so, and somebody else's turn does not", async ({
   // assistive tech via a live region". This is that promise, and the *limit* on
   // it: the room re-renders on every pick in the league, and announcing each
   // would be the flood 3.3's critique measured in the pool.
-  const { commissioner, other, league, players } =
-    await readyLeague("Spoken Clock League");
+  //
+  // It asserts the **pairing** rather than who picks first. The order is rolled
+  // from a random seed, so assuming the commissioner is first is a coin flip —
+  // which is how the first version of this spec came to pass by luck and fail
+  // once the band's copy changed underneath it. The invariant is stronger
+  // anyway: of two rooms watching one draft, exactly the one whose banner says
+  // "You are on the clock" has anything to say out loud.
+  const { commissioner, other, league } = await readyLeague("Spoken Clock League");
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
 
-  // The commissioner picks first, so their own turn is announced immediately.
-  await expect(page.getByTestId("clock-said")).toContainText(/your turn/i);
-  await expect(page.getByTestId("clock-said")).toContainText(/pick 1, round 1/i);
-
-  // The other member's room says nothing about a turn that is not theirs.
   const watcher = await browser.newContext();
   await signIn(watcher, other);
   const watching = await watcher.newPage();
   await watching.goto(`/leagues/${league.id}/draft`);
   await expect(watching.getByTestId("draft-room")).toBeVisible();
-  await expect(watching.getByTestId("clock-said")).toHaveText("");
 
-  // Now hand them the clock. Their room speaks; ours falls quiet.
-  await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await draftPlayer(page, players[0]!.id);
-
-  await expect(watching.getByTestId("clock-said")).toContainText(/your turn/i);
-  await expect(watching.getByTestId("clock-said")).toContainText(
-    /pick 2, round 1/i,
+  const rooms = [page, watching];
+  const banners = await Promise.all(
+    rooms.map((room) => room.getByTestId("on-the-clock").textContent()),
   );
-  await expect(page.getByTestId("clock-said")).toHaveText("");
+  const mine = banners.findIndex((text) => /you are on the clock/i.test(text ?? ""));
+  expect(mine, "neither room claims the clock").toBeGreaterThanOrEqual(0);
+  const theirs = mine === 0 ? 1 : 0;
+
+  // The room whose turn it is says so, and names the pick and the round —
+  // because "you are on the clock" alone makes somebody who is not looking
+  // reach for the board to find out where the draft has got to.
+  await expect(rooms[mine]!.getByTestId("clock-said")).toContainText(
+    /your turn/i,
+  );
+  await expect(rooms[mine]!.getByTestId("clock-said")).toContainText(
+    /pick 1, round 1/i,
+  );
+  // And the other says nothing at all. This is the flood assertion.
+  await expect(rooms[theirs]!.getByTestId("clock-said")).toHaveText("");
 
   await watcher.close();
 });
@@ -885,4 +916,187 @@ test("the sound cue is off until asked for, and remembered", async ({
   const box = await page.getByTestId("cue-toggle").boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(box!.width).toBeGreaterThanOrEqual(44);
+});
+
+/* ── what 3.7's design critique found ────────────────────────────────────────
+ *
+ * The pass scored the surface 24/40 — the best in this project's corpus — and
+ * two of its findings were P0. Each spec below is named after the defect it
+ * catches, and each failed before the fix it guards.
+ */
+
+test("a refused pick keeps focus, and says so only once", async ({
+  page,
+  context,
+}) => {
+  // **Two P0s in one path.** Focus landed on `<body>` after a refusal — the
+  // *sixth* occurrence of that defect in this project, on the one path where
+  // somebody has just been told no, with a clock running. The focus effect was
+  // keyed on `armed` alone and a refusal deliberately does not disarm, so it
+  // never re-ran.
+  //
+  // And the refusal was announced *twice*: the band's `Correction` and the
+  // row's strike were both polite live regions mounting in the same render, so
+  // a screen reader heard "The draft is paused" from each.
+  const { commissioner, league, players } = await readyLeague("Refused Focus League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+
+  // Arm, then pause behind the room's back so the confirm is refused.
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+  const pb = await superuser();
+  const draft = (
+    await pb.collection("drafts").getFullList({
+      filter: `league = '${league.id}'`,
+    })
+  )[0]!;
+  await pb.collection("drafts").update(draft.id, { status: "paused" });
+
+  await page.getByTestId("confirm-pick-go").click();
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(/paused/i);
+
+  // Focus is still somewhere deliberate, not on the document.
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.tagName ?? ""))
+    .not.toBe("BODY");
+
+  // Said once. The row still *shows* the refusal — 3.3's fix, which is a visual
+  // claim — but only the band announces it.
+  const live = await page.evaluate(() =>
+    [...document.querySelectorAll("[aria-live], [role=alert], [role=status]")]
+      .map((node) => node.textContent ?? "")
+      .filter((text) => /paused/i.test(text)).length,
+  );
+  expect(live).toBe(1);
+  await expect(page.getByTestId("pool-refused")).toBeVisible();
+});
+
+test("a paused draft offers no button the server would refuse", async ({
+  page,
+  context,
+}) => {
+  // The band was 380px of a 390px phone while paused — the same sentence three
+  // times and a marker-red `Draft` at the centre of it — while every `Choose`
+  // in the pool below had correctly withdrawn. `page.tsx` states the principle
+  // in its own comment: offering a button the server is about to refuse is
+  // worse than not offering one.
+  const { commissioner, league, players } = await readyLeague("Paused Band League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+
+  await page.getByTestId("draft-pause").click();
+  await expect(page.getByTestId("on-the-clock")).toContainText(/paused/i);
+
+  // The act is gone; the pool agrees.
+  await expect(page.getByTestId("confirm-pick-go")).toHaveCount(0);
+  await expect(page.getByTestId(`pick-${players[0]!.id}`)).toHaveCount(0);
+});
+
+test("choosing from the pinned shortlist names whose turn it spends", async ({
+  page,
+  context,
+}) => {
+  // The two `Choose` buttons had diverged exactly as two copies of one thing
+  // do: the pinned one hardcoded `forTeamName: null`, so a manager arming from
+  // it on somebody else's turn read "Drafting P01…" with **no team named** — a
+  // mis-pick that spends another member's turn, undoable only by a rollback
+  // that deletes every pick after it. It also drew no armed material and kept
+  // saying `Choose` while the same player's pool row said `Chosen`.
+  //
+  // One `ChooseButton` now serves both, so the divergence is unavailable.
+  const chief = await createTestUser("chief");
+  const league = await createLeagueFor(chief, "Pinned Names League");
+  const mate = await createTestUser("mate");
+  await addMemberTo(league.id, mate, "Mate FC");
+  const wanted = await createPlayer("Pinnedone", { position: "G" });
+  await createPlayer("Otherguy", { position: "F" });
+
+  const pb = await superuser();
+  const mine = (
+    await pb.collection("league_members").getFullList<{ id: string }>({
+      filter: `league = '${league.id}' && user = '${chief.id}'`,
+    })
+  )[0]!;
+  await pb
+    .collection("cheat_sheets")
+    .create({ member: mine.id, ranking: [wanted.id], tiers: [], source: "csv" });
+
+  await signIn(context, chief);
+  await enterDraft(page, league.id);
+
+  // Narrow the pool away from the sheet's player so the pinned block is drawn.
+  await page.getByTestId("pool-search").fill("Otherguy");
+  await expect(page.getByTestId(`pin-${wanted.id}`)).toBeVisible();
+  await page.getByTestId(`pin-${wanted.id}`).click();
+
+  // Armed, with the same material and the same label a pool row would give.
+  await expect(page.getByTestId(`pin-${wanted.id}`)).toHaveText(/chosen/i);
+  await expect(page.getByTestId(`pin-${wanted.id}`)).toHaveAttribute(
+    "aria-label",
+    /^Chosen /,
+  );
+  await expect(page.getByTestId("confirm-pick-go")).toHaveAttribute(
+    "aria-label",
+    `Draft ${wanted.name}`,
+  );
+
+  // And when it is not your turn, the band names whose turn is being spent.
+  const banner = await page.getByTestId("on-the-clock").textContent();
+  if (!/you are on the clock/i.test(banner ?? "")) {
+    await expect(page.getByTestId("confirm-pick-who")).toContainText("Mate FC");
+  }
+});
+
+test("the band stays a band: one act, and the name said once", async ({
+  page,
+  context,
+}) => {
+  // Measured before the fix at 390x844: the band went 118px -> 250px armed ->
+  // 346px with a long name (41% of the phone) -> 380px showing a refusal (45%),
+  // because the player's name was printed twice in 11px wide-tracked caps —
+  // 92 characters in `confirm-pick-who` and 89 inside the button, both flagged
+  // `all-caps-body` by the in-page detector.
+  const chief = await createTestUser("chief");
+  const league = await createLeagueFor(chief, "Band Size League");
+  await addMemberTo(league.id, await createTestUser("mate"), "Mate FC");
+  const long = await createPlayer("Konstantinoslongnameindeed", {
+    position: "G",
+  });
+  await createPlayer("Shortone", { position: "F" });
+
+  await signIn(context, chief);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enterDraft(page, league.id);
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+  await page.getByTestId(`pick-${long.id}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+
+  const band = await page.evaluate(() => {
+    const node = document.querySelector('[data-testid="on-the-clock"]')!;
+    const go = document.querySelector('[data-testid="confirm-pick-go"]')!;
+    return {
+      share: node.getBoundingClientRect().height / window.innerHeight,
+      // The one act, named once. `Draft` alone rather than `Draft <83 chars>`.
+      label: (go.textContent ?? "").trim(),
+      // Marker edges anywhere inside the band: exactly one control may have
+      // them, which is DESIGN.md's one-marker-act-per-surface rule.
+      markerControls: [...node.querySelectorAll("*")].filter((el) => {
+        const style = getComputedStyle(el);
+        return (
+          style.borderTopWidth === "2px" &&
+          style.borderTopColor === getComputedStyle(go).borderTopColor
+        );
+      }).length,
+    };
+  });
+  expect(band.label).toBe("Draft");
+  // A third of a phone, not nearly half.
+  expect(band.share).toBeLessThan(0.34);
+  expect(band.markerControls).toBe(1);
 });

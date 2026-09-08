@@ -164,7 +164,10 @@ export default async function DraftPage({
               arrives together with a re-render that flips this band to
               `paused` — and inside the branch, that unmounted the very
               correction the refusal had just produced. */}
-          <ConfirmPick leagueId={id} />
+          <ConfirmPick
+            leagueId={id}
+            live={!isPaused && !!onClock}
+          />
         </div>
 
         {/* Renders nothing while the subscription is healthy. It is mounted

@@ -25,10 +25,30 @@ import { useArmedPick } from "./armed-pick";
 
 const START: DraftResult = { error: null };
 
-export function ConfirmPick({ leagueId }: { leagueId: string }) {
+export function ConfirmPick({
+  leagueId,
+  live,
+}: {
+  leagueId: string;
+  /**
+   * Is the draft actually running?
+   *
+   * The correction stays on screen whatever the draft is doing — that is the
+   * whole reason this component sits outside the band's paused/on-clock branch,
+   * and the two stale-tab specs found it. But the **button** must not: paused,
+   * the band was 380px of a 390px phone carrying the same sentence three times
+   * and a marker-red `Draft <Name>` at the centre of it, while every `Choose`
+   * in the pool below had correctly withdrawn. `page.tsx` states the principle
+   * in its own comment — "offering a button the server is about to refuse would
+   * be worse than not offering one" — and the loudest control in the app was
+   * the one breaking it.
+   */
+  live: boolean;
+}) {
   const { armed, disarm, refuse, refused } = useArmedPick();
   const [result, action] = useActionState(makePick, START);
   const formRef = useRef<HTMLFormElement>(null);
+  const noteRef = useRef<HTMLDivElement>(null);
 
   // A landed pick disarms; a refusal keeps the row armed so the tap can simply
   // be repeated, which is the shape 3.5's chat send uses. The refused id goes
@@ -64,8 +84,29 @@ export function ConfirmPick({ leagueId }: { leagueId: string }) {
     // design system's only client component and does not forward a ref, and
     // widening its API for one caller is the trade 3.4b declined to make with
     // `Slot`.
-    if (armed) formRef.current?.querySelector("button")?.focus();
-  }, [armed]);
+    // The button when there is one, the explanation when there is not.
+    //
+    // Both halves are needed and they were found in the wrong order. First the
+    // effect was keyed on `armed` alone, so a refusal — which deliberately does
+    // *not* disarm — never re-ran it and focus fell to `<body>`: the sixth
+    // occurrence of that defect in this project, on the one path where somebody
+    // has just been told no. Then adding `refused` was still not enough,
+    // because a refusal caused by a **pause** correctly unmounts the button
+    // (see `live`), leaving nothing to focus. So focus goes to the correction
+    // itself, which is the thing that just appeared and the thing that explains
+    // what happened — the same answer 3.4b reached for its tombstone.
+    const go = formRef.current?.querySelector("button");
+    if (go && !go.disabled) go.focus();
+    else if (refused) noteRef.current?.focus();
+  }, [armed, refused]);
+  // `refused` is in the deps, and that omission was this slice's one outright
+  // defect. Keyed on `armed` alone the effect never re-ran for a refusal — a
+  // refusal deliberately does *not* disarm, so the row stays in hand — and
+  // `SubmitButton` is disabled while pending, so the browser blurred it and
+  // focus fell to `<body>` with a clock running. **Sixth occurrence of this
+  // exact defect in this project** (3.3, 3.4a, 3.4b twice, 3.5), on the one
+  // path where somebody has just been told no. `armed-pick.tsx` claims to have
+  // closed it at the source; it had closed three paths out of four.
 
   /**
    * The refusal outlives the armed row, and that is not a detail.
@@ -84,15 +125,30 @@ export function ConfirmPick({ leagueId }: { leagueId: string }) {
   return (
     <div className="mt-3 flex flex-col gap-2" data-testid="confirm-pick">
       {refused ? (
-        <Correction testId="confirm-pick-error">{refused.reason}</Correction>
+        // `tabIndex={-1}` so focus has somewhere deliberate to land when the
+        // button it would otherwise return to is gone. Not reachable by Tab.
+        <div ref={noteRef} tabIndex={-1}>
+          <Correction testId="confirm-pick-error">{refused.reason}</Correction>
+        </div>
       ) : null}
-      {!armed ? null : (
+      {!armed || !live ? null : (
       <>
-      <p className="slot-label" data-testid="confirm-pick-who">
-        {armed.forTeamName
-          ? `Drafting ${armed.playerName} for ${armed.forTeamName}`
-          : `Drafting ${armed.playerName}`}
-      </p>
+      {/* Only when it carries something the button does not.
+          
+          It used to print the player's name on every pick — so the band said it
+          twice, once here and once on the button, in 92 and 89 characters of
+          11px uppercase at 0.14em tracking. That is what took the band to 346px
+          (41% of a phone) on a long name, and the in-page detector flagged both
+          as `all-caps-body`. Kept for the case that earns it: a manager
+          spending somebody else's turn, where "for Kaunas Kings" is the fact
+          that prevents a mis-pick. Sentence case and `text-ink` rather than
+          `slot-label` on `ink-soft`, which the detector also flagged as
+          `gray-on-color`. */}
+      {armed.forTeamName ? (
+        <p className="max-w-prose text-sm" data-testid="confirm-pick-who">
+          Drafting for {armed.forTeamName}.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <form ref={formRef} action={action}>
           <input type="hidden" name="leagueId" value={leagueId} />
@@ -101,12 +157,20 @@ export function ConfirmPick({ leagueId }: { leagueId: string }) {
               is `slot-live`, so the label is ink on the blush rather than
               marker on marker, which DESIGN.md forbids by name and 3.3 shipped
               anyway on the one control it matters most for. */}
+          {/* `Draft` alone. With the name on it this was **89 characters of
+              uppercase inside one button** — four wrapped lines and 92px tall
+              at 390px, which also pushed `Cancel` onto a line of its own even
+              at ordinary name lengths. The row that is `Chosen` names the
+              player, the announcement names the player, and `ariaLabel` names
+              the player; the button is the *act*. */}
           <SubmitButton
             testId="confirm-pick-go"
             tone="liveOnField"
+            compact
+            ariaLabel={`Draft ${armed.playerName}`}
             pendingLabel="Drafting…"
           >
-            Draft {armed.playerName}
+            Draft
           </SubmitButton>
         </form>
         <button
