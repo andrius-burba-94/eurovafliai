@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   addMemberTo,
@@ -147,12 +147,23 @@ test("someone else's lobby is not reachable by URL", async ({
   const outsider = await createTestUser("outsider");
   await signIn(context, outsider);
 
-  // The read rule refuses it, and the page answers 404 rather than "forbidden":
-  // confirming a league exists would let anyone probe for it.
-  const response = await page.goto(`/leagues/${id}`);
-  expect(response?.status()).toBe(404);
-  await expect(page.getByTestId("lobby")).toHaveCount(0);
+  // The read rule refuses it, and the page answers "not found" rather than
+  // "forbidden": confirming a league exists would let anyone probe for it.
+  await page.goto(`/leagues/${id}`);
+  await expectNotFound(page);
 });
+
+/**
+ * The lobby route streams behind a `loading.tsx`, so by the time `notFound()`
+ * is reached the 200 and the shell have already gone out; the not-found page
+ * arrives in the stream. The status is no longer the fact to assert — the
+ * rendered outcome is, and it is the same for a league that does not exist
+ * and one that is not yours, which is the property the two callers care about.
+ */
+async function expectNotFound(page: Page) {
+  await expect(page.getByText("This page could not be found")).toBeVisible();
+  await expect(page.getByTestId("lobby")).toHaveCount(0);
+}
 
 test("a league whose membership write was lost repairs itself", async ({
   page,
@@ -269,8 +280,8 @@ test("the commissioner deletes the league, board and all", async ({
   // order: a pick still pointed at a membership, and PocketBase refuses to
   // delete a member while one does.
   await expect(page).toHaveURL("/");
-  const gone = await page.goto(`/leagues/${league.id}`);
-  expect(gone?.status()).toBe(404);
+  await page.goto(`/leagues/${league.id}`);
+  await expectNotFound(page);
 });
 
 test("a deputy is trusted to help run the league, not to end it", async ({

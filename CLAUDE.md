@@ -28,7 +28,8 @@ horizontal scale. Phases ship in order; nothing here is planned against a date.
   **Tailwind v4**. Node **24** (`.nvmrc`, `engines`).
 - **PocketBase 0.39.x** native binary, pinned in `pb/VERSION`, bound to
   `127.0.0.1:8095`. Schema is code: migrations in `pb/pb_migrations/`, committed.
-- **Vitest** (unit) + **Playwright** (E2E, `tests/e2e/`, local-first).
+- **Vitest** (unit) + **Playwright** (E2E, `tests/e2e/`; runs locally against
+  the dev server and in CI against a fresh build).
 - Realtime is **PocketBase SSE**; the browser subscribes through the Nginx
   `/pb/` proxy with the user's auth token.
 

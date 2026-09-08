@@ -111,6 +111,66 @@ jobs:
           npm run --silent pb:dump-schema > /tmp/schema-after.json
           diff -u /tmp/schema-before.json /tmp/schema-after.json
 
+  e2e:
+    # The browser suite, against the same throwaway PocketBase the job above
+    # boots. It was local-first for as long as nobody had proved it could run
+    # unattended; now a slice that breaks the lobby, the room or chat fails
+    # the PR rather than the next person's rehearsal. `next start` over a
+    # fresh build, not `next dev` — see playwright.config.ts.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      PB_INTERNAL_URL: http://127.0.0.1:8095
+      NEXT_PUBLIC_PB_URL: http://127.0.0.1:8095
+      NEXT_PUBLIC_APP_URL: http://localhost:3007
+      SESSION_COOKIE_NAME: eurovafliai_session
+      PB_SUPERUSER_EMAIL: ci@eurovafliai.test
+      PB_SUPERUSER_PASSWORD: ci-superuser-pass-1234
+      GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
+      STATS_FETCH: "off"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Download the pinned PocketBase
+        run: ./scripts/pb-download.sh
+
+      - name: Write .env
+        run: env | grep -E '^(PB_|NEXT_PUBLIC_|SESSION_|GOOGLE_|STATS_)' > .env
+
+      - name: Create the superuser
+        run: >-
+          ./pb/pocketbase superuser upsert
+          "$PB_SUPERUSER_EMAIL" "$PB_SUPERUSER_PASSWORD" --dir=pb/pb_data
+
+      - name: Boot PocketBase
+        run: |
+          ./pb/pocketbase serve --http=127.0.0.1:8095 \
+            --dir=pb/pb_data --migrationsDir=pb/pb_migrations &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8095/api/health >/dev/null && exit 0
+            sleep 1
+          done
+          echo "PocketBase did not become healthy" >&2
+          exit 1
+
+      - run: npm run build
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   design-detect:
     # Non-blocking by design: impeccable's detector reports UI smells, it does
     # not gate merges. Read the output, act on it in an /impeccable pass.
