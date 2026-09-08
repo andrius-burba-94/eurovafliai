@@ -15,7 +15,10 @@ import { getSession } from "@/lib/auth/session";
 import { getDraftView } from "@/lib/drafts/queries";
 import { buildBoardShape } from "@/lib/engine";
 
+import { ArmedPickProvider } from "./armed-pick";
 import { AutodraftToggle } from "./autodraft-toggle";
+import { ClockCue } from "./clock-cue";
+import { ConfirmPick } from "./confirm-pick";
 import { DraftControls } from "./draft-controls";
 import { LiveDraft } from "./live-draft";
 import { PickClock } from "./pick-clock";
@@ -85,6 +88,13 @@ export default async function DraftPage({
     <>
       <TopRail action={<BackLink href={`/leagues/${id}`}>Lobby</BackLink>} />
       <Sheet testId="draft-room">
+        {/* One piece of shared state: the row you have armed. The band's
+            confirm and the pool's rows are in different components — and, for
+            the band, a different render environment — so a small client
+            provider wraps the region containing both. It holds an id and
+            nothing else; whose turn it is and whether a pick may land are
+            still the engine's, on the server. */}
+        <ArmedPickProvider>
         {/* On the clock owns the top of the phone viewport, sharing it with
             nothing — the raise the direction contract took from the vertical
             feed. And it **stays** there: `sticky top-0`.
@@ -143,6 +153,18 @@ export default async function DraftPage({
               </p>
             </>
           )}
+          {/* Where a pick actually lands since 3.7. A tap on a pool row arms
+              it; this is the tap that drafts, deliberately out of reach of a
+              double-tap on the row's own button. Renders nothing at all until
+              something is armed, so the band keeps its shape for the eleven
+              people who are not picking.
+              
+              **Outside the paused/on-the-clock/complete branch on purpose.**
+              Every refusal revalidates the room, so a stale tab's refused pick
+              arrives together with a re-render that flips this band to
+              `paused` — and inside the branch, that unmounted the very
+              correction the refusal had just produced. */}
+          <ConfirmPick leagueId={id} />
         </div>
 
         {/* Renders nothing while the subscription is healthy. It is mounted
@@ -183,11 +205,23 @@ export default async function DraftPage({
             case is a member handing their own picks over, not a manager
             intervening. */}
         {view.you && draft.status !== "complete" ? (
-          <AutodraftToggle
-            leagueId={id}
-            enabled={view.you.autodraftEnabled}
-            pickSeconds={draft.pick_seconds}
-          />
+          <>
+            <AutodraftToggle
+              leagueId={id}
+              enabled={view.you.autodraftEnabled}
+              pickSeconds={draft.pick_seconds}
+            />
+            {/* Beside "Draft for me": the two controls that are about *you* on
+                draft night, in one place. This one also carries the live
+                region that finally closes PRODUCT.md's promise — being on the
+                clock "announced to assistive tech", open since 2.6. */}
+            <ClockCue
+              leagueId={id}
+              isYourTurn={isYourTurn}
+              overallNo={onClock?.overallNo ?? null}
+              round={onClock?.round ?? null}
+            />
+          </>
         ) : null}
 
         <DraftControls
@@ -287,6 +321,7 @@ export default async function DraftPage({
           initial={view.chat}
           myMemberId={view.you?.memberId ?? null}
         />
+        </ArmedPickProvider>
       </Sheet>
     </>
   );
