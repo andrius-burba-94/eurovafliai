@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useActionState, useCallback, useState } from "react";
 import type PocketBase from "pocketbase";
 
@@ -174,6 +175,7 @@ export function LiveLobby({
             <MemberSlot
               key={member.id}
               leagueId={leagueId}
+              leagueStatus={leagueStatus}
               member={member}
               landed={justArrived && member.isYou}
               canManage={(isCommissioner || viewerCanManage) && inSetup}
@@ -284,6 +286,7 @@ function YourTeam({ leagueId, you }: { leagueId: string; you: Member }) {
  */
 function MemberSlot({
   leagueId,
+  leagueStatus,
   member,
   landed,
   canManage,
@@ -291,6 +294,7 @@ function MemberSlot({
   positionRevealed,
 }: {
   leagueId: string;
+  leagueStatus: string;
   member: Member;
   landed: boolean;
   canManage: boolean;
@@ -306,6 +310,12 @@ function MemberSlot({
     member.isYou ? "you" : null,
     member.isReady ? "ready" : null,
   ].filter(Boolean);
+
+  const name = member.teamName || member.name;
+  const rosterHref =
+    leagueStatus === "season"
+      ? `/leagues/${leagueId}/teams/${member.id}`
+      : null;
 
   return (
     <Slot
@@ -325,7 +335,13 @@ function MemberSlot({
               {String(member.draftPosition).padStart(2, "0")}
             </span>
           ) : null}
-          <CardName>{member.teamName || member.name}</CardName>
+          {rosterHref ? (
+            <Link href={rosterHref} data-testid="enter-roster">
+              <CardName>{name}</CardName>
+            </Link>
+          ) : (
+            <CardName>{name}</CardName>
+          )}
         </span>
         <span className="flex flex-wrap items-baseline gap-x-3">
           {member.teamName ? (

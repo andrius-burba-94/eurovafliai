@@ -11,8 +11,12 @@ import {
 
 import { announceComplete, announcePick } from "@/lib/chat/messages";
 import { announce } from "@/lib/chat/store";
+import { materializeDraftMemberships } from "@/lib/memberships/store";
 
 import type { DraftRecord, PickRecord } from "./types";
+import { isUniqueViolation } from "./unique";
+
+export { isUniqueViolation } from "./unique";
 
 /**
  * The pick pipeline — the reads and writes a pick is made of, and nothing else.
@@ -63,22 +67,6 @@ export function deadlineFrom(now: Date, seconds: number): string {
   return new Date(now.getTime() + seconds * 1000)
     .toISOString()
     .replace("T", " ");
-}
-
-export function isUniqueViolation(error: unknown): boolean {
-  const data = (
-    error as {
-      response?: { data?: Record<string, { code?: string } | undefined> };
-    }
-  )?.response?.data;
-  if (!data) return false;
-  // PocketBase's own code, confirmed against a live 0.39 instance: a duplicate
-  // on the composite index comes back 400 with `validation_not_unique` on each
-  // field of the index. Substring-matching a stringified error instead would
-  // read an unrelated failure as "someone else already did it" and swallow it.
-  return Object.values(data).some(
-    (field) => field?.code === "validation_not_unique",
-  );
 }
 
 /**
@@ -201,6 +189,10 @@ export async function advance(
       .collection("leagues")
       .update(draft.league, { status: "season" }, { requestKey: null })
       .catch(() => {});
+    // Memberships after the pair that finishes the draft, before the
+    // announcement: a lost loop is rematerialized by standings recompute,
+    // and a system message must still not be able to fail the event.
+    await materializeDraftMemberships(pb, draft, picks, now);
     // Announced here rather than in `commitPick`, because this is the function
     // that *decides* the draft is over — and it is reached by a repair as well
     // as by a pick, so a draft finished by the sweep's repair says so too.

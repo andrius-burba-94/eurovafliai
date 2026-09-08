@@ -47,6 +47,7 @@ const created = {
   player_game_stats: [],
   stat_imports: [],
   standings_snapshots: [],
+  roster_memberships: [],
 };
 
 const su = new PocketBase(url);
@@ -1075,8 +1076,104 @@ try {
     "a second snapshot for the same league, season and round is refused",
   );
 
+  // --- 5.1 roster memberships ---------------------------------------------
+  check(!!byName.roster_memberships, "roster_memberships collection exists");
+  check(
+    byName.roster_memberships.createRule === null &&
+      byName.roster_memberships.updateRule === null &&
+      byName.roster_memberships.deleteRule === null,
+    "roster_memberships writes are superuser-only",
+  );
+  check(
+    byName.roster_memberships.listRule?.includes("league_members:mine") ===
+      true,
+    "roster_memberships are readable only by members of that league",
+  );
+  check(
+    byName.roster_memberships.indexes.some((i) =>
+      /UNIQUE.*`roster_memberships`.*\(`league`,\s*`player`\).*`to_date`/.test(
+        i,
+      ),
+    ),
+    "partial unique index on active roster_memberships(league, player)",
+  );
+
+  const membership = await su.collection("roster_memberships").create(
+    {
+      league: league.id,
+      member: aliceMember.id,
+      player: playerOne.id,
+      from_date: "2026-09-08 12:00:00.000Z",
+      to_date: "",
+      acquired_via: "draft",
+    },
+    { requestKey: null },
+  );
+  created.roster_memberships.push(membership.id);
+
+  check(
+    (await listCount(aliceClient, "roster_memberships")) === 1,
+    "a member reads their league's roster memberships",
+  );
+  check(
+    (await listCount(carolClient, "roster_memberships")) === 0,
+    "a member of another league cannot read this league's memberships",
+  );
+  check(
+    await rejects(() =>
+      aliceClient.collection("roster_memberships").create(
+        {
+          league: league.id,
+          member: aliceMember.id,
+          player: playerOne.id,
+          from_date: "2026-09-08 12:00:00.000Z",
+          acquired_via: "draft",
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a member cannot write a roster membership with their own token",
+  );
+  check(
+    await rejects(() =>
+      su.collection("roster_memberships").create(
+        {
+          league: league.id,
+          member: bobMember.id,
+          player: playerOne.id,
+          from_date: "2026-09-08 13:00:00.000Z",
+          to_date: "",
+          acquired_via: "draft",
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a second active membership for the same player in one league is refused",
+  );
+  const closed = await su.collection("roster_memberships").create(
+    {
+      league: league.id,
+      member: bobMember.id,
+      player: playerOne.id,
+      from_date: "2026-08-01 12:00:00.000Z",
+      to_date: "2026-09-01 12:00:00.000Z",
+      acquired_via: "trade",
+    },
+    { requestKey: null },
+  );
+  created.roster_memberships.push(closed.id);
+  check(
+    !!closed.id,
+    "a closed membership for the same player does not trip the active unique",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.roster_memberships)
+    await su
+      .collection("roster_memberships")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.standings_snapshots)
     await su
       .collection("standings_snapshots")

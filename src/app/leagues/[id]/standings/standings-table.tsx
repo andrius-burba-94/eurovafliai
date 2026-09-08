@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import {
   Bank,
@@ -20,9 +21,11 @@ import {
 export function StandingsTable({
   snapshots,
   names,
+  leagueId,
 }: {
   snapshots: RoundSnapshot[];
   names: Record<string, string>;
+  leagueId: string;
 }) {
   const [on, setOn] = useState<Record<Phase, boolean>>({
     RS: true,
@@ -70,7 +73,13 @@ export function StandingsTable({
                 <span className="flex min-w-0 flex-col gap-1">
                   <span className="flex flex-wrap items-baseline gap-x-3">
                     <span className="slot-label tabular-nums">#{index + 1}</span>
-                    <CardName>{names[row.memberId] ?? row.memberId}</CardName>
+                    <Link
+                      href={`/leagues/${leagueId}/teams/${row.memberId}`}
+                      data-testid="standings-team"
+                      className="min-w-0"
+                    >
+                      <CardName>{names[row.memberId] ?? row.memberId}</CardName>
+                    </Link>
                   </span>
                   <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums text-ink-soft">
                     {rounds.map((round) => (

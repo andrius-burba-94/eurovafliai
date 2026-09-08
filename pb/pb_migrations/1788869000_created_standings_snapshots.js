@@ -3,13 +3,13 @@
 // Phase 4.5 — `standings_snapshots`: a per-round cache of the table, not the
 // table of record.
 //
-// The scores live in `player_game_stats`. Until Phase 5.1 there is no
-// `roster_memberships` collection, so a member's squad is their picks on the
-// newest complete draft. Recompute joins those two, writes one row per
-// (league, season, round), and the standings page reads the cache. A crash
-// between ingest and this write leaves stale (or missing) snapshots; the next
-// ingest or `npm run standings:recompute` is the repair — the same story 4.4
-// told for projections.
+// The scores live in `player_game_stats`. A member's squad is their active
+// `roster_memberships` rows (materialized from the newest complete draft on
+// finish, and repaired by recompute if that loop was lost). Recompute joins
+// those two, writes one row per (league, season, round), and the standings
+// page reads the cache. A crash between ingest and this write leaves stale
+// (or missing) snapshots; the next ingest or `npm run standings:recompute`
+// is the repair — the same story 4.4 told for projections.
 //
 // `table` is JSON: ranked `{ memberId, totalTenths, roundTenths }`. Totals
 // are integer tenths so a season of them cannot accumulate a float. Unique

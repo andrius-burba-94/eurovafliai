@@ -3,6 +3,21 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**5.1 has landed, and the squad of record is a window, not a pick.** A pick
+stays the draft-night event; on complete, `advance` copies the board into
+`roster_memberships` so a later trade can close one row without rewriting
+history. The write sits after `drafts.status = complete` and
+`leagues.status = season` and before the announcement, so a lost loop is a
+season league with an empty roster — `recomputeStandings` rematerializes from
+the newest complete draft when the set is incomplete, but only while every
+window is still open. A complete set does not reread picks. The moment 5.2
+sets a `to_date`, rebuilding from picks would undo the trade.
+Start-over deletes memberships first for the same unique index: leave them and
+the next draft cannot write. Date windows are not applied to scoring yet.
+E2025 games are dated 2025–26; a September 2026 `from_date` would drop every
+line from the table the Try-it path still uses. Until someone can actually
+leave a roster, current owner = whole stored season, same numbers as 4.5.
+
 **4.5 has landed, and the roster it scores is still the draft.** Until 5.1
 there is no membership window, so a member's squad is their picks on the newest
 complete draft, joined to stored `fantasy_pts`. Snapshots are a cache with the
