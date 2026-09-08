@@ -12,7 +12,12 @@ import {
   inputStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
-import { browserPb, onConnectionLost } from "@/lib/pb/browser";
+import {
+  browserPb,
+  onAuthenticationLost,
+  onConnectionLost,
+  reportRealtimeError,
+} from "@/lib/pb/browser";
 import {
   kickMember,
   renameTeam,
@@ -150,6 +155,9 @@ export function LiveLobby({
       onConnectionLost(() => {
         if (active) setConnected(false);
       }),
+      onAuthenticationLost(() => {
+        if (active) router.replace("/login?error=unauthorized");
+      }),
     );
 
     void (async () => {
@@ -175,8 +183,8 @@ export function LiveLobby({
               filter: `league = '${leagueId}'`,
             }),
         );
-      } catch {
-        if (active) setConnected(false);
+      } catch (error) {
+        if (active) reportRealtimeError(error);
       }
     })();
 

@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { browserPb, onConnectionLost } from "@/lib/pb/browser";
+import {
+  browserPb,
+  onAuthenticationLost,
+  onConnectionLost,
+  reportRealtimeError,
+} from "@/lib/pb/browser";
 
 /**
  * The draft room, live — slice 3.2a.
@@ -108,6 +113,9 @@ export function LiveDraft({
       onConnectionLost(() => {
         if (active) setConnected(false);
       }),
+      onAuthenticationLost(() => {
+        if (active) router.replace("/login?error=unauthorized");
+      }),
     );
 
     void (async () => {
@@ -136,8 +144,8 @@ export function LiveDraft({
         unsubscribes.push(
           await pb.collection("drafts").subscribe(draftId, rerender),
         );
-      } catch {
-        if (active) setConnected(false);
+      } catch (error) {
+        if (active) reportRealtimeError(error);
       }
     })();
 

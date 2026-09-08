@@ -1,6 +1,21 @@
 ---
 name: pocketbase-patterns
-description: PocketBase rules for this repo — quirks of PB 0.25+ through 0.39, the no-transactions defense (validate-then-write + unique indexes + idempotent repair), migration-file discipline, filter/sort/auth-rule syntax, and localhost binding. Use when writing or reviewing anything that touches PocketBase — collections, migrations, filters, API rules, server actions that read or write PB, realtime subscriptions, or the pb/ directory.
+description: PocketBase rules for this repo — quirks of PB 0.25+ through 0.39, the no-transactions defense (validate-then-write + unique indexes + idempotent repair), migration-file discipline, filter/sort/auth-rule syntax, localhost binding, and the shared browser realtime client. Use when writing or reviewing anything that touches PocketBase — collections, migrations, filters, API rules, server actions that read or write PB, realtime subscriptions, or the pb/ directory.
+paths:
+  - "src/lib/pb/**"
+  - "pb/**"
+  - "src/lib/leagues/**"
+  - "src/lib/chat/store.ts"
+  - "src/lib/drafts/**"
+  - "src/lib/sheets/store.ts"
+  - "src/lib/stats/store.ts"
+  - "src/lib/rosters/apply.ts"
+  - "src/lib/rosters/diff.ts"
+  - "src/lib/rosters/rename.ts"
+  - "src/lib/mapping/**"
+  - "src/app/players/mapping/**"
+  - "scripts/pb-*.sh"
+  - "scripts/pb-*.mjs"
 ---
 
 # PocketBase patterns
@@ -88,8 +103,9 @@ write 2 fails? What repairs it? Which index backs it up?
 - Engine-owned collections (`drafts`, `picks`, `player_game_stats`,
   `standings_snapshots`, …) are **superuser-write-only**; members get read rules
   scoped to their league.
-- One documented exception: `chat_messages` **create** may be client-direct for
-  latency, rule-guarded by `author = @request.auth.id` plus league membership.
+- `chat_messages` writes go through a **server action** (blueprint D11 / slice
+  3.5 withdrew the client-direct exception). The payload still arrives over
+  SSE; latency lives on the read side.
 
 ## Schema as code
 
@@ -100,6 +116,12 @@ exported `schema.json`, and not hand-clicked in the admin UI on the VPS.
   code that depends on it.
 - Migrations are append-only; fix a mistake with a new migration.
 - Never let production schema drift from the committed files.
+- Start every migration with a short header that states:
+  1. the slice and purpose;
+  2. collections, rules and indexes affected;
+  3. why each index or access rule exists;
+  4. rollback behavior when it is not a mechanical inverse.
+  The header is a schema review aid, not a narration of each line.
 
 ## Binding and access
 
@@ -116,3 +138,46 @@ exported `schema.json`, and not hand-clicked in the admin UI on the VPS.
 - Subscribe with the user's token (pass it into client components as an
   `authToken` prop; do not re-authenticate in the browser).
 - Assume drops. Show a "reconnecting" state; the SDK re-subscribes.
+- Classify subscription failures through `reportRealtimeError`: 401/403 is a
+  terminal token refusal and navigates to sign-in; a status-0/network failure
+  is transport loss and keeps the last good UI while the SDK retries. Never
+  retry a refused token forever.
+
+## Known gotchas
+
+- **One PocketBase client per page, shared.** Each live surface used to create
+  its own in its own effect. A second client makes the *first* hang:
+  `await pb.realtime.subscribe(...)` never resolves and never throws. Use
+  `src/lib/pb/browser.ts`. Never call `pb.realtime.unsubscribe()` in cleanup
+  (it closes the shared connection — unsubscribe only your own topics). Never
+  assign `pb.realtime.onDisconnect` (one slot; use `onConnectionLost`). The
+  shared client uses an in-memory auth store so two instances cannot fight over
+  `LocalAuthStore`.
+- **A realtime subscription needs its own `expand`.** `getFullList({expand})`
+  expands; the SSE payload does not unless `subscribe` options say so.
+- **Next memoizes identical GET fetches within one render pass**, and the
+  PocketBase SDK uses `fetch`. Read → repair → read-again returns the first
+  read's stale result. Repair before the read (`src/lib/leagues/queries.ts`).
+- **`readPicks` returns the engine's pick shape**, not PocketBase's:
+  `playerId` / `memberId`, not `player` / `member`. Reading `.player` is
+  `undefined` and will re-pick a taken player (`"raced"` after the first commit).
+- **A list seeded from a prop must follow the prop.** `useState(initial)`
+  initialises once; realtime does not replay. Merge the server re-render by id
+  (`revalidatePath` is how writes close the gap).
+- **Wait for a subscription before writing behind the page's back.** Realtime
+  does not replay, and a direct database write does not `revalidatePath`. Expose
+  `data-live` (or `data-advanced`) and wait for it — never wait for a duration.
+- **`localhost` and `127.0.0.1` are not interchangeable.** App origin (OAuth
+  redirect) is `http://localhost:3007`. PocketBase URLs stay on `127.0.0.1`
+  (SDK fails on IPv6-first `localhost`). Backwards → `redirect_uri_mismatch` or
+  `ECONNREFUSED ::1`.
+- **PocketBase `checksums.txt` is combined** for the whole release;
+  `pb-download.sh` verifies only our archive's line.
+- **A sync that suspects a rename writes neither half.** Before 4.2, a stored
+  player the feed had re-registered under a passport name produced an add and
+  a departure for the same human. Box scores attach by `person_code`, so the
+  points would land on the new row while a pick pointed at the old one.
+  `diffRosters` quarantines the likely pairs; `/players/mapping` resolves
+  them. A merge keeps the stored player's **id**. The confident rule is token
+  containment, not a fuse threshold — fuse's scores overlap on real pairs and
+  namesakes.

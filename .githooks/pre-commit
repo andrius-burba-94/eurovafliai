@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# ESLint staged JS/TS before commit. Typecheck and Vitest stay in CI
+# (and in the testing-requirements skill after logic changes).
+#
+# Enable once per clone:  npm run setup:hooks
+# Bypass:                 git commit --no-verify
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+files=()
+while IFS= read -r f; do
+  [[ -n "$f" ]] || continue
+  case "$f" in
+    pb/pb_data/*|.next/*|node_modules/*|.claude/skills/*) continue ;;
+  esac
+  [[ -f "$f" ]] || continue
+  files+=("$f")
+done < <(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(cjs|js|mjs|mts|ts|tsx)$' || true)
+
+if [[ ${#files[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+npx eslint -- "${files[@]}"
+
+if git diff --cached --name-only --diff-filter=ACMR |
+  grep -Eq '^(src/lib/engine|src/lib/drafts|src/worker)/'; then
+  npm test -- src/lib/engine src/lib/drafts src/worker
+fi

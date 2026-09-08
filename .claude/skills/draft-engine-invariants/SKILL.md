@@ -1,6 +1,14 @@
 ---
 name: draft-engine-invariants
 description: The non-negotiable rules of the Eurovafliai draft engine — server-authoritative draft state, a pure TypeScript engine library with zero PocketBase imports, pick-then-advance write order with idempotent repair, never trusting client clocks, and mandatory order-generation tests for every format change. Use when working on src/lib/engine/, the worker, draft server actions, pick timers, autodraft, rollback, or any draft-room UI that renders draft state.
+paths:
+  - "src/lib/engine/**"
+  - "src/lib/drafts/**"
+  - "src/lib/cues/**"
+  - "src/worker/**"
+  - "src/lib/stats/**"
+  - "src/lib/sheets/**"
+  - "src/app/leagues/**/draft/**"
 ---
 
 # Draft engine invariants
@@ -94,3 +102,23 @@ If the worker dies, timers stop being enforced — and **nothing corrupts**. The
 commissioner can still enter picks manually. Any new engine behavior must keep
 that property: no state that only the worker can repair, and no partial write
 that blocks a manual override.
+
+## Known gotchas
+
+- **The stats pass has its own in-flight guard, not the sweep's.** They share
+  the PocketBase client and nothing else. A slow feed must not stop a draft
+  clock (`STALL_AFTER_MS`).
+- **The sweep is app-global.** `sweepOnce` looks for every live draft. From a
+  spec, script or REPL, pass `onlyDraft` with the id under test
+  (`tests/e2e/worker.spec.ts`).
+- **Never assume who the roll put first.** Draft order comes from a random seed.
+  Read the banner and branch, or assert the biconditional (the "for whom" line
+  exists **iff** it is not your turn).
+- **The Euroleague feed's `winner` is the season's champion, not the game's.**
+  Derive a win from `local.score` vs `road.score`. Table in
+  `docs/research/euroleague-api.md`. The same record's `venue` is wrong too.
+- **An unplayed game answers 200 with an empty box score**, not a 404. Gate on
+  `played`. `parseStatCsv` refuses a level scoreline for this reason.
+- **Fantasy points are integer tenths, everywhere.** `3 * 1.1` is
+  `3.3000000000000003`. `fantasy_pts` is `onlyInt`; `sumTenths` keeps them
+  integral; `formatTenths` is the only place they become a decimal string.

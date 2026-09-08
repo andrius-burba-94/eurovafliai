@@ -50,8 +50,8 @@ npm run pb:verify:oauth2  # prove first-time Google sign-up still works (PB must
 
 First run: `fnm use` (Node 24, enforced by `engine-strict`), then
 `npm i && npm run setup && cp .env.example .env`, fill in `.env`, then
-`npm run dev`. (`setup` = PocketBase binary + git hooks.) The app is at
-`http://localhost:3007` — `localhost`, not `127.0.0.1`, for Google's sake.
+`npm run dev`. (`setup` = PocketBase binary + git hooks + Impeccable.) The app
+is at `http://localhost:3007` — `localhost`, not `127.0.0.1`, for Google's sake.
 
 ## Architecture in one screen
 
@@ -91,14 +91,30 @@ Non-negotiables (details in the skills below):
 
 ## Skills in this repo
 
-Invoke these; they carry the rules that matter.
+Conventions live under `.claude/skills/` so Claude Code and Cursor share one
+source of truth. Skills load on demand from their `description` (and, in
+Cursor, the optional `paths` glob). Production gotchas live on the skill that
+owns that surface.
 
+Domain:
 - **`pocketbase-patterns`** — PB quirks, no-transaction defense, migration
-  discipline, filter/rule syntax. Any PB-touching change.
+  discipline, shared realtime client. Any PB-touching change.
 - **`draft-engine-invariants`** — server authority, engine purity,
   pick-then-advance, clock handling, format test requirements.
 - **`vps-deploy`** — deploy flow, PM2 + systemd layout, the SSE-safe Nginx
   vhost, backups, never-patch-in-production.
+- **`nextjs-writes`** — server actions, RSC vs client, env inlining, React 19
+  forms.
+
+UI:
+- **`component-reuse`** — search `src/components/` and the draft-room files
+  before building; DESIGN.md is visual law.
+
+Quality (apply when writing or reviewing):
+- **`anti-sycophancy`** — verify APIs, evidence before "looks good".
+- **`comment-discipline`** — why-only comments.
+- **`testing-requirements`** — `lint` + `typecheck` + `test` after logic
+  changes.
 
 Process skills come from the `mattpocock-skills` plugin. The per-slice loop is:
 

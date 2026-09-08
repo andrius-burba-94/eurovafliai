@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/impeccable-detect.sh",
+        "timeout": 10
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/impeccable-detect.sh",
+        "timeout": 30
+      }
+    ]
+  }
+}

@@ -1,4 +1,7 @@
 import { splitCsvLine } from "@/lib/csv/split";
+import { MAX_SHEET_LINES } from "@/lib/limits";
+
+export { MAX_SHEET_LINES } from "@/lib/limits";
 
 /**
  * Reading a pasted cheat sheet — slice 3.4.
@@ -68,9 +71,6 @@ export type ParsedSheet = {
   readonly problems: readonly string[];
 };
 
-/** How many lines one paste may carry. A cheat sheet is not a database. */
-export const MAX_SHEET_LINES = 500;
-
 function readHeader(fields: string[]): SheetColumns | null {
   const mapped = fields.map((field) => HEADERS[field.trim().toLowerCase()]);
   const named = new Set(mapped.filter(Boolean));
@@ -107,11 +107,13 @@ export function parseCheatSheet(text: string): ParsedSheet {
     break;
   }
 
+  let dataLines = 0;
   for (const [index, raw] of lines.entries()) {
     if (index === headerLine || !raw.trim()) continue;
     const lineNo = index + 1;
+    dataLines += 1;
 
-    if (rows.length >= MAX_SHEET_LINES) {
+    if (dataLines > MAX_SHEET_LINES) {
       problems.push(
         `Stopped at line ${lineNo}: a cheat sheet is capped at ${MAX_SHEET_LINES} players.`,
       );

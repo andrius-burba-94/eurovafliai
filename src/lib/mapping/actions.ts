@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSuperuserClient } from "@/lib/pb/superuser";
+import { getSafeActionError } from "@/lib/safe-error";
 import { readCurrentPlayers } from "@/lib/rosters/apply";
 import { diffRosters } from "@/lib/rosters/diff";
 import { fetchSeasonRosters } from "@/lib/rosters/euroleague";
@@ -114,7 +115,7 @@ export async function checkTheFeed(): Promise<FeedCheck> {
     ({ rows } = await fetchSeasonRosters({ season }));
   } catch (error) {
     return {
-      error: `The feed did not answer: ${(error as Error).message}`,
+      error: getSafeActionError(error, "The feed did not answer. Try again."),
     };
   }
   if (rows.length === 0) {
@@ -429,10 +430,11 @@ export async function attachStatCode(
         maxGames: games.length,
       });
       imported = ` ${report.created} game line${report.created === 1 ? "" : "s"} arrived from the ${games.length} game${games.length === 1 ? "" : "s"} that mentioned the code.`;
-    } catch (error) {
+    } catch {
       // The code is attached either way, which is the durable half. Say what
       // did not happen rather than rolling back something that was right.
-      imported = ` The code is attached, but re-importing those games failed: ${(error as Error).message}. Run \`npm run stats:sync\` or paste the round.`;
+      imported =
+        " The code is attached, but re-importing those games failed. Run `npm run stats:sync` or paste the round.";
     }
   }
 

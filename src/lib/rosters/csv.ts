@@ -12,6 +12,7 @@
  * either.
  */
 import { splitCsvLine } from "@/lib/csv/split";
+import { MAX_ROSTER_CSV_LINES } from "@/lib/limits";
 
 import { mapCsvPosition, normalizeName } from "./normalize";
 import type { NormalizedPlayer, PlayerStatus } from "./types";
@@ -95,9 +96,17 @@ export function parseCsvRoster(text: string): {
     break;
   }
 
+  let dataLines = 0;
   for (const [index, raw] of lines.entries()) {
     if (index === headerLine || !raw.trim()) continue;
     const lineNo = index + 1;
+    dataLines += 1;
+    if (dataLines > MAX_ROSTER_CSV_LINES) {
+      problems.push(
+        `Stopped at line ${lineNo}: a roster CSV is capped at ${MAX_ROSTER_CSV_LINES} players.`,
+      );
+      break;
+    }
     const fields = splitCsvLine(raw);
 
     const at = (column: number) =>

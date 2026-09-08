@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_STAT_CSV_LINES } from "@/lib/limits";
+
 import {
   CSV_TEMPLATE_HEADER,
   parseStatCsv,
@@ -320,5 +322,18 @@ describe("the whole of E2025, through the CSV door", () => {
     for (const row of rows) {
       expect(row.won).toBe(expected.get(`${row.personCode}:${row.gameCode}`));
     }
+  });
+
+  it("caps a manual stat paste", () => {
+    const csv = [
+      HEADER,
+      ...Array.from(
+        { length: MAX_STAT_CSV_LINES + 1 },
+        (_, index) => LINE.replace("006590", `P${index}`),
+      ),
+    ].join("\n");
+    const { rows, problems } = parseStatCsv(csv);
+    expect(rows).toHaveLength(MAX_STAT_CSV_LINES);
+    expect(problems.at(-1)).toContain(`capped at ${MAX_STAT_CSV_LINES}`);
   });
 });

@@ -1,6 +1,11 @@
 ---
 name: vps-deploy
 description: Deployment runbook for Eurovafliai on the Hostinger VPS — deploy.sh flow, the two-app PM2 ecosystem (web :3007 + worker), PocketBase under systemd on 127.0.0.1:8095, the SSE-safe Nginx vhost, Certbot, backups, and the never-patch-in-production rule. Use when writing or reviewing deploy.sh, ecosystem.config.js, nginx config, GitHub Actions deploy workflows, systemd units, or when diagnosing a production-only problem such as realtime dropping behind the proxy.
+paths:
+  - "deploy/**"
+  - "scripts/deploy*"
+  - "ecosystem.config.js"
+  - ".github/workflows/deploy.yml"
 ---
 
 # VPS deploy runbook
@@ -88,6 +93,11 @@ duplicate `gzip` directives, the wrong upstream port.
 **Realtime must be verified in production**, not just locally — it is part of
 the Phase 1.5 definition of done.
 
+Application security headers (CSP, frame denial, content-type sniffing,
+referrer and permissions policies, HSTS) are owned by `next.config.ts`. Do not
+duplicate them in Nginx: two CSP headers intersect and can silently block an
+otherwise allowed Next asset or PocketBase connection.
+
 ## TLS / DNS
 
 - Certbot (Let's Encrypt), auto-renewing.
@@ -104,9 +114,16 @@ the Phase 1.5 definition of done.
 
 ## Backups
 
-- Nightly `pb_data` backup (PB's backup API or a stop-copy-start window —
-  never a naive `cp` of a live SQLite file), with retention.
-- Do a restore drill at least once. An untested backup is not a backup.
+- `eurovafliai-backup.timer` runs `scripts/backup-pocketbase.mts` nightly. It
+  uses PocketBase's backup API, which puts the app briefly into read-only mode,
+  and retains the newest 14 `eurovafliai-*` archives.
+- Install both units from `deploy/systemd/`, then:
+  `systemctl daemon-reload && systemctl enable --now eurovafliai-backup.timer`.
+  Verify with `systemctl list-timers eurovafliai-backup.timer` and run one
+  immediately with `systemctl start eurovafliai-backup.service`.
+- Do a restore drill before calling backups complete: download one archive,
+  restore it into a disposable local `pb_data`, boot the pinned binary, and run
+  `npm run pb:verify`. Never test restore against production.
 
 ## Never patch in production
 
