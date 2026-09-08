@@ -81,7 +81,40 @@ export function announceStartOver(byTeamName: string): string {
 }
 
 export function announceComplete(rounds: number): string {
-  return `The draft is complete after ${rounds} ${rounds === 1 ? "round" : "rounds"}. Rosters are final.`;
+  return `The draft is complete after ${rounds} ${rounds === 1 ? "round" : "rounds"}. Rosters are set.`;
+}
+
+function nameList(names: readonly string[]): string {
+  if (names.length === 0) return "nobody";
+  if (names.length === 1) return names[0]!;
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+export function announceTrade(input: {
+  readonly teamA: string;
+  readonly teamB: string;
+  readonly sent: readonly string[];
+  readonly received: readonly string[];
+  readonly fromRound: number;
+}): string {
+  return `${input.teamA} traded ${nameList(input.sent)} to ${input.teamB} for ${nameList(input.received)}, counting from round ${input.fromRound}.`;
+}
+
+export function announceDrop(input: {
+  readonly teamName: string;
+  readonly players: readonly string[];
+  readonly fromRound: number;
+}): string {
+  return `${input.teamName} dropped ${nameList(input.players)}, counting from round ${input.fromRound}.`;
+}
+
+export function announceAdd(input: {
+  readonly teamName: string;
+  readonly players: readonly string[];
+  readonly fromRound: number;
+}): string {
+  return `${input.teamName} signed ${nameList(input.players)}, counting from round ${input.fromRound}.`;
 }
 
 /** How long a member must wait between messages, and how long one may be. */

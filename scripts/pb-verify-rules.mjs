@@ -48,6 +48,7 @@ const created = {
   stat_imports: [],
   standings_snapshots: [],
   roster_memberships: [],
+  transactions: [],
 };
 
 const su = new PocketBase(url);
@@ -1167,8 +1168,73 @@ try {
     "a closed membership for the same player does not trip the active unique",
   );
 
+  // --- 5.2 transactions ----------------------------------------------------
+  check(!!byName.transactions, "transactions collection exists");
+  check(
+    byName.transactions.createRule === null &&
+      byName.transactions.updateRule === null &&
+      byName.transactions.deleteRule === null,
+    "transactions writes are superuser-only",
+  );
+  check(
+    byName.transactions.listRule?.includes("league_members:mine") === true,
+    "transactions are readable only by members of that league",
+  );
+  check(
+    byName.transactions.indexes.some((i) =>
+      /`transactions`.*\(`league`,\s*`from_round`\)/.test(i),
+    ),
+    "index on transactions(league, from_round)",
+  );
+
+  const recorded = await su.collection("transactions").create(
+    {
+      league: league.id,
+      type: "trade",
+      date: "2026-09-08 12:00:00.000Z",
+      from_round: 2,
+      members: [aliceMember.id, bobMember.id],
+      players_in: { [aliceMember.id]: [playerOne.id] },
+      players_out: { [bobMember.id]: [playerOne.id] },
+      note: "",
+    },
+    { requestKey: null },
+  );
+  created.transactions.push(recorded.id);
+
+  check(
+    (await listCount(aliceClient, "transactions")) === 1,
+    "a member reads their league's transactions",
+  );
+  check(
+    (await listCount(carolClient, "transactions")) === 0,
+    "a member of another league cannot read this league's transactions",
+  );
+  check(
+    await rejects(() =>
+      aliceClient.collection("transactions").create(
+        {
+          league: league.id,
+          type: "drop",
+          date: "2026-09-08 12:00:00.000Z",
+          from_round: 3,
+          members: [aliceMember.id],
+          players_in: {},
+          players_out: { [aliceMember.id]: [playerOne.id] },
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a member cannot write a transaction with their own token",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.transactions)
+    await su
+      .collection("transactions")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.roster_memberships)
     await su
       .collection("roster_memberships")

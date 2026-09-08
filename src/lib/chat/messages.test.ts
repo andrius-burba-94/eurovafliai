@@ -10,6 +10,9 @@ import {
   chatTotal,
   chatUnread,
   announceComplete,
+  announceDrop,
+  announceAdd,
+  announceTrade,
   announcePause,
   announcePick,
   announceRoll,
@@ -125,11 +128,39 @@ describe("start over and complete", () => {
 
   it("agrees its noun with one round", () => {
     expect(announceComplete(13)).toBe(
-      "The draft is complete after 13 rounds. Rosters are final.",
+      "The draft is complete after 13 rounds. Rosters are set.",
     );
     expect(announceComplete(1)).toBe(
-      "The draft is complete after 1 round. Rosters are final.",
+      "The draft is complete after 1 round. Rosters are set.",
     );
+  });
+});
+
+describe("a recorded transaction", () => {
+  it("names both teams, both players, and the counting round", () => {
+    expect(
+      announceTrade({
+        teamA: "Chief FC",
+        teamB: "B Ballers",
+        sent: ["Nunn"],
+        received: ["Sloukas, Kostas"],
+        fromRound: 2,
+      }),
+    ).toBe(
+      "Chief FC traded Nunn to B Ballers for Sloukas, Kostas, counting from round 2.",
+    );
+  });
+
+  it("never says you", () => {
+    expect(
+      announceTrade({
+        teamA: "Chief FC",
+        teamB: "B Ballers",
+        sent: ["A"],
+        received: ["B"],
+        fromRound: 1,
+      }),
+    ).not.toMatch(/\byou\b/i);
   });
 });
 
@@ -152,6 +183,15 @@ describe("every system line is a whole sentence", () => {
     announceRoll({ order: ["A", "B"], reshuffle: false }),
     announceStartOver("Chief FC"),
     announceComplete(13),
+    announceTrade({
+      teamA: "Chief FC",
+      teamB: "B Ballers",
+      sent: ["Nunn"],
+      received: ["Sloukas, Kostas"],
+      fromRound: 2,
+    }),
+    announceDrop({ teamName: "Chief FC", players: ["Nunn"], fromRound: 3 }),
+    announceAdd({ teamName: "Chief FC", players: ["Nunn"], fromRound: 3 }),
   ];
 
   it.each(lines)("ends in a full stop and starts with a capital: %s", (line) => {

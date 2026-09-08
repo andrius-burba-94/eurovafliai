@@ -6,12 +6,12 @@ import {
   snapshotsFromStandings,
   tableFromSnapshots,
   type StandingLine,
-  type StandingRoster,
+  type StandingWindow,
 } from "./standings";
 
-const rosters: StandingRoster[] = [
-  { memberId: "m-b", playerIds: ["p1"] },
-  { memberId: "m-a", playerIds: ["p2"] },
+const windows: StandingWindow[] = [
+  { memberId: "m-b", playerId: "p1" },
+  { memberId: "m-a", playerId: "p2" },
 ];
 
 function line(
@@ -28,7 +28,7 @@ function line(
 describe("computeStandings", () => {
   it("sums tenths for two members who scored the same round", () => {
     const table = computeStandings(
-      rosters,
+      windows,
       [
         line({ playerId: "p1", fantasyTenths: 142 }),
         line({ playerId: "p2", fantasyTenths: 80 }),
@@ -45,7 +45,7 @@ describe("computeStandings", () => {
 
   it("counts a missing line as 0, not as a skipped member", () => {
     const table = computeStandings(
-      rosters,
+      windows,
       [line({ playerId: "p1", fantasyTenths: 50 })],
       ["RS"],
     );
@@ -56,7 +56,7 @@ describe("computeStandings", () => {
 
   it("drops a PO line when the filter is regular season", () => {
     const table = computeStandings(
-      rosters,
+      windows,
       [
         line({ playerId: "p1", round: 1, phase: "RS", fantasyTenths: 10 }),
         line({ playerId: "p1", round: 41, phase: "PO", fantasyTenths: 999 }),
@@ -71,7 +71,7 @@ describe("computeStandings", () => {
 
   it("sums tenths without introducing a float", () => {
     const table = computeStandings(
-      [{ memberId: "m1", playerIds: ["p1", "p2"] }],
+      [{ memberId: "m1", playerId: "p1" }, { memberId: "m1", playerId: "p2" }],
       [
         line({ playerId: "p1", fantasyTenths: 11 }),
         line({ playerId: "p2", fantasyTenths: 21 }),
@@ -84,8 +84,8 @@ describe("computeStandings", () => {
   it("breaks a total tie on member id", () => {
     const table = computeStandings(
       [
-        { memberId: "m-z", playerIds: ["pz"] },
-        { memberId: "m-a", playerIds: ["pa"] },
+        { memberId: "m-z", playerId: "pz" },
+        { memberId: "m-a", playerId: "pa" },
       ],
       [
         line({ playerId: "pz", fantasyTenths: 100 }),
@@ -94,6 +94,40 @@ describe("computeStandings", () => {
       ["RS"],
     );
     expect(table.map((row) => row.memberId)).toEqual(["m-a", "m-z"]);
+  });
+
+  it("splits a traded player at from_round", () => {
+    const table = computeStandings(
+      [
+        {
+          memberId: "m-a",
+          playerId: "p1",
+          from_round: 1,
+          to_round: 2,
+          to_date: "closed",
+        },
+        {
+          memberId: "m-b",
+          playerId: "p1",
+          from_round: 2,
+          to_round: 0,
+          to_date: "",
+        },
+      ],
+      [
+        line({ playerId: "p1", round: 1, fantasyTenths: 100 }),
+        line({ playerId: "p1", round: 2, fantasyTenths: 40 }),
+      ],
+      ["RS"],
+    );
+    expect(table.find((row) => row.memberId === "m-a")).toMatchObject({
+      totalTenths: 100,
+      byRound: { 1: 100 },
+    });
+    expect(table.find((row) => row.memberId === "m-b")).toMatchObject({
+      totalTenths: 40,
+      byRound: { 2: 40 },
+    });
   });
 });
 
@@ -104,7 +138,7 @@ describe("snapshots and the phase filter at read time", () => {
       line({ playerId: "p1", round: 41, phase: "PO", fantasyTenths: 50 }),
       line({ playerId: "p2", round: 1, phase: "RS", fantasyTenths: 20 }),
     ];
-    const full = computeStandings(rosters, lines, ["RS", "PI", "PO", "FF"]);
+    const full = computeStandings(windows, lines, ["RS", "PI", "PO", "FF"]);
     const snaps = snapshotsFromStandings(full, phaseByRound(lines));
     expect(snaps.map((s) => s.round)).toEqual([1, 41]);
 

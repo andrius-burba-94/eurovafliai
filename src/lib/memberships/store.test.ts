@@ -4,9 +4,11 @@ import { fakePb } from "../../../tests/unit/helpers/fake-pb";
 
 import {
   asPbDate,
+  applyTransaction,
   clearLeagueMemberships,
   materializeDraftMemberships,
 } from "./store";
+import type { ApplyPlan } from "./plan";
 
 const FROM = new Date("2026-09-08T12:00:00.000Z");
 
@@ -33,6 +35,8 @@ describe("materializeDraftMemberships", () => {
           player: "p1",
           from_date: asPbDate(FROM),
           to_date: "",
+          from_round: 1,
+          to_round: 0,
           acquired_via: "draft",
         }),
         expect.objectContaining({
@@ -142,5 +146,104 @@ describe("clearLeagueMemberships", () => {
     const removed = await clearLeagueMemberships(client, "lg1");
     expect(removed).toBe(2);
     expect(rows("roster_memberships").map((row) => row.id)).toEqual(["c"]);
+  });
+});
+
+const tradePlan: ApplyPlan = {
+  type: "trade",
+  fromRound: 2,
+  members: ["m-a", "m-b"],
+  playersOut: { "m-a": ["p1"], "m-b": ["p2"] },
+  playersIn: { "m-a": ["p2"], "m-b": ["p1"] },
+  closes: [
+    { membershipId: "rm-a", toRound: 2 },
+    { membershipId: "rm-b", toRound: 2 },
+  ],
+  opens: [
+    { member: "m-b", player: "p1", fromRound: 2, acquired_via: "trade" },
+    { member: "m-a", player: "p2", fromRound: 2, acquired_via: "trade" },
+  ],
+};
+
+describe("applyTransaction", () => {
+  it("closes outgoing windows and opens incoming ones after writing the intent", async () => {
+    const { client, rows, writes } = fakePb({
+      data: {
+        roster_memberships: [
+          {
+            id: "rm-a",
+            league: "lg1",
+            member: "m-a",
+            player: "p1",
+            to_date: "",
+            from_round: 1,
+            to_round: 0,
+          },
+          {
+            id: "rm-b",
+            league: "lg1",
+            member: "m-b",
+            player: "p2",
+            to_date: "",
+            from_round: 1,
+            to_round: 0,
+          },
+        ],
+        transactions: [],
+        chat_messages: [],
+      },
+    });
+    const report = await applyTransaction(
+      client,
+      "lg1",
+      tradePlan,
+      FROM,
+      "A traded p1 to B for p2.",
+      "",
+    );
+    expect(report.created).toBe(true);
+    expect(writes[0]).toBe("create transactions");
+    const closed = rows("roster_memberships").filter(
+      (row) => row.id === "rm-a" || row.id === "rm-b",
+    );
+    expect(closed.every((row) => row.to_round === 2)).toBe(true);
+    expect(
+      rows("roster_memberships").filter((row) => row.to_date === ""),
+    ).toHaveLength(2);
+    expect(rows("chat_messages")).toHaveLength(1);
+  });
+
+  it("resumes from the stored intent instead of writing a second transaction", async () => {
+    const { client, rows } = fakePb({
+      data: {
+        roster_memberships: [
+          {
+            id: "rm-a",
+            league: "lg1",
+            member: "m-a",
+            player: "p1",
+            to_date: "",
+            from_round: 1,
+          },
+          {
+            id: "rm-b",
+            league: "lg1",
+            member: "m-b",
+            player: "p2",
+            to_date: "",
+            from_round: 1,
+          },
+        ],
+        transactions: [],
+        chat_messages: [],
+      },
+    });
+    await applyTransaction(client, "lg1", tradePlan, FROM, "Done.", "");
+    const again = await applyTransaction(client, "lg1", tradePlan, FROM, "Done.", "");
+    expect(again.created).toBe(false);
+    expect(rows("transactions")).toHaveLength(1);
+    expect(
+      rows("roster_memberships").filter((row) => row.acquired_via === "trade"),
+    ).toHaveLength(2);
   });
 });

@@ -97,6 +97,23 @@ export default async function LobbyPage({
             <span className="slot-label shrink-0">Open &rarr;</span>
           </Link>
         ) : null}
+        {league.status === "season" &&
+        (isCommissioner ||
+          members.some((member) => member.isYou && member.canManage)) ? (
+          <Link
+            href={`/leagues/${league.id}/transactions/new`}
+            data-testid="record-transaction"
+            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          >
+            <span className="flex flex-col gap-1">
+              <CardName>Record a transaction</CardName>
+              <span className="text-sm text-ink-soft">
+                A trade, an add or a drop, once the room has agreed.
+              </span>
+            </span>
+            <span className="slot-label shrink-0">Write it down &rarr;</span>
+          </Link>
+        ) : null}
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
             {league.name}

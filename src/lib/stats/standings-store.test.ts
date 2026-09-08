@@ -183,9 +183,71 @@ describe("recomputeStandings", () => {
     expect(rows("roster_memberships")).toHaveLength(2);
     const rs = rows("standings_snapshots").find((row) => row.round === 1);
     const table = rs?.table as { memberId: string; roundTenths: number }[];
-    expect(table).toHaveLength(1);
-    expect(table[0]).toMatchObject({ memberId: "m-b", roundTenths: 142 });
+    expect(table).toHaveLength(2);
+    expect(table.find((row) => row.memberId === "m-b")).toMatchObject({
+      roundTenths: 142,
+    });
+    expect(table.find((row) => row.memberId === "m-a")).toMatchObject({
+      roundTenths: 0,
+    });
   });
+
+  it("splits nights at from_round after a trade", async () => {
+    const extraStats = [
+      ...stats,
+      {
+        id: "s4",
+        player: "p1",
+        season: SEASON,
+        round: 2,
+        phase: "RS",
+        fantasy_pts: 30,
+      },
+    ];
+    const { client, rows } = seed({
+      player_game_stats: extraStats,
+      roster_memberships: [
+        {
+          id: "old",
+          league: "lg-season",
+          member: "m-b",
+          player: "p1",
+          from_round: 1,
+          to_round: 2,
+          to_date: "2026-09-09 12:00:00.000Z",
+          acquired_via: "draft",
+        },
+        {
+          id: "new",
+          league: "lg-season",
+          member: "m-a",
+          player: "p1",
+          from_round: 2,
+          to_round: 0,
+          to_date: "",
+          acquired_via: "trade",
+        },
+        {
+          id: "keep",
+          league: "lg-season",
+          member: "m-a",
+          player: "p2",
+          from_round: 1,
+          to_round: 0,
+          to_date: "",
+          acquired_via: "draft",
+        },
+      ],
+    });
+    await recomputeStandings(client, SEASON);
+    const r1 = rows("standings_snapshots").find((row) => row.round === 1);
+    const r2 = rows("standings_snapshots").find((row) => row.round === 2);
+    const t1 = r1?.table as { memberId: string; roundTenths: number }[];
+    const t2 = r2?.table as { memberId: string; roundTenths: number }[];
+    expect(t1.find((row) => row.memberId === "m-b")?.roundTenths).toBe(142);
+    expect(t2.find((row) => row.memberId === "m-a")?.roundTenths).toBe(30);
+  });
+
 
   it("is a no-op on a second pass", async () => {
     const { client } = seed();

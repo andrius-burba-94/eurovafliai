@@ -43,9 +43,10 @@ src/lib/sheets/   cheat sheets: pure parse + fuzzy match, stored shape, reorder
 src/lib/cues/     on-the-clock cue decision — pure; fires on turn transition only
 src/lib/chat/     league chat: pure `messages.ts`, framework-free `store.ts`,
                   `actions.ts`. `announce()` never throws
-src/lib/memberships/  roster windows (5.1): pure `fromPicks` + framework-free
-                  `store.ts`. Materialized when a draft completes; standings
-                  join these, not picks
+src/lib/memberships/  roster windows (5.1) and recorded trades (5.2):
+                  pure `fromPicks` / `planTransaction` + framework-free
+                  `store.ts` (materialize, apply). Scoring joins `from_round`/
+                  `to_round`. Actions are the request-facing half.
 src/lib/euroleague/http.ts  ONE HTTP client for the Euroleague feed
 src/lib/stats/    box scores and scoring; `scoring.ts` is pure; golden fixtures
 src/lib/pb/browser.ts  the page's ONE shared realtime client
