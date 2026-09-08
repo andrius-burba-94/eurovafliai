@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { serverConfig } from "@/lib/config/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { getSafeActionError } from "@/lib/safe-error";
 import { readCurrentPlayers } from "@/lib/rosters/apply";
@@ -109,7 +110,7 @@ const asStored = (proposal: RenameProposal): StoredRename => ({
 export async function checkTheFeed(): Promise<FeedCheck> {
   if (!(await canManageRosters())) return { error: DENIED.error };
 
-  const season = process.env.EUROLEAGUE_SEASON ?? "E2026";
+  const season = serverConfig().EUROLEAGUE_SEASON;
   let rows;
   try {
     ({ rows } = await fetchSeasonRosters({ season }));
@@ -425,7 +426,7 @@ export async function attachStatCode(
     try {
       const report = await ingestFinishedGames({
         pb,
-        season: process.env.EUROLEAGUE_SEASON ?? "E2026",
+        season: serverConfig().EUROLEAGUE_SEASON,
         onlyGames: games,
         maxGames: games.length,
       });

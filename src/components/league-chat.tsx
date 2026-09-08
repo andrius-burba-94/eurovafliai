@@ -19,7 +19,11 @@ import {
   chatTotal,
   chatUnread,
 } from "@/lib/chat/messages";
-import { toMessage, type ChatMessage, type ChatRecord } from "@/lib/chat/store";
+import {
+  parseChatRecord,
+  toMessage,
+  type ChatMessage,
+} from "@/lib/chat/store";
 
 /**
  * League chat — slice 3.5.
@@ -242,7 +246,9 @@ export function LeagueChat({
             "*",
             (event) => {
               if (!active) return;
-              const message = toMessage(event.record as unknown as ChatRecord);
+              const record = parseChatRecord(event.record);
+              if (!record) return;
+              const message = toMessage(record);
               setMessages((current) => {
                 // Deletes are `delete` actions; a retract is an *update* that
                 // clears the body, so both arrive here and both are handled by

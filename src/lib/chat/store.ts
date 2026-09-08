@@ -1,4 +1,5 @@
 import type PocketBase from "pocketbase";
+import { z } from "zod";
 
 /**
  * Reading and writing chat — the PocketBase half, and nothing else.
@@ -23,16 +24,35 @@ import type PocketBase from "pocketbase";
  * record, and the board is drawn from that.
  */
 
-export type ChatRecord = {
-  id: string;
-  league: string;
-  author?: string;
-  body?: string;
-  kind?: string;
-  deleted?: boolean;
-  created?: string;
-  expand?: { author?: { id: string; team_name?: string } };
-};
+/**
+ * The row as PocketBase sends it. Loose on purpose: a realtime payload is
+ * whatever the server emitted, and a missing optional field must not drop a
+ * message — `toMessage` supplies the defaults.
+ */
+const chatRecordSchema = z.looseObject({
+  id: z.string().min(1),
+  league: z.string(),
+  author: z.string().optional(),
+  body: z.string().optional(),
+  kind: z.string().optional(),
+  deleted: z.boolean().optional(),
+  created: z.string().optional(),
+  expand: z
+    .object({
+      author: z
+        .object({ id: z.string(), team_name: z.string().optional() })
+        .optional(),
+    })
+    .optional(),
+});
+
+export type ChatRecord = z.infer<typeof chatRecordSchema>;
+
+/** A realtime event's record, or null when it is not a chat row at all. */
+export function parseChatRecord(value: unknown): ChatRecord | null {
+  const parsed = chatRecordSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 
 /** One message, in the shape a surface renders. */
 export type ChatMessage = {

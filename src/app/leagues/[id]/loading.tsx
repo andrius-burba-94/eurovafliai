@@ -1,12 +1,5 @@
-import { Sheet } from "@/components/board";
+import { LoadingSheet } from "@/components/board";
 
 export default function Loading() {
-  return (
-    <Sheet>
-      <p className="slot-label text-ink-soft" role="status">
-        Loading the league…
-      </p>
-      <div className="slot-waiting min-h-16" aria-hidden="true" />
-    </Sheet>
-  );
+  return <LoadingSheet label="Loading the league…" />;
 }
