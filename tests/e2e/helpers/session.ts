@@ -134,15 +134,6 @@ export async function signIn(
   ]);
 }
 
-/** Read a league's invite code straight from the database. */
-export async function inviteCodeOf(leagueId: string): Promise<string> {
-  const pb = await superuser();
-  const league = await pb
-    .collection("leagues")
-    .getOne(leagueId, { requestKey: null });
-  return league.invite_code as string;
-}
-
 /**
  * A league owned by someone else entirely — for access-control tests.
  *

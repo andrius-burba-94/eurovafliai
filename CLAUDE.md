@@ -39,6 +39,7 @@ npm run dev          # Next (:3007) + PocketBase (:8095) together
 npm run dev:clean    # same, after clearing a stale .next cache
 npm run worker:dev   # the pick-timer / stats worker (tsx watch)
 npm run lint         # eslint
+npm run lint:dead    # knip — unused files, exports, dependencies
 npm run typecheck    # next typegen && tsc --noEmit
 npm run test         # vitest (unit only — E2E is excluded on purpose)
 npm run test:e2e     # playwright
