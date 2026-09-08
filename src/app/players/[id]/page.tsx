@@ -22,11 +22,24 @@ import { readPlayerProfile } from "@/lib/stats/queries";
  */
 export default async function PlayerPage({
   params,
+  searchParams,
 }: PageProps<"/players/[id]">) {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
 
   const { id } = await params;
+  const query = await searchParams;
+  const leagueId =
+    typeof query.league === "string" ? encodeURIComponent(query.league) : null;
+  const memberId =
+    typeof query.member === "string" ? encodeURIComponent(query.member) : null;
+  const back =
+    leagueId && memberId
+      ? {
+          href: `/leagues/${leagueId}/teams/${memberId}`,
+          label: "The roster",
+        }
+      : { href: "/players", label: "The pool" };
   const profile = await readPlayerProfile(id);
   if (!profile) notFound();
 
@@ -34,7 +47,7 @@ export default async function PlayerPage({
 
   return (
     <>
-      <TopRail action={<BackLink href="/players">The pool</BackLink>} />
+      <TopRail action={<BackLink href={back.href}>{back.label}</BackLink>} />
       <Sheet testId="player-log">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">

@@ -626,6 +626,23 @@ test("the commissioner starts over, and the league is back in the lobby", async 
   await draftPlayer(page, players[0]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
+  const pb = await superuser();
+  const planted = await pb.collection("picks").getFirstListItem<{
+    member: string;
+    player: string;
+  }>(`draft.league = '${league.id}'`, { requestKey: null });
+  await pb.collection("roster_memberships").create(
+    {
+      league: league.id,
+      member: planted.member,
+      player: planted.player,
+      from_date: "2026-09-08 12:00:00.000Z",
+      to_date: "",
+      acquired_via: "draft",
+    },
+    { requestKey: null },
+  );
+
   await page.getByTestId("draft-reset-toggle").click();
 
   // A tap is not enough, and neither is the wrong word.
@@ -647,6 +664,11 @@ test("the commissioner starts over, and the league is back in the lobby", async 
   // And startable again, which is the point of going back rather than forward.
   await expect(page.getByTestId("start-draft")).toBeVisible();
   await expect(page.getByTestId("enter-draft")).toHaveCount(0);
+  const left = await pb.collection("roster_memberships").getFullList({
+    filter: `league = '${league.id}'`,
+    requestKey: null,
+  });
+  expect(left).toHaveLength(0);
 });
 
 test("a room whose draft was reset follows it back to the lobby", async ({

@@ -29,8 +29,16 @@ import type PocketBase from "pocketbase";
 export type FakeRecord = Record<string, unknown> & { id: string };
 export type FakeDb = Record<string, FakeRecord[]>;
 
+/**
+ * A unique index as the migrations declare it.
+ *
+ * `whereEmpty` is a partial unique: only rows whose named field is unset
+ * (null, undefined, or "") take part — `idx_roster_memberships_active_player`.
+ */
+export type UniqueIndex = string[] | { fields: string[]; whereEmpty: string };
+
 /** Mirrors the unique indexes the migrations declare. */
-const DEFAULT_UNIQUE: Record<string, string[][]> = {
+const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   picks: [
     ["draft", "overall_no"],
     ["draft", "player"],
@@ -43,14 +51,13 @@ const DEFAULT_UNIQUE: Record<string, string[][]> = {
   // failure-recovery story rests on, so the fake enforces it too. Without it a
   // test of "re-running an import is safe" would pass against a fake that
   // happily stored the same game twice.
-  // `unique(player, season, game_code)` — the index 4.1's whole
-  // failure-recovery story rests on, so the fake enforces it too. Without it a
-  // test of "re-running an import is safe" would pass against a fake that
-  // happily stored the same game twice.
   player_game_stats: [["player", "season", "game_code"]],
   // `unique(league, season, round)` — 4.5's snapshot cache. A second ingest
   // of the same round must update the row, not copy it.
   standings_snapshots: [["league", "season", "round"]],
+  // Partial unique (league, player) while `to_date` is empty — one active
+  // roster per player. A closed window (5.2) must not collide.
+  roster_memberships: [{ fields: ["league", "player"], whereEmpty: "to_date" }],
 };
 
 /**
@@ -60,6 +67,7 @@ const DEFAULT_UNIQUE: Record<string, string[][]> = {
  */
 const DEFAULT_RELATIONS: Record<string, Record<string, string>> = {
   chat_messages: { author: "league_members" },
+  roster_memberships: { player: "players", member: "league_members" },
 };
 
 export type FakeHooks = {
@@ -82,9 +90,22 @@ export type FakePb = {
   rows(collection: string): FakeRecord[];
 };
 
+function uniqueApplies(
+  spec: UniqueIndex,
+  record: Record<string, unknown>,
+): boolean {
+  if (Array.isArray(spec)) return true;
+  const value = record[spec.whereEmpty];
+  return value === undefined || value === null || value === "";
+}
+
+function uniqueFields(spec: UniqueIndex): string[] {
+  return Array.isArray(spec) ? spec : spec.fields;
+}
+
 export function fakePb(options: {
   data: FakeDb;
-  uniqueIndexes?: Record<string, string[][]>;
+  uniqueIndexes?: Record<string, UniqueIndex[]>;
   hooks?: FakeHooks;
 }): FakePb {
   const db: FakeDb = {};
@@ -186,9 +207,13 @@ export function fakePb(options: {
       ): Promise<T> {
         onlySupported(options, ["expand"]);
         hooks.beforeCreate?.(collection, body);
-        for (const fields of unique[collection] ?? []) {
-          const clash = rows(collection).some((record) =>
-            fields.every((field) => record[field] === body[field]),
+        for (const spec of unique[collection] ?? []) {
+          if (!uniqueApplies(spec, body)) continue;
+          const fields = uniqueFields(spec);
+          const clash = rows(collection).some(
+            (record) =>
+              uniqueApplies(spec, record) &&
+              fields.every((field) => record[field] === body[field]),
           );
           if (clash) throw notUnique(fields);
         }

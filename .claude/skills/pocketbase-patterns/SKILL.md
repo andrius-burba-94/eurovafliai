@@ -9,6 +9,7 @@ paths:
   - "src/lib/drafts/**"
   - "src/lib/sheets/store.ts"
   - "src/lib/stats/store.ts"
+  - "src/lib/memberships/**"
   - "src/lib/rosters/apply.ts"
   - "src/lib/rosters/diff.ts"
   - "src/lib/rosters/rename.ts"

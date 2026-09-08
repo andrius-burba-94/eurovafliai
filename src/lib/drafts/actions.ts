@@ -10,6 +10,7 @@ import {
   announceStartOver,
 } from "@/lib/chat/messages";
 import { announce } from "@/lib/chat/store";
+import { clearLeagueMemberships } from "@/lib/memberships/store";
 import {
   computeRollback,
   isLegalPick,
@@ -608,19 +609,20 @@ export async function setAutodraft(
  *
  * ## Failure-recovery story
  *
- * Two writes, and the order is deliberate:
+ * Three writes, and the order is deliberate:
  *
- * 1. **delete the draft** — `picks.draft` cascades, so the board goes with it in
+ * 1. **delete roster memberships** — they are keyed on the league, not the
+ *    draft, so leaving them would unique-block the next season;
+ * 2. **delete the draft** — `picks.draft` cascades, so the board goes with it in
  *    one operation rather than a delete loop that could stop half way;
- * 2. **league back to `setup`**.
+ * 3. **league back to `setup`**.
  *
- * A crash between them leaves a league claiming to be `drafting` with no draft
- * to open. That is visible, harmless, and repaired by `reconcileLeagueStatus` on
- * the next render of either the lobby or the room. The reverse order would leave
- * a `setup` league with a live draft still in it — the lobby would offer a
- * re-roll, and `startDraft` would then find the old draft and resume it, so the
- * new order would be silently ignored. That one is not repairable by inspection,
- * which is why it is not the order chosen.
+ * A crash after (1) rematerializes from the still-complete draft; the user
+ * retries. A crash between (2) and (3) leaves a league claiming to be
+ * `drafting` with no draft to open. That is visible, harmless, and repaired by
+ * `reconcileLeagueStatus` on the next render of either the lobby or the room.
+ * Deleting the draft first would leave active windows that unique-block the
+ * next complete draft, which is why memberships go first.
  */
 export async function resetDraft(
   _previous: DraftResult,
@@ -650,6 +652,8 @@ export async function resetDraft(
     filter: `league = '${leagueId}'`,
     requestKey: null,
   });
+
+  await clearLeagueMemberships(pb, leagueId);
 
   for (const draft of drafts) {
     await pb.collection("drafts").delete(draft.id, { requestKey: null });

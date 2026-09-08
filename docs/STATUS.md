@@ -21,13 +21,35 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: 5.1 roster memberships.** Phase 4 is closed in code: **4.1–4.5 have
-landed**, so the app scores a real Euroleague game, fetches by itself, maps
-renames, materializes last-5, and now **shows a table and a game log**. Standings
-join the newest complete draft's picks until 5.1 exists. Phase 3 is closed apart
+**Next up: 5.2 transactions.** Phase 4 is closed in code: **4.1–4.5 have
+landed**, and **5.1 has landed**: a finished draft writes `roster_memberships`,
+standings join those rows, and each member has a roster page. Standings still
+ignore `from_date`/`to_date` until 5.2 closes a window. Phase 3 is closed apart
 from the **human rehearsal** its DoD asks for — a draft night with 3+ friends on
 mixed devices, inherited from Phase 2 (blueprint D12). That is the only claim in
 this file no test can make.
+
+## Try it on localhost — slice 5.1
+
+```bash
+npm run dev
+# complete a tiny practice draft (roll, start, fill the board)
+```
+
+When the last pick lands, the league is `season`. Open the lobby: each member
+name is a link. Open yours — the thirteen (or however many the template asked
+for) names, plus that member's radar. Open **Standings** and tap a name: the
+same roster.
+
+To see the repair: delete the `roster_memberships` rows for that league in the
+admin UI (or leave a crash between complete and the loop), then:
+
+```bash
+npm run standings:recompute -- --season=E2025
+```
+
+The windows come back from the complete draft, and a second run writes
+`0 snapshot(s)` once the table already matches.
 
 ## Try it on localhost — slice 4.5
 
@@ -75,7 +97,7 @@ has to rank on. Then:
 
 ```bash
 npm run lint:dead        # knip: unused files, exports, dependencies — now a CI job
-npm run test             # 902 unit tests; standings and the snapshot recompute are covered now
+npm run test             # 913 unit tests; memberships, standings join, and the snapshot recompute are covered now
 CI=1 npm run test:e2e    # what CI runs: Playwright against `next start` over a fresh build
 ```
 
@@ -87,7 +109,7 @@ In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
 
-`npm run test` is **902** unit tests after 4.5.
+`npm run test` is **913** unit tests after 5.1.
 
 ## Try it on localhost — slice 4.2
 
@@ -297,17 +319,23 @@ now landed on top of them.
 | **4.2 Player mapping** | done | — | **Not the light verification pass the blueprint expected — it caught a defect that would have split fifteen real players in two.** 2.1's research said 13% of E2026 players had no `person_code` and that the count would fall "as clubs register". It fell, and the clubs registered those players **under their passport names**: `Burnell, Jason` became `Burnell, Jason Scott` *with* a code. So the name+club fallback missed and a sync planned an **add and a departure for the same human** — measured against the live feed as 18 adds and 22 departures, at least 15 of them one person. Box scores attach by `person_code`, so the points would have landed on the new row while a pick or a cheat sheet still pointed at the old one, and 4.3 fetches unattended. `diffRosters` now **quarantines** a likely pair: neither half is written, so the worst case is a stale display name rather than a split identity. On the live pool that turned 18/22 into 6/10. **The rule is token containment, not a fuse threshold** — and that is a measurement, not a preference: over 15 real pairs and 5 hard negatives, fuse's scores *overlap* (true 0.008–0.568, false 0.485–0.777), so any cut-off catching `Duarte, Chris → Theoret Duarte, Christopher` (0.531) also merges `Nunn, Kendrick` with `Nunn, Kevarrius` (0.509) — two real players, one silent identity error. Fuse still ranks the leftovers, which is where a nickname (`Juzang, Johnny → Juzang, Jonathan`) gets offered as a question rather than answered. `/players/mapping` resolves both directions: a rename, and an **unattached person code** from a box score — attaching one also re-imports the games it appeared in, without which the mapping would be cosmetic. A **merge keeps the stored player's id**, so picks, sheets, memberships and stats stay attached |
 | **4.3 Automated fetcher (worker cron)** | done | — | **The worker imports box scores by itself, every 15 minutes.** Not nightly, which is what the blueprint says: a Tuesday game that ends at 22:00 is argued about at 22:05, and a nightly job would have nothing to say until morning. One pass = one schedule request → the games that are **played and not already stored** → up to 12 of them, oldest first. That shape is what makes it **self-healing by construction**: a game missed because the box was down, because a parse failed, or because nobody ran the worker for a fortnight is simply still outstanding next time, so there is no backfill path because there is nothing for one to do. It runs `ingestFinishedGames`, which is also all `npm run stats:sync` does — the automatic path and the by-hand path are the same function, the way `commitPick` is shared by a tap and an autodraft. **The SDK the blueprint names was evaluated and declined** (D16): it is alive and it fits, but its schemas validate the whole payload, so a change to a field we never read could refuse a whole round and stop the automation. A tolerant schema over the ten fields we read keeps going, and the roster sync's retry/backoff moved to `src/lib/euroleague/http.ts` so there is one HTTP idiom rather than two. **Every row still self-checks against the feed's own PIR** on the way in, so 4.1's golden assertion now runs against live data four times an hour — a rulebook change would show up as a refused row with both numbers in the log. It has its **own in-flight guard**, never the sweep's: a slow feed response must not delay a pick deadline. Proved against the live feed and the real database, not only against fixtures — 107 real E2025 lines imported by hand, then the second pass moved on to the next games instead of redoing them |
 | 4.4 Projections | done | — | **Last-5 and season fantasy averages, materialized onto `players` after each ingest.** Integer tenths, same as `fantasy_pts`. Absence is `proj_last5_games === 0`, not a 0 average — PocketBase stores unset numbers as 0, and autodraft already treats a missing projection as worse than −2. Last-5 of 1–4 played games is last-N; DNPs (`time_played = 0`) do not occupy a slot; order is `(round, game_code)`. Both doors call the same `recomputeProjections` after a write, so a human paste and the fifteen-minute pass cannot diverge. **Draft night is before E2026 tip-off:** backfill E2025 then `npm run stats:project`; the first E2026 ingest overwrites the fields. The pool filter is 10+ / 15+ / 20+ last-5 floors, exclusive `FilterToggle`s, and the number sits on the row. A crash between stats landing and the player rows updating leaves stale averages; running the script again is the repair |
-| **4.5 Standings** | done | — | **The first surface that displays a scored night.** Snapshots are a cache, unique `(league, season, round)`, written after ingest the way 4.4 writes projections. The roster join is the **newest complete draft's picks**, not `roster_memberships` — those tables are 5.1, and until the first trade a member's squad *is* their picks. Totals are stored `fantasy_pts` tenths (`formatTenths` only), so custom per-league weights remain a later rescore. Phase is a filter on the page, default RS; every phase stays in `player_game_stats`. Round-over-round is a wrapping table, not a chart. `/players/[id]` is the game log. `/stats/import` finally has a season field. Repair: `npm run standings:recompute` |
+| **4.5 Standings** | done | — | **The first surface that displays a scored night.** Snapshots are a cache, unique `(league, season, round)`, written after ingest the way 4.4 writes projections. The roster join is **active `roster_memberships`** as of 5.1; until then it was the newest complete draft's picks. Totals are stored `fantasy_pts` tenths (`formatTenths` only), so custom per-league weights remain a later rescore. Phase is a filter on the page, default RS; every phase stays in `player_game_stats`. Round-over-round is a wrapping table, not a chart. `/players/[id]` is the game log. `/stats/import` finally has a season field. Repair: `npm run standings:recompute` |
 
 ---
 
-## Phases 5–8
+## Phase 5 — Season mode: rosters, trades, impact tracking
 
-Not started. One line each; the detail lives in the blueprint.
+**Started.** 5.1 is in; 5.2 is next.
+
+| Slice | State | Landed | Notes |
+|---|---|---|---|
+| **5.1 Membership backbone** | done | — | On the last pick, `advance` writes `roster_memberships` (`from_date` = that instant, `acquired_via: draft`) after the draft is complete and the league is `season`. Unique active `(league, player)` is the backstop; a second pass skips anyone who already has an open window. `recomputeStandings` repairs an incomplete set from the newest complete draft **only while no window has been closed** — once 5.2 sets a `to_date`, rebuilding from picks would reopen a dropped player. A complete set does not reread picks. Start-over deletes memberships *before* drafts. **No game-date filter yet:** E2025 backfill games sit before a September 2026 `from_date`, and applying windows now would zero the table. Squad of record is the open windows; `/leagues/[id]/teams/[memberId]` is the roster plus that member's radar |
+
+## Phases 5–8
 
 | Phase | State |
 |---|---|
-| 5 — Season mode: rosters, trades, impact tracking | **next** — 5.1 memberships must swap the standings join off picks |
+| 5 — Season mode: rosters, trades, impact tracking | **started** — 5.1 memberships have swapped the standings join off picks |
 | 6 — Optional formats | todo |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
 | 8 — Hardening & ops polish | todo |
@@ -366,7 +394,7 @@ touch should be fixed by that slice rather than deferred again.
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **Autodraft ranks unsheeted members by last-5** | Closed in 4.4. A member with a sheet is still picked from the sheet first. A member with no played games in the projected season still ties on player id | Nothing |
 | **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. Standings now filter by phase; last-5 on the pool still does not. A September ranking built from last season therefore uses late-playoff form for anyone who was still playing in May | Nothing; a known skew on the preseason ranking |
-| **Standings use draft picks until 5.1** | 4.5 joins the newest complete `drafts` row's `picks` to `player_game_stats`. There is no `roster_memberships` collection yet, so a trade cannot move the table. 5.1 must swap that join; do not invent date windows on a collection that does not exist | Phase 5.1 |
+| **Standings ignore membership date windows until 5.2** | 5.1 swapped the join onto active `roster_memberships` but still attributes every stored line to the current owner. Filtering by `from_date`/`to_date` would zero an E2025 backfill against a 2026 draft. 5.2 must apply windows in the same PR that first closes a `to_date` | Phase 5.2 |
 | **No path from the pool *into* a sheet** | What is left of 3.4a's central critique finding after 3.4b closed two thirds of it. A sheet can now be reordered and a player removed from it, but the only way to *add* somebody is still to paste a list — there is no "put this player on my sheet" from the pool or from the room. It needs a picker over 323 players and a decision about where it lives, so it is its own piece of work rather than a rough edge | Nothing; a sheet can still be built, just not incrementally |
 | **A sheet still cannot be edited from inside the room** | The third thing blueprint 3.4 asks for, and the only part of that line still unmet: "editable before *and during* the draft in a sidebar". It is a page, and the room links to it and pins the best three from it. On a phone that is arguably the right answer — this app is one column and a sixty-row list does not sit beside a board — but it is a divergence rather than a finished thought | Nothing; the sheet is reachable mid-draft, just not beside the board |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |
@@ -393,10 +421,10 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **902 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, and the idempotent snapshot recompute |
+| `npm run test` | **913 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, and the idempotent snapshot recompute |
 | `npm run build` | pass |
-| `npm run test:e2e` | Standings empty + one-round and player game log pass on chromium and Pixel 7. Full suite in CI |
-| `npm run pb:verify` | **117 checks pass** — including unique `(league, season, round)` on standings snapshots and superuser-only writes |
+| `npm run test:e2e` | Roster page + access boundary, standings one-round, and start-over membership cleanup pass on chromium and Pixel 7. Full suite in CI |
+| `npm run pb:verify` | **126 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, and superuser-only writes |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs at the last run. The feed moves; do not treat the count as a constant |
 

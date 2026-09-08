@@ -8,9 +8,9 @@ import { sumTenths } from "./scoring";
  * recomputes after an ingest, a script repairs a crash, and a page filters by
  * phase. Three callers, one sum.
  *
- * Until 5.1 there is no `roster_memberships` table. A member's squad is the
- * players they picked on the newest complete draft. Missing a line is 0, not
- * "skip this round" — a DNP still occupied a roster slot that night.
+ * Until 5.2 closes a window, a member's squad is the players on active
+ * `roster_memberships` rows. Missing a line is 0, not "skip this round" — a
+ * DNP still occupied a roster slot that night.
  *
  * Ties break on `memberId`, the same total-then-id discipline autodraft uses
  * when two legal players score the same.

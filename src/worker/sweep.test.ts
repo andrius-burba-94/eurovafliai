@@ -654,6 +654,10 @@ describe("the repairs nobody else would notice", () => {
     expect(writes).toEqual([
       "update drafts:d1",
       "update leagues:lg1",
+      "create roster_memberships",
+      "create roster_memberships",
+      "create roster_memberships",
+      "create roster_memberships",
       "create chat_messages",
     ]);
   });
@@ -705,6 +709,7 @@ describe("the repairs nobody else would notice", () => {
     expect(db.drafts[0]).toMatchObject({ status: "complete", deadline: "" });
     // The league follows the draft — the pair of writes 2.4 left repairable.
     expect(db.leagues[0].status).toBe("season");
+    expect(db.roster_memberships).toHaveLength(4);
   });
 
   it("restarts a clock that went missing, rather than picking on the spot", async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useActionState, useCallback, useState } from "react";
 import type PocketBase from "pocketbase";
 
@@ -174,6 +175,7 @@ export function LiveLobby({
             <MemberSlot
               key={member.id}
               leagueId={leagueId}
+              leagueStatus={leagueStatus}
               member={member}
               landed={justArrived && member.isYou}
               canManage={(isCommissioner || viewerCanManage) && inSetup}
@@ -284,6 +286,7 @@ function YourTeam({ leagueId, you }: { leagueId: string; you: Member }) {
  */
 function MemberSlot({
   leagueId,
+  leagueStatus,
   member,
   landed,
   canManage,
@@ -291,6 +294,7 @@ function MemberSlot({
   positionRevealed,
 }: {
   leagueId: string;
+  leagueStatus: string;
   member: Member;
   landed: boolean;
   canManage: boolean;
@@ -307,37 +311,58 @@ function MemberSlot({
     member.isReady ? "ready" : null,
   ].filter(Boolean);
 
+  const name = member.teamName || member.name;
+  const rosterHref =
+    leagueStatus === "season"
+      ? `/leagues/${leagueId}/teams/${member.id}`
+      : null;
+  const content = (
+    <>
+      <span className="flex items-baseline gap-2.5">
+        {/* The slot the roll gave them. Tabular figures, so a column of them
+            is a column (DESIGN.md). */}
+        {member.draftPosition && positionRevealed ? (
+          <span
+            data-testid="member-position"
+            className="card-lands slot-label tabular-nums text-live"
+          >
+            {String(member.draftPosition).padStart(2, "0")}
+          </span>
+        ) : null}
+        <CardName>{name}</CardName>
+      </span>
+      <span className="flex flex-wrap items-baseline gap-x-3">
+        {member.teamName ? (
+          <span data-testid="member-name" className="text-sm text-ink-soft">
+            {member.name}
+          </span>
+        ) : null}
+        <span data-testid="member-labels" className="slot-label">
+          {labels.join(" · ")}
+        </span>
+      </span>
+    </>
+  );
+
   return (
     <Slot
       testId="member"
       landed={landed}
       className={canManage && !member.isYou ? "flex-col items-stretch" : ""}
     >
-      <span className="flex flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="flex items-baseline gap-2.5">
-          {/* The slot the roll gave them. Tabular figures, so a column of them
-              is a column (DESIGN.md). */}
-          {member.draftPosition && positionRevealed ? (
-            <span
-              data-testid="member-position"
-              className="card-lands slot-label tabular-nums text-live"
-            >
-              {String(member.draftPosition).padStart(2, "0")}
-            </span>
-          ) : null}
-          <CardName>{member.teamName || member.name}</CardName>
+      {rosterHref ? (
+        <Link
+          href={rosterHref}
+          data-testid="enter-roster"
+          className="-mx-3 -my-3 flex min-h-11 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+        >
+          {content}
+        </Link>
+      ) : (
+        <span className="flex flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          {content}
         </span>
-        <span className="flex flex-wrap items-baseline gap-x-3">
-          {member.teamName ? (
-            <span data-testid="member-name" className="text-sm text-ink-soft">
-              {member.name}
-            </span>
-          ) : null}
-          <span data-testid="member-labels" className="slot-label">
-            {labels.join(" · ")}
-          </span>
-        </span>
-      </span>
+      )}
 
       {canManage && !member.isYou ? (
         <CommissionerControls

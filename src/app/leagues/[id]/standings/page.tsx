@@ -11,10 +11,9 @@ import { StandingsTable } from "./standings-table";
 /**
  * The table — slice 4.5.
  *
- * Ranked from the completed draft's picks × stored box scores. Snapshots are
+ * Ranked from active roster memberships × stored box scores. Snapshots are
  * the cache; this page filters them by phase (regular season on until you
- * ask for the play-in, playoffs or Final Four). Until 5.1 there is no
- * membership window, so a trade would not move these numbers.
+ * ask for the play-in, playoffs or Final Four).
  */
 export default async function StandingsPage({
   params,
@@ -75,7 +74,11 @@ export default async function StandingsPage({
             No box scores counted for {season} yet.
           </p>
         ) : (
-          <StandingsTable snapshots={snapshots} names={names} />
+          <StandingsTable
+            snapshots={snapshots}
+            names={names}
+            leagueId={id}
+          />
         )}
       </Sheet>
     </>
