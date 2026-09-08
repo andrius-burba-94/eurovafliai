@@ -14,6 +14,7 @@ import {
   createLeagueFor,
   createPlayer,
   createTestUser,
+  draftPlayer,
   signIn,
   superuser,
   TEST_CLUB,
@@ -226,7 +227,7 @@ test("a pick lands in its own member's column, and round two turns", async ({
   expect(order.slice(4, 6)).toEqual(["board-slot-5", "board-slot-6"]);
 
   await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
 
   const first = page.getByTestId("board-slot-1");
   await expect(first).toHaveAttribute("data-state", "filled");

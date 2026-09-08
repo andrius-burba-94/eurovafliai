@@ -8,6 +8,7 @@ import {
   createLeagueFor,
   createPlayer,
   createTestUser,
+  draftPlayer,
   signIn,
   TEST_CLUB,
 } from "./helpers/session";
@@ -168,7 +169,7 @@ test("the position and club filters narrow the pool", async ({
 
   // The center is still pickable with the filters back off, so narrowing the
   // list did not quietly break the act the list exists for.
-  await page.getByTestId(`pick-${center.id}`).click();
+  await draftPlayer(page, center.id);
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",
@@ -185,7 +186,7 @@ test("drafted players are hidden by default, and say who took them when shown", 
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
 
-  await page.getByTestId(`pick-${taken.id}`).click();
+  await draftPlayer(page, taken.id);
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",
@@ -242,7 +243,7 @@ test("a position the picker has filled is muted, but still offered to the server
     centers[3]!, // 6 · second — their third center
   ];
   for (const [index, player] of order.entries()) {
-    await page.getByTestId(`pick-${player.id}`).click();
+    await draftPlayer(page, player.id);
     await expect(page.getByTestId(`board-slot-${index + 1}`)).toHaveAttribute(
       "data-state",
       "filled",
@@ -261,8 +262,14 @@ test("a position the picker has filled is muted, but still offered to the server
   // and **on the row that was tapped**. That placement is the whole argument
   // for muting a row rather than hiding it: `Correction` alone renders above
   // the search box, which on a phone can be thirty rows away from the tap.
+  // Arms, then confirms — two taps since 3.7. The refusal now lands in the
+  // band, where the confirming tap is, *and* on the row that started it,
+  // through the shared context. Both, because 3.3's argument for muting rather
+  // than hiding was that the explanation must be where the tap was, and moving
+  // the confirm would otherwise have traded that fix away.
   await remaining.getByRole("button").click();
-  await expect(page.getByTestId("pick-error")).toContainText(/all the Cs/i);
+  await page.getByTestId("confirm-pick-go").click();
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(/all the Cs/i);
   await expect(page.getByTestId("pool-refused")).toContainText(/all the Cs/i);
   await expect(remaining).toHaveAttribute("data-state", "correction");
 
@@ -279,7 +286,7 @@ test("the keyboard arms a pick and never lands one on its own", async ({
   // people press to dismiss things. So Enter arms, and the second one commits.
   const { commissioner, league } = await poolLeague("Keys League");
   const first = await createFoldedPlayer("Alphaone", { position: "G" });
-  const second = await createFoldedPlayer("Alphatwo", { position: "F" });
+  await createFoldedPlayer("Alphatwo", { position: "F" });
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
 
@@ -306,12 +313,14 @@ test("the keyboard arms a pick and never lands one on its own", async ({
   await expect(rows(page).nth(1)).toHaveAttribute("data-state", "live");
   await expect(rows(page).first()).toHaveAttribute("data-state", "waiting");
 
-  // Wait for focus, not for visibility: arming focuses the button a frame
-  // later, and pressing Enter before that lands sends the keystroke back to
-  // the search box, which arms again instead of committing. The assertion is
-  // also the interesting claim — the *armed* button is what has focus, so the
-  // second Enter goes to it and not anywhere else.
-  await expect(page.getByTestId(`pick-${second.id}`)).toBeFocused();
+  // Wait for focus, not for visibility, and note *where* it now goes: since
+  // 3.7 the confirming control lives in the sticky band rather than on the
+  // row, so arming focuses that. The claim is the same one as before — the
+  // thing the second Enter will hit is what has focus, so two keystrokes still
+  // draft and one never can — but the element is different because the
+  // mechanism is. It is in the band precisely so a double-tap on the row
+  // cannot reach it.
+  await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
   await page.keyboard.press("Enter");
 
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
@@ -371,7 +380,7 @@ test("Escape still cancels once a pick is armed", async ({ page, context }) => {
   // `page.keyboard.press`, never `locator.press`: the latter focuses the
   // element first, which is why the original spec passed against the bug.
   const { commissioner, league } = await poolLeague("Escape League");
-  const players = await alphaPlayers();
+  await alphaPlayers();
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
 
@@ -380,18 +389,29 @@ test("Escape still cancels once a pick is armed", async ({ page, context }) => {
   const armed = rows(page).first();
   await expect(armed).toHaveAttribute("data-state", "live");
 
-  // Focus really is on the armed button, and Escape reaches the pool anyway.
-  await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeFocused();
+  // Focus really is on the confirming button — in the band since 3.7 — and
+  // Escape reaches the provider from there anyway, which is the whole point of
+  // hanging that handler above both the band and the pool.
+  await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(armed).toHaveAttribute("data-state", "waiting");
   await expect(page.getByTestId("pool-search")).toBeFocused();
 
-  // And the arrows keep working from there too.
-  await page.getByTestId("pool-search").press("Enter");
-  await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeFocused();
+  // And the arrows work again from there — but note *from there*. Since 3.7,
+  // arming moves focus to the band, and an arrow pressed while a pick is
+  // waiting to be confirmed does nothing: the thing you are focused on is
+  // "draft this player", and an arrow that silently re-aimed it would be worse
+  // than a dead key. So the flow is Escape, then arrow, which is explicit — and
+  // Escape reaches the provider from the band, which is the whole reason that
+  // handler sits above both.
   await page.keyboard.press("ArrowDown");
   await expect(rows(page).nth(1)).toHaveAttribute("aria-current", "true");
   await expect(rows(page).first()).toHaveAttribute("data-state", "waiting");
+
+  // Arming from the new position still works, and still lands in the band.
+  await page.keyboard.press("Enter");
+  await expect(rows(page).nth(1)).toHaveAttribute("data-state", "live");
+  await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
 });
 
 test("a drafted row cannot be armed", async ({ page, context }) => {
@@ -403,7 +423,7 @@ test("a drafted row cannot be armed", async ({ page, context }) => {
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
 
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",
@@ -442,21 +462,43 @@ test("the armed row's action is labelled in ink, not in marker", async ({
   await page.getByTestId("pool-search").fill("alpha");
   await page.getByTestId("pool-search").press("Enter");
 
-  const paint = await page
-    .getByTestId(`pick-${players[0]!.id}`)
-    .evaluate((node) => {
+  // **Polled, not read once.** Chromium reports a stale border width on the
+  // first style resolution after a class change — measured in 3.4b at `1px`
+  // for an element already carrying a 2px rule, correct from ~60ms on. This
+  // spec predates that lesson and read it in a single `evaluate`, which passed
+  // in isolation and failed under full-suite load for a material that is
+  // perfectly correct. AGENTS.md records the rule; this is it applied.
+  const read = () =>
+    page.getByTestId(`pick-${players[0]!.id}`).evaluate((node) => {
       const style = window.getComputedStyle(node);
       const row = node.closest("li")!;
+      const rowStyle = window.getComputedStyle(row);
       return {
+        // The button's own label and border.
         label: style.color,
-        border: style.borderTopColor,
-        borderWidth: style.borderTopWidth,
-        field: window.getComputedStyle(row).backgroundColor,
+        buttonBorder: style.borderTopColor,
+        buttonWidth: style.borderTopWidth,
+        // The row's strike, which is what `state="live"` draws.
+        rowWidth: rowStyle.borderTopWidth,
+        rowBorder: rowStyle.borderTopColor,
+        field: rowStyle.backgroundColor,
       };
     });
 
-  // The blush is there, so the row is struck; the label is not the marker.
+  // Both rules at double weight: the row struck in marker, and the chosen
+  // button keeping the weight it had as a `SubmitButton`.
+  await expect
+    .poll(async () => {
+      const now = await read();
+      return `${now.rowWidth} ${now.buttonWidth}`;
+    })
+    .toBe("2px 2px");
+
+  const paint = await read();
+  // The blush is there, so the row really is struck.
   expect(paint.field).not.toBe("rgba(0, 0, 0, 0)");
-  expect(paint.borderWidth).toBe("2px");
-  expect(paint.label).not.toBe(paint.border);
+  // And the label is ink, not the marker: DESIGN.md forbids marker text on the
+  // live tint by name, and 3.3 shipped it here once.
+  expect(paint.label).not.toBe(paint.buttonBorder);
+  expect(paint.label).not.toBe(paint.rowBorder);
 });

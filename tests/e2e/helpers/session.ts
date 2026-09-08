@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { BrowserContext } from "@playwright/test";
+import { expect, type BrowserContext, type Page } from "@playwright/test";
 import PocketBase from "pocketbase";
 
 import { parseServerEnv } from "../../../src/lib/config/schema";
@@ -369,4 +369,60 @@ export async function cleanupTestData(): Promise<void> {
 /** Track a league the *app* created, so cleanup removes it too. */
 export function trackLeague(id: string): void {
   created.leagues.push(id);
+}
+
+/**
+ * Draft a player through the room, the way a person does.
+ *
+ * **Two taps since 3.7**, and every spec goes through here rather than tapping
+ * the row itself, so the next change to the interaction touches one place
+ * instead of fifty-six. A tap on the row *arms* it; the tap that drafts is
+ * `Draft <Name>` in the sticky on-the-clock band — deliberately somewhere else,
+ * because with the confirm on the row's own button a fast double-tap armed and
+ * picked inside 200ms, which is exactly the fat-finger gesture blueprint 3.7
+ * exists to stop.
+ *
+ * Waiting for the confirm to appear before tapping it is not politeness: it is
+ * the assertion that arming worked. A spec that blind-tapped both would pass
+ * against a row that had submitted immediately.
+ */
+export async function draftPlayer(page: Page, playerId: string): Promise<void> {
+  await page.getByTestId(`pick-${playerId}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+  await page.getByTestId("confirm-pick-go").click();
+  // Wait for the pick to have *landed*, not merely to have been submitted.
+  // `ConfirmPick` disarms itself on a pick the server accepted, so the control
+  // going away is the fact that says so — and a spec that drafts six players in
+  // a loop otherwise races its own next tap against the revalidation, which
+  // showed up as one flaky count under parallel load. Wait for a fact, never
+  // for a duration.
+  //
+  // A *refused* pick keeps the control, deliberately, so the tap can be
+  // repeated — so a spec whose subject is a refusal wants `submitPick` below
+  // instead, or this assertion hangs on its own expected outcome.
+  //
+  // Generous on purpose. This waits on a full server round trip — three writes
+  // (the pick, the advance, the chat announcement) and two revalidations — and
+  // the default 5s is enough in isolation and not enough under eight parallel
+  // workers on this box. Waiting for a *fact* is right; giving it a fuse
+  // shorter than the work it waits on is not, and the failure reads as a
+  // broken confirmation rather than a slow one.
+  await expect(page.getByTestId("confirm-pick-go")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+}
+
+/**
+ * Arm and submit a pick **without asserting it landed**.
+ *
+ * For the specs whose subject is a *refusal*: a full roster, a paused draft, a
+ * player somebody already took. `draftPlayer` waits for the confirm control to
+ * disappear, which only happens on success — a refused pick deliberately keeps
+ * it so the tap can be repeated, so those specs would hang on their own
+ * expected outcome.
+ */
+export async function submitPick(page: Page, playerId: string): Promise<void> {
+  await page.getByTestId(`pick-${playerId}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+  await page.getByTestId("confirm-pick-go").click();
 }
