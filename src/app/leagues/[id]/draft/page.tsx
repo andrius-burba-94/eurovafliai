@@ -173,7 +173,7 @@ export default async function DraftPage({
         {/* Renders nothing while the subscription is healthy. It is mounted
             here, high in the room, because "this board may be behind" is only
             useful next to the board it is about. */}
-        <LiveDraft draftId={draft.id} leagueId={id} authToken={session.token} />
+        <LiveDraft draftId={draft.id} authToken={session.token} />
 
         {needs.length > 0 ? (
           <p className="flex flex-wrap items-center gap-2">

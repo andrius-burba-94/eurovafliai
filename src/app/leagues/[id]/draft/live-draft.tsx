@@ -1,14 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type PocketBase from "pocketbase";
 
-import {
-  browserPb,
-  onAuthenticationLost,
-  onConnectionLost,
-  reportRealtimeError,
-} from "@/lib/pb/browser";
+import { useLiveSubscription } from "@/lib/pb/use-live";
 
 /**
  * The draft room, live — slice 3.2a.
@@ -53,111 +49,55 @@ import {
  */
 const COALESCE_MS = 250;
 
-/**
- * How long to wait for the first `PB_CONNECT` before admitting we are deaf.
- *
- * The component opens claiming to be connected, because the server-rendered
- * room *was* current a moment ago and crying "reconnecting" on every page load
- * would train the room to ignore the word. But a subscription that never comes
- * up at all — a blocked SSE endpoint, a proxy that buffers it to death, a
- * captive-portal wifi — is the one case where silence is a lie: the room looks
- * live and hears nothing. The SDK does not reject `subscribe()` in that case;
- * it retries quietly. So the honest signal is the absence of a connect event.
- *
- * Five seconds, because a phone on a slow connection deserves more than one.
- */
-const CONNECT_GRACE_MS = 5_000;
-
 export function LiveDraft({
   draftId,
-  leagueId,
   authToken,
 }: {
   draftId: string;
-  /** Only for the filter's sake — the subscription is scoped by PB's rules. */
-  leagueId: string;
   authToken: string;
 }) {
   const router = useRouter();
-  // Starts true: the server-rendered room *was* current a moment ago, and
-  // opening on "reconnecting" would cry wolf on every page load.
-  const [connected, setConnected] = useState(true);
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    // The page's one shared client — see `src/lib/pb/browser.ts`. Each live
-    // surface used to create its own, and the moment 3.5 put a second one on
-    // the same page the first stopped connecting at all.
-    const pb = browserPb(authToken);
+  const rerender = useCallback(() => {
+    if (pending.current) clearTimeout(pending.current);
+    pending.current = setTimeout(() => {
+      pending.current = null;
+      router.refresh();
+    }, COALESCE_MS);
+  }, [router]);
 
-    let active = true;
-    let everConnected = false;
-    let pending: ReturnType<typeof setTimeout> | null = null;
-    const unsubscribes: Array<() => void> = [];
+  useEffect(
+    () => () => {
+      if (pending.current) clearTimeout(pending.current);
+    },
+    [],
+  );
 
-    const grace = setTimeout(() => {
-      if (active && !everConnected) setConnected(false);
-    }, CONNECT_GRACE_MS);
-
-    const rerender = () => {
-      if (!active) return;
-      if (pending) clearTimeout(pending);
-      pending = setTimeout(() => {
-        pending = null;
-        if (active) router.refresh();
-      }, COALESCE_MS);
-    };
-
-    // `activeSubscriptions.length > 0` distinguishes a dropped connection from
-    // our own teardown — see the SDK's note on this hook.
-    unsubscribes.push(
-      onConnectionLost(() => {
-        if (active) setConnected(false);
+  const subscribe = useCallback(
+    async (pb: PocketBase) => [
+      await pb.collection("picks").subscribe("*", rerender, {
+        // Single quotes: PocketBase rejects double-quoted filter values.
+        filter: `draft = '${draftId}'`,
       }),
-      onAuthenticationLost(() => {
-        if (active) router.replace("/login?error=unauthorized");
-      }),
-    );
+      // The record topic, not `*`: this is the only draft on screen, and a
+      // sibling league's draft moving is none of this page's business.
+      await pb.collection("drafts").subscribe(draftId, rerender),
+    ],
+    [draftId, rerender],
+  );
 
-    void (async () => {
-      try {
-        unsubscribes.push(
-          await pb.realtime.subscribe("PB_CONNECT", () => {
-            if (!active) return;
-            clearTimeout(grace);
-            setConnected(true);
-            // On a *re*connect, re-render rather than trust the gap: whatever
-            // happened while the socket was down was never delivered to
-            // anyone. On the first connect nothing has been missed — the page
-            // was rendered a moment ago — so spare it the round trip.
-            if (everConnected) rerender();
-            everConnected = true;
-          }),
-        );
-        unsubscribes.push(
-          await pb.collection("picks").subscribe("*", rerender, {
-            // Single quotes: PocketBase rejects double-quoted filter values.
-            filter: `draft = '${draftId}'`,
-          }),
-        );
-        // The record topic, not `*`: this is the only draft on screen, and a
-        // sibling league's draft moving is none of this page's business.
-        unsubscribes.push(
-          await pb.collection("drafts").subscribe(draftId, rerender),
-        );
-      } catch (error) {
-        if (active) reportRealtimeError(error);
-      }
-    })();
+  // On a *re*connect, re-render rather than trust the gap. On the first
+  // connect nothing has been missed — the page was rendered a moment ago — so
+  // spare it the round trip.
+  const onConnect = useCallback(
+    ({ reconnect }: { pb: PocketBase; reconnect: boolean }) => {
+      if (reconnect) rerender();
+    },
+    [rerender],
+  );
 
-    return () => {
-      active = false;
-      clearTimeout(grace);
-      if (pending) clearTimeout(pending);
-      // Our own topics only: closing the shared connection would deafen every
-      // other live surface on the page.
-      for (const unsubscribe of unsubscribes) unsubscribe();
-    };
-  }, [draftId, leagueId, authToken, router]);
+  const { connected } = useLiveSubscription({ authToken, subscribe, onConnect });
 
   if (connected) return null;
 

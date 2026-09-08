@@ -137,8 +137,14 @@ exported `schema.json`, and not hand-clicked in the admin UI on the VPS.
   See the `vps-deploy` skill.
 - Subscribe with the user's token (pass it into client components as an
   `authToken` prop; do not re-authenticate in the browser).
-- Assume drops. Show a "reconnecting" state; the SDK re-subscribes.
-- Classify subscription failures through `reportRealtimeError`: 401/403 is a
+- **A live surface uses `useLiveSubscription`** (`src/lib/pb/use-live.ts`)
+  and supplies only its own topics. The hook owns the shared client, the
+  connect grace, `PB_CONNECT`, connection-loss and token-refusal handling,
+  and tears down only the topics it opened. Do not hand-roll the effect.
+- Assume drops. Show a "reconnecting" state (`connected` from the hook); the
+  SDK re-subscribes. On a reconnect, re-read or re-render — the gap was never
+  delivered to anyone.
+- Subscription failures go through `reportRealtimeError`: 401/403 is a
   terminal token refusal and navigates to sign-in; a status-0/network failure
   is transport loss and keeps the last good UI while the SDK retries. Never
   retry a refused token forever.

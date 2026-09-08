@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
+import type PocketBase from "pocketbase";
 
 import {
   Bank,
@@ -12,12 +13,7 @@ import {
   inputStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
-import {
-  browserPb,
-  onAuthenticationLost,
-  onConnectionLost,
-  reportRealtimeError,
-} from "@/lib/pb/browser";
+import { useLiveSubscription } from "@/lib/pb/use-live";
 import {
   kickMember,
   renameTeam,
@@ -97,37 +93,12 @@ export function LiveLobby({
     seed: positioned === members.length ? settings.roll_seed : "",
     slots: positioned,
   });
-  // Starts true: the server-rendered list *was* current a moment ago, and
-  // opening on "reconnecting" would cry wolf on every page load.
-  const [connected, setConnected] = useState(true);
-
-  useEffect(() => {
-    // The page's one shared client — see `src/lib/pb/browser.ts`. Each live
-    // surface used to create its own, and the moment 3.5 put a second one on
-    // the same page the first stopped connecting at all.
-    const pb = browserPb(authToken);
-
-    let active = true;
-    let everConnected = false;
-    const unsubscribes: Array<() => void> = [];
-
-    /**
-     * A subscription that never comes up is the one case where saying nothing
-     * is a lie — the list looks live and hears nothing. The SDK does not reject
-     * `subscribe()` when the endpoint is unreachable, it retries quietly, so
-     * the honest signal is the absence of a connect event. Found in the draft
-     * room (3.2a), which is the same pattern; fixed in both.
-     */
-    const grace = setTimeout(() => {
-      if (active && !everConnected) setConnected(false);
-    }, 5_000);
-
-    const refresh = async () => {
+  const refresh = useCallback(
+    async (pb: PocketBase) => {
       try {
         const records = await pb
           .collection("league_members")
           .getFullList<MemberRecord>(memberListQuery(leagueId));
-        if (!active) return;
         if (records.length === 0) {
           // Every membership at once means the league itself is gone — the
           // commissioner deleted it, and the cascade took the rows with it.
@@ -147,55 +118,29 @@ export function LiveLobby({
         // empty lobby because one fetch lost a race would be worse than
         // showing one that is a few seconds stale.
       }
-    };
+    },
+    [leagueId, commissionerUserId, viewerUserId, router],
+  );
 
-    // `activeSubscriptions.length > 0` distinguishes a dropped connection from
-    // our own teardown — see the SDK's note on this hook.
-    unsubscribes.push(
-      onConnectionLost(() => {
-        if (active) setConnected(false);
-      }),
-      onAuthenticationLost(() => {
-        if (active) router.replace("/login?error=unauthorized");
-      }),
-    );
+  const subscribe = useCallback(
+    async (pb: PocketBase) => [
+      await pb
+        .collection("league_members")
+        .subscribe("*", () => void refresh(pb), {
+          // Single quotes: PocketBase rejects double-quoted filter values.
+          filter: `league = '${leagueId}'`,
+        }),
+    ],
+    [leagueId, refresh],
+  );
+  // Every connect re-reads, first or not: the list is cheap, the roll reveal
+  // reads off it, and after a drop the gap was never delivered to anyone.
+  const onConnect = useCallback(
+    ({ pb }: { pb: PocketBase }) => void refresh(pb),
+    [refresh],
+  );
 
-    void (async () => {
-      try {
-        unsubscribes.push(
-          await pb.realtime.subscribe("PB_CONNECT", () => {
-            if (!active) return;
-            clearTimeout(grace);
-            setConnected(true);
-            // Back on. Re-read rather than trust the gap: events that fired
-            // while the socket was down were never delivered to anyone. The
-            // first connect has missed nothing, but the list is cheap and the
-            // roll reveal reads off it, so this one always re-reads.
-            everConnected = true;
-            void refresh();
-          }),
-        );
-        unsubscribes.push(
-          await pb
-            .collection("league_members")
-            .subscribe("*", () => void refresh(), {
-              // Single quotes: PocketBase rejects double-quoted filter values.
-              filter: `league = '${leagueId}'`,
-            }),
-        );
-      } catch (error) {
-        if (active) reportRealtimeError(error);
-      }
-    })();
-
-    return () => {
-      active = false;
-      clearTimeout(grace);
-      // Our own topics only: closing the shared connection would deafen every
-      // other live surface on the page.
-      for (const unsubscribe of unsubscribes) unsubscribe();
-    };
-  }, [leagueId, authToken, commissionerUserId, viewerUserId, router]);
+  const { connected } = useLiveSubscription({ authToken, subscribe, onConnect });
 
   const you = members.find((member) => member.isYou);
   const slotsLeft = Math.max(maxMembers - members.length, 0);
