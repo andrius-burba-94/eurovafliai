@@ -35,6 +35,35 @@ frame at 0.07s**, stream held open the full 12 seconds and closed by the
 client — which matters more than usual for this slice, since 3.5's worst bug
 was a *second* realtime client making the first one hang.
 
+**The code-health pass (#71, #72) and everything merged with it was checked on
+2026-09-08 after the `dbf619f` deploy**, and this entry is the shape to copy
+when nothing new is user-facing. There was no migration, so the log correctly
+reads `No migration changes — leaving eurovafliai-pb alone`; both PM2 apps
+reloaded and `worker is online`. The checks that matter for a pass like this
+are the ones that prove it did not quietly break a seam:
+
+- **The box is on the commit.** `git rev-parse HEAD` on the VPS equals local
+  `main` — `dbf619f`. Worth doing explicitly, because `deploy.sh` rewrites
+  itself mid-run (issue #34) and a half-applied deploy is the failure that looks
+  most like success.
+- **Every gated route still gates.** `/players`, `/players/mapping` and
+  `/stats/import` all answer 307 to `/login?error=unauthorized`; `/login`
+  answers 200. A refactor that touched server actions and env access is exactly
+  the kind that turns a redirect into a 500.
+- **Realtime survived.** `PB_CONNECT` on the first frame through the `/pb/`
+  proxy, stream held the full 12 seconds and closed by the client.
+- **The worker's stats fetcher came back.** `stats fetch on · E2026 · every
+  15min` appears immediately after the reload, and the log is now structured
+  JSON — that reformatting is itself a thing to check, since a log line is how
+  the fetcher is observed at all. No `stats pass failed` lines.
+- **PM2 restart counts are shared history, not a symptom.** `eurovafliai-web`
+  and `eurovafliai-worker` both read 46 restarts, which is the count across
+  every deploy this box has had, not evidence of a crash loop. Compare the
+  number between two checks rather than reading it once and worrying.
+
+Nothing else was expected to move: the pass added no CSS utilities and no
+collections, so there was nothing new to grep out of the served stylesheet.
+
 **4.1 and 4.3 were checked that way too, and 4.1 is the second migration
 slice since 1.5** — so the deploy log is again the interesting half. It reads
 `Migrations changed — restarting eurovafliai-pb to apply them`, and the
