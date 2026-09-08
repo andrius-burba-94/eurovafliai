@@ -46,6 +46,7 @@ const created = {
   chat_messages: [],
   player_game_stats: [],
   stat_imports: [],
+  standings_snapshots: [],
 };
 
 const su = new PocketBase(url);
@@ -999,8 +1000,88 @@ try {
     "a member cannot mark an import batch applied with their own token",
   );
 
+  // --- 4.5 standings snapshots --------------------------------------------
+  check(!!byName.standings_snapshots, "standings_snapshots collection exists");
+  check(
+    byName.standings_snapshots.createRule === null &&
+      byName.standings_snapshots.updateRule === null &&
+      byName.standings_snapshots.deleteRule === null,
+    "standings_snapshots writes are superuser-only",
+  );
+  check(
+    byName.standings_snapshots.listRule?.includes("league_members:mine") ===
+      true,
+    "standings_snapshots are readable only by members of that league",
+  );
+  check(
+    byName.standings_snapshots.indexes.some((i) =>
+      /UNIQUE.*`standings_snapshots`.*\(`league`,\s*`season`,\s*`round`\)/.test(
+        i,
+      ),
+    ),
+    "unique index on standings_snapshots(league, season, round)",
+  );
+
+  const snapshot = await su.collection("standings_snapshots").create(
+    {
+      league: league.id,
+      season: "E1999",
+      round: 1,
+      phase: "RS",
+      table: [
+        { memberId: aliceMember.id, totalTenths: 142, roundTenths: 142 },
+      ],
+    },
+    { requestKey: null },
+  );
+  created.standings_snapshots.push(snapshot.id);
+
+  check(
+    (await listCount(aliceClient, "standings_snapshots")) === 1,
+    "a member reads their league's standings snapshot",
+  );
+  check(
+    (await listCount(carolClient, "standings_snapshots")) === 0,
+    "a member of another league cannot read this league's snapshots",
+  );
+  check(
+    await rejects(() =>
+      aliceClient.collection("standings_snapshots").create(
+        {
+          league: league.id,
+          season: "E1999",
+          round: 2,
+          phase: "RS",
+          table: [],
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a member cannot write a standings snapshot with their own token",
+  );
+  check(
+    await rejects(() =>
+      su.collection("standings_snapshots").create(
+        {
+          league: league.id,
+          season: "E1999",
+          round: 1,
+          phase: "RS",
+          table: [],
+        },
+        { requestKey: null },
+      ),
+    ),
+    "a second snapshot for the same league, season and round is refused",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.standings_snapshots)
+    await su
+      .collection("standings_snapshots")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.stat_imports)
     await su
       .collection("stat_imports")

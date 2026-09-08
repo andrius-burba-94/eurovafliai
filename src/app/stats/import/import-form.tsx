@@ -43,7 +43,7 @@ const EXAMPLE = [
   "006590,1,1,RS,IST,85,78,1850,7,3,7,0,4,1,1,2,1,3,2,0,0,0,1,2,2,11,3",
 ].join("\n");
 
-export function StatImportForm({ season }: { season: string }) {
+export function StatImportForm({ season: defaultSeason }: { season: string }) {
   const [result, action] = useActionState(submitStatCsv, START);
   /**
    * Controlled, because React 19 clears an uncontrolled input across a
@@ -51,6 +51,7 @@ export function StatImportForm({ season }: { season: string }) {
    * the last result carried rather than what was typed.
    */
   const [csv, setCsv] = useState("");
+  const [season, setSeason] = useState(defaultSeason);
   const [showHeader, setShowHeader] = useState(false);
 
   /**
@@ -92,7 +93,17 @@ export function StatImportForm({ season }: { season: string }) {
         ) : null}
 
         <form action={action} className="flex flex-col gap-5">
-          <input type="hidden" name="season" value={season} />
+          <Field label="Season code">
+            <input
+              name="season"
+              value={season}
+              onChange={(event) => setSeason(event.target.value.toUpperCase())}
+              data-testid="stat-season"
+              spellCheck={false}
+              autoCapitalize="characters"
+              className={inputStyles}
+            />
+          </Field>
           <Field label="One line per player, with a header row">
             <textarea
               name="csv"

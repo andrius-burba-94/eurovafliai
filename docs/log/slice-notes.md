@@ -3,6 +3,15 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**4.5 has landed, and the roster it scores is still the draft.** Until 5.1
+there is no membership window, so a member's squad is their picks on the newest
+complete draft, joined to stored `fantasy_pts`. Snapshots are a cache with the
+same repair story as 4.4: stats land first, the table second, `npm run
+standings:recompute` is the second pass. Phase is a filter on the page rather
+than a second set of rows, which is why 4.1 kept playoff nights. The import
+form can finally say E2025, which is the only season that has games to show
+before 24 September.
+
 **4.4 has landed, and the number it stores is a cache.** Box scores stay in
 `player_game_stats`; last-5 and season averages on `players` are what autodraft
 and the pool filter read so they do not average the season on every pick. The

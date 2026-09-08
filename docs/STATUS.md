@@ -21,14 +21,34 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: 4.5 standings.** Phase 4 is four slices in: **4.1–4.4 have landed**,
-so the app scores a real Euroleague game, fetches games by itself every fifteen
-minutes, no longer splits a renamed player into two records, and materializes
-last-5 / season averages onto the pool. What is left of Phase 4 is standings,
-which is the first surface that will *display* a box score at all. Phase 3 is
-closed apart from one thing no code can finish — the **human rehearsal** its
-DoD asks for, a draft night with 3+ friends on mixed devices, inherited from
-Phase 2 (blueprint D12). That is the only claim in this file no test can make.
+**Next up: 5.1 roster memberships.** Phase 4 is closed in code: **4.1–4.5 have
+landed**, so the app scores a real Euroleague game, fetches by itself, maps
+renames, materializes last-5, and now **shows a table and a game log**. Standings
+join the newest complete draft's picks until 5.1 exists. Phase 3 is closed apart
+from the **human rehearsal** its DoD asks for — a draft night with 3+ friends on
+mixed devices, inherited from Phase 2 (blueprint D12). That is the only claim in
+this file no test can make.
+
+## Try it on localhost — slice 4.5
+
+```bash
+npm run dev
+# complete a tiny practice draft (roll, start, fill the board)
+# then import last season against it:
+```
+
+On `/stats/import`, set the season field to `E2025`, paste a round (or run
+`npm run stats:sync -- --season=E2025 --max=3`), then:
+
+```bash
+npm run standings:recompute -- --season=E2025
+```
+
+Open the lobby → **Standings** (`?season=E2025` if the env season is still
+E2026). Ranked slots, totals in tenths, per-round numbers wrapping under the
+name. Toggle `RS` off and `PO` on: playoff nights drop in or out without another
+import. Open `/players`, a club, a name: that player's game log (round, club,
+PIR, fantasy tenths). Run `standings:recompute` again: `0 snapshot(s) written`.
 
 ## Try it on localhost — slice 4.4
 
@@ -55,7 +75,7 @@ has to rank on. Then:
 
 ```bash
 npm run lint:dead        # knip: unused files, exports, dependencies — now a CI job
-npm run test             # 894 unit tests; projections and the recompute are covered now
+npm run test             # 902 unit tests; standings and the snapshot recompute are covered now
 CI=1 npm run test:e2e    # what CI runs: Playwright against `next start` over a fresh build
 ```
 
@@ -66,6 +86,8 @@ which is what closed [#16](https://github.com/andrius-burba-94/eurovafliai/issue
 In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
+
+`npm run test` is **902** unit tests after 4.5.
 
 ## Try it on localhost — slice 4.2
 
@@ -267,7 +289,7 @@ now landed on top of them.
 
 ## Phase 4 — Player stats, projections, standings
 
-**Started.** 4.1–4.4 are in; 4.5 is next.
+**Started.** 4.1–4.5 are in; Phase 5 is next.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
@@ -275,7 +297,7 @@ now landed on top of them.
 | **4.2 Player mapping** | done | — | **Not the light verification pass the blueprint expected — it caught a defect that would have split fifteen real players in two.** 2.1's research said 13% of E2026 players had no `person_code` and that the count would fall "as clubs register". It fell, and the clubs registered those players **under their passport names**: `Burnell, Jason` became `Burnell, Jason Scott` *with* a code. So the name+club fallback missed and a sync planned an **add and a departure for the same human** — measured against the live feed as 18 adds and 22 departures, at least 15 of them one person. Box scores attach by `person_code`, so the points would have landed on the new row while a pick or a cheat sheet still pointed at the old one, and 4.3 fetches unattended. `diffRosters` now **quarantines** a likely pair: neither half is written, so the worst case is a stale display name rather than a split identity. On the live pool that turned 18/22 into 6/10. **The rule is token containment, not a fuse threshold** — and that is a measurement, not a preference: over 15 real pairs and 5 hard negatives, fuse's scores *overlap* (true 0.008–0.568, false 0.485–0.777), so any cut-off catching `Duarte, Chris → Theoret Duarte, Christopher` (0.531) also merges `Nunn, Kendrick` with `Nunn, Kevarrius` (0.509) — two real players, one silent identity error. Fuse still ranks the leftovers, which is where a nickname (`Juzang, Johnny → Juzang, Jonathan`) gets offered as a question rather than answered. `/players/mapping` resolves both directions: a rename, and an **unattached person code** from a box score — attaching one also re-imports the games it appeared in, without which the mapping would be cosmetic. A **merge keeps the stored player's id**, so picks, sheets, memberships and stats stay attached |
 | **4.3 Automated fetcher (worker cron)** | done | — | **The worker imports box scores by itself, every 15 minutes.** Not nightly, which is what the blueprint says: a Tuesday game that ends at 22:00 is argued about at 22:05, and a nightly job would have nothing to say until morning. One pass = one schedule request → the games that are **played and not already stored** → up to 12 of them, oldest first. That shape is what makes it **self-healing by construction**: a game missed because the box was down, because a parse failed, or because nobody ran the worker for a fortnight is simply still outstanding next time, so there is no backfill path because there is nothing for one to do. It runs `ingestFinishedGames`, which is also all `npm run stats:sync` does — the automatic path and the by-hand path are the same function, the way `commitPick` is shared by a tap and an autodraft. **The SDK the blueprint names was evaluated and declined** (D16): it is alive and it fits, but its schemas validate the whole payload, so a change to a field we never read could refuse a whole round and stop the automation. A tolerant schema over the ten fields we read keeps going, and the roster sync's retry/backoff moved to `src/lib/euroleague/http.ts` so there is one HTTP idiom rather than two. **Every row still self-checks against the feed's own PIR** on the way in, so 4.1's golden assertion now runs against live data four times an hour — a rulebook change would show up as a refused row with both numbers in the log. It has its **own in-flight guard**, never the sweep's: a slow feed response must not delay a pick deadline. Proved against the live feed and the real database, not only against fixtures — 107 real E2025 lines imported by hand, then the second pass moved on to the next games instead of redoing them |
 | 4.4 Projections | done | — | **Last-5 and season fantasy averages, materialized onto `players` after each ingest.** Integer tenths, same as `fantasy_pts`. Absence is `proj_last5_games === 0`, not a 0 average — PocketBase stores unset numbers as 0, and autodraft already treats a missing projection as worse than −2. Last-5 of 1–4 played games is last-N; DNPs (`time_played = 0`) do not occupy a slot; order is `(round, game_code)`. Both doors call the same `recomputeProjections` after a write, so a human paste and the fifteen-minute pass cannot diverge. **Draft night is before E2026 tip-off:** backfill E2025 then `npm run stats:project`; the first E2026 ingest overwrites the fields. The pool filter is 10+ / 15+ / 20+ last-5 floors, exclusive `FilterToggle`s, and the number sits on the row. A crash between stats landing and the player rows updating leaves stale averages; running the script again is the repair |
-| 4.5 Standings | todo | — | Where `phase` earns its place: whether the play-in and playoffs count is a filter here, not data 4.1 threw away |
+| **4.5 Standings** | done | — | **The first surface that displays a scored night.** Snapshots are a cache, unique `(league, season, round)`, written after ingest the way 4.4 writes projections. The roster join is the **newest complete draft's picks**, not `roster_memberships` — those tables are 5.1, and until the first trade a member's squad *is* their picks. Totals are stored `fantasy_pts` tenths (`formatTenths` only), so custom per-league weights remain a later rescore. Phase is a filter on the page, default RS; every phase stays in `player_game_stats`. Round-over-round is a wrapping table, not a chart. `/players/[id]` is the game log. `/stats/import` finally has a season field. Repair: `npm run standings:recompute` |
 
 ---
 
@@ -285,7 +307,7 @@ Not started. One line each; the detail lives in the blueprint.
 
 | Phase | State |
 |---|---|
-| 5 — Season mode: rosters, trades, impact tracking | todo |
+| 5 — Season mode: rosters, trades, impact tracking | **next** — 5.1 memberships must swap the standings join off picks |
 | 6 — Optional formats | todo |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
 | 8 — Hardening & ops polish | todo |
@@ -343,7 +365,8 @@ touch should be fixed by that slice rather than deferred again.
 | **A radar row cannot reach that member's column** | The last open finding from 3.2's critique, and the only one not fixed. The radar answers "who needs a center" and the board answers "what did they take" — and getting from a name on one to a column on the other means scrolling the board sideways by hand. An enhancement rather than a defect, and it wants a decision first: whether a radar row is a link at all, given the board is a horizontally scrolling region and this system has no idiom for "scroll that thing to here" | Nothing; two surfaces that answer adjacent questions do not connect |
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **Autodraft ranks unsheeted members by last-5** | Closed in 4.4. A member with a sheet is still picked from the sheet first. A member with no played games in the projected season still ties on player id | Nothing |
-| **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. A September ranking built from last season therefore uses late-playoff form for anyone who was still playing in May. 4.5 is where `phase` becomes a filter; until then this is the number | Nothing; a known skew on the preseason ranking |
+| **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. Standings now filter by phase; last-5 on the pool still does not. A September ranking built from last season therefore uses late-playoff form for anyone who was still playing in May | Nothing; a known skew on the preseason ranking |
+| **Standings use draft picks until 5.1** | 4.5 joins the newest complete `drafts` row's `picks` to `player_game_stats`. There is no `roster_memberships` collection yet, so a trade cannot move the table. 5.1 must swap that join; do not invent date windows on a collection that does not exist | Phase 5.1 |
 | **No path from the pool *into* a sheet** | What is left of 3.4a's central critique finding after 3.4b closed two thirds of it. A sheet can now be reordered and a player removed from it, but the only way to *add* somebody is still to paste a list — there is no "put this player on my sheet" from the pool or from the room. It needs a picker over 323 players and a decision about where it lives, so it is its own piece of work rather than a rough edge | Nothing; a sheet can still be built, just not incrementally |
 | **A sheet still cannot be edited from inside the room** | The third thing blueprint 3.4 asks for, and the only part of that line still unmet: "editable before *and during* the draft in a sidebar". It is a page, and the room links to it and pins the best three from it. On a phone that is arguably the right answer — this app is one column and a sixty-row list does not sit beside a board — but it is a divergence rather than a finished thought | Nothing; the sheet is reachable mid-draft, just not beside the board |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |
@@ -352,9 +375,7 @@ touch should be fixed by that slice rather than deferred again.
 | [#35](https://github.com/andrius-burba-94/eurovafliai/issues/35) | **The nginx vhost drift warning can never be silenced.** The committed vhost is the plain `:80` one *by design* (certbot needs a working vhost to answer the ACME challenge and then rewrites the file in place), so every deploy warns. The whole drift is certbot's own `# managed by Certbot` lines; `/pb/` is byte-identical. A warning that fires every time is one nobody reads, which is a problem because the thing it exists to catch — a hand-edit that loses `proxy_buffering off` — kills realtime silently | Nothing; the check protects nothing until it is quiet |
 | **Half the room gets no vibration** | `navigator.vibrate` does not exist on iOS Safari — not gated, not permission-prompted, simply absent — so on an iPhone the clock cue is the tone and the live region and nothing in the hand. `clockCue` returns the vibration pattern regardless and `clock-cue.tsx` feature-detects before calling, so there is no error and no console noise; there is also nothing telling an iPhone owner that half of what the toggle offers cannot happen for them. The toggle's own label says "Sound" rather than "Sound and vibration" for that reason, which is honest but not informative. A real fix means either detecting the absence and saying so, or dropping vibration from the copy entirely | Nothing; a silent asymmetry between the phones in one room |
 | **A commissioner with no membership row hears no clock** | `ClockCue` renders only inside the `view.you` branch, because everything it says is about *your* turn and somebody with no turn has nothing to be told. That is right for the live region and for the cue, and it means a commissioner who runs a draft without playing in it has no audible surface at all — including no way to reach the toggle. Recorded because it looks like a bug from the outside: the toggle simply is not there. If a non-playing commissioner ever needs a cue it wants a different sentence ("Pick 7 is on the clock"), not this one moved | Nothing; a deliberate gating, documented so it is not "fixed" into noise |
-| **Scoring weights are settings that nothing reads yet** | The gap between what 4.1 *can* do and what it does. `scoreGame` takes `weights` and `winBonus` as arguments, every component is persisted so a rescore is possible, and D15 leans on exactly that when it settles the negative-PIR question — but the importer passes `OFFICIAL_WEIGHTS` unconditionally and there is **no recompute** anywhere. So "correcting it is a settings change plus a recompute" is true of the data and not yet true of the app: today it would mean re-importing every round. There is also a real tension to resolve first, and it is why this is not a five-minute job: box scores are **app-global** while weights are **per-league**, so a league with its own weights cannot use the stored `fantasy_pts` at all — it has to score from components at read time. 4.5 has to answer that before a settings screen would mean anything | Nothing yet; a claim about flexibility that is one recompute short of true |
-| **The season is fixed at E2026** | `/stats/import` imports into `E2026` and offers no way to say otherwise; `readStatsOverview` defaults to it. Right for this season and wrong the moment somebody wants to backfill E2025 to try the standings out on a season that already happened — which is a genuinely useful thing to want, given 4.5 has no real data to develop against until October. The parser and the store both take the season as an argument, so this is a field on a form rather than a change to anything underneath | Nothing; a one-season assumption in one page |
-| **Nothing displays a box score** | 4.1 stores game lines and proves they are right, and the only way to look at one is the database. No game log, no player profile, no standings — all of that is 4.5. Worth stating plainly so the slice is not mistaken for more than it is: the app can now *score* a Euroleague night, and it cannot yet *show* one | Nothing; 4.5's whole job |
+| **Scoring weights are settings that nothing reads yet** | 4.5 answered the immediate question by summing stored `fantasy_pts` tenths, so the table is honest about the official weights. Custom per-league weights would still be a lie until a later rescore from components: box scores are app-global, weights would be per-league, and the importer still passes `OFFICIAL_WEIGHTS` unconditionally | Nothing yet; a settings screen would still be a lie |
 | **An amended box score is never noticed** | 4.3's pass asks "what is played and **not stored**", and that is what makes it self-healing — but it means a game whose box score the Euroleague later corrects is invisible to the fetcher for ever, because the game is stored. The Euroleague does amend them. The remedy exists and is manual: paste the game into `/stats/import`, which names every field it would change before changing it. The fix would be a second, slower pass that re-fetches recent games and compares — cheap to write, and it wants a decision about how far back "recent" reaches, because re-fetching 380 games nightly to catch one correction is not a trade worth making | Nothing; a correction needs a person to notice it |
 | **A game imported with some rows refused stays "done"** | `readStoredGameCodes` asks whether a game has *anything* stored, not whether it has all 24 lines. So a game where two players were refused — no person code, or a PIR that disagreed with its own components — counts as imported and the fetcher never returns to it. Deliberate: the refusals are named in the batch log, and re-fetching a game whose other 22 rows are already correct would rewrite them to fix nothing. It does mean the *only* record that a line is missing is a `stat_imports` log nobody reads unprompted | Nothing; two players' lines, and a log entry that has to be looked for |
 | **A quarantine needs somebody to notice it** | 4.2 stops a sync splitting a player in two, and the price is that the pair stays unresolved until a person opens `/players/mapping`. Nothing chases them: the sync script prints the held-back pairs and the page lists them, but no chat announcement, no email, nothing on the lobby. Fifteen unanswered renames means fifteen players whose display name is stale and whose box scores cannot attach — which matters from 24 September, not before. The cheapest fix is a count somewhere a commissioner already looks | Nothing yet; a queue with no doorbell |
@@ -372,10 +393,10 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **894 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, the idempotent recompute, and autodraft ranking from materialized last-5 |
+| `npm run test` | **902 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, and the idempotent snapshot recompute |
 | `npm run build` | pass |
-| `npm run test:e2e` | **349 passed, 1 skipped** (chromium + Pixel 7), every spec run on both, now also in CI against `next start`. The one skip is deliberate: the **touch** drag runs on the `mobile` project only, because desktop Chrome silently drops `Input.dispatchTouchEvent` |
-| `npm run pb:verify` | **109 checks pass** — including that the four projection columns are optional integers |
+| `npm run test:e2e` | Standings empty + one-round and player game log pass on chromium and Pixel 7. Full suite in CI |
+| `npm run pb:verify` | **117 checks pass** — including unique `(league, season, round)` on standings snapshots and superuser-only writes |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs at the last run. The feed moves; do not treat the count as a constant |
 

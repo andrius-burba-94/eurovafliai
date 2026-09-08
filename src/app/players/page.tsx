@@ -188,7 +188,12 @@ export default async function PlayersPage() {
                       state={player.status === "left" ? "waiting" : "filled"}
                     >
                       <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <CardName>{player.name}</CardName>
+                        <Link
+                          href={`/players/${player.id}`}
+                          className="text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                        >
+                          <CardName>{player.name}</CardName>
+                        </Link>
                         {player.dorsal ? (
                           <span className="slot-label">#{player.dorsal}</span>
                         ) : null}

@@ -53,10 +53,9 @@ import {
  * ## Projections (4.4)
  *
  * After the rows land, `recomputeProjections` rewrites last-5 and season
- * averages on `players`. Stats first, cache second: a crash between them
- * leaves stale averages on the player row, and the next ingest or
- * `npm run stats:project` is the repair. The function writes only rows whose
- * four numbers changed, so a second run is a no-op.
+ * averages on `players`, then `recomputeStandings` writes the per-round
+ * table cache. Stats first, caches second: a crash between them leaves
+ * stale numbers, and the next ingest or the repair scripts is the fix.
  */
 
 type StatRecord = ExistingStatRow;

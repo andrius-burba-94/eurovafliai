@@ -151,6 +151,15 @@ export default async function DraftPage({
               <p className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em]">
                 Every slot is filled
               </p>
+              {view.you ? (
+                <Link
+                  href={`/leagues/${id}/standings`}
+                  data-testid="enter-standings"
+                  className="mt-3 inline-flex border-b border-ink/50 text-sm hover:border-ink/80"
+                >
+                  Open the standings
+                </Link>
+              ) : null}
             </>
           )}
           {/* Where a pick actually lands since 3.7. A tap on a pool row arms
