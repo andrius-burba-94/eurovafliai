@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   NO_FILTERS,
   clubsIn,
+  normalizePoolQuery,
   selectPool,
   type PoolFilters,
   type PoolPlayer,
@@ -10,6 +11,7 @@ import {
 } from "./search";
 
 import type { Position } from "@/lib/engine";
+import { MAX_POOL_QUERY_CHARS } from "@/lib/limits";
 
 /**
  * The pool's filtering and search — slice 3.3.
@@ -364,5 +366,11 @@ describe("selectPool — the viewer's cheat sheet", () => {
     // The alternative — treating "no sheet" as "no filter" — would silently
     // show the whole pool under a control that says it is showing three rows.
     expect(run("", { sheetOnly: true }, OPEN, POOL, new Map())).toEqual([]);
+  });
+
+  it("bounds a pasted search query", () => {
+    expect(normalizePoolQuery(`  ${"x".repeat(200)}  `)).toHaveLength(
+      MAX_POOL_QUERY_CHARS,
+    );
   });
 });

@@ -1,0 +1,14 @@
+[Unit]
+Description=Eurovafliai PocketBase backup
+After=eurovafliai-pb.service
+Requires=eurovafliai-pb.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/eurovafliai
+EnvironmentFile=/var/www/eurovafliai/.env
+ExecStart=/root/.local/share/fnm/aliases/default/bin/node \
+  --env-file-if-exists=/var/www/eurovafliai/.env \
+  /var/www/eurovafliai/node_modules/tsx/dist/cli.mjs \
+  /var/www/eurovafliai/scripts/backup-pocketbase.mts

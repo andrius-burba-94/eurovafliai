@@ -86,8 +86,16 @@ const STATS_EVERY_MS = 15 * 60_000;
  */
 const STATS_FIRST_AFTER_MS = 60_000;
 
-function log(message: string): void {
-  console.log(`[worker] ${new Date().toISOString()} ${message}`);
+function log(message: string, level: "info" | "warn" | "error" = "info"): void {
+  const line = JSON.stringify({
+    time: new Date().toISOString(),
+    level,
+    service: "eurovafliai-worker",
+    message,
+  });
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
 }
 
 /** A one-line summary of a tick that actually did something. */
@@ -167,7 +175,10 @@ function main(): void {
     } catch (error) {
       failures += 1;
       if (failures === 1 || failures % FAILURE_LOG_EVERY === 0) {
-        log(`tick failed (${failures} in a row): ${describeError(error)}`);
+        log(
+          `tick failed (${failures} in a row): ${describeError(error)}`,
+          "error",
+        );
       }
       // Most whole-tick failures are PocketBase being unreachable or a token
       // that has expired, and the two are indistinguishable from here. Dropping
@@ -205,7 +216,7 @@ function main(): void {
         // and a PIR that disagrees with its own components is a rulebook
         // change. Both want to be read, not tallied.
         for (const problem of report.problems.slice(0, 20)) {
-          log(`stats · ${problem}`);
+          log(`stats · ${problem}`, "warn");
         }
         if (report.problems.length > 20) {
           log(`stats · …and ${report.problems.length - 20} more problem(s)`);
@@ -224,6 +235,7 @@ function main(): void {
       // writes one, so nothing claims an import that never ran.
       log(
         `stats pass failed (${statsFailures} in a row): ${describeError(error)}`,
+        "error",
       );
       pb.authStore.clear();
     }

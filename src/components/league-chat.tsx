@@ -1,9 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Bank, Correction, Slot, Slots, inputStyles } from "@/components/board";
-import { browserPb, onConnectionLost } from "@/lib/pb/browser";
+import {
+  browserPb,
+  onAuthenticationLost,
+  onConnectionLost,
+  reportRealtimeError,
+} from "@/lib/pb/browser";
 import { retractChatMessage, sendChatMessage } from "@/lib/chat/actions";
 import {
   CHAT_MAX_LENGTH,
@@ -129,6 +135,7 @@ export function LeagueChat({
   /** Null for somebody with no membership — they can read, not write. */
   myMemberId: string | null;
 }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([...initial]);
   /**
    * Follow the server's transcript, do not freeze it.
@@ -216,6 +223,9 @@ export function LeagueChat({
       onConnectionLost(() => {
         if (active) setConnected(false);
       }),
+      onAuthenticationLost(() => {
+        if (active) router.replace("/login?error=unauthorized");
+      }),
     );
 
     void (async () => {
@@ -265,8 +275,8 @@ export function LeagueChat({
             },
           ),
         );
-      } catch {
-        if (active) setConnected(false);
+      } catch (error) {
+        if (active) reportRealtimeError(error);
       }
     })();
 
@@ -276,7 +286,7 @@ export function LeagueChat({
       // shared connection and deafen every other surface on the page.
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [leagueId, authToken]);
+  }, [leagueId, authToken, router]);
 
   const newest = messages.at(-1) ?? null;
 

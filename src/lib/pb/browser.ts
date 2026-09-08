@@ -1,4 +1,4 @@
-import PocketBase, { BaseAuthStore } from "pocketbase";
+import PocketBase, { BaseAuthStore, ClientResponseError } from "pocketbase";
 
 import { publicConfig } from "@/lib/config/public";
 
@@ -38,6 +38,7 @@ import { publicConfig } from "@/lib/config/public";
 
 let cached: { url: string; token: string; pb: PocketBase } | null = null;
 const lostListeners = new Set<() => void>();
+const authLostListeners = new Set<() => void>();
 
 export function browserPb(authToken: string): PocketBase {
   const url = publicConfig().NEXT_PUBLIC_PB_URL;
@@ -61,4 +62,24 @@ export function browserPb(authToken: string): PocketBase {
 export function onConnectionLost(listener: () => void): () => void {
   lostListeners.add(listener);
   return () => lostListeners.delete(listener);
+}
+
+/** A refused subscription is terminal; retrying the same token cannot heal it. */
+export function reportRealtimeError(error: unknown): "auth" | "transport" {
+  const status =
+    error instanceof ClientResponseError
+      ? error.status
+      : (error as { status?: unknown } | null)?.status;
+  if (status === 401 || status === 403) {
+    for (const listener of authLostListeners) listener();
+    return "auth";
+  }
+  for (const listener of lostListeners) listener();
+  return "transport";
+}
+
+/** Learn that PocketBase refused the token. Returns an unsubscribe. */
+export function onAuthenticationLost(listener: () => void): () => void {
+  authLostListeners.add(listener);
+  return () => authLostListeners.delete(listener);
 }

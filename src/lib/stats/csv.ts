@@ -39,6 +39,7 @@
  * every real import, against every row, forever.
  */
 import { splitCsvLine } from "@/lib/csv/split";
+import { MAX_STAT_CSV_LINES } from "@/lib/limits";
 
 import { type BoxScore, scoreGame } from "./scoring";
 
@@ -314,9 +315,17 @@ export function parseStatCsv(text: string): ParsedStatCsv {
     };
   }
 
+  let dataLines = 0;
   for (const [index, raw] of lines.entries()) {
     if (index <= headerIndex || !raw.trim()) continue;
     const lineNo = index + 1;
+    dataLines += 1;
+    if (dataLines > MAX_STAT_CSV_LINES) {
+      problems.push(
+        `Stopped at line ${lineNo}: a stat CSV is capped at ${MAX_STAT_CSV_LINES} players.`,
+      );
+      break;
+    }
     const fields = splitCsvLine(raw);
     const at = (field: Field): string => {
       const column = columns.get(field);

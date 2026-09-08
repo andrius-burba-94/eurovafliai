@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_ROSTER_CSV_LINES } from "@/lib/limits";
+
 import { parseCsvRoster } from "./csv";
 
 describe("parseCsvRoster", () => {
@@ -99,5 +101,15 @@ describe("parseCsvRoster", () => {
     expect(rows).toEqual([]);
     expect(problems[0]).toMatch(/line 1/i);
     expect(problems[0]).toMatch(/quote/i);
+  });
+
+  it("caps a pasted roster before it becomes an unbounded import", () => {
+    const csv = Array.from(
+      { length: MAX_ROSTER_CSV_LINES + 1 },
+      (_, index) => `Player ${index},ZAL,G`,
+    ).join("\n");
+    const { rows, problems } = parseCsvRoster(csv);
+    expect(rows).toHaveLength(MAX_ROSTER_CSV_LINES);
+    expect(problems.at(-1)).toContain(`capped at ${MAX_ROSTER_CSV_LINES}`);
   });
 });

@@ -242,8 +242,8 @@ and 2.5's autodraft see exactly what they will see on draft night — and you ca
 sign in as one in a private window to watch from another member's side. The
 script refuses any PocketBase that is not local.
 
-Two Phase 1 items are still open and both are listed under Open debt: the last
-step of the two-device confirmation, and nightly `pb_data` backups.
+Two Phase 1 items remain under Open debt: the last step of the two-device
+confirmation, and enabling plus restore-testing the PocketBase backup timer.
 
 ---
 
@@ -566,6 +566,26 @@ Not started. One line each; the detail lives in the blueprint.
 
 ---
 
+## Cross-cutting agent and production hardening
+
+The repository now loads project rules on demand through path-scoped skills
+rather than putting every production gotcha in the always-on `AGENTS.md`.
+Cursor and Claude share the same skills; staged JS/TS is linted before commit.
+The application side gained route/root error boundaries, meaningful loading
+states, bounded CSV/search inputs, terminal-vs-retryable realtime error
+handling, parallel independent draft-room reads, security headers, structured
+worker logs, and first-time OAuth verification in CI.
+
+Nightly backup automation is committed as `eurovafliai-backup.timer` and uses
+PocketBase's backup API, retaining 14 archives. It still has to be installed
+and enabled on the VPS, then proved with the restore drill below.
+
+**Try it on localhost:** `npm run lint && npm run typecheck && npm run test`,
+then `npm run dev` and open `http://localhost:3007`. Navigate between the home,
+lobby, draft and sheet routes: each navigation has a board-shaped loading
+fallback, while an expired realtime token returns to sign-in instead of
+retrying forever.
+
 ## Open debt
 
 Carried deliberately, each with an issue. Anything here that a slice is about to
@@ -599,7 +619,7 @@ touch should be fixed by that slice rather than deferred again.
 | **A game imported with some rows refused stays "done"** | `readStoredGameCodes` asks whether a game has *anything* stored, not whether it has all 24 lines. So a game where two players were refused — no person code, or a PIR that disagreed with its own components — counts as imported and the fetcher never returns to it. Deliberate: the refusals are named in the batch log, and re-fetching a game whose other 22 rows are already correct would rewrite them to fix nothing. It does mean the *only* record that a line is missing is a `stat_imports` log nobody reads unprompted | Nothing; two players' lines, and a log entry that has to be looked for |
 | **A quarantine needs somebody to notice it** | 4.2 stops a sync splitting a player in two, and the price is that the pair stays unresolved until a person opens `/players/mapping`. Nothing chases them: the sync script prints the held-back pairs and the page lists them, but no chat announcement, no email, nothing on the lobby. Fifteen unanswered renames means fifteen players whose display name is stale and whose box scores cannot attach — which matters from 24 September, not before. The cheapest fix is a count somewhere a commissioner already looks | Nothing yet; a queue with no doorbell |
 | **A rename is only ever proposed against the *same club*** | `proposeRenames` never pairs across clubs, which is what stops it merging two unrelated players who share a surname. The cost is the case it cannot see: a player who was re-registered under a passport name **and** transferred between two syncs. That is a departure plus an add, as before 4.2, and the duplicate has to be spotted by eye. Rare, and the alternative — fuzzy matching across the whole 330-player pool — is how you merge the wrong Nunn | Nothing; a narrow blind spot, chosen over a wide one |
-| **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
+| **Enable backups + restore drill** | The API backup script and `eurovafliai-backup.timer` are committed and retain 14 archives, but the timer is not live until the units are installed and enabled on the VPS. Then restore one archive into disposable local `pb_data`, boot the pinned binary, and run `pb:verify` | Automation exists in git; no live backup or restore has been proved |
 
 One decision recorded here rather than as debt, because it is settled:
 

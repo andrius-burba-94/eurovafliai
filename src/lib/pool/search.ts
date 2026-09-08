@@ -1,6 +1,7 @@
 import Fuse, { type IFuseOptions } from "fuse.js";
 
 import type { Position } from "@/lib/engine";
+import { MAX_POOL_QUERY_CHARS } from "@/lib/limits";
 
 /**
  * The pool, filtered and searched — slice 3.3.
@@ -137,6 +138,10 @@ export function poolIndex(pool: readonly PoolPlayer[]): Fuse<PoolPlayer> {
   return new Fuse([...pool], FUSE_OPTIONS);
 }
 
+export function normalizePoolQuery(query: string): string {
+  return query.trim().slice(0, MAX_POOL_QUERY_CHARS);
+}
+
 /**
  * A player's place on the viewer's cheat sheet, by player id.
  *
@@ -231,7 +236,7 @@ export function selectPool({
       };
     });
 
-  const needle = query.trim();
+  const needle = normalizePoolQuery(query);
   if (needle.length === 0) return orderBySheet(rows);
 
   // An exact club code is a filter, not a fuzzy search. Three letters is a very

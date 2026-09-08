@@ -174,18 +174,46 @@ export async function getDraftView(
   // Before the picks are read, not after — see the note in `repair.ts`.
   await reconcileLeagueStatus(leagueId, league.status);
 
-  const memberRecords = await pb.collection("league_members").getFullList<{
-    id: string;
-    user: string;
-    team_name: string;
-    can_manage?: boolean;
-    autodraft_enabled?: boolean;
-    expand?: { user?: { name?: string; email?: string } };
-  }>({
-    filter: `league = '${leagueId}'`,
-    expand: "user",
-    requestKey: null,
-  });
+  const [memberRecords, pickRecords, players, chat] = await Promise.all([
+    pb.collection("league_members").getFullList<{
+      id: string;
+      user: string;
+      team_name: string;
+      can_manage?: boolean;
+      autodraft_enabled?: boolean;
+      expand?: { user?: { name?: string; email?: string } };
+    }>({
+      filter: `league = '${leagueId}'`,
+      expand: "user",
+      requestKey: null,
+    }),
+    pb.collection("picks").getFullList<
+      PickRecord & {
+        expand?: {
+          player?: { name?: string; club_code?: string; position?: Position };
+        };
+      }
+    >({
+      filter: `draft = '${draft.id}'`,
+      sort: "overall_no",
+      expand: "player",
+      requestKey: null,
+    }),
+    pb.collection("players").getFullList<{
+      id: string;
+      name: string;
+      name_normalized: string;
+      club_code: string;
+      position: Position;
+      status: string;
+    }>({
+      filter: DRAFTABLE_PLAYERS_FILTER,
+      sort: "name",
+      requestKey: null,
+    }),
+    // Chat is supplementary. A refused transcript must not take down the clock.
+    readMessages(pb, leagueId).catch(() => []),
+  ]);
 
   const nameOf = new Map(
     memberRecords.map((record) => [
@@ -198,19 +226,6 @@ export async function getDraftView(
   );
   const you = memberRecords.find((record) => record.user === session.user.id);
   const youId = you?.id;
-
-  const pickRecords = await pb.collection("picks").getFullList<
-    PickRecord & {
-      expand?: {
-        player?: { name?: string; club_code?: string; position?: Position };
-      };
-    }
-  >({
-    filter: `draft = '${draft.id}'`,
-    sort: "overall_no",
-    expand: "player",
-    requestKey: null,
-  });
 
   const picks: BoardPick[] = pickRecords.map((record) => ({
     id: record.id,
@@ -275,21 +290,6 @@ export async function getDraftView(
     ]),
   );
 
-  // The whole pool, drafted players included — see `pool` on DraftView. 324
-  // players is small enough to read whole and to send whole.
-  const players = await pb.collection("players").getFullList<{
-    id: string;
-    name: string;
-    name_normalized: string;
-    club_code: string;
-    position: Position;
-    status: string;
-  }>({
-    filter: DRAFTABLE_PLAYERS_FILTER,
-    sort: "name",
-    requestKey: null,
-  });
-
   /**
    * The viewer's own sheet — slice 3.4.
    *
@@ -311,7 +311,6 @@ export async function getDraftView(
    * conversation rather than a broken room: chat is the least important thing
    * on this page and must never be the reason it does not render.
    */
-  const chat = await readMessages(pb, leagueId).catch(() => []);
   const ranking = sheet?.ranking ?? [];
   const tiers = sheet?.tiers ?? [];
   const placeOf = new Map(

@@ -7,9 +7,10 @@ nightly stats, standings and trade-impact tracking for the rest of the season.
 **Production:** `https://eurovafliai.labrium.online` · **Season:** Euroleague
 2026–27 · **Rosters:** 13 players (5G / 5F / 3C)
 
-> **Status: Phase 1 — walking skeleton, in progress.** Google sign-in, league
-> creation, join-by-code and the design foundation have landed; the lobby is
-> not finished and nothing is deployed yet. Slice-by-slice detail is in
+> **Status:** production tracks `main` at
+> [eurovafliai.labrium.online](https://eurovafliai.labrium.online). Phases 1–3
+> (auth, lobby, live draft, board, nightly ingest) are done; Phase 4 (season
+> scoring and standings) is in progress. Slice-by-slice detail is in
 > [docs/STATUS.md](docs/STATUS.md); the plan is
 > [docs/EUROVAFLIAI_BLUEPRINT.md](docs/EUROVAFLIAI_BLUEPRINT.md).
 
@@ -18,7 +19,7 @@ nightly stats, standings and trade-impact tracking for the rest of the season.
 ```bash
 fnm use || nvm use           # Node 24, from .nvmrc — npm refuses other versions
 npm install
-npm run setup                # PocketBase binary (SHA256-verified) + git hooks
+npm run setup                # PocketBase binary + git hooks + Impeccable skill
 cp .env.example .env         # then fill it in
 npm run dev                  # Next on :3007 + PocketBase on :8095
 ```
@@ -47,6 +48,8 @@ blocked at the proxy — reach it through an SSH tunnel.
 | Command | What it does |
 |---|---|
 | `npm run dev` | Next (`:3007`) and PocketBase (`:8095`) together |
+| `npm run setup` | PocketBase binary (SHA256-verified) + git hooks + Impeccable skill |
+| `npm run setup:hooks` | Point git at `.githooks` (`pre-commit` ESLint, `pre-push` blocks `main`) |
 | `npm run dev:clean` | Clears a stale `.next` cache, then `dev` |
 | `npm run worker:dev` | The pick-timer / stats worker, watched |
 | `npm run lint` · `typecheck` · `test` | ESLint · `next typegen && tsc --noEmit` · Vitest |
@@ -55,6 +58,7 @@ blocked at the proxy — reach it through an SSH tunnel.
 | `./scripts/pb-download.sh` | Install the PocketBase version pinned in `pb/VERSION` |
 | `npm run pb:verify` | Check the PocketBase API rules and unique indexes still hold (needs PB running) |
 | `npm run pb:verify:oauth2` | Prove a first-time Google sign-in can still create its user, against a local OIDC issuer (needs PB running) |
+| `npm run pb:backup` | Create a PocketBase API backup and retain the newest 14 (production timer uses this) |
 | `./scripts/google-oauth-wizard.sh` | Interactive walkthrough of the Google Cloud OAuth setup |
 | `npm run --silent pb:dump-schema` | Print the schema as stable, secret-free JSON (used by CI to diff a rollback round-trip) |
 
@@ -93,7 +97,8 @@ must state their failure-recovery story — PocketBase has no transactions.
 
 GitHub's branch protection needs a paid plan on a private repo, so the guard is
 local: `npm run setup:hooks` installs a `pre-push` hook that refuses direct
-pushes to `main`. Repo settings already allow squash merges only.
+pushes to `main`, and a `pre-commit` hook that ESLints staged JS/TS. Repo
+settings already allow squash merges only.
 
 Agent workflow, domain vocabulary and the non-negotiables are in
 [CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md) and [CONTEXT.md](CONTEXT.md).

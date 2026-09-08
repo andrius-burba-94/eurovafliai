@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { getSafeActionError } from "@/lib/safe-error";
+
 import { requireSession } from "@/lib/auth/session";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
@@ -112,8 +114,10 @@ export async function sendChatMessage(
       memberId: context.memberId,
       body: verdict.body,
     });
-  } catch {
-    return { error: "That did not send. Try again." };
+  } catch (error) {
+    return {
+      error: getSafeActionError(error, "That did not send. Try again."),
+    };
   }
 
   // The surfaces that hold chat render server-side on first load; the realtime

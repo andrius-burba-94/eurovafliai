@@ -85,6 +85,9 @@ jobs:
       - name: Rules and indexes behave
         run: npm run pb:verify
 
+      - name: First-time OAuth2 sign-up still works
+        run: npm run pb:verify:oauth2
+
       - name: A full rollback and re-apply reproduces the same schema
         # `migrate down` is the path that only ever runs on the day something has
         # gone wrong, so it is the last place a surprise is welcome. Compares a
