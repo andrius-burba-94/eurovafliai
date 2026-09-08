@@ -83,6 +83,7 @@ Non-negotiables (details in the skills below):
 | Topic | Read |
 |---|---|
 | **What is done and what is next** | **`docs/STATUS.md`** |
+| How each slice got there: decisions, deploy checks, the verification record | `docs/log/` |
 | The whole plan, phase by phase | `docs/EUROVAFLIAI_BLUEPRINT.md` |
 | Domain vocabulary (use these words) | `CONTEXT.md` |
 | Why the stack / realtime / no-transactions design | `docs/adr/` |
@@ -149,6 +150,11 @@ The five canonical labels, unchanged: `needs-triage`, `needs-info`, `ready-for-a
   says so and the claim is true. If a PR defers part of its scope, that
   deferral is recorded in STATUS.md, not only in the PR description: the next
   agent reads the repo, not your merged pull requests.
+- **STATUS.md holds tables, debt, next-up and the current phase's "Try it"
+  notes; the story goes to `docs/log/`.** The paragraph that explains *why* a
+  slice went the way it did, what was checked after its deploy, and a closed
+  phase's "Try it" notes are appended to `docs/log/` in the same PR, under the
+  slice number — so STATUS.md stays short enough to read before every task.
 - **Every slice ends with a "Try it on localhost" note in `docs/STATUS.md`** —
   a handful of lines: the commands to run, the URL to open, and the one thing to
   look at. Short enough to follow without reading the PR.
