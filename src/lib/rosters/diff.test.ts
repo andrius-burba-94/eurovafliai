@@ -292,6 +292,139 @@ describe("diffRosters — departures and idempotency", () => {
   });
 });
 
+describe("diffRosters — suspected renames are quarantined (4.2)", () => {
+  it("holds a passport-name rename out of both adds and leaving", () => {
+    // The real 2026-09-08 case. Before 4.2 this planned an add *and* a
+    // departure for one human, and box scores would have attached to the new
+    // row while a pick still pointed at the old one.
+    const diff = diffRosters({
+      current: [
+        existing({
+          id: "p1",
+          name: "Burnell, Jason",
+          club_code: "MIL",
+          person_code: null,
+        }),
+      ],
+      incoming: [
+        incoming({
+          name: "Burnell, Jason Scott",
+          club_code: "MIL",
+          person_code: "014782",
+        }),
+      ],
+    });
+
+    expect(diff.adds).toEqual([]);
+    expect(diff.leaving).toEqual([]);
+    expect(diff.renames).toHaveLength(1);
+    expect(diff.renames[0]!.confidence).toBe("likely");
+    expect(diff.renames[0]!.existing.id).toBe("p1");
+    expect(diff.renames[0]!.incoming.person_code).toBe("014782");
+  });
+
+  it("still departs a player who genuinely left", () => {
+    const diff = diffRosters({
+      current: [existing({ id: "p1", name: "Gone, Somebody" })],
+      incoming: [],
+    });
+    expect(diff.leaving).toHaveLength(1);
+    expect(diff.renames).toEqual([]);
+  });
+
+  it("still adds a genuinely new signing", () => {
+    const diff = diffRosters({
+      current: [],
+      incoming: [incoming({ name: "Fresh, Newcomer", person_code: "999" })],
+    });
+    expect(diff.adds).toHaveLength(1);
+    expect(diff.renames).toEqual([]);
+  });
+
+  it("leaves a merely *possible* pair in adds and leaving", () => {
+    // A `candidate` is a question. Holding both sides out on the strength of a
+    // guess would let one unanswered question stall a real signing and a real
+    // departure indefinitely.
+    const diff = diffRosters({
+      current: [
+        existing({
+          id: "p1",
+          name: "Juzang, Johnny",
+          club_code: "ULK",
+          person_code: null,
+        }),
+      ],
+      incoming: [
+        incoming({
+          name: "Juzang, Jonathan",
+          club_code: "ULK",
+          person_code: "014733",
+        }),
+      ],
+    });
+
+    expect(diff.renames).toHaveLength(1);
+    expect(diff.renames[0]!.confidence).toBe("candidate");
+    expect(diff.adds).toHaveLength(1);
+    expect(diff.leaving).toHaveLength(1);
+  });
+
+  it("does not quarantine two different players who share a surname", () => {
+    const diff = diffRosters({
+      current: [
+        existing({
+          id: "p1",
+          name: "Nunn, Kendrick",
+          club_code: "PAN",
+          person_code: null,
+        }),
+      ],
+      incoming: [
+        incoming({
+          name: "Nunn, Kevarrius",
+          club_code: "PAN",
+          person_code: "555",
+        }),
+      ],
+    });
+    // Offered as a question, because the club has an arrival nothing explains
+    // and this row has no code — but never as a finding.
+    expect(
+      diff.renames.every((rename) => rename.confidence === "candidate"),
+    ).toBe(true);
+    expect(diff.adds).toHaveLength(1);
+    expect(diff.leaving).toHaveLength(1);
+  });
+
+  it("keeps a rename out of the departure alarm's arithmetic", () => {
+    // `assessDepartures` guards against a partial sheet emptying the pool. A
+    // quarantined rename is not a departure, so it must not count toward that
+    // threshold — otherwise a feed-wide re-registration looks like a purge.
+    const current = Array.from({ length: 4 }, (_, index) =>
+      existing({
+        id: `p${index}`,
+        name: `Player ${index}, Test`,
+        club_code: "MIL",
+        person_code: null,
+      }),
+    );
+    const diff = diffRosters({
+      current,
+      incoming: current.map((player, index) =>
+        incoming({
+          name: `Player ${index}, Test Passport`,
+          club_code: "MIL",
+          person_code: `code${index}`,
+        }),
+      ),
+    });
+
+    expect(diff.renames).toHaveLength(4);
+    expect(diff.leaving).toEqual([]);
+    expect(assessDepartures(diff, current.length).alarming).toBe(false);
+  });
+});
+
 describe("assessDepartures", () => {
   const leaving = (n: number) =>
     ({
@@ -299,6 +432,7 @@ describe("assessDepartures", () => {
       changes: [],
       blocked: [],
       problems: [],
+      renames: [],
       leaving: Array.from({ length: n }, (_, i) => ({
         id: `p${i}`,
         name: `Gone ${i}`,

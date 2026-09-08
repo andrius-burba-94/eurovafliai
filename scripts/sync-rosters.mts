@@ -132,6 +132,7 @@ function report(
   console.log(`\nAuthority: ${authority}`);
   console.log(
     `Plan: +${diff.adds.length} add · ~${diff.changes.length} change · ${diff.leaving.length} leaving · ` +
+      `${diff.renames.length} suspected rename(s) held back · ` +
       `${diff.blocked.length} blocked by a lock · ${diff.problems.length} problems`,
   );
   for (const add of diff.adds.slice(0, 5)) {
@@ -147,6 +148,29 @@ function report(
   }
   for (const gone of diff.leaving.slice(0, 10)) {
     console.log(`  − ${gone.name} (${gone.club_code}) → left`);
+  }
+  // The quarantine, printed rather than left implicit. A sync that silently
+  // declined to write eleven rows would look like a sync that had nothing to
+  // do — and these are the rows that need a person.
+  const likely = diff.renames.filter((r) => r.confidence === "likely");
+  const asking = diff.renames.filter((r) => r.confidence === "candidate");
+  for (const rename of likely.slice(0, 15)) {
+    console.log(
+      `  = ${rename.existing.name} → ${rename.incoming.name} (${rename.existing.club_code}, code ${rename.incoming.person_code}) — same player? ${rename.reason}`,
+    );
+  }
+  if (likely.length > 15) {
+    console.log(`  … ${likely.length - 15} more suspected renames`);
+  }
+  for (const rename of asking.slice(0, 10)) {
+    console.log(
+      `  ? ${rename.existing.name} (${rename.existing.club_code}) has no code — best guess ${rename.incoming.name}: ${rename.reason}`,
+    );
+  }
+  if (diff.renames.length > 0) {
+    console.log(
+      `  → Confirm or reject these at /players/mapping. Until then neither the departure nor the arrival is written.`,
+    );
   }
   for (const blocked of diff.blocked) {
     console.log(`  🔒 ${blocked.name}: ${blocked.fields.join(", ")} (locked)`);

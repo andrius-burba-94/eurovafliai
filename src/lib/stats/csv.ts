@@ -48,6 +48,16 @@ export const PHASES: readonly Phase[] = ["RS", "PI", "PO", "FF"];
 
 export type ParsedStatRow = {
   readonly personCode: string;
+  /**
+   * The name the *source* gave this line, when it gave one.
+   *
+   * The API sends it; a stat CSV has no name column, because the person code is
+   * the identity and a name column would be a second place to disagree. It is
+   * carried purely so that an **unmatched** code can be reported as a person
+   * rather than as a number — 4.2 cannot suggest a match for `099999`, but it
+   * can for `Juzang, Jonathan (ULK)`.
+   */
+  readonly name?: string;
   readonly gameCode: number;
   readonly round: number;
   readonly phase: Phase;

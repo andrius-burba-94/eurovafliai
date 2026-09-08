@@ -88,10 +88,19 @@ export type StatPlan = {
     readonly line: number;
   }[];
   readonly unchanged: number;
-  /** Person codes the pool has never heard of, with the games they appeared in. */
+  /**
+   * Person codes the pool has never heard of, with the games they appeared in
+   * and — when the source gave one — the name it used.
+   *
+   * The name is what makes this **4.2's input** rather than a dead end: a code
+   * alone can only be looked up, whereas a name and a club can be matched
+   * against the pool and offered to somebody as a question.
+   */
   readonly unmatched: {
     readonly personCode: string;
     readonly lines: number[];
+    readonly name: string | null;
+    readonly clubCode: string | null;
   }[];
   /** How many distinct games this batch touches, and which rounds. */
   readonly games: number;
@@ -218,7 +227,10 @@ export function planStatImport({
 
   const creates: StatPlan["creates"] = [];
   const updates: StatPlan["updates"] = [];
-  const unmatched = new Map<string, number[]>();
+  const unmatched = new Map<
+    string,
+    { lines: number[]; name: string | null; clubCode: string | null }
+  >();
   const games = new Set<number>();
   const rounds = new Set<number>();
   let unchanged = 0;
@@ -226,9 +238,15 @@ export function planStatImport({
   for (const row of rows) {
     const player = byCode.get(row.personCode);
     if (!player) {
-      const lines = unmatched.get(row.personCode) ?? [];
-      lines.push(row.line);
-      unmatched.set(row.personCode, lines);
+      const seen = unmatched.get(row.personCode) ?? {
+        lines: [],
+        name: row.name ?? null,
+        clubCode: row.clubCode ?? null,
+      };
+      seen.lines.push(row.line);
+      // First name wins, but a later row fills one in if the first had none.
+      seen.name ??= row.name ?? null;
+      unmatched.set(row.personCode, seen);
       continue;
     }
 
@@ -266,9 +284,11 @@ export function planStatImport({
     creates,
     updates,
     unchanged,
-    unmatched: [...unmatched.entries()].map(([personCode, lines]) => ({
+    unmatched: [...unmatched.entries()].map(([personCode, seen]) => ({
       personCode,
-      lines,
+      lines: seen.lines,
+      name: seen.name,
+      clubCode: seen.clubCode,
     })),
     games: games.size,
     rounds: [...rounds].sort((a, b) => a - b),

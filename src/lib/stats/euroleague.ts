@@ -298,6 +298,7 @@ export async function fetchGameBoxScore({
 
       rows.push({
         personCode,
+        name: who,
         gameCode: game.gameCode,
         round: game.round,
         phase: game.phase,

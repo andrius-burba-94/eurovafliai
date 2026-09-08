@@ -22,6 +22,7 @@
  * - a player the source no longer lists is marked `left`, **never deleted** —
  *   picks, cheat sheets, memberships and stats all reference player ids.
  */
+import { proposeRenames } from "./rename";
 import type {
   ExistingPlayer,
   NormalizedPlayer,
@@ -70,7 +71,10 @@ export function diffRosters({
     leaving: [],
     blocked: [],
     problems: [],
+    renames: [],
   };
+  /** The full rows behind `leaving`, which the rename pass needs. */
+  const departing: ExistingPlayer[] = [];
 
   const matched = new Set<string>();
   const seen = new Set<string>();
@@ -171,12 +175,49 @@ export function diffRosters({
       });
       continue;
     }
+    departing.push(player);
     diff.leaving.push({
       id: player.id,
       name: player.name,
       club_code: player.club_code,
     });
   }
+
+  /**
+   * The rename pass — slice 4.2, and the reason it runs *here* rather than in a
+   * screen somewhere.
+   *
+   * At this point `adds` and `leaving` are both full of rows nothing explained,
+   * and on 2026-09-08 thirteen of those pairs were the same human: the clubs
+   * had re-registered their codeless signings under passport names, so
+   * `Burnell, Jason` became `Burnell, Jason Scott` **with** a person code, the
+   * name+club fallback missed, and both halves fired. Applying that splits one
+   * player into a departed row and a duplicate — and since box scores attach by
+   * `person_code`, the points would land on the new row while a pick still
+   * pointed at the old one.
+   *
+   * So a suspected pair is **quarantined**: removed from `adds` and from
+   * `leaving`, and reported for a person to confirm. Nothing is written either
+   * way, which is the safe direction — the worst case is a stale display name
+   * for a few days, against a split identity that a draft cannot recover from.
+   *
+   * Only `likely` pairs are held out. A `candidate` is a question, not a
+   * finding: it leaves both sides where they were, so an unanswered question
+   * cannot hold up a genuine signing or a genuine departure.
+   */
+  const { proposals, pairedIncoming } = proposeRenames({
+    departing,
+    arriving: diff.adds,
+  });
+  diff.renames = proposals;
+
+  const heldOut = new Set(
+    proposals
+      .filter((proposal) => proposal.confidence === "likely")
+      .map((proposal) => proposal.existing.id),
+  );
+  diff.adds = diff.adds.filter((row) => !pairedIncoming.has(row));
+  diff.leaving = diff.leaving.filter((row) => !heldOut.has(row.id));
 
   return diff;
 }
