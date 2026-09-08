@@ -77,12 +77,23 @@ defines the target and this file is wrong.
 > **Phase 1 — walking skeleton** — auth, league creation, join-by-code, the
 > design foundation, the live lobby and the deploy all landed long ago.
 
-**Next up: Phase 4 — player stats, projections and standings.** Phase 3 is
-closed apart from two things no code can finish: the `/impeccable` passes on
-3.7's surfaces, and the **human rehearsal** its DoD asks for — a draft night
-with 3+ friends on mixed devices, inherited from Phase 2 (blueprint D12). That
-is the only claim in this file no test can make. 3.3 also stays `partial` until
-Phase 4 exists, because its one deferred filter needs projections to filter on.
+**Next up: 4.2 and 4.3 — reconciling the edge cases, then the nightly
+fetcher.** Phase 4 has started: **4.1 has landed**, so the app can score a real
+Euroleague game and prove it scores it the way the Euroleague does. Phase 3 is
+closed apart from one thing no code can finish — the **human rehearsal** its DoD
+asks for, a draft night with 3+ friends on mixed devices, inherited from Phase 2
+(blueprint D12). That is the only claim in this file no test can make. 3.3 stays
+`partial` until **4.4**, because its one deferred filter needs projections to
+filter on.
+
+**4.1 has landed, and the thing to know about it is the evidence.** The 2026-27
+season has not tipped off — E2026 game 1 is 24 September 2026 — so there was no
+live box score to check the scoring engine against. Last season's are real
+enough: the feed publishes the Euroleague's own PIR as `valuation`, so 168 real
+player lines are committed as a fixture and the engine is asserted against
+*their* arithmetic rather than against my reading of the rulebook. It also
+turned up a field that lies (`winner`), which is now written down in three
+places so nobody trusts it in 4.3.
 
 **3.7 has landed, and with it the oldest unmet promise in this file.** A tap on
 a pool row now *arms* it and the tap that drafts is in the sticky band — which
@@ -189,6 +200,34 @@ Two Phase 1 items are still open and both are listed under Open debt: the last
 step of the two-device confirmation, and nightly `pb_data` backups.
 
 ---
+
+## Try it on localhost — slice 4.1
+
+```bash
+npm run dev              # Next :3007 + PocketBase :8095
+npm run rosters:sync     # once, if the pool is empty — the importer matches on person code
+npm run stats:golden -- --check   # optional: ask the feed whether it still agrees with the fixture
+```
+
+Sign in as a commissioner and open **`/stats/import`**. Then:
+
+- **Press `Show the header row`** and copy it. That is the sheet's shape: the
+  feed's own column names, 27 of them, order irrelevant because the header
+  names them.
+- **Paste one line** under it — any `person_code` from the pool, a game code, a
+  round, a club, the two scores, then the counts. Press `Read the sheet`.
+  Nothing is stored yet; the plan says what would be.
+- **Include a `valuation`** (the official PIR) that does *not* match the
+  numbers beside it. The line is refused and told which two numbers disagree —
+  the golden test, running on your paste.
+- **Press `Store`**, then paste the *same* sheet again and read it. It says
+  *already stored* and there is no button to press. That is the failure-recovery
+  story you can see: re-running an import is always safe.
+- **Change one number and read it again.** It is a *correction*, and it is
+  spelled out field by field before you store it, because a correction rewrites
+  a game the standings have already counted.
+- **Check the arithmetic yourself**: a line worth PIR 3 on a win stores
+  `fantasy_pts: 33` — tenths, not 3.3 — and the same line on a loss stores 30.
 
 ## Try it on localhost — slice 3.7
 
@@ -393,13 +432,26 @@ now landed on top of them.
 | 3.6 Commissioner console — the rest | **cut** | — | Blueprint **D13**, and the argument is that each of the four already has a working path: the sweep autodrafts an absent member from their own sheet and "Pick for them" covers a manager who will not wait; the rollback field works and the board shows every pick number; the timer never needs changing mid-draft if it was set sensibly, and pause covers the rest; and "Pick for them" **is** the offline pick entry the blueprint text predates. What was left was commissioner comfort for eight friends in one room. 3.6a and 3.6b shipped and stay |
 | **3.7 Draft-day polish** | done | — | **A tap arms; the tap that drafts is in the sticky band.** Until now a tap on a pool row submitted immediately — so on the device draft night happens on, one tap drafted a player irreversibly, undoable only by a rollback that deletes every pick after it too. The confirm is in the band rather than on the row for a specific reason: with it on the row's own button **a fast double-tap armed and picked inside 200ms**, so the guard would have caught a stray single tap and missed the exact gesture it was built for. That also gives the pointer a `Cancel` it never had, since Escape was keyboard-only, and it makes the pointer path identical to the keyboard's — one idiom, and `ConfirmPick` takes focus so two keystrokes still draft and one still cannot. Same shape 3.4b reached for the sheet, independently. **And the clock can be heard.** A polite live region says "Your turn. Pick 7, round 1." when your turn arrives and **nothing** when somebody else's does; a synthesized two-note tone and `navigator.vibrate` sit behind a per-device toggle beside "Draft for me", off by default. `clockCue` is pure, so the rule that matters is tested without a browser: the cue fires on the *transition into* your turn and never on a re-render — the room re-renders on all ~156 picks of a draft. **Toasts were cut** (blueprint D14). **Followed by an `/impeccable critique` that scored it 24/40 — the best in this project's corpus — and whose every finding is fixed in the slice**; see below. The human rehearsal is what remains of the slice's text |
 
-## Phases 4–8
+## Phase 4 — Player stats, projections, standings
+
+**Started.** 4.1 is in; the rest is in blueprint order.
+
+| Slice | State | Landed | Notes |
+|---|---|---|---|
+| **4.1 Stats schema + scoring engine + CSV import** | done | — | **PIR is not ours to get right by reasoning, so it is checked against theirs.** The box-score feed publishes `valuation`, which *is* PIR — so `scoring.golden.test.ts` replays **168 real player rows from seven E2025 games** and asserts our sum equals the number the Euroleague printed that night, plus all fourteen team totals: **zero mismatches**. Regenerate with `npm run stats:golden`; `-- --check` asks the feed whether it still agrees with the committed fixture. The endpoint the research file left open is pinned (`/games/{code}/stats`), and it came with **one finding that would have been a silent, season-long bug**: the feed's `winner` field is the *season's champion* on every game of the season — `OLY` on all seven samples, five of which it did not play in — and the win is what the ×1.1 bonus hangs on. Derive it from the scoreline; two of the seven agreed by coincidence, so a small sample would have looked fine. **Fantasy points are integer tenths everywhere**, because `3 * 1.1` is `3.3000000000000003` and a season of those in a standings sum is a wrong number nobody can explain. **Blueprint open question 3 is settled** (D15): the ×1.1 applies uniformly, negatives included — cheap to correct later because every component is persisted, and the fixture carries 8 real negative-PIR-on-a-win rows either way. The CSV door has **no `won` column** on purpose (a stated winner is a place to disagree with the scoreline) and **self-checks**: a sheet that brings the official PIR has every line compared against what its own numbers add up to, and a disagreement is refused rather than resolved by guesswork — so the golden check runs on every real import, not only in CI. Idempotent by index, so **re-running an import is the repair**; nothing here deletes, so a partial sheet cannot erase a round |
+| 4.2 Player mapping — a light verification pass | todo | — | Reduced to reconciling the edges, because 2.1 syncs `person_code` on day one. 4.1's importer already reports every unmatched code with its line numbers, which is the input this slice acts on |
+| 4.3 Automated fetcher (worker cron) | todo | — | The endpoint and its traps are now in `docs/research/euroleague-api.md`, and `src/lib/stats/store.ts` is framework-free so the worker lands identical rows. Gate on `played`: an unplayed game answers **200 with an empty box score**, not 404 |
+| 4.4 Projections | todo | — | Unblocks 3.3's one deferred filter and gives autodraft something to rank on for a member with no cheat sheet |
+| 4.5 Standings | todo | — | Where `phase` earns its place: whether the play-in and playoffs count is a filter here, not data 4.1 threw away |
+
+---
+
+## Phases 5–8
 
 Not started. One line each; the detail lives in the blueprint.
 
 | Phase | State |
 |---|---|
-| 4 — Player stats, projections, standings | todo |
 | 5 — Season mode: rosters, trades, impact tracking | todo |
 | 6 — Optional formats | todo |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
@@ -433,6 +485,9 @@ touch should be fixed by that slice rather than deferred again.
 | [#35](https://github.com/andrius-burba-94/eurovafliai/issues/35) | **The nginx vhost drift warning can never be silenced.** The committed vhost is the plain `:80` one *by design* (certbot needs a working vhost to answer the ACME challenge and then rewrites the file in place), so every deploy warns. The whole drift is certbot's own `# managed by Certbot` lines; `/pb/` is byte-identical. A warning that fires every time is one nobody reads, which is a problem because the thing it exists to catch — a hand-edit that loses `proxy_buffering off` — kills realtime silently | Nothing; the check protects nothing until it is quiet |
 | **Half the room gets no vibration** | `navigator.vibrate` does not exist on iOS Safari — not gated, not permission-prompted, simply absent — so on an iPhone the clock cue is the tone and the live region and nothing in the hand. `clockCue` returns the vibration pattern regardless and `clock-cue.tsx` feature-detects before calling, so there is no error and no console noise; there is also nothing telling an iPhone owner that half of what the toggle offers cannot happen for them. The toggle's own label says "Sound" rather than "Sound and vibration" for that reason, which is honest but not informative. A real fix means either detecting the absence and saying so, or dropping vibration from the copy entirely | Nothing; a silent asymmetry between the phones in one room |
 | **A commissioner with no membership row hears no clock** | `ClockCue` renders only inside the `view.you` branch, because everything it says is about *your* turn and somebody with no turn has nothing to be told. That is right for the live region and for the cue, and it means a commissioner who runs a draft without playing in it has no audible surface at all — including no way to reach the toggle. Recorded because it looks like a bug from the outside: the toggle simply is not there. If a non-playing commissioner ever needs a cue it wants a different sentence ("Pick 7 is on the clock"), not this one moved | Nothing; a deliberate gating, documented so it is not "fixed" into noise |
+| **Scoring weights are settings that nothing reads yet** | The gap between what 4.1 *can* do and what it does. `scoreGame` takes `weights` and `winBonus` as arguments, every component is persisted so a rescore is possible, and D15 leans on exactly that when it settles the negative-PIR question — but the importer passes `OFFICIAL_WEIGHTS` unconditionally and there is **no recompute** anywhere. So "correcting it is a settings change plus a recompute" is true of the data and not yet true of the app: today it would mean re-importing every round. There is also a real tension to resolve first, and it is why this is not a five-minute job: box scores are **app-global** while weights are **per-league**, so a league with its own weights cannot use the stored `fantasy_pts` at all — it has to score from components at read time. 4.5 has to answer that before a settings screen would mean anything | Nothing yet; a claim about flexibility that is one recompute short of true |
+| **The season is fixed at E2026** | `/stats/import` imports into `E2026` and offers no way to say otherwise; `readStatsOverview` defaults to it. Right for this season and wrong the moment somebody wants to backfill E2025 to try the standings out on a season that already happened — which is a genuinely useful thing to want, given 4.5 has no real data to develop against until October. The parser and the store both take the season as an argument, so this is a field on a form rather than a change to anything underneath | Nothing; a one-season assumption in one page |
+| **Nothing displays a box score** | 4.1 stores game lines and proves they are right, and the only way to look at one is the database. No game log, no player profile, no standings — all of that is 4.5. Worth stating plainly so the slice is not mistaken for more than it is: the app can now *score* a Euroleague night, and it cannot yet *show* one | Nothing; 4.5's whole job |
 | **Backups** | No nightly `pb_data` backup yet. Must use PocketBase's backup API, never a naive `cp` of a live SQLite file, and needs one restore drill — an untested backup is not a backup. Belongs before draft night, not before the first deploy | Nothing yet; a draft-night risk |
 
 One decision recorded here rather than as debt, because it is settled:

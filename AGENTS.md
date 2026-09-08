@@ -43,6 +43,15 @@ src/lib/chat/     league chat: `messages.ts` (every sentence the app can say,
                   autodrafted picks) and `actions.ts`. `announce()` never
                   throws: an announcement is the least important write in a
                   pick's sequence and must never fail the pick
+src/lib/stats/    box scores and scoring: `scoring.ts` is pure (PIR, the win
+                  bonus, tenths) and is checked against the Euroleague's own
+                  published `valuation` by `scoring.golden.test.ts` over 168
+                  real E2025 lines — regenerate that fixture with
+                  `npm run stats:golden`, and `-- --check` asks the feed
+                  whether it still agrees. `csv.ts` parses a pasted round,
+                  `plan.ts` works out what an import would do (pure), and
+                  `store.ts` is framework-free like the pipeline because 4.3's
+                  nightly fetcher must land identical rows
 src/lib/pb/browser.ts  the page's ONE shared realtime client. A second client
                   makes the first one hang — see the gotcha below
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
@@ -333,6 +342,24 @@ make broken code pass.
   by luck until unrelated copy changed under them. Read the banner and branch,
   or assert the biconditional (the "for whom" line exists **iff** it is not your
   turn), which is the stronger claim anyway.
+- **The Euroleague feed's `winner` is the season's champion, not the game's.**
+  It is the same club on every game of the season — `OLY` on all seven games
+  sampled from E2025, five of which it did not play in. Derive a win from
+  `local.score` vs `road.score` and never read `winner`, because the win is what
+  the ×1.1 fantasy bonus hangs on: trusting it would give one club a bonus in
+  all 38 rounds and nobody else one, ever. Two of the seven samples *agreed*,
+  by coincidence, so a three-game check had a real chance of looking fine. The
+  same record's `venue` is wrong too. Table in `docs/research/euroleague-api.md`.
+- **An unplayed game answers 200 with an empty box score.** Not a 404:
+  `{"local":{"players":[],"total":null},…}`, and `/games/{code}` reports `0` for
+  both scores. So "no data yet" and "everybody scored nothing" are the same
+  response, and a derived winner reads `0–0` as a tie. Gate on `played`, and
+  `parseStatCsv` refuses a level scoreline for exactly this reason.
+- **Fantasy points are integer tenths, everywhere.** `3 * 1.1` is
+  `3.3000000000000003`, and a season of those summed into a standings table is
+  a wrong number nobody can explain. `fantasy_pts` is `onlyInt`, `sumTenths`
+  keeps them integral and `formatTenths` is the single place they become a
+  decimal — in a string, at the last moment.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so

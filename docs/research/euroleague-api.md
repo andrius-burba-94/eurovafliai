@@ -144,17 +144,85 @@ splitting the display string.
 in**. Whether that is final or provisional this far from tip-off, it means the
 club list must be read from the API per season and never carried over.
 
-## Phase 4 (stats) — de-risked, not solved
+## Phase 4 (stats) — the box score, found and checked
 
-Checked only far enough to know the season is not going to dead-end:
+Verified by request on **2026-09-08**, while building slice 4.1. The earlier
+version of this section said a box-score feed "exists in this family" and that
+pinning the path was Phase 4's job. It is pinned:
 
-- `…/seasons/E2025/games` — **200**, full schedule with game codes
-- `…/v1/results?seasonCode=E2025&gameNumber=1` — **200**, XML results
-- `…/v2/competitions/E/statistics/players/traditional?…` — **400**, so that
-  particular guess is wrong
+```
+https://api-live.euroleague.net/v2/competitions/E/seasons/E2025/games/{gameCode}/stats
+https://api-live.euroleague.net/v2/competitions/E/seasons/E2025/games/{gameCode}
+https://api-live.euroleague.net/v2/competitions/E/seasons/E2025/games?limit=500
+```
 
-A box-score/PIR feed exists in this family, but pinning down the exact path is
-Phase 4's job. Do not assume the URL above.
+`/games/{code}/stats` answers **200** with `{local, road}`, each carrying
+`coach`, `players[]`, `team` and `total`. A player row is
+`{player: {person: {code, …}, club, …}, stats: {…}}` with 27 stat fields.
+`/boxscore`, `/players` and `/report` are all wrong guesses — 405, 404 and
+`UnsupportedApiVersion`.
+
+### PIR is published, and our formula reproduces it exactly
+
+`stats.valuation` **is** PIR. So the scoring engine does not have to be trusted:
+it can be checked against the Euroleague's own arithmetic, which is what
+`scoring.golden.test.ts` does.
+
+```
+points + totalRebounds + assistances + steals + blocksFavour + foulsReceived
+  − (fieldGoalsAttemptedTotal − fieldGoalsMadeTotal)
+  − (freeThrowsAttempted − freeThrowsMade)
+  − turnovers − blocksAgainst − foulsCommited
+```
+
+Checked across **168 real player rows in 7 games** (E2025 games 1, 2, 3, 50,
+137, 200, 300 — rounds 1, 1, 1, 5, 14, 20, 30) **plus all 14 team totals**:
+**zero mismatches**. Note `foulsCommited` is spelled with one `t` in the feed,
+and `blocksFavour`/`blocksAgainst` are from the *player's* point of view.
+
+### `winner` is the season's champion, not the game's winner
+
+The one finding that would have become a silent bug. `/games/{code}` carries a
+`winner` object, and it is **the same club on every game in the season**:
+
+| game | round | result | `winner` field |
+|---|---|---|---|
+| 1 | 1 | IST 85 – 78 TEL | `OLY` |
+| 2 | 1 | BAS 96 – 102 OLY | `OLY` |
+| 3 | 1 | RED 82 – 92 MIL | `OLY` |
+| 50 | 5 | PRS 88 – 89 HTA | `OLY` |
+| 137 | 14 | RED 79 – 89 BAR | `OLY` |
+| 200 | 20 | MUN 96 – 89 BAS | `OLY` |
+| 300 | 30 | OLY 86 – 80 PAN | `OLY` |
+
+Five of seven disagree with the scoreline. **Derive the win from
+`local.score` vs `road.score` and never read `winner`** — it matters because the
+win is what the ×1.1 fantasy bonus hangs on, so trusting it would have given
+every Olympiacos player a bonus in all 38 rounds and nobody else one, ever.
+Worth noticing *how* this was nearly missed: the two rows that agree are
+coincidences where Olympiacos won that night, so a three-game sample had a
+decent chance of looking fine. Game 1's `venue` is also wrong (Podgorica, for
+an Efes home game), so the non-scoreline metadata on that record is suspect
+generally.
+
+### An unplayed game answers 200 with nothing in it
+
+E2026 game 1 (2026-09-24, `played: false`) returns
+`{"local":{"coach":null,"players":[],"team":null,"total":null},"road":{…}}` —
+**200, not 404** — and `/games/1` reports `score: 0` for both clubs. So "no data
+yet" and "everybody scored nothing" are the same HTTP response, and a derived
+winner would read `0 – 0` as a tie. Gate on `played` before reading a box
+score; an empty `players[]` is not a game where nobody did anything.
+
+### Rounds and phases
+
+E2025: **402 games, rounds 1–47.** Regular season is `phaseType.code: "RS"`,
+rounds **1–38**, 380 games, exactly 10 a round. Then play-in `PI` (39–40),
+playoffs `PO` (41–45) and Final Four `FF` (46–47). `gameCode` is unique within
+a season and runs 1–406 with gaps, which is what makes
+`unique(player, season, game_code)` the right physical key.
+
+E2026 tips off **2026-09-24**.
 
 ## What this means for slice 2.1
 
