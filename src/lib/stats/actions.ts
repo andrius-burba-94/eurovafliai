@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
+import { serverConfig } from "@/lib/config/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { canManageRosters } from "@/lib/rosters/actions";
 
@@ -16,6 +17,7 @@ import {
   recordStatBatch,
   recomputeProjections,
 } from "./store";
+import { recomputeStandings } from "./standings-store";
 
 /**
  * The stat CSV front door — slice 4.1.
@@ -85,7 +87,7 @@ const DENIED: StatImportResult = {
 /** The season a paste belongs to, sanitised to the shape a season code has. */
 function readSeason(formData: FormData): string {
   const raw = String(formData.get("season") ?? "").trim().toUpperCase();
-  return /^E\d{4}$/.test(raw) ? raw : "E2026";
+  return /^E\d{4}$/.test(raw) ? raw : serverConfig().EUROLEAGUE_SEASON;
 }
 
 function summarise(
@@ -214,6 +216,7 @@ export async function submitStatCsv(
 
   if (result.created + result.updated > 0) {
     await recomputeProjections(pb, season);
+    await recomputeStandings(pb, season);
   }
 
   await markStatBatchApplied(
@@ -229,6 +232,7 @@ export async function submitStatCsv(
 
   revalidatePath("/stats/import");
   revalidatePath("/players");
+  revalidatePath("/leagues", "layout");
 
   return {
     error:
@@ -266,7 +270,7 @@ export type StatsOverview = {
  * for a season missing round 2.
  */
 export async function readStatsOverview(
-  season = "E2026",
+  season = serverConfig().EUROLEAGUE_SEASON,
 ): Promise<StatsOverview> {
   const pb = await getSuperuserClient();
 

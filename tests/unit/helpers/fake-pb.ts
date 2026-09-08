@@ -43,7 +43,14 @@ const DEFAULT_UNIQUE: Record<string, string[][]> = {
   // failure-recovery story rests on, so the fake enforces it too. Without it a
   // test of "re-running an import is safe" would pass against a fake that
   // happily stored the same game twice.
+  // `unique(player, season, game_code)` — the index 4.1's whole
+  // failure-recovery story rests on, so the fake enforces it too. Without it a
+  // test of "re-running an import is safe" would pass against a fake that
+  // happily stored the same game twice.
   player_game_stats: [["player", "season", "game_code"]],
+  // `unique(league, season, round)` — 4.5's snapshot cache. A second ingest
+  // of the same round must update the row, not copy it.
+  standings_snapshots: [["league", "season", "round"]],
 };
 
 /**

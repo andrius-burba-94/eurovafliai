@@ -110,6 +110,7 @@ test("a commissioner reads a sheet without storing anything", async ({
 
   await page.goto("/stats/import");
   await expect(page.getByTestId("stat-import")).toBeVisible();
+  await expect(page.getByTestId("stat-season")).toHaveValue(/E\d{4}/);
 
   await page
     .getByTestId("stat-csv-input")

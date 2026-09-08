@@ -17,6 +17,7 @@ import {
   recordStatBatch,
   recomputeProjections,
 } from "./store";
+import { recomputeStandings } from "./standings-store";
 
 /**
  * One ingest pass — slice 4.3.
@@ -219,6 +220,7 @@ export async function ingestFinishedGames({
 
   if (applied.created + applied.updated > 0) {
     await recomputeProjections(pb, season);
+    await recomputeStandings(pb, season);
   }
 
   await markStatBatchApplied(
