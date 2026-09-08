@@ -28,7 +28,8 @@ horizontal scale. Phases ship in order; nothing here is planned against a date.
   **Tailwind v4**. Node **24** (`.nvmrc`, `engines`).
 - **PocketBase 0.39.x** native binary, pinned in `pb/VERSION`, bound to
   `127.0.0.1:8095`. Schema is code: migrations in `pb/pb_migrations/`, committed.
-- **Vitest** (unit) + **Playwright** (E2E, `tests/e2e/`, local-first).
+- **Vitest** (unit) + **Playwright** (E2E, `tests/e2e/`; runs locally against
+  the dev server and in CI against a fresh build).
 - Realtime is **PocketBase SSE**; the browser subscribes through the Nginx
   `/pb/` proxy with the user's auth token.
 
@@ -39,6 +40,7 @@ npm run dev          # Next (:3007) + PocketBase (:8095) together
 npm run dev:clean    # same, after clearing a stale .next cache
 npm run worker:dev   # the pick-timer / stats worker (tsx watch)
 npm run lint         # eslint
+npm run lint:dead    # knip — unused files, exports, dependencies
 npm run typecheck    # next typegen && tsc --noEmit
 npm run test         # vitest (unit only — E2E is excluded on purpose)
 npm run test:e2e     # playwright
@@ -81,6 +83,7 @@ Non-negotiables (details in the skills below):
 | Topic | Read |
 |---|---|
 | **What is done and what is next** | **`docs/STATUS.md`** |
+| How each slice got there: decisions, deploy checks, the verification record | `docs/log/` |
 | The whole plan, phase by phase | `docs/EUROVAFLIAI_BLUEPRINT.md` |
 | Domain vocabulary (use these words) | `CONTEXT.md` |
 | Why the stack / realtime / no-transactions design | `docs/adr/` |
@@ -147,6 +150,11 @@ The five canonical labels, unchanged: `needs-triage`, `needs-info`, `ready-for-a
   says so and the claim is true. If a PR defers part of its scope, that
   deferral is recorded in STATUS.md, not only in the PR description: the next
   agent reads the repo, not your merged pull requests.
+- **STATUS.md holds tables, debt, next-up and the current phase's "Try it"
+  notes; the story goes to `docs/log/`.** The paragraph that explains *why* a
+  slice went the way it did, what was checked after its deploy, and a closed
+  phase's "Try it" notes are appended to `docs/log/` in the same PR, under the
+  slice number — so STATUS.md stays short enough to read before every task.
 - **Every slice ends with a "Try it on localhost" note in `docs/STATUS.md`** —
   a handful of lines: the commands to run, the URL to open, and the one thing to
   look at. Short enough to follow without reading the PR.

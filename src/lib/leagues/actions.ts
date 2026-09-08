@@ -48,11 +48,18 @@ const createLeagueSchema = z.object({
 /** How many times to retry a colliding invite code before giving up. */
 const INVITE_CODE_ATTEMPTS = 5;
 
-function fail(path: string, reason: string): never {
-  redirect(`${path}?error=${encodeURIComponent(reason)}`);
-}
+/**
+ * What the home page's two forms get back. A refusal is a sentence returned
+ * through `useActionState`, never a query string (#16): text that arrives in
+ * a URL can be anyone's, and this app renders it into a `role="alert"`.
+ * Success never returns — it redirects into the lobby.
+ */
+export type LeagueFormResult = { error: string | null };
 
-export async function createLeague(formData: FormData): Promise<never> {
+export async function createLeague(
+  _previous: LeagueFormResult,
+  formData: FormData,
+): Promise<LeagueFormResult> {
   const session = await requireSession();
 
   const parsed = createLeagueSchema.safeParse({
@@ -60,10 +67,10 @@ export async function createLeague(formData: FormData): Promise<never> {
     season: formData.get("season") || undefined,
   });
   if (!parsed.success) {
-    fail(
-      "/",
-      parsed.error.issues[0]?.message ?? "That league name will not do.",
-    );
+    return {
+      error:
+        parsed.error.issues[0]?.message ?? "That league name will not do.",
+    };
   }
 
   const pb = await getSuperuserClient();
@@ -91,11 +98,11 @@ export async function createLeague(formData: FormData): Promise<never> {
       const isLastAttempt = attempt === INVITE_CODE_ATTEMPTS - 1;
       if (isLastAttempt) {
         console.error("[leagues] could not create league", error);
-        fail("/", "Could not create the league. Try again.");
+        return { error: "Could not create the league. Try again." };
       }
     }
   }
-  if (!league) fail("/", "Could not create the league. Try again.");
+  if (!league) return { error: "Could not create the league. Try again." };
 
   // ── Write 2 of 2 ───────────────────────────────────────────────────────────
   // The commissioner drafts too, so they are a member of their own league.
@@ -111,17 +118,16 @@ export async function createLeague(formData: FormData): Promise<never> {
   redirect(`/leagues/${league.id}?arrived=1`);
 }
 
-export async function joinLeague(formData: FormData): Promise<never> {
+export async function joinLeague(
+  _previous: LeagueFormResult,
+  formData: FormData,
+): Promise<LeagueFormResult> {
   const session = await requireSession();
 
-  const raw = String(formData.get("code") ?? "");
-  const code = normalizeInviteCode(raw);
-  const echo = `&code=${encodeURIComponent(raw.slice(0, 32))}`;
+  const code = normalizeInviteCode(String(formData.get("code") ?? ""));
 
   if (!isPlausibleInviteCode(code)) {
-    redirect(
-      `/?error=${encodeURIComponent("That is not a valid invite code.")}${echo}`,
-    );
+    return { error: "That is not a valid invite code." };
   }
 
   const pb = await getSuperuserClient();
@@ -138,9 +144,7 @@ export async function joinLeague(formData: FormData): Promise<never> {
         requestKey: null,
       });
   } catch {
-    redirect(
-      `/?error=${encodeURIComponent("No league has that invite code.")}${echo}`,
-    );
+    return { error: "No league has that invite code." };
   }
 
   const members = await pb
@@ -160,9 +164,7 @@ export async function joinLeague(formData: FormData): Promise<never> {
     members.length,
     league.status,
   );
-  if (!verdict.ok) {
-    redirect(`/?error=${encodeURIComponent(verdict.reason)}${echo}`);
-  }
+  if (!verdict.ok) return { error: verdict.reason };
 
   try {
     // Single write. Two people racing the last slot both pass the check above;

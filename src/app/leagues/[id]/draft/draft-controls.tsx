@@ -45,10 +45,20 @@ export function DraftControls({
   const [reset, resetAction] = useActionState(resetDraft, START);
   const [showUndo, setShowUndo] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [target, setTarget] = useState(String(picksMade));
   if (!canManage) return null;
 
   const paused = status === "paused";
   const complete = status === "complete";
+
+  // What *this* number would cost, named before the irreversible act. Read
+  // off the board as rendered — the server decides the real count when the
+  // form lands — so it is a preview, and worded as one.
+  const targetNo = Number(target);
+  const wouldDiscard =
+    Number.isInteger(targetNo) && targetNo >= 1 && targetNo <= picksMade
+      ? picksMade - targetNo + 1
+      : null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -105,13 +115,18 @@ export function DraftControls({
                   // while this was open, and a browser bubble refusing a number
                   // the server would have explained is a worse answer than the
                   // server's own. The engine bounds it either way.
-                  defaultValue={picksMade}
+                  value={target}
+                  onChange={(event) => setTarget(event.target.value)}
                   data-testid="draft-undo-target"
                   className={inputStyles}
                 />
               </Field>
-              <p className="text-sm text-ink-soft">
-                That pick and everything after it is discarded.{" "}
+              <p className="text-sm text-ink-soft" data-testid="draft-undo-cost">
+                {wouldDiscard === null
+                  ? `Nothing has been picked at ${target || "that number"} or later. `
+                  : wouldDiscard === 1
+                    ? `Undoing to pick ${targetNo} discards that one pick. `
+                    : `Undoing to pick ${targetNo} discards ${wouldDiscard} picks — that one and everything after it. `}
                 {picksMade === 1 ? "One pick has" : `${picksMade} picks have`}{" "}
                 been made.
               </p>

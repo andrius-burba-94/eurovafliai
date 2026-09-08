@@ -1,15 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import type PocketBase from "pocketbase";
 
 import { Bank, Correction, Slot, Slots, inputStyles } from "@/components/board";
-import {
-  browserPb,
-  onAuthenticationLost,
-  onConnectionLost,
-  reportRealtimeError,
-} from "@/lib/pb/browser";
+import { useLiveSubscription } from "@/lib/pb/use-live";
 import { retractChatMessage, sendChatMessage } from "@/lib/chat/actions";
 import {
   CHAT_MAX_LENGTH,
@@ -19,7 +20,11 @@ import {
   chatTotal,
   chatUnread,
 } from "@/lib/chat/messages";
-import { toMessage, type ChatMessage, type ChatRecord } from "@/lib/chat/store";
+import {
+  parseChatRecord,
+  toMessage,
+  type ChatMessage,
+} from "@/lib/chat/store";
 
 /**
  * League chat — slice 3.5.
@@ -135,7 +140,6 @@ export function LeagueChat({
   /** Null for somebody with no membership — they can read, not write. */
   myMemberId: string | null;
 }) {
-  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([...initial]);
   /**
    * Follow the server's transcript, do not freeze it.
@@ -168,23 +172,6 @@ export function LeagueChat({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [connected, setConnected] = useState(true);
-  /**
-   * Has the realtime stream ever come up?
-   *
-   * `connected` opens optimistically `true`, because the server render *was*
-   * current a moment ago and crying "reconnecting" on every page load would
-   * train the room to ignore the word — the same argument `LiveDraft` makes.
-   * That makes it useless for answering "are we subscribed yet", which is a
-   * different question and the one a spec has to wait on: realtime does not
-   * replay, so anything written before the first `PB_CONNECT` is missed, and a
-   * direct database write does not `revalidatePath` to heal it.
-   *
-   * Surfaced as `data-live`, with no appearance — the same trick as the board's
-   * `data-advanced` and the cheat sheet's `data-pending`. Wait for a fact, not
-   * for a duration.
-   */
-  const [live, setLive] = useState(false);
   const lastSeen = useSyncExternalStore(
     subscribeSeen,
     () => readSeen(leagueId),
@@ -212,81 +199,57 @@ export function LeagueChat({
   const wasAtBottom = useRef(true);
 
   // ── the subscription ──────────────────────────────────────────────────────
-  useEffect(() => {
-    // The page's one shared client. See `src/lib/pb/browser.ts`: a second
-    // client here is what made the draft room go deaf.
-    const pb = browserPb(authToken);
-    let active = true;
-    const unsubscribes: (() => void)[] = [];
-
-    unsubscribes.push(
-      onConnectionLost(() => {
-        if (active) setConnected(false);
-      }),
-      onAuthenticationLost(() => {
-        if (active) router.replace("/login?error=unauthorized");
-      }),
-    );
-
-    void (async () => {
-      try {
-        unsubscribes.push(
-          await pb.realtime.subscribe("PB_CONNECT", () => {
-            if (!active) return;
-            setConnected(true);
-            setLive(true);
-          }),
-        );
-        unsubscribes.push(
-          await pb.collection("chat_messages").subscribe(
-            "*",
-            (event) => {
-              if (!active) return;
-              const message = toMessage(event.record as unknown as ChatRecord);
-              setMessages((current) => {
-                // Deletes are `delete` actions; a retract is an *update* that
-                // clears the body, so both arrive here and both are handled by
-                // replacing the row rather than removing it.
-                if (event.action === "delete") {
-                  return current.filter((each) => each.id !== message.id);
-                }
-                const at = current.findIndex((each) => each.id === message.id);
-                if (at >= 0) {
-                  const next = [...current];
-                  next[at] = message;
-                  return next;
-                }
-                return mergeById(current, [message]);
-              });
-            },
-            {
-              // Single quotes: PocketBase rejects double-quoted filter values.
-              filter: `league = '${leagueId}'`,
-              // **`expand` matters here.** Without it the realtime payload
-              // carries `author` as a bare id and no team name, so every
-              // message that *arrived* rather than being server-rendered
-              // showed up as "A member" — including your own the moment you
-              // sent it, and every message on everybody else's device. The
-              // first-load list had the name because `readMessages` expands;
-              // the stream did not, so the two disagreed. Caught by the
-              // two-device spec, which is the only place they could be
-              // compared.
-              expand: "author",
-            },
-          ),
-        );
-      } catch (error) {
-        if (active) reportRealtimeError(error);
-      }
-    })();
-
-    return () => {
-      active = false;
-      // Only our own topics. `pb.realtime.unsubscribe()` would close the
-      // shared connection and deafen every other surface on the page.
-      for (const unsubscribe of unsubscribes) unsubscribe();
-    };
-  }, [leagueId, authToken, router]);
+  const subscribe = useCallback(
+    async (pb: PocketBase) => [
+      await pb.collection("chat_messages").subscribe(
+        "*",
+        (event) => {
+          const record = parseChatRecord(event.record);
+          if (!record) return;
+          const message = toMessage(record);
+          setMessages((current) => {
+            // Deletes are `delete` actions; a retract is an *update* that
+            // clears the body, so both arrive here and both are handled by
+            // replacing the row rather than removing it.
+            if (event.action === "delete") {
+              return current.filter((each) => each.id !== message.id);
+            }
+            const at = current.findIndex((each) => each.id === message.id);
+            if (at >= 0) {
+              const next = [...current];
+              next[at] = message;
+              return next;
+            }
+            return mergeById(current, [message]);
+          });
+        },
+        {
+          // Single quotes: PocketBase rejects double-quoted filter values.
+          filter: `league = '${leagueId}'`,
+          // **`expand` matters here.** Without it the realtime payload
+          // carries `author` as a bare id and no team name, so every
+          // message that *arrived* rather than being server-rendered
+          // showed up as "A member" — including your own the moment you
+          // sent it, and every message on everybody else's device. The
+          // first-load list had the name because `readMessages` expands;
+          // the stream did not, so the two disagreed. Caught by the
+          // two-device spec, which is the only place they could be
+          // compared.
+          expand: "author",
+        },
+      ),
+    ],
+    [leagueId],
+  );
+  /**
+   * `live` — has the stream ever come up — is the fact a spec has to wait on:
+   * realtime does not replay, so anything written before the first
+   * `PB_CONNECT` is missed, and a direct database write does not
+   * `revalidatePath` to heal it. Surfaced as `data-live`, with no appearance —
+   * the same trick as the board's `data-advanced` and the cheat sheet's
+   * `data-pending`. Wait for a fact, not for a duration.
+   */
+  const { connected, live } = useLiveSubscription({ authToken, subscribe });
 
   const newest = messages.at(-1) ?? null;
 

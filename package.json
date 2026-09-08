@@ -12,6 +12,7 @@
     "build": "next build",
     "start": "next start -p 3007",
     "lint": "eslint",
+    "lint:dead": "knip",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -35,25 +36,26 @@
   },
   "dependencies": {
     "fuse.js": "^7.5.0",
-    "next": "16.3.1",
-    "pocketbase": "^0.27.0",
+    "next": "^16.3.4",
+    "pocketbase": "^0.28.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "concurrently": "^10.0.4",
+    "@types/react-dom": "^19.2.7",
+    "concurrently": "^10.0.5",
     "eslint": "^9",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "^16.3.4",
+    "knip": "^6.35.0",
     "tailwindcss": "^4",
-    "tsx": "^4.20.6",
+    "tsx": "^4.23.13",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   }
 }

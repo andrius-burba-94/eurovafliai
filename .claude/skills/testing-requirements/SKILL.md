@@ -23,8 +23,10 @@ npm run test
 
 That is ESLint, `next typegen && tsc --noEmit`, and Vitest (unit only). Do not
 claim the change works without having run them. Playwright (`npm run test:e2e`)
-is local-first and is **not** in CI — still run the specs that cover the
-surface you touched.
+runs in CI too, against `next start` over a fresh build and a throwaway
+PocketBase — but a red CI run twenty minutes later is a slow way to learn what
+a local run of the specs covering your surface would have told you in two.
+Run those before pushing. `npm run lint:dead` (knip) is also in CI.
 
 Trivial comment-only edits do not need the full suite. Logic, schema, engine,
 worker, and UI behavior changes do.

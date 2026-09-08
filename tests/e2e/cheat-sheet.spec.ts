@@ -649,6 +649,12 @@ async function threeRanked(page: Page, context: Parameters<typeof signIn>[0]) {
   await saveSheet(page, league.id, `${a.name}\n${b.name}\n${c.name}`);
   await page.goto(`/leagues/${league.id}/sheet`);
   await expect(page.getByTestId("sheet-row-grab")).toHaveCount(3);
+  // The rows are in the streamed HTML before React has hydrated them, and a
+  // key pressed in that window reaches nothing. Wait for the fact.
+  await expect(page.getByTestId("sheet-pending")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   expect(await orderOf(page)).toEqual([a.id, b.id, c.id]);
   return { league, a, b, c };
 }

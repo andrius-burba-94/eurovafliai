@@ -84,6 +84,21 @@ export function Sheet({
 }
 
 /**
+ * The route-level loading fallback: a sheet with one label and one waiting
+ * slot, so a navigation shows the board's own shape rather than a spinner.
+ */
+export function LoadingSheet({ label }: { label: string }) {
+  return (
+    <Sheet>
+      <p className="slot-label text-ink-soft" role="status">
+        {label}
+      </p>
+      <div className="slot-waiting min-h-16" aria-hidden="true" />
+    </Sheet>
+  );
+}
+
+/**
  * A section of the board. The heading is a slot label, so a section reads as a
  * column head on the wall rather than as a card in a stack of cards.
  */

@@ -55,6 +55,7 @@ pb/pb_data/       local database, gitignored
 scripts/          pb-download, seed, deploy helpers
 tests/e2e/        Playwright. Excluded from Vitest on purpose.
 docs/STATUS.md    what is done, what is next — update it in the same PR
+docs/log/         how it got there: slice notes, deploy checks, verification record
 docs/adr/         architecture decision records
 docs/research/    findings verified against the real thing, with the date
 .claude/skills/   path-scoped project skills (see CLAUDE.md)

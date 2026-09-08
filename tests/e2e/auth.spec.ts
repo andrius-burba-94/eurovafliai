@@ -59,8 +59,8 @@ test("the login button starts the Google handshake", async ({
   page,
   request,
 }) => {
-  // Needs a configured Google provider, which needs real credentials. Skip
-  // rather than fail where they are absent (CI, a fresh checkout).
+  // Needs a configured Google provider. Skip rather than fail where it is
+  // absent (a fresh checkout with no Google values at all).
   const methods = await request
     .get("http://127.0.0.1:8095/api/collections/users/auth-methods")
     .then((r) => r.json())
@@ -72,11 +72,19 @@ test("the login button starts the Google handshake", async ({
     "Google provider not configured on this PocketBase",
   );
 
+  // What is under test is the URL this app sends the browser to, not what
+  // Google does with it. Intercept the request rather than let it through:
+  // with CI's placeholder client id Google answers an error page whose URL
+  // carries none of our parameters, and the spec would blame the app.
+  const handshake = page.waitForRequest(/accounts\.google\.com/);
+  await page.route(/accounts\.google\.com/, (route) =>
+    route.fulfill({ status: 200, contentType: "text/html", body: "" }),
+  );
+
   await page.goto("/login");
   await page.getByTestId("login-google").click();
 
-  await page.waitForURL(/accounts\.google\.com/);
-  const url = new URL(page.url());
+  const url = new URL((await handshake).url());
   const params = url.searchParams;
 
   // The redirect URI must be the `localhost` form: Google treats 127.0.0.1 as a

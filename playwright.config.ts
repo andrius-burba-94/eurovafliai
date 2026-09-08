@@ -11,9 +11,12 @@ const PORT = Number(process.env.E2E_PORT ?? 3007);
 // form would set auth cookies on a domain the real flow never uses.
 const BASE_URL = `http://localhost:${PORT}`;
 
-// E2E is local-first: it boots the Next dev server itself and reuses one that
-// is already running. PocketBase is NOT started here — specs that need data
-// come later (Phase 1+) and will document their own setup.
+// Locally the suite boots the Next dev server itself, or reuses one that is
+// already running. In CI it runs against `next start` over a build the job has
+// just made: a cold dev server compiles each route on first visit, which on a
+// two-core runner is slow enough to eat a spec's whole timeout and blame the
+// spec. PocketBase is not started here — `npm run dev` does locally, and the
+// CI job boots the pinned binary itself (see .github/workflows/ci.yml).
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -33,7 +36,7 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: `next dev -p ${PORT}`,
+    command: process.env.CI ? `next start -p ${PORT}` : `next dev -p ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

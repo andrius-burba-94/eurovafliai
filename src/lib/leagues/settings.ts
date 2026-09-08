@@ -84,9 +84,6 @@ export const leagueSettingsSchema = z.object({
 
 export type RosterTemplate = z.infer<typeof rosterTemplateSchema>;
 export type LeagueSettings = z.infer<typeof leagueSettingsSchema>;
-export type DraftFormat = (typeof DRAFT_FORMATS)[number];
-export type OrderMode = (typeof ORDER_MODES)[number];
-
 /**
  * Read settings off a record. Unknown or malformed JSON falls back to the
  * defaults rather than throwing: a lobby that renders with default settings is

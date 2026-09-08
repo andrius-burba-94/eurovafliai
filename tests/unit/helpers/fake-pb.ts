@@ -17,10 +17,10 @@ import type PocketBase from "pocketbase";
  * - **An unsupported query throws.** A fake that quietly ignored part of a
  *   query would return the wrong rows and make broken code pass — and that
  *   applies to every option, not just `filter`. An unparseable filter, a
- *   multi-field sort, a sort on a field the fixtures do not carry, or an option
- *   this file has never heard of (`expand`, `fields`, `page`) all throw, so the
- *   failure is a message rather than a mystery. Extending this file is the
- *   intended response.
+ *   multi-field sort, a sort on a field the fixtures do not carry, an `expand`
+ *   of a relation this file does not know, or an option it has never heard of
+ *   all throw, so the failure is a message rather than a mystery. Extending
+ *   this file is the intended response.
  *
  * It is not a PocketBase emulator, and the integration proof lives in
  * `tests/e2e/worker.spec.ts`, which drives the sweep against the real thing.
@@ -44,6 +44,15 @@ const DEFAULT_UNIQUE: Record<string, string[][]> = {
   // test of "re-running an import is safe" would pass against a fake that
   // happily stored the same game twice.
   player_game_stats: [["player", "season", "game_code"]],
+};
+
+/**
+ * Which collection a relation field points at, so `expand` can be honoured
+ * rather than ignored. Only the relations the app expands are listed; asking
+ * to expand anything else throws, like every other unsupported option here.
+ */
+const DEFAULT_RELATIONS: Record<string, Record<string, string>> = {
+  chat_messages: { author: "league_members" },
 };
 
 export type FakeHooks = {
@@ -85,21 +94,76 @@ export function fakePb(options: {
     return db[collection];
   }
 
+  /** `expand` as PocketBase does it: the related row nested under `expand`. */
+  function expanded(
+    collection: string,
+    record: FakeRecord,
+    expand?: string,
+  ): FakeRecord {
+    if (!expand) return { ...record };
+    const out: FakeRecord = { ...record, expand: {} };
+    for (const field of expand.split(",").map((part) => part.trim())) {
+      const target = DEFAULT_RELATIONS[collection]?.[field];
+      if (!target) {
+        throw new Error(
+          `fake-pb has no relation for ${collection}.${field} — add it to DEFAULT_RELATIONS`,
+        );
+      }
+      const related = rows(target).find((row) => row.id === record[field]);
+      if (related) {
+        (out.expand as Record<string, unknown>)[field] = { ...related };
+      }
+    }
+    return out;
+  }
+
   function service(collection: string) {
+    const list = (options?: {
+      filter?: string;
+      sort?: string;
+      fields?: string;
+      expand?: string;
+    }) => {
+      onlySupported(options, ["filter", "sort", "fields", "expand"]);
+      hooks.beforeList?.(collection, options?.filter ?? "");
+      const found = rows(collection).filter((record) =>
+        matches(record, options?.filter),
+      );
+      return sorted(found, options?.sort).map((record) =>
+        project(expanded(collection, record, options?.expand), options?.fields),
+      );
+    };
+
     return {
       async getFullList<T>(options?: {
         filter?: string;
         sort?: string;
         fields?: string;
+        expand?: string;
       }): Promise<T[]> {
-        onlySupported(options, ["filter", "sort", "fields"]);
-        hooks.beforeList?.(collection, options?.filter ?? "");
-        const found = rows(collection).filter((record) =>
-          matches(record, options?.filter),
-        );
-        return sorted(found, options?.sort).map((record) =>
-          project(record, options?.fields),
-        ) as T[];
+        return list(options) as T[];
+      },
+
+      async getList<T>(
+        page: number,
+        perPage: number,
+        options?: { filter?: string; sort?: string; expand?: string },
+      ): Promise<{
+        page: number;
+        perPage: number;
+        totalItems: number;
+        totalPages: number;
+        items: T[];
+      }> {
+        const all = list(options);
+        const start = (page - 1) * perPage;
+        return {
+          page,
+          perPage,
+          totalItems: all.length,
+          totalPages: Math.ceil(all.length / perPage),
+          items: all.slice(start, start + perPage) as T[],
+        };
       },
 
       async getOne<T>(id: string, options?: object): Promise<T> {
@@ -111,9 +175,9 @@ export function fakePb(options: {
 
       async create<T>(
         body: Record<string, unknown>,
-        options?: object,
+        options?: { expand?: string },
       ): Promise<T> {
-        onlySupported(options, []);
+        onlySupported(options, ["expand"]);
         hooks.beforeCreate?.(collection, body);
         for (const fields of unique[collection] ?? []) {
           const clash = rows(collection).some((record) =>
@@ -129,7 +193,7 @@ export function fakePb(options: {
         };
         rows(collection).push(record);
         writes.push(`create ${collection}`);
-        return { ...record } as T;
+        return expanded(collection, record, options?.expand) as T;
       },
 
       async update<T>(
@@ -236,7 +300,7 @@ function matches(record: FakeRecord, filter?: string): boolean {
  * class of defect as `readPicks` returning the engine's shape.
  */
 function project(record: FakeRecord, fields?: string): FakeRecord {
-  if (!fields) return { ...record };
+  if (!fields) return record;
   const wanted = fields.split(",").map((field) => field.trim());
   const out: FakeRecord = { id: record.id };
   for (const field of wanted) out[field] = record[field];
