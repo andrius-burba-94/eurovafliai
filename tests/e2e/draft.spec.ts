@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { whoIsOnClock } from "../../src/lib/engine";
 import {
@@ -15,6 +15,8 @@ import {
   createLeagueFor,
   createPlayer,
   createTestUser,
+  draftPlayer,
+  submitPick,
   signIn,
   superuser,
   TEST_CLUB,
@@ -55,6 +57,19 @@ async function readyLeague(name: string) {
  * and advance. Driving another browser instead would prove the same thing far
  * more slowly, and this is about what the *watching* page does.
  */
+/**
+ * Roll, start, and land in the room — the three taps every 3.7 spec begins
+ * with. `draft.spec.ts` had them inline in a dozen places; the new specs share
+ * one so the setup is not the thing that breaks.
+ */
+async function enterDraft(page: Page, leagueId: string) {
+  await page.goto(`/leagues/${leagueId}`);
+  await page.getByTestId("draft-roll").click();
+  await page.getByTestId("start-draft").click();
+  await page.getByTestId("enter-draft").click();
+  await expect(page.getByTestId("draft-room")).toBeVisible();
+}
+
 async function pickBehindTheirBack(leagueId: string, playerId: string) {
   const pb = await superuser();
   const draft = await findUnfinishedDraft(pb, leagueId);
@@ -180,7 +195,7 @@ test("the member on the clock picks, and the draft advances", async ({
 
   // Whoever is on the clock picks; if it is not this viewer, the commissioner
   // may pick on their behalf, which is the manual-entry path 3.6 formalises.
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
 
   // The ticker used to be the sentence naming who took whom; league chat is
   // now, and it announces the player's *full* name where the board's cell
@@ -219,12 +234,12 @@ test("a stale tab cannot draft a player who is already gone", async ({
   await stale.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(stale.getByTestId(`pick-${players[0]!.id}`)).toBeVisible();
 
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // The stale tab submits anyway. The server refuses, and says why.
-  await stale.getByTestId(`pick-${players[0]!.id}`).click();
-  await expect(stale.getByTestId("pick-error")).toBeVisible();
+  await submitPick(stale, players[0]!.id);
+  await expect(stale.getByTestId("confirm-pick-error")).toBeVisible();
   await expect(stale.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // And after the refusal the pool is honest again.
@@ -274,21 +289,21 @@ test("a pick that would break the roster template is refused", async ({
   ];
   for (const [index, player] of order.entries()) {
     await page.getByTestId("pool-search").fill(TEST_CLUB);
-    await page.getByTestId(`pick-${player.id}`).click();
+    await draftPlayer(page, player.id);
     await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(index + 1);
   }
 
   // Pick 7 belongs to the member already holding C one, C two and C three.
   await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await page.getByTestId(`pick-${centers[3]!.id}`).click();
+  await submitPick(page, centers[3]!.id);
   // The engine's own words: "You have all the Cs you can hold."
-  await expect(page.getByTestId("pick-error")).toContainText(/all the Cs/i);
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(/all the Cs/i);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(6);
 
   // A legal pick still goes through, so the refusal was about the bucket and
   // not about the draft having wedged itself.
   await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await page.getByTestId(`pick-${guards[3]!.id}`).click();
+  await draftPlayer(page, guards[3]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(7);
 });
 
@@ -361,8 +376,8 @@ test("a pick from a tab that has not seen the pause is refused", async ({
   await expect(other.getByTestId("on-the-clock")).toContainText(/paused/i);
 
   // The first tab never learned. Its submission has to be refused server-side.
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
-  await expect(page.getByTestId("pick-error")).toContainText(/paused/i);
+  await submitPick(page, players[0]!.id);
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(/paused/i);
   await expect(other.locator('[data-board-slot][data-state="filled"]')).toHaveCount(0);
   await other.close();
 });
@@ -385,7 +400,7 @@ test("the commissioner undoes a pick, and the board goes back", async ({
 
   for (const [index, player] of players.entries()) {
     await page.getByTestId("pool-search").fill(TEST_CLUB);
-    await page.getByTestId(`pick-${player.id}`).click();
+    await draftPlayer(page, player.id);
     await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(index + 1);
   }
 
@@ -419,7 +434,7 @@ test("the commissioner undoes a pick, and the board goes back", async ({
   await page.getByTestId("draft-pause").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(page.getByTestId(`pick-${players[1]!.id}`)).toBeVisible();
-  await page.getByTestId(`pick-${players[1]!.id}`).click();
+  await draftPlayer(page, players[1]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(2);
 });
 
@@ -435,7 +450,7 @@ test("the undo refuses a pick number that has nothing behind it", async ({
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   await page.getByTestId("draft-undo-toggle").click();
@@ -487,7 +502,7 @@ test("undoing pauses the draft before it deletes anything", async ({
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   // A second tab, rendered before the undo and deaf to it.
@@ -503,8 +518,8 @@ test("undoing pauses the draft before it deletes anything", async ({
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(0);
 
   // The stale tab's pick has to be refused, not accepted into a paused draft.
-  await other.getByTestId(`pick-${players[1]!.id}`).click();
-  await expect(other.getByTestId("pick-error")).toContainText(/paused/i);
+  await submitPick(other, players[1]!.id);
+  await expect(other.getByTestId("confirm-pick-error")).toContainText(/paused/i);
   await expect(page.getByTestId("on-the-clock")).toContainText(/paused/i);
   await other.close();
 });
@@ -608,7 +623,7 @@ test("the commissioner starts over, and the league is back in the lobby", async 
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("pool-search").fill(TEST_CLUB);
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(page.locator('[data-board-slot][data-state="filled"]')).toHaveCount(1);
 
   await page.getByTestId("draft-reset-toggle").click();
@@ -690,4 +705,184 @@ test("a league whose reset lost its second write repairs itself", async ({
   // Reading the lobby repaired it, so the lobby is a lobby again.
   await expect(page.getByTestId("draft-roll")).toBeVisible();
   await expect(page.getByTestId("enter-draft")).toHaveCount(0);
+});
+
+/* ── slice 3.7: pick confirmation, and the clock you can hear ────────────────
+ *
+ * `src/lib/cues/cues.test.ts` owns the cue's decision — that it fires on the
+ * transition into your turn and never on a re-render, and that the toggle
+ * governs the noise but never the announcement. What only a browser can answer
+ * is that a tap now arms rather than picks, that the gesture the confirmation
+ * exists to stop really cannot pick, and that coming on the clock says so.
+ */
+
+test("a tap arms a pick; it does not draft anybody", async ({
+  page,
+  context,
+}) => {
+  // Until 3.7 a tap on a pool row submitted immediately, so on the device draft
+  // night happens on, one tap drafted a player irreversibly — undoable only by
+  // a commissioner rollback, which deletes every pick after it too. Blueprint
+  // 3.7 calls that "no fat-finger picks on mobile".
+  const { commissioner, league, players } = await readyLeague("Arm League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+
+  // Chosen, not drafted. The board is untouched.
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+  await expect(page.getByTestId("confirm-pick-who")).toContainText(
+    players[0]!.name,
+  );
+  await expect(
+    page.locator('[data-board-slot][data-state="filled"]'),
+  ).toHaveCount(0);
+
+  // And the confirming tap is in the band, where the clock is.
+  const where = await page.evaluate(() => {
+    const go = document.querySelector('[data-testid="confirm-pick-go"]')!;
+    const band = document.querySelector('[data-testid="on-the-clock"]')!;
+    return { inBand: band.contains(go) };
+  });
+  expect(where.inBand).toBe(true);
+
+  await page.getByTestId("confirm-pick-go").click();
+  await expect(
+    page.locator('[data-board-slot][data-state="filled"]'),
+  ).toHaveCount(1);
+});
+
+test("a double-tap on the row cannot draft anybody", async ({
+  page,
+  context,
+}) => {
+  // **The hazard the design exists to close.** With the confirm on the row's
+  // own button, two taps inside 200ms armed and picked — so the guard would
+  // have caught a stray single tap and missed the exact fat-finger gesture it
+  // was built for. The confirm is in the band precisely so this cannot reach
+  // it.
+  const { commissioner, league, players } = await readyLeague("Thumb League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+
+  const row = page.getByTestId(`pick-${players[0]!.id}`);
+  await row.dblclick();
+  // Still armed, still nothing drafted.
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+  await expect(
+    page.locator('[data-board-slot][data-state="filled"]'),
+  ).toHaveCount(0);
+
+  // Ten taps as fast as Playwright will send them, for good measure.
+  for (let i = 0; i < 10; i += 1) await row.click({ delay: 0 });
+  await expect(
+    page.locator('[data-board-slot][data-state="filled"]'),
+  ).toHaveCount(0);
+});
+
+test("cancel and Escape both put a chosen player back", async ({
+  page,
+  context,
+}) => {
+  const { commissioner, league, players } = await readyLeague("Cancel League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+
+  // Cancel, by pointer — which the keyboard-only Escape never gave anybody.
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await page.getByTestId("confirm-pick-cancel").click();
+  await expect(page.getByTestId("confirm-pick-go")).toHaveCount(0);
+
+  // Escape, from the band. The handler sits above both the band and the pool,
+  // which is the whole reason it is on the provider: before 3.3's critique the
+  // pool's Escape lived on its search input and died the moment focus moved.
+  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("confirm-pick-go")).toHaveCount(0);
+  // Focus goes back where choosing happens rather than to the document — the
+  // defect 3.4b and 3.5 each shipped once.
+  await expect(page.getByTestId("pool-search")).toBeFocused();
+
+  await expect(
+    page.locator('[data-board-slot][data-state="filled"]'),
+  ).toHaveCount(0);
+});
+
+test("coming on the clock says so, and somebody else's turn does not", async ({
+  page,
+  context,
+  browser,
+}) => {
+  // PRODUCT.md has promised since 2.6 that being on the clock is "announced to
+  // assistive tech via a live region". This is that promise, and the *limit* on
+  // it: the room re-renders on every pick in the league, and announcing each
+  // would be the flood 3.3's critique measured in the pool.
+  const { commissioner, other, league, players } =
+    await readyLeague("Spoken Clock League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  // The commissioner picks first, so their own turn is announced immediately.
+  await expect(page.getByTestId("clock-said")).toContainText(/your turn/i);
+  await expect(page.getByTestId("clock-said")).toContainText(/pick 1, round 1/i);
+
+  // The other member's room says nothing about a turn that is not theirs.
+  const watcher = await browser.newContext();
+  await signIn(watcher, other);
+  const watching = await watcher.newPage();
+  await watching.goto(`/leagues/${league.id}/draft`);
+  await expect(watching.getByTestId("draft-room")).toBeVisible();
+  await expect(watching.getByTestId("clock-said")).toHaveText("");
+
+  // Now hand them the clock. Their room speaks; ours falls quiet.
+  await page.getByTestId("pool-search").fill(TEST_CLUB);
+  await draftPlayer(page, players[0]!.id);
+
+  await expect(watching.getByTestId("clock-said")).toContainText(/your turn/i);
+  await expect(watching.getByTestId("clock-said")).toContainText(
+    /pick 2, round 1/i,
+  );
+  await expect(page.getByTestId("clock-said")).toHaveText("");
+
+  await watcher.close();
+});
+
+test("the sound cue is off until asked for, and remembered", async ({
+  page,
+  context,
+}) => {
+  // Off by default because a phone that makes a noise nobody chose, on a couch
+  // full of friends with a television on, is worse than silence. Remembered per
+  // device rather than per account: whether a phone should make a sound depends
+  // on the phone and the room.
+  const { commissioner, league } = await readyLeague("Cue League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const toggle = page.getByTestId("cue-toggle");
+  await expect(toggle).toHaveAttribute("data-enabled", "false");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveText(/sound off/i);
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveText(/sound on/i);
+
+  // Survives a reload, because it is the member's answer and not the page's.
+  await page.reload();
+  await expect(page.getByTestId("cue-toggle")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  // 44px on both axes, which this repo has got wrong twice by writing
+  // `min-h-11` and meaning both.
+  const box = await page.getByTestId("cue-toggle").boundingBox();
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.width).toBeGreaterThanOrEqual(44);
 });

@@ -6,6 +6,7 @@ import {
   createLeagueFor,
   createPlayer,
   createTestUser,
+  draftPlayer,
   signIn,
   TEST_CLUB,
 } from "./helpers/session";
@@ -113,7 +114,7 @@ test("a full run stops asking, and prints nothing rather than a nought", async (
   // snake, with the other member taking 2 and 3.
   const order = [players[2]!, players[0]!, players[1]!, extra[0]!, extra[1]!];
   for (const [index, player] of order.entries()) {
-    await page.getByTestId(`pick-${player.id}`).click();
+    await draftPlayer(page, player.id);
     await expect(page.getByTestId(`board-slot-${index + 1}`)).toHaveAttribute(
       "data-state",
       "filled",
@@ -135,7 +136,7 @@ test("a pick fills the right roster's right slot", async ({
 
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
   // Pick 1 belongs to whoever drafts first, which is the radar's first row.
-  await page.getByTestId(`pick-${players[2]!.id}`).click();
+  await draftPlayer(page, players[2]!.id);
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",
@@ -202,7 +203,7 @@ test("the radar says whose turn it is", async ({ page, context }) => {
   // It follows the clock, rather than sitting on whoever drafted first.
   const first = await onClock.getAttribute("data-member");
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",
@@ -219,7 +220,7 @@ test("the radar follows a rollback back down", async ({ page, context }) => {
   await enterDraft(page, league.id);
 
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
-  await page.getByTestId(`pick-${players[0]!.id}`).click();
+  await draftPlayer(page, players[0]!.id);
   await expect(
     page.getByTestId("radar-row").first().getByTestId("radar-need").nth(0),
   ).toHaveText("4");

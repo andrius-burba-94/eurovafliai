@@ -34,6 +34,9 @@ src/lib/sheets/   cheat sheets: pure parse + fuzzy match, the stored shape
                   optimistically and once authoritatively) and `store.ts` —
                   framework-free like the pipeline, because the worker
                   autodrafts from a sheet
+src/lib/cues/     the on-the-clock cue's *decision* — pure, so the one rule
+                  that matters is testable without a speaker: it fires on the
+                  transition into your turn, never on a re-render
 src/lib/chat/     league chat: `messages.ts` (every sentence the app can say,
                   pure, so each is testable as prose), `store.ts`
                   (framework-free like the pipeline — the worker announces
@@ -269,6 +272,38 @@ make broken code pass.
   missed — and a direct database write does not `revalidatePath`, so nothing
   re-renders to heal it. Expose the fact (`data-live`) and wait for it, the way
   the board exposes `data-advanced`. Never wait for a duration.
+- **A confirmation on the same control it confirms is not one.** A tap that
+  arms and a second tap on the *same* button means a fast double-tap arms and
+  commits inside 200ms — so the guard catches a stray single tap and misses the
+  fat-finger gesture it was built for. Put the confirming control somewhere the
+  gesture cannot reach: 3.7 puts it in the sticky clock band, 3.4b put the
+  sheet's verbs in a bar. Both arrived at it independently.
+- **`useActionState` keeps the previous result across the next interaction.** So
+  `{ ok: true }` cannot answer "did *this* one succeed" — a surface that disarms
+  on success will disarm a freshly armed row the moment the effect happens to
+  re-run. Return the id of the thing that succeeded and compare it.
+- **A refusal must not be rendered by something the refusal destroys.** Every
+  refusal here revalidates the room, so a stale tab's refused pick arrives
+  *with* a re-render that flips the clock band to `paused` — and a correction
+  rendered only inside that branch was unmounted in the same breath as it was
+  produced. Render the explanation outside whatever the answer might change.
+- **Browsers will not play a sound a user did not ask for.** An `AudioContext`
+  created outside a gesture starts suspended, so unlock it on the first
+  `pointerdown`/`keydown` and `resume()` inside that handler. If the cue is
+  enabled and the unlock never happened, *say so* — a promised sound that
+  silently does not arrive is worse than one somebody knew was off. And
+  `navigator.vibrate` does nothing at all on iOS Safari, which has no Vibration
+  API, so never let copy promise a buzz.
+- **A cue driven by "is it my turn now" fires on every re-render.** The room
+  re-renders on all ~156 picks of a draft. Fire on the *transition* instead,
+  remembering what you last fired for — and remember it even when you stay
+  silent, or the flood comes back. Let a preference govern the noise but never
+  the announcement: an accessibility commitment is not a setting.
+- **Changing one interaction breaks every spec that used it.** Turning a pick
+  from one tap into two touched 25 call sites across five spec files, none of
+  which went through a helper. They do now (`draftPlayer`), and a spec whose
+  subject is a *refusal* needs `submitPick`, which does not wait for the
+  confirm control to vanish — because a refused pick deliberately keeps it.
 - **Stale `.next` cache** → `npm run dev:clean`. Brave hydration-mismatch noise
   in the console is not a real bug.
 - **PocketBase `checksums.txt` is combined** for the whole release, so

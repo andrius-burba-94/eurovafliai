@@ -6,6 +6,7 @@ import {
   createLeagueFor,
   createPlayer,
   createTestUser,
+  draftPlayer,
   signIn,
   superuser,
   TEST_CLUB,
@@ -142,7 +143,7 @@ test("a rollback announces itself, and is readable without opening the panel", a
   // Two picks, so there is something to discard.
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
   for (const player of players.slice(0, 2)) {
-    await page.getByTestId(`pick-${player.id}`).click();
+    await draftPlayer(page, player.id);
     await expect(page.getByTestId("board-slot-1")).toBeVisible();
   }
 
@@ -180,7 +181,7 @@ test("a pick announces itself, in the app's own voice", async ({
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
-  await page.getByTestId(`pick-${player.id}`).click();
+  await draftPlayer(page, player.id);
   await expect(page.getByTestId("board-slot-1")).toBeVisible();
 
   // First: did the announcement actually get written? If this fails the
@@ -331,7 +332,7 @@ test("the room lost its ticker and kept everything else", async ({
 
   // And the pick still lands, which is the thing that must not have broken.
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
-  await page.getByTestId(`pick-${player.id}`).click();
+  await draftPlayer(page, player.id);
   await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
     "data-state",
     "filled",

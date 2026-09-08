@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState, type KeyboardEvent } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 
 import {
   CardName,
-  Correction,
   Field,
   FilterToggle,
   PositionPatch,
@@ -14,8 +13,8 @@ import {
   inputStyles,
   selectStyles,
 } from "@/components/board";
-import { SubmitButton } from "@/components/submit-button";
-import { makePick, type DraftResult } from "@/lib/drafts/actions";
+
+import { useArmedPick } from "./armed-pick";
 import type { DraftView } from "@/lib/drafts/queries";
 import type { Position } from "@/lib/engine";
 import {
@@ -83,10 +82,7 @@ type PoolProps = {
  * action on the surface at any moment, which is the one-marker-action rule that
  * a list of 25 red buttons had been breaking 24 times over.
  *
- * A pointer still picks in one tap, on the row's own button. The guard is for
- * the path where a single keystroke could otherwise draft somebody.
- */
-const START: DraftResult = { error: null };
+
 
 /**
  * How many rows the list draws at rest, and how many when asked for more.
@@ -117,13 +113,23 @@ export function PickForm({
   /** Your turn, and the draft actually running. The server re-checks both. */
   canPick: boolean;
 }) {
-  const [result, action] = useActionState(makePick, START);
+  /**
+   * The armed row is **shared with the sticky band** since 3.7, because that is
+   * where the confirming tap now lands. See `armed-pick.tsx`: with the confirm
+   * on the row's own button a fast double-tap armed and picked inside 200ms,
+   * which is the fat-finger gesture the confirmation exists to stop.
+   *
+   * This component no longer submits a pick at all — `ConfirmPick` does. The
+   * refusal still reaches the row, through the same context, because 3.3's
+   * critique fixed refusals rendering thirty rows from the tap and moving the
+   * confirm would otherwise have quietly undone it.
+   */
+  const { armed, arm, disarm, refused } = useArmedPick();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<PoolFilters>(NO_FILTERS);
   /** The row the keyboard is on, as an index into the visible rows. */
   const [highlighted, setHighlighted] = useState(0);
-  /** The player id whose pick button is armed, or null. */
-  const [armed, setArmed] = useState<string | null>(null);
+
   /**
    * Whether the keyboard has been used yet.
    *
@@ -218,12 +224,15 @@ export function PickForm({
   // had been given as dependencies.
   const cursor =
     shortlist.length === 0 ? 0 : Math.min(highlighted, shortlist.length - 1);
-  const armedId = shortlist.some((row) => row.id === armed) ? armed : null;
+  // Armed *and* still on screen. A filter or a search that hides the armed row
+  // leaves the band holding it — which is right, because the band names the
+  // player and is the thing you would cancel from.
+  const armedId = armed?.playerId ?? null;
 
   /** Every change to what is listed puts the keyboard back at the top. */
   const relist = () => {
     setHighlighted(0);
-    setArmed(null);
+    disarm();
   };
 
   const setFilter = <K extends keyof PoolFilters>(
@@ -244,19 +253,6 @@ export function PickForm({
     relist();
   };
 
-  /** Focus the armed row's button, so the second Enter lands on it. */
-  const focusPickButton = (playerId: string) => {
-    // Deferred a frame: the button only exists once React has rendered the
-    // armed state, and focusing a node that is not there yet does nothing.
-    // Queried off the document because `Slots` renders the `<ul>` and does not
-    // forward a ref — and `pick-<id>` is unique on the page anyway.
-    requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLButtonElement>(`[data-testid="pick-${playerId}"]`)
-        ?.focus();
-    });
-  };
-
   /**
    * Bound to the whole pool, not to the search box.
    *
@@ -273,7 +269,7 @@ export function PickForm({
 
     if (event.key === "Escape") {
       event.preventDefault();
-      setArmed(null);
+      disarm();
       document
         .querySelector<HTMLInputElement>('[data-testid="pool-search"]')
         ?.focus();
@@ -293,7 +289,7 @@ export function PickForm({
       setHighlighted(
         next < 0 ? shortlist.length - 1 : next >= shortlist.length ? 0 : next,
       );
-      setArmed(null);
+      disarm();
       return;
     }
 
@@ -313,16 +309,27 @@ export function PickForm({
       // offering an action that could never happen — on a player somebody
       // already owns.
       if (!row || !canPick || row.drafted) return;
-      setArmed(row.id);
-      focusPickButton(row.id);
+      // Arms only. `ConfirmPick` takes focus the moment it appears, so the
+      // second Enter drafts — the same two keystrokes 3.3 shipped, now through
+      // the same mechanism a thumb uses rather than a second one beside it.
+      arm({
+        playerId: row.id,
+        playerName: row.name,
+        forTeamName: view.isYourTurn
+          ? null
+          : (view.clockMemberName ?? null),
+      });
     }
   };
 
   return (
     <div className="flex flex-col gap-4" onKeyDown={onPoolKeyDown}>
-      {result.error ? (
-        <Correction testId="pick-error">{result.error}</Correction>
-      ) : null}
+      {/* No `Correction` here any more. This component does not submit a
+          pick since 3.7 — `ConfirmPick` does, in the sticky band, which is
+          where the confirming tap is and therefore where a refusal belongs.
+          The row still strikes itself in `slot-correction` through the shared
+          context, so 3.3's "say it on the row that was tapped" survives the
+          move. */}
 
       {/* Best available from your sheet — the blueprint's "always pinned", and
           what "pinned" turned out to have to mean.
@@ -403,19 +410,21 @@ export function PickForm({
                     <PositionPatch position={player.position} />
                   </span>
                   {canPick ? (
-                    <form action={action} className="shrink-0">
-                      <input type="hidden" name="leagueId" value={leagueId} />
-                      <input type="hidden" name="playerId" value={player.id} />
-                      <SubmitButton
-                        testId={`pin-${player.id}`}
-                        tone="ink"
-                        compact
-                        ariaLabel={`Pick ${player.name}, number ${player.rank} on your sheet`}
-                        pendingLabel="Picking…"
-                      >
-                        Pick
-                      </SubmitButton>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        arm({
+                          playerId: player.id,
+                          playerName: player.name,
+                          forTeamName: null,
+                        })
+                      }
+                      data-testid={`pin-${player.id}`}
+                      aria-label={`Choose ${player.name}, number ${player.rank} on your sheet`}
+                      className="slot-label min-h-11 min-w-11 shrink-0 border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                    >
+                      Choose
+                    </button>
                   ) : null}
                 </Slot>
               ))}
@@ -590,8 +599,7 @@ export function PickForm({
         {shortlist.map((player, position) => {
           const isHighlighted = position === cursor;
           const isArmed = armedId === player.id;
-          const isRefused =
-            result.error !== null && result.playerId === player.id;
+          const isRefused = refused?.playerId === player.id;
           return (
             <Slot
               key={player.id}
@@ -663,7 +671,7 @@ export function PickForm({
                     data-testid="pool-refused"
                     role="alert"
                   >
-                    {result.error}
+                    {refused?.reason}
                   </span>
                 ) : null}
                 {player.drafted ? (
@@ -683,27 +691,50 @@ export function PickForm({
                 ) : null}
               </span>
               {canPick && !player.drafted ? (
-                <form action={action} className="shrink-0">
-                  <input type="hidden" name="leagueId" value={leagueId} />
-                  <input type="hidden" name="playerId" value={player.id} />
-                  <SubmitButton
-                    testId={`pick-${player.id}`}
-                    // The armed row is the surface's one marker action. Every
-                    // other row is ink, so red still means exactly what it
-                    // means everywhere else in this app.
-                    // Inside a live row the label cannot be marker red:
-                    // `live` on `live-sunk` is 4.15:1 and DESIGN.md forbids the
-                    // pairing by name — which 3.3 shipped anyway, on the one
-                    // control it matters most for. Full-strength marker border,
-                    // ink label.
-                    tone={isArmed ? "liveOnField" : "ink"}
-                    compact
-                    ariaLabel={`Pick ${player.name}`}
-                    pendingLabel="Picking…"
-                  >
-                    Pick
-                  </SubmitButton>
-                </form>
+                /* **Arms. Does not pick.** A tap here used to submit
+                   immediately, so on the device draft night happens on one tap
+                   drafted a player irreversibly — undoable only by a
+                   commissioner rollback, which deletes every pick after it too.
+                   Blueprint 3.7 calls that "no fat-finger picks on mobile".
+                   
+                   The confirming tap is in the sticky band, deliberately out of
+                   reach of a double-tap: with it on this button, two taps
+                   inside 200ms armed and picked, and the guard would have
+                   caught a stray single tap while missing the exact gesture it
+                   was built for. The label says `Choose` rather than `Pick`
+                   because `Pick` would now be a lie. */
+                <button
+                  type="button"
+                  onClick={() =>
+                    arm({
+                      playerId: player.id,
+                      playerName: player.name,
+                      // Named only when it is somebody *else's* turn being
+                      // spent — a manager entering a pick for a dead phone.
+                      // "Drafting X for you" would be noise.
+                      forTeamName: view.isYourTurn
+                        ? null
+                        : (view.clockMemberName ?? null),
+                    })
+                  }
+                  data-testid={`pick-${player.id}`}
+                  aria-label={`Choose ${player.name}`}
+                  // Armed: a **full-strength marker border at 2px with an ink
+                  // label**, which is what 3.3's critique settled. Marker text
+                  // on the live tint is 4.15:1 and DESIGN.md forbids the
+                  // pairing by name — and 3.3 had shipped it on the one control
+                  // it matters most for. The weight is preserved from the
+                  // `SubmitButton` this replaced, because a chosen row losing
+                  // its strike would be a regression nobody would notice until
+                  // a critique measured it.
+                  className={`slot-label min-h-11 min-w-11 shrink-0 px-3 text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+                    isArmed
+                      ? "border-2 border-live"
+                      : "border border-ink/50 hover:border-ink/80"
+                  }`}
+                >
+                  {isArmed ? "Chosen" : "Choose"}
+                </button>
               ) : null}
             </Slot>
           );

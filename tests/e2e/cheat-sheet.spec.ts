@@ -267,7 +267,12 @@ test("picking from the pinned shortlist lands a real pick", async ({
 
   // Narrow the pool so the pinned block is drawn at all, then pick from it.
   await page.getByTestId("pool-search").fill("Aaaplayer");
+  // The pinned block arms like every other pick control since 3.7 — one
+  // button, one idiom, and a manager's thumb is no more accurate than
+  // anybody's.
   await page.getByTestId(`pin-${zzz.id}`).click();
+  await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
+  await page.getByTestId("confirm-pick-go").click();
 
   // On the board, under this member's name — the same pipeline any other pick
   // goes through.
