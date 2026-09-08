@@ -176,6 +176,42 @@ test("the position and club filters narrow the pool", async ({
   );
 });
 
+test("the last-5 floor hides anyone below it, including the unprojected", async ({
+  page,
+  context,
+}) => {
+  const { commissioner, league } = await poolLeague("Projection League");
+  await createFoldedPlayer("Highproj", {
+    position: "G",
+    proj_last5_games: 5,
+    proj_last5_fantasy: 200,
+  });
+  await createFoldedPlayer("Lowproj", {
+    position: "G",
+    proj_last5_games: 5,
+    proj_last5_fantasy: 50,
+  });
+  await createFoldedPlayer("Noproj", { position: "G" });
+
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  await expect(page.getByTestId("pick-pool")).toContainText("Highproj");
+  await expect(page.getByTestId("pick-pool")).toContainText("Lowproj");
+  await expect(page.getByTestId("pick-pool")).toContainText("Noproj");
+  await expect(page.getByTestId("pool-proj").first()).toContainText("20.0");
+
+  await page.getByTestId("filter-proj-150").click();
+  await expect(page.getByTestId("filter-proj-150")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(rows(page)).toHaveCount(1);
+  await expect(page.getByTestId("pick-pool")).toContainText("Highproj");
+  await expect(page.getByTestId("pick-pool")).not.toContainText("Lowproj");
+  await expect(page.getByTestId("pick-pool")).not.toContainText("Noproj");
+});
+
 test("drafted players are hidden by default, and say who took them when shown", async ({
   page,
   context,

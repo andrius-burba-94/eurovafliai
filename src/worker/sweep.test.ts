@@ -55,7 +55,7 @@ type World = {
  * the picks already made, whether autodraft is armed.
  *
  * The pool is named so that alphabetical order is the ranking — `readPool`
- * sorts by name, and until Phase 4.4 there is nothing else to rank on.
+ * sorts by name, and a pool with no last-5 still falls through to id.
  */
 function world(
   overrides: {
@@ -168,6 +168,34 @@ describe("autodraft on a deadline", () => {
     });
     expect(it_.log[0]).toContain("First FC ← Aaron");
     expect(it_.log[0]).toContain("out of time");
+  });
+
+  it("ranks an unsheeted member by last-5, not by name", async () => {
+    const it_ = world({
+      draft: { deadline: deadlineAt(-5_000) },
+      players: [
+        {
+          id: "aaron",
+          name: "Aaron",
+          position: "G",
+          status: "active",
+          proj_last5_games: 5,
+          proj_last5_fantasy: 50,
+        },
+        { id: "bravo", name: "Bravo", position: "F", status: "active" },
+        { id: "charlie", name: "Charlie", position: "C", status: "active" },
+        {
+          id: "zane",
+          name: "Zane",
+          position: "G",
+          status: "active",
+          proj_last5_games: 5,
+          proj_last5_fantasy: 200,
+        },
+      ],
+    });
+    const { db } = await it_.run();
+    expect(onlyPick(db).player).toBe("zane");
   });
 
   it("leaves a member alone while they still have time", async () => {

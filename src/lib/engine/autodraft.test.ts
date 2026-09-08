@@ -41,7 +41,6 @@ describe("rankForMember — projection order", () => {
     // The case that mattered and was missed: with no projections anywhere,
     // subtracting two `-Infinity`s gave NaN, `Array#sort` read NaN as "equal",
     // and the ranking quietly became the order the caller happened to pass.
-    // Until Phase 4.4 ships projections, this is the only pool shape there is.
     const pool = [p("zeta", "G"), p("alpha", "G"), p("mike", "G")];
     expect(ids(rankForMember(pool))).toEqual(["alpha", "mike", "zeta"]);
   });

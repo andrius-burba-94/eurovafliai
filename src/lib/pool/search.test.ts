@@ -48,6 +48,7 @@ function player(name: string, over: Partial<PoolPlayer> = {}): PoolPlayer {
     status: over.status ?? "active",
     takenBy: over.takenBy ?? null,
     takenAt: over.takenAt ?? null,
+    projectedLast5: over.projectedLast5 ?? null,
     ...over,
   };
 }
@@ -188,6 +189,20 @@ describe("selectPool — filters", () => {
       ["motiejūnas", "valančiūnas"].sort(),
     );
     expect(run("", { club: "" })).toHaveLength(POOL.length);
+  });
+
+  it("filters by a last-5 floor, and treats unprojected as below any floor", () => {
+    const pool = [
+      player("High, One", { projectedLast5: 200 }),
+      player("Edge, Two", { projectedLast5: 150 }),
+      player("Low, Three", { projectedLast5: 149 }),
+      player("None, Four"),
+      player("Zero, Five", { projectedLast5: 0 }),
+    ];
+    expect(ids(run("", { minProjection: 150 }, OPEN, pool)).sort()).toEqual(
+      ["edge", "high"].sort(),
+    );
+    expect(ids(run("", { minProjection: 0 }, OPEN, pool))).toHaveLength(5);
   });
 
   it("hides players the feed does not list as active, when asked", () => {

@@ -49,6 +49,11 @@ export type PoolPlayer = {
   readonly takenBy: string | null;
   /** The `overall_no` they went at, or null. */
   readonly takenAt: number | null;
+  /**
+   * Last-5 fantasy tenths, or null when they have not played. Null is not 0:
+   * an unprojected player fails a min-projection filter and ranks last.
+   */
+  readonly projectedLast5: number | null;
 };
 
 export type PoolFilters = {
@@ -77,6 +82,11 @@ export type PoolFilters = {
    * 3.3 for the plain reason that there were no sheets to filter on.
    */
   readonly tier: number;
+  /**
+   * Hide anyone whose last-5 is below this many tenths. `0` means off.
+   * Unprojected players fail it — same rule autodraft uses.
+   */
+  readonly minProjection: number;
 };
 
 export const NO_FILTERS: PoolFilters = {
@@ -87,6 +97,7 @@ export const NO_FILTERS: PoolFilters = {
   legalOnly: false,
   sheetOnly: false,
   tier: 0,
+  minProjection: 0,
 };
 
 /** A row, with the things the list has to say about it. */
@@ -223,6 +234,13 @@ export function selectPool({
       // A tier filter is a sheet filter: somebody who is not on the sheet is in
       // no tier, rather than in every tier.
       if (filters.tier > 0 && place?.tier !== filters.tier) return false;
+      if (
+        filters.minProjection > 0 &&
+        (player.projectedLast5 === null ||
+          player.projectedLast5 < filters.minProjection)
+      ) {
+        return false;
+      }
       return true;
     })
     .map((player) => {

@@ -3,6 +3,15 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**4.4 has landed, and the number it stores is a cache.** Box scores stay in
+`player_game_stats`; last-5 and season averages on `players` are what autodraft
+and the pool filter read so they do not average the season on every pick. The
+thing to know is what "unprojected" means here: PocketBase stores unset numbers
+as 0, so absence is the games count, not the average. A genuine 0.0 with three
+games played ranks above someone who has not played, which is the same
+comparator the engine already had. Draft night is before E2026 tip-off, so the
+Try-it path is a last-season backfill — the first E2026 ingest overwrites it.
+
 **4.2 has landed, and it is the clearest case yet for measuring before
 building.** The blueprint called it "a light verification pass" and it was
 right about the mechanism — `person_code` joins are exact — but the pool had

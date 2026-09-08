@@ -10,6 +10,7 @@ import {
   readStatPlayers,
   readStoredGameCodes,
   recordStatBatch,
+  recomputeProjections,
 } from "./store";
 
 /**
@@ -253,5 +254,85 @@ describe("recordStatBatch / markStatBatchApplied", () => {
         "",
       ),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("recomputeProjections", () => {
+  it("writes last-5 and season tenths, and skips a DNP", async () => {
+    const fake = fakePb({
+      data: {
+        players: [{ id: "p1", name: "A" }, { id: "p2", name: "B" }],
+        player_game_stats: [
+          { id: "s1", ...row({ player: "p1", game_code: 1, round: 1, fantasy_pts: 100 }) },
+          {
+            id: "s2",
+            ...row({
+              player: "p1",
+              game_code: 2,
+              round: 1,
+              time_played: 0,
+              fantasy_pts: 0,
+            }),
+          },
+          { id: "s3", ...row({ player: "p1", game_code: 3, round: 2, fantasy_pts: 200 }) },
+          {
+            id: "s4",
+            ...row({
+              player: "p1",
+              game_code: 1,
+              round: 1,
+              season: "E2025",
+              fantasy_pts: 999,
+            }),
+          },
+        ],
+      },
+    });
+
+    const first = await recomputeProjections(fake.client, SEASON);
+    expect(first).toEqual({
+      season: SEASON,
+      players: 2,
+      updated: 1,
+      unchanged: 1,
+    });
+    expect(fake.rows("players")[0]).toMatchObject({
+      id: "p1",
+      proj_last5_fantasy: 150,
+      proj_last5_games: 2,
+      proj_season_fantasy: 150,
+      proj_season_games: 2,
+    });
+    expect(fake.rows("players")[1]).toMatchObject({ id: "p2" });
+
+    const writes = fake.writes.length;
+    const second = await recomputeProjections(fake.client, SEASON);
+    expect(second.updated).toBe(0);
+    expect(second.unchanged).toBe(2);
+    expect(fake.writes.length).toBe(writes);
+  });
+
+  it("clears last season's numbers when the new season has no games for that player", async () => {
+    const fake = fakePb({
+      data: {
+        players: [
+          {
+            id: "p1",
+            proj_last5_fantasy: 150,
+            proj_last5_games: 5,
+            proj_season_fantasy: 140,
+            proj_season_games: 20,
+          },
+        ],
+        player_game_stats: [],
+      },
+    });
+    await recomputeProjections(fake.client, "E2026");
+    expect(fake.rows("players")[0]).toMatchObject({
+      proj_last5_fantasy: 0,
+      proj_last5_games: 0,
+      proj_season_fantasy: 0,
+      proj_season_games: 0,
+    });
   });
 });

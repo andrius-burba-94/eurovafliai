@@ -102,6 +102,13 @@ describe("ingestFinishedGames", () => {
     expect(beaubois).toBeDefined();
     expect(beaubois!.fantasy_pts).toBe(33);
     expect(beaubois!.phase).toBe("RS");
+    expect(
+      db.players!.some(
+        (player) =>
+          typeof player.proj_last5_games === "number" &&
+          player.proj_last5_games > 0,
+      ),
+    ).toBe(true);
   });
 
   it("stores an audit batch, applied, naming what it did", async () => {

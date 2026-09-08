@@ -14,6 +14,7 @@ import {
   readExistingStats,
   readStatPlayers,
   recordStatBatch,
+  recomputeProjections,
 } from "./store";
 
 /**
@@ -210,6 +211,10 @@ export async function submitStatCsv(
   });
 
   const result = await applyStatPlan(pb, plan, batch.id);
+
+  if (result.created + result.updated > 0) {
+    await recomputeProjections(pb, season);
+  }
 
   await markStatBatchApplied(
     pb,
