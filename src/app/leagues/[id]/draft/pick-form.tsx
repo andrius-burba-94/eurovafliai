@@ -251,6 +251,45 @@ export function PickForm({
   );
 
   /**
+   * What the list last said out loud, and **when it is allowed to say it**.
+   *
+   * The count used to render straight from `rows.length`, so *anything* that
+   * changed the pool re-announced it — including somebody else's pick removing
+   * a player, which happens 155 times on a draft night. 3.3's critique fixed
+   * the pool's live region from narrating a rebuilt row on every keystroke to
+   * reporting the count; it did not stop the count itself being restated by
+   * events the reader did not cause. 3.7 landed an accessibility promise on
+   * this same surface, so a screen reader arriving on your turn could hear
+   * "322 players match." and "Your turn. Pick 7, round 1." in undefined order.
+   *
+   * A count is worth saying when **the reader narrowed the list**. It is noise
+   * when the list shrank underneath them. So it is keyed on the query and the
+   * filters rather than on the result: same search, same filters, no sentence.
+   */
+  const listKey = [
+    query.trim(),
+    [...filters.positions].sort().join(","),
+    filters.club,
+    filters.hideDrafted,
+    filters.hideUnavailable,
+    filters.legalOnly,
+    filters.sheetOnly,
+    filters.tier,
+  ].join("|");
+  const listSentence =
+    rows.length === 0
+      ? "Nobody left matching that."
+      : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`;
+  const [saidKey, setSaidKey] = useState(listKey);
+  const [listSaid, setListSaid] = useState(listSentence);
+  if (saidKey !== listKey) {
+    // Adjusted during render, which is React's own answer for state that
+    // follows a prop and which this repo's lint rule requires over an effect.
+    setSaidKey(listKey);
+    setListSaid(listSentence);
+  }
+
+  /**
    * Whether the list has been narrowed by hand.
    *
    * The pinned shortlist and the pool are the *same three players* whenever the
@@ -646,9 +685,7 @@ export function PickForm({
         data-testid="pool-said"
         className="sr-only"
       >
-        {rows.length === 0
-          ? "Nobody left matching that."
-          : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`}
+        {listSaid}
       </p>
 
       <Slots testId="pick-pool" label="The player pool">

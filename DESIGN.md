@@ -1066,6 +1066,25 @@ rule while its contents translated 242px away, so the marker sat on a hole and
 the row somebody was holding had no material at all. A spinner, a skeleton, a page transition, a parallax or an
 entrance animation on a static element is out of scope for this world.
 
+### There is no material for success — and that is the decision
+
+This app never flashes green, never plays a checkmark and never lifts a toast
+to say a pick worked. That is not an omission: **the state change itself is the
+confirmation.** A landed pick is a row leaving the pool, a slot on the board
+going `filled`, the live rule advancing to the next team and a sentence in the
+transcript naming the player and the team that took them. Four surfaces move,
+three of them permanent. A fifth, temporary mark that says "yes, that worked"
+would be a second telling of something already told, and — under The Two Events
+Rule above — a third animation.
+
+Raised as a finding by both 3.3's and 3.7's critiques, which is why it is
+written down here rather than left to be re-discovered a third time. Toasts were
+cut for the same reason (blueprint D14): a confirmation that disappears is the
+one form of feedback a phone on a couch is most likely to miss, and the room is
+full of feedback that does not. **A refusal is different and does have
+material** — `Correction`, which stays until the thing it is about changes,
+because a refusal has no state change of its own to be visible as.
+
 ## Open questions
 
 Gaps in the built system that future work must decide. These are honestly

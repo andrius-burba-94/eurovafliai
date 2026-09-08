@@ -218,8 +218,10 @@ export default async function DraftPage({
                 draft night, in one place. This one also carries the live
                 region that finally closes PRODUCT.md's promise — being on the
                 clock "announced to assistive tech", open since 2.6. */}
+            {/* Rendered only for a member — a commissioner with no membership
+                row has no turn to be told about, so there is nothing for a
+                live region to say. */}
             <ClockCue
-              leagueId={id}
               isYourTurn={isYourTurn}
               overallNo={onClock?.overallNo ?? null}
               round={onClock?.round ?? null}
