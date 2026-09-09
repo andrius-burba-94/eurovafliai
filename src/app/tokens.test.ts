@@ -152,6 +152,44 @@ describe("text on card stock clears AA", () => {
   }
 });
 
+describe("text and rules on framed panel stock clear AA", () => {
+  for (const name of [
+    "ink",
+    "ink-soft",
+    "ink-faint",
+    "rail",
+    "live",
+    "pos-g",
+    "pos-f",
+    "pos-c",
+  ]) {
+    it(`--color-${name} is at least 4.5:1 on stock-deep`, () => {
+      const ratio = contrast(name, "stock-deep");
+      expect(
+        round(ratio),
+        `${name} was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
+  for (const name of ["rule", "rule-strong"]) {
+    it(`--color-${name} is at least 3:1 on stock-deep`, () => {
+      const ratio = contrast(name, "stock-deep");
+      expect(
+        round(ratio),
+        `${name} was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  it("defines the framed Bank as one deeper stock with one structural rule", () => {
+    const framed = css.match(/@utility bank-framed \{([^}]*)\}/)?.[1] ?? "";
+    expect(framed).toContain("border: 1px solid var(--color-rule-strong)");
+    expect(framed).toContain("background-color: var(--color-stock-deep)");
+    expect(framed).not.toMatch(/shadow|radius|gradient/);
+  });
+});
+
 describe("the draft board's slots clear AA on their position wash", () => {
   // Slice 3.1. A filled slot is tinted by its position — `bg-pos-*/10` over
   // stock — and everything the slot says is written on that tint. These are the
@@ -194,15 +232,42 @@ describe("the draft board's slots clear AA on their position wash", () => {
 
   it("the slot on the clock says its pick number in ink, not in marker", () => {
     // DESIGN.md forbids marker text on the live tint by name, and 3.1 shipped
-    // exactly that on the one slot that matters most — where the pick number is
-    // the slot's only text. Asserted here so it cannot come back.
+    // exactly that on the one slot that matters most. U0 darkened the marker so
+    // it also survives stock-deep; ink remains the deliberately stronger pair.
     const onBlush = rgbOf("live-sunk");
-    expect(round(contrastOn("live", onBlush))).toBeLessThan(4.5);
+    expect(round(contrastOn("live", onBlush))).toBeGreaterThanOrEqual(4.5);
     expect(
       round(contrastOn("ink-soft", onBlush)),
       `ink-soft on live-sunk was ${round(contrastOn("ink-soft", onBlush))}:1`,
     ).toBeGreaterThanOrEqual(4.5);
+    expect(contrastOn("ink-soft", onBlush)).toBeGreaterThan(
+      contrastOn("live", onBlush),
+    );
   });
+});
+
+describe("position washes stay legible on framed panel stock", () => {
+  for (const position of ["pos-g", "pos-f", "pos-c"] as const) {
+    const field = () => wash(position, 0.1, "stock-deep");
+
+    it(`ink and metadata clear 4.5:1 on a ${position} panel wash`, () => {
+      for (const name of ["ink", "ink-soft"]) {
+        const ratio = contrastOn(name, field());
+        expect(
+          round(ratio),
+          `${name} was ${round(ratio)}:1`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it(`a ${position} panel wash keeps its structural rule`, () => {
+      const ratio = contrastOn("rule-strong", field());
+      expect(
+        round(ratio),
+        `rule-strong was ${round(ratio)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
 });
 
 describe("a position patch carries its own letter", () => {
@@ -226,19 +291,18 @@ describe("a position patch carries its own letter", () => {
 describe("the pool's armed row", () => {
   // 3.3 struck the armed row in marker — correctly, it is the one act — and put
   // the button's own marker-red label on the blush that strike brings with it.
-  // That is 4.15:1 and DESIGN.md forbids it by name, in two places. The test
-  // below asserted the failure existed and stayed green while the pool rendered
-  // it, which is the same shape of blind spot as the washes one slice earlier:
-  // a pairing nobody thought to assert.
+  // Ink remains the label because the marker's two jobs are semantic, even
+  // though U0's darker marker now clears the text floor on that field.
   const blush = () => rgbOf("live-sunk");
 
-  it("labels its action in ink, because marker on the blush is 4.15:1", () => {
-    expect(round(contrastOn("live", blush()))).toBeLessThan(4.5);
+  it("keeps ink stronger than the now-readable marker on the blush", () => {
+    expect(round(contrastOn("live", blush()))).toBeGreaterThanOrEqual(4.5);
     const ratio = contrastOn("ink", blush());
     expect(
       round(ratio),
       `ink on live-sunk was ${round(ratio)}:1`,
     ).toBeGreaterThanOrEqual(4.5);
+    expect(ratio).toBeGreaterThan(contrastOn("live", blush()));
   });
 
   it("bounds that action in full-strength marker, which clears the 3:1 boundary floor", () => {
@@ -253,9 +317,11 @@ describe("the pool's armed row", () => {
   });
 
   it("keeps a muted row's own text readable when that row is the armed one", () => {
-    // A row can be both muted and armed, so `ink-faint` lands on the blush at
-    // 4.37:1. The pool therefore does not fade an armed row.
-    expect(round(contrastOn("ink-faint", blush()))).toBeLessThan(4.5);
+    const ratio = contrastOn("ink-faint", blush());
+    expect(
+      round(ratio),
+      `ink-faint on live-sunk was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });
 

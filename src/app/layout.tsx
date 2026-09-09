@@ -34,10 +34,11 @@ const DIRECTION_CONTRACT = `<!--
   slotted into. It refuses the near-black surface with one glowing accent, and
   the metric-tile hero, that this category ships.
 
-  OWN-WORLD: cool card stock as the ground, the board's ruling as the ink in
-  four weights (1px dashed waiting, 1px solid filled, 2px marker live, 2px ink
-  correction), muted G/F/C twill patches, Archivo in caps with tabular figures
-  throughout. No cards inside cards. Marker red has two jobs and no others:
+  OWN-WORLD: cool card stock as the ground, deeper stock inside one level of
+  framed Banks, the board's ruling as the ink in four weights (1px dashed
+  waiting, 1px solid filled, 2px marker live, 2px ink correction), muted G/F/C
+  twill patches, Archivo in caps with tabular figures throughout. Framed Banks
+  never nest; nothing rounds or floats. Marker red has two jobs and no others:
   state (the slot on the clock) and the one act (a surface's single primary
   action, with the focus and caret affordances of acting). The double-weight
   marker rule means one thing only — this slot is on the clock.

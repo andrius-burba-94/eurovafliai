@@ -311,3 +311,18 @@ Closed since the last update:
 - **The front-door error box** (#21). Opening the site no longer renders an
   alert; `unauthorized` is a note, and only genuine failures get the board's
   correction voice.
+
+## U0 — Panel material
+
+The system needed stronger task grouping before the same visual change was
+copied onto six surfaces. The old no-card rule solved a real problem, but it
+also left a setup lobby, a live room and a season page on one uninterrupted
+sheet. D17 narrows the amendment to one material: a framed Bank uses deeper
+stock behind one strong rule. It stays square, flat and one level deep.
+
+The proposed `stock-deep` value exposed a constraint a mockup would have hidden.
+At `oklch(0.905 0.005 240)`, the old marker, rail, faint ink and waiting rule
+missed their existing contrast floors. Those tokens were darkened just enough
+to clear the deeper field, then every text, boundary and position wash was
+measured over it. U0 intentionally changes no page; U1 is the first place the
+new material can be judged as layout rather than as an isolated swatch.

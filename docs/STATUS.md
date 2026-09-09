@@ -21,10 +21,10 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: [U0](https://github.com/andrius-burba-94/eurovafliai/issues/90)
-panel material (D17), then
-[U1–U4](https://github.com/andrius-burba-94/eurovafliai/issues/91)
-home / lobby / room / season.** The scripted eight-client rehearsal
+**Next up: [U1–U4](https://github.com/andrius-burba-94/eurovafliai/issues/91)
+home / lobby / room / season.** The panel material
+([U0](https://github.com/andrius-burba-94/eurovafliai/issues/90), blueprint D17)
+is now part of the design system, but no page uses it yet. The scripted rehearsal
 ([R1](https://github.com/andrius-burba-94/eurovafliai/issues/89)) has landed.
 Phase 4 is closed in code: **4.1–4.5 have
 landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft writes
@@ -33,6 +33,16 @@ Euroleague round, the team page shows live deltas, and **This round** recaps
 one night. Phase 6 keepers stay luxury. Phase 3 is closed in product code;
 R1 scripts the mechanical half of 3.7 / D12. Whether it feels right with
 friends in one room remains human. Backups on the VPS are live.
+
+## Try it on localhost — U0
+
+```bash
+npx vitest run src/app/tokens.test.ts
+```
+
+There is intentionally no changed page to open. This system-only slice proves
+the deeper stock, framed Bank and every existing text/rule pairing before U1
+puts the material on screen.
 
 ## Try it on localhost — R1
 
@@ -361,6 +371,7 @@ now landed on top of them.
 | 3.6 Commissioner console — the rest | **cut** | — | Blueprint **D13**, and the argument is that each of the four already has a working path: the sweep autodrafts an absent member from their own sheet and "Pick for them" covers a manager who will not wait; the rollback field works and the board shows every pick number; the timer never needs changing mid-draft if it was set sensibly, and pause covers the rest; and "Pick for them" **is** the offline pick entry the blueprint text predates. What was left was commissioner comfort for eight friends in one room. 3.6a and 3.6b shipped and stay |
 | **3.7 Draft-day polish** | done | — | **A tap arms; the tap that drafts is in the sticky band.** Until now a tap on a pool row submitted immediately — so on the device draft night happens on, one tap drafted a player irreversibly, undoable only by a rollback that deletes every pick after it too. The confirm is in the band rather than on the row for a specific reason: with it on the row's own button **a fast double-tap armed and picked inside 200ms**, so the guard would have caught a stray single tap and missed the exact gesture it was built for. That also gives the pointer a `Cancel` it never had, since Escape was keyboard-only, and it makes the pointer path identical to the keyboard's — one idiom, and `ConfirmPick` takes focus so two keystrokes still draft and one still cannot. Same shape 3.4b reached for the sheet, independently. **And the clock can be heard.** A polite live region says "Your turn. Pick 7, round 1." when your turn arrives and **nothing** when somebody else's does; a synthesized two-note tone and `navigator.vibrate` sit behind a per-device toggle beside "Draft for me", off by default. `clockCue` is pure, so the rule that matters is tested without a browser: the cue fires on the *transition into* your turn and never on a re-render — the room re-renders on all ~156 picks of a draft. **Toasts were cut** (blueprint D14). **Followed by an `/impeccable critique` that scored it 24/40 — the best in this project's corpus — and whose every finding is fixed in the slice**; see below. The human rehearsal is what remains of the slice's text |
 | **R1 Scripted rehearsal** | done | — | Eight signed-in browser contexts, five Pixel 7 and three desktop, drive the real lobby and draft controls through 104 picks. Two members arm autodraft; one never taps and waits out the 15-second server clock. The run pauses, resumes, rolls pick 16 back, sends chat, checks the one correct on-clock banner on every turn, waits for seven peers to fill the slot, and verifies the season handoff plus all 104 membership windows. It records p50/p95 propagation rather than asking someone to watch eight screens. D12 now separates that repeatable evidence from the one claim only friends in a room can make: whether the night feels right |
+| **U0 Panel material** | done | — | D17 amends the no-card rule without abandoning it: a Bank may be framed once with deep stock and one strong rule, but framed Banks never nest and nothing rounds, shadows or floats. The deeper field forced the honest cost into the palette: marker, rail, faint ink and the waiting rule darkened just enough to keep their existing contrast floors on both stocks. `tokens.test.ts` measures every text, boundary and position-wash pairing before any page adopts the material. U1 is the first visual rollout |
 
 ## Phase 4 — Player stats, projections, standings
 
