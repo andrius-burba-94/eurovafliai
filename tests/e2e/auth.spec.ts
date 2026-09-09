@@ -51,6 +51,12 @@ test("a real failure still speaks in the board's correction voice", async ({
 test("the login page offers Google and nothing else", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByTestId("login-google")).toBeVisible();
+  await expect(page.getByText(/Google verifies identity/i)).toBeVisible();
+  await expect(page.locator('[data-framed="true"]')).toHaveCount(1);
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
+  await expect(page.getByText(/Slot 01/i)).toHaveCount(0);
   // No password form: Google is the only way in, by design.
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
 });

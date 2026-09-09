@@ -27,9 +27,10 @@ import {
  */
 const START: LeagueFormResult = { error: null };
 
-export function LeagueForms() {
+export function LeagueForms({ hasLeagues }: { hasLeagues: boolean }) {
   const [created, createAction] = useActionState(createLeague, START);
   const [joined, joinAction] = useActionState(joinLeague, START);
+  const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const message = created.error ?? joined.error;
 
@@ -37,8 +38,8 @@ export function LeagueForms() {
     <>
       {message ? <Correction testId="home-error">{message}</Correction> : null}
 
-      <div className="grid gap-8 sm:grid-cols-2">
-        <Bank label="Start a league">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Bank label="Start a league" framed>
           <form action={createAction} className="flex flex-col gap-5">
             <Field label="League name">
               <input
@@ -46,16 +47,18 @@ export function LeagueForms() {
                 required
                 minLength={2}
                 maxLength={60}
-                placeholder="Vafliai 2027"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Couch Ballers"
                 data-testid="create-league-name"
                 className={inputStyles}
               />
             </Field>
-            {/* The primary: creating a league is the act this surface exists
-                for, so it carries the marker and joining does not. */}
+            {/* Creating is the marker act only on an empty board. Once a
+                league exists, returning to it is the page's first task. */}
             <SubmitButton
               testId="create-league"
-              tone="live"
+              tone={hasLeagues ? "ink" : "live"}
               pendingLabel="Opening the board…"
             >
               Create as commissioner
@@ -63,7 +66,7 @@ export function LeagueForms() {
           </form>
         </Bank>
 
-        <Bank label="Join a league">
+        <Bank label="Join a league" framed>
           <form action={joinAction} className="flex flex-col gap-5">
             <Field label="Invite code">
               <input

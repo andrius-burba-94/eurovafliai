@@ -326,3 +326,28 @@ missed their existing contrast floors. Those tokens were darkened just enough
 to clear the deeper field, then every text, boundary and position wash was
 measured over it. U0 intentionally changes no page; U1 is the first place the
 new material can be judged as layout rather than as an isolated swatch.
+
+## U1 — Shell, home and login
+
+The first panel rollout starts at the two doors into the product. Login puts its
+single Google act inside one framed Bank and now explains the sequence: Google
+verifies identity, then an invite code takes the slot. Home gains a real page
+heading and groups the league board, Start and Join as three sibling tasks. The
+rail names the signed-in member and keeps Leagues, Pool and Sign out at 44px on
+both axes.
+
+The critique caught a more important problem than panel spacing. The old home
+used `slot-live` for every non-setup league, making "drafting" look identical to
+"on the clock". U1 makes setup waiting and every established league filled.
+Marker is absent on a populated home; Create receives it only when the board is
+empty. Roster patches now state that they are `Your roster`, show current over
+template totals and carry full accessible labels. Three waiting rows show the
+board's shape without implying an eight-league desktop capacity.
+
+The independent baseline scored 29/40. The first after pass scored 27/40 and
+refused to call the slice finished because Create still outranked Open league
+and the G/F/C figures had no owner or denominator. Both were fixed, along with
+the smaller findings, and the final pass scored 31/40 with no P0/P1 findings.
+The deterministic scan is clean; its live overlay remains unavailable because
+this Impeccable build does not ship `detect.js` and the app's CSP would refuse
+that cross-origin script.

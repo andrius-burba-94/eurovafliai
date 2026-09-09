@@ -584,6 +584,10 @@ A twill patch. 1px border at 55% of its hue, 10% wash behind, slot-size type at
 600 with 0.1em tracking, `0.25rem / 0.5rem` padding, baseline-aligned inline
 flex. Renders an optional count and **always** the letter.
 
+On a roster summary, the count may be current/template (`1/3 C`) and the patch
+takes a full spoken label (`1 of 3 centers`). The compressed visual figure is
+then hidden from assistive tech so it is not announced twice.
+
 ### Field + input — `Field`, `inputStyles`
 
 A form on card stock. Character: a ruled line to write on, not a box to type in.

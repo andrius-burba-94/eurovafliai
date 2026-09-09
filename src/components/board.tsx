@@ -106,10 +106,12 @@ export function Bank({
   label,
   children,
   aside,
+  framed = false,
 }: {
   label: string;
   children: ReactNode;
   aside?: ReactNode;
+  framed?: boolean;
 }) {
   // A section with a heading it is not associated with is an unnamed region:
   // a screen reader lands in it and is told nothing, while the heading it
@@ -117,7 +119,11 @@ export function Bank({
   // the app, which is every section on every surface.
   const headingId = `bank-${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+    <section
+      aria-labelledby={headingId}
+      data-framed={framed ? "true" : undefined}
+      className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
+    >
       <div className="flex items-baseline justify-between gap-4">
         <h2 id={headingId} className="slot-label">
           {label}
@@ -301,16 +307,21 @@ const PATCH: Record<"G" | "F" | "C", string> = {
 export function PositionPatch({
   position,
   count,
+  label,
 }: {
   position: "G" | "F" | "C";
-  count?: number;
+  count?: number | string;
+  label?: string;
 }) {
   return (
     <span
+      aria-label={label}
       className={`${PATCH[position]} inline-flex items-baseline gap-1 border px-2 py-1 text-slot font-semibold tracking-[0.1em]`}
     >
-      {count === undefined ? null : <span>{count}</span>}
-      <span>{position}</span>
+      {count === undefined ? null : (
+        <span aria-hidden={label ? "true" : undefined}>{count}</span>
+      )}
+      <span aria-hidden={label ? "true" : undefined}>{position}</span>
     </span>
   );
 }

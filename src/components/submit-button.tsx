@@ -27,12 +27,10 @@ export function SubmitButton({
   testId?: string;
   /**
    * `live` is the one act on a surface. `liveOnField` is that act sitting
-   * *inside* a live row — the pool's armed pick — where the marker's own red
-   * cannot be the label: `live` text on `live-sunk` is 4.15:1 and DESIGN.md
-   * forbids the pairing by name. So the border goes to full-strength marker
-   * (4.15:1, which clears the 3:1 boundary floor) and the label goes to ink
-   * (12.62:1). The act is still struck in marker; it is the *rule* that says
-   * so, which is how this system says everything else.
+   * *inside* a live row — the pool's armed pick. Marker now clears contrast on
+   * `live-sunk`, but its two jobs remain semantic, so the border carries the
+   * marker and the label stays ink. The act is struck in marker without making
+   * every action word another clock signal.
    */
   tone?: "ink" | "live" | "liveOnField";
   pendingLabel?: string;
