@@ -1,17 +1,7 @@
 import type { Metadata } from "next";
-import { Archivo } from "next/font/google";
-import "./globals.css";
 
-/*
- * One family, the way a kit room has one label maker. latin-ext is not
- * optional: this league reads names like Valančiūnas and Motiejūnas, and a font
- * that falls back mid-word for the diacritics makes the board look broken.
- */
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin", "latin-ext"],
-  display: "swap",
-});
+import { archivo } from "@/app/font";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Eurovafliai",

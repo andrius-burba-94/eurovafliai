@@ -369,8 +369,9 @@ export function TransactionBuilder({
                 </div>
               </div>
               {agents.length === 0 ? (
-                <p className="px-3 pb-3 text-ink-soft" data-testid="agents-empty">
-                  Nobody unsigned matches that.
+                <p className="min-w-0 px-3 pb-3 text-sm break-words text-ink-soft" data-testid="agents-empty">
+                  Nobody unsigned matches that. Clear the name or position
+                  filter.
                 </p>
               ) : (
                 <Slots label="Free agents">

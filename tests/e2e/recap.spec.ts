@@ -42,6 +42,7 @@ test("a member sees an empty recap before the draft is complete", async ({
   await expect(page.getByTestId("recap-empty")).toContainText(
     "draft is not complete",
   );
+  await expect(page.getByTestId("recap-empty-lobby")).toBeVisible();
 });
 
 test("a counted round ranks the night, names the best, and names the swing", async ({

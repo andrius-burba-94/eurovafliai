@@ -50,7 +50,7 @@ export default async function PlayerPage({
       <TopRail action={<BackLink href={back.href}>{back.label}</BackLink>} />
       <Sheet testId="player-log">
         <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          <h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">
             {player.name}
           </h1>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -73,8 +73,9 @@ export default async function PlayerPage({
           }
         >
           {log.length === 0 ? (
-            <p className="text-sm text-ink-soft" data-testid="player-log-empty">
-              No box scores stored for this player yet.
+            <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="player-log-empty">
+              No box scores stored for this player yet. Nights land after a
+              counted round; the roster link above is still the squad of record.
             </p>
           ) : (
             <Slots testId="player-log-rows">

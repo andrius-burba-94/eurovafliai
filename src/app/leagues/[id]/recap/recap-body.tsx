@@ -48,8 +48,9 @@ export function RecapBody({
     <>
       <Bank framed label="The night" aside={`Round ${recap.round}`}>
         {recap.rows.length === 0 ? (
-          <p className="text-ink-soft" data-testid="recap-table-empty">
-            No teams scored this round.
+          <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="recap-table-empty">
+            No teams scored this round. Rank appears once a counted box score
+            lands for a roster.
           </p>
         ) : (
           <Slots testId="recap-table" label="Teams by this round">
@@ -95,8 +96,9 @@ export function RecapBody({
             </Slot>
           </Slots>
         ) : (
-          <p className="text-ink-soft" data-testid="recap-best-empty">
-            No player night counted this round.
+          <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="recap-best-empty">
+            No player night counted this round. Best night is the highest
+            fantasy line among players whose window covers it.
           </p>
         )}
       </Bank>
@@ -120,8 +122,9 @@ export function RecapBody({
             </Slot>
           </Slots>
         ) : (
-          <p className="text-ink-soft" data-testid="recap-swing-empty">
-            No recorded deal moved the table this round.
+          <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="recap-swing-empty">
+            No recorded deal moved the table this round. A swing needs a written
+            trade, add or drop that covers the night.
           </p>
         )}
       </Bank>

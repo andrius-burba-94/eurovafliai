@@ -4,7 +4,10 @@ import {
   BackLink,
   Bank,
   Correction,
+  Door,
+  EmptyNotice,
   Sheet,
+  Slots,
   TopRail,
 } from "@/components/board";
 import {
@@ -91,15 +94,35 @@ export default async function RecapPage({
 
         {emptyDraft ? (
           <Bank framed label="The night">
-            <p className="text-ink-soft" data-testid="recap-empty">
-              The draft is not complete, so there is no recap yet.
-            </p>
+            <EmptyNotice testId="recap-empty">
+              The draft is not complete, so there is no recap yet. This page is
+              one Euroleague night after the board is full.
+            </EmptyNotice>
+            <Slots>
+              <Door
+                href={`/leagues/${id}`}
+                title="The lobby"
+                description="Finish the draft, then come back for the night."
+                action="Open"
+                testId="recap-empty-lobby"
+              />
+            </Slots>
           </Bank>
         ) : emptyScores ? (
           <Bank framed label="The night">
-            <p className="text-ink-soft" data-testid="recap-empty">
-              No box scores counted for {season} yet.
-            </p>
+            <EmptyNotice testId="recap-empty">
+              No box scores counted for {season} yet. Rank, best night and swing
+              wait on a counted round.
+            </EmptyNotice>
+            <Slots>
+              <Door
+                href={`/leagues/${id}`}
+                title="The lobby"
+                description="The season board is already open. Nights land on their own."
+                action="Open"
+                testId="recap-empty-lobby"
+              />
+            </Slots>
           </Bank>
         ) : page ? (
           <>

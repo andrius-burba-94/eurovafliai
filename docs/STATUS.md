@@ -23,10 +23,11 @@ keeps the tables, the open debt, the next step and the current phase's
 
 **Next up: the rest of Phase 8.** **8.0 has landed** (deploy script hygiene:
 [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34),
-[#35](https://github.com/andrius-burba-94/eurovafliai/issues/35)). Still open
-in the phase: impeccable harden / onboard / adapt / audit, the accessibility
-pass, enabling the backup timer and proving a restore, PM2 log rotation, and
-worker failure alerts to system chat. R1 already covers the client-load check.
+[#35](https://github.com/andrius-burba-94/eurovafliai/issues/35)) and **8.5 has
+landed** (impeccable harden / onboard / adapt / audit). Still open in the phase:
+**8.1** enabling the backup timer and proving a restore, **8.2** worker failure
+alerts to system chat, **8.3** PM2 log rotation, and **8.4** the accessibility
+pass. R1 already covers the client-load check.
 
 A **full three-account draft has now been run on production** — thirteen rounds,
 three real Google accounts, all three rosters legal at the end (5 G / 5 F / 3 C
@@ -57,8 +58,20 @@ landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft
 Euroleague round, the team page shows live deltas, and **This round** recaps
 one night. Phase 6 keepers stay luxury. Phase 7 AI is not next. Phase 3 is
 closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
-it feels right with friends in one room remains human. Backups on the VPS are
-live.
+it feels right with friends in one room remains human. The backup timer is
+committed; enabling it on the box is 8.1.
+
+## Try it on localhost — 8.5
+
+```bash
+npm run dev
+```
+
+Sign in at `http://localhost:3007`. With no leagues, the empty slot names Start
+and Join below it. Open `/leagues/not-a-real-id`: the board says the slot is
+missing and **Your leagues** is the way back (the same page a stranger sees on
+someone else's lobby). On a league still in setup, Standings and This round
+point back to the lobby instead of a blank table.
 
 ## Try it on localhost — the commissioner legality fix
 
@@ -495,11 +508,17 @@ season two is on the horizon.
 
 ## Phase 8 — Hardening & ops polish
 
-**Started.** 8.0 is in. The rest of the blueprint's Phase 8 list is still open.
+**Started.** 8.0 and 8.5 are in. The ops half of the blueprint's Phase 8 list —
+backups, log hygiene, worker alerts — and the accessibility pass are still open.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34 and #35. The deploy that *ships* this still runs the old script; the following deploy is the proof |
+| 8.1 Nightly backup + restore drill | todo | — | The timer is committed and retains 14 archives; it is not installed on the VPS |
+| 8.2 Worker failure → system chat | todo | — | |
+| 8.3 PM2 log rotation | todo | — | |
+| 8.4 Accessibility pass | todo | — | Focus order in the draft room. The clock's live-region announcements already shipped with 3.7 |
+| **8.5 Impeccable harden / onboard / adapt / audit** | done | — | A board-shaped `not-found` (missing and forbidden still look the same), Archivo loaded on `global-error` because that file replaces the root layout, a 44×44 `retry`, and `break-words` / `min-w-0` on every name that can be a long one. Empty Banks name the next act as a sibling `Door` in a `Slots` run, never a nested framed Bank, and their `data-testid` stays on the sentence so the framed-Bank E2E assertions still hold. **No tours** — PRODUCT rules out onboarding hand-holding, so first-run is the empty slot itself. English-only, so i18n and RTL were skipped deliberately and the budget went to overflow and recovery. Audit 17/20 |
 
 ## Phases 5–8
 
@@ -508,7 +527,7 @@ season two is on the horizon.
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
-| 8 — Hardening & ops polish | **started** — 8.0 is deploy script hygiene |
+| 8 — Hardening & ops polish | **started** — 8.0 and 8.5 are in; 8.1–8.4 remain |
 
 ---
 

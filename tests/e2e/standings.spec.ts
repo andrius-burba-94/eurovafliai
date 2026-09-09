@@ -46,6 +46,7 @@ test("a member sees an empty table before the draft is complete", async ({
   await expect(page.getByTestId("standings-empty")).toContainText(
     "draft is not complete",
   );
+  await expect(page.getByTestId("standings-empty-lobby")).toBeVisible();
 });
 
 test("a counted round ranks the members who scored it", async ({

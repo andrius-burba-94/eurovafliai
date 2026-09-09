@@ -182,7 +182,8 @@ test("someone else's lobby is not reachable by URL", async ({
  * and one that is not yours, which is the property the two callers care about.
  */
 async function expectNotFound(page: Page) {
-  await expect(page.getByText("This page could not be found")).toBeVisible();
+  await expect(page.getByTestId("not-found")).toBeVisible();
+  await expect(page.getByTestId("not-found-home")).toBeVisible();
   await expect(page.getByTestId("lobby")).toHaveCount(0);
 }
 

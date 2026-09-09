@@ -5,6 +5,8 @@ import {
   BackLink,
   Bank,
   CardName,
+  Door,
+  EmptyNotice,
   PositionPatch,
   Sheet,
   Slot,
@@ -74,6 +76,9 @@ export default async function TeamPage({
   const displayName = member.teamName.trim() ? member.teamName : member.name;
   const rosterSize = radarSize(template);
   const waiting = Math.max(rosterSize - roster.length, 0);
+  const viewerCanManage =
+    data.isCommissioner ||
+    data.members.some((row) => row.isYou && row.canManage);
 
   return (
     <>
@@ -82,7 +87,7 @@ export default async function TeamPage({
       />
       <Sheet testId="roster">
         <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          <h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">
             {displayName}
           </h1>
           <p className="slot-label">
@@ -99,9 +104,19 @@ export default async function TeamPage({
 
         {roster.length === 0 ? (
           <Bank framed label="The roster" aside={`0 of ${rosterSize}`}>
-            <p className="text-ink-soft" data-testid="roster-empty">
-              No players are on this roster yet.
-            </p>
+            <EmptyNotice testId="roster-empty">
+              No players are on this roster yet. Slots fill from the draft, then
+              from recorded trades.
+            </EmptyNotice>
+            <Slots>
+              <Door
+                href={`/leagues/${id}`}
+                title="The lobby"
+                description="Open the board when the room is drafting, or wait for a recorded swap."
+                action="Open"
+                testId="roster-empty-lobby"
+              />
+            </Slots>
           </Bank>
         ) : (
           <Bank
@@ -143,7 +158,13 @@ export default async function TeamPage({
           </Bank>
         )}
 
-        <ImpactList deals={deals} teamName={displayName} />
+        <ImpactList
+          deals={deals}
+          teamName={displayName}
+          leagueId={id}
+          canManage={viewerCanManage}
+          season={data.league.status === "season"}
+        />
 
         <Bank framed label="Roster shape">
           <RosterRadar

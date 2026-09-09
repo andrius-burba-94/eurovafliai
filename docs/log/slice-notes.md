@@ -3,6 +3,18 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.5 has landed, and first-run is the empty slot, not a tour.** PRODUCT forbids
+onboarding hand-holding beyond what the room needs. The aha moment is join or
+create a league, then draft night. English-only, so harden skipped i18n/RTL and
+spent the budget on overflow (Valančiūnas-length names, `min-w-0` / `break-words`
+on `CardName`) and recovery: a board-shaped `not-found` (missing and forbidden
+still look the same), `retry` at 44×44, and Archivo on `global-error` because
+that file replaces the root layout. Empty Banks keep their test id on the
+sentence so E2E parent selectors still hit the framed section; the next act is
+a sibling `Door` in a `Slots` run. Home still leads with the board, then Start
+and Join. The audit that closed the slice is
+`.impeccable/critique/2026-09-10T00-00-00Z__8-5-audit.md`.
+
 **The first full three-account production draft has been run, and it found one
 defect.** Thirteen rounds, three real accounts, and three legal rosters at the
 end — 5 G / 5 F / 3 C each. The engine, the pick pipeline and the autodraft were

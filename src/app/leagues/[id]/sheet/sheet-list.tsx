@@ -235,10 +235,10 @@ export function SheetList({
     return (
       <Bank label="Your ranking" aside="empty">
         <div className="slot-waiting px-3 py-5">
-          <p className="text-sm text-ink-soft">
-            You have not ranked anybody yet. Until you do, autodraft has nothing
-            of yours to go on and will pick the first legal player it finds —
-            which is arbitrary, and identical every time.
+          <p className="min-w-0 text-sm break-words text-ink-soft">
+            You have not ranked anybody yet. Until you do, autodraft picks the
+            first legal player it finds: arbitrary, and the same every time.
+            Paste a ranked list in the box below.
           </p>
         </div>
       </Bank>

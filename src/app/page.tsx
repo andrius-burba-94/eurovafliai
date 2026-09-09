@@ -130,10 +130,11 @@ export default async function Home() {
               <Slot state="waiting">
                 <span
                   data-testid="leagues-empty"
-                  className="text-sm text-ink-soft"
+                  className="min-w-0 text-sm break-words text-ink-soft"
                 >
-                  No leagues yet. Start one below, or join a friend&rsquo;s with
-                  their invite code.
+                  No leagues yet. A league is the board you draft on and the
+                  table you keep score on. Start one below, or join a
+                  friend&rsquo;s with their invite code.
                 </span>
               </Slot>
             ) : null}
