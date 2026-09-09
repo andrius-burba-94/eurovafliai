@@ -3,6 +3,13 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**5.3 has landed, and the delta is a subtract, not a stored overlay.** In minus
+out, from the transaction's `from_round`, against real box scores. The calendar
+`date` on the row is when somebody wrote it down. A wrapping round run is the
+sparkline: this system already refused a chart for standings, and a new library
+would be a second visual language. A drop's "what if we had kept them" is the
+out sum, which is the same query. No new collection.
+
 **5.2 has landed, and a trade is a recorded result, not a negotiation.** The
 room still argues out loud (D10); the app writes the agreed swap against
 `roster_memberships` and a `transactions` row. Scoring windows are Euroleague

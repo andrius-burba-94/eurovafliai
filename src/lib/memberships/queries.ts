@@ -1,8 +1,15 @@
 import "server-only";
 
+import {
+  announceAdd,
+  announceDrop,
+  announceImpact,
+  announceTrade,
+} from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
 import { createUserClient } from "@/lib/pb/server";
+import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
 
 import type { Seat } from "./plan";
 import { listActiveMemberships } from "./store";
@@ -156,4 +163,169 @@ export async function readTransactionBoard(leagueId: string): Promise<{
     }));
 
   return { seats, freeAgents };
+}
+
+export type DealView = {
+  readonly id: string;
+  readonly sentence: string;
+  readonly impactSentence: string;
+  readonly deltaTenths: number;
+  readonly deltaPir: number;
+  readonly byRound: readonly {
+    readonly round: number;
+    readonly deltaTenths: number;
+  }[];
+};
+
+type StoredTx = {
+  id: string;
+  type: string;
+  from_round: number;
+  members: unknown;
+  players_in: unknown;
+  players_out: unknown;
+};
+
+function asIdMap(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!Array.isArray(value)) continue;
+    out[key] = value.filter((id): id is string => typeof id === "string");
+  }
+  return out;
+}
+
+function asMemberIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((id): id is string => typeof id === "string");
+}
+
+/**
+ * Live deltas for one roster, scored from this Euroleague season's box scores.
+ */
+export async function readMemberDeals(
+  leagueId: string,
+  memberId: string,
+  season: string,
+  teamNames: Readonly<Record<string, string>>,
+): Promise<DealView[]> {
+  const session = await getSession();
+  if (!session) return [];
+
+  const pb = createUserClient(session.token);
+  const rows = await pb.collection("transactions").getFullList<StoredTx>({
+    filter: `league = '${leagueId}'`,
+    requestKey: null,
+  });
+  const transactions: (ImpactTransaction & { members: string[] })[] =
+    rows.flatMap((row) => {
+    if (row.type !== "trade" && row.type !== "add" && row.type !== "drop") {
+      return [];
+    }
+    return [
+      {
+        id: row.id,
+        type: row.type,
+        fromRound: row.from_round,
+        members: asMemberIds(row.members),
+        playersIn: asIdMap(row.players_in),
+        playersOut: asIdMap(row.players_out),
+      },
+    ];
+  });
+
+  const playerIds = [
+    ...new Set(
+      transactions.flatMap((tx) => [
+        ...(tx.playersIn[memberId] ?? []),
+        ...(tx.playersOut[memberId] ?? []),
+      ]),
+    ),
+  ];
+  const lines =
+    playerIds.length === 0
+      ? []
+      : await pb.collection("player_game_stats").getFullList<{
+          player: string;
+          round: number;
+          fantasy_pts: number;
+          pir: number;
+        }>({
+          filter: `(${playerIds.map((id) => `player = '${id}'`).join(" || ")}) && season = "${season}"`,
+          fields: "player,round,fantasy_pts,pir",
+          requestKey: null,
+        });
+
+  const names = new Map<string, string>();
+  if (playerIds.length > 0) {
+    const people = await pb.collection("players").getFullList<{
+      id: string;
+      name: string;
+    }>({
+      filter: playerIds.map((id) => `id = '${id}'`).join(" || "),
+      fields: "id,name",
+      requestKey: null,
+    });
+    for (const person of people) names.set(person.id, person.name);
+  }
+
+  const scored = impactForMember(
+    memberId,
+    transactions,
+    lines.map((line) => ({
+      playerId: line.player,
+      round: line.round,
+      fantasyTenths: line.fantasy_pts,
+      pir: line.pir,
+    })),
+  );
+
+  const label = (id: string) => names.get(id) ?? id;
+  const team = (id: string) => teamNames[id] ?? id;
+
+  return scored.map((deal) => {
+    const tx = transactions.find((row) => row.id === deal.transactionId);
+    const other =
+      tx?.members.find((id) => id !== memberId) ??
+      [
+        ...Object.keys(tx?.playersIn ?? {}),
+        ...Object.keys(tx?.playersOut ?? {}),
+      ].find((id) => id !== memberId) ??
+      "";
+    const sentence =
+      deal.type === "trade"
+        ? announceTrade({
+            teamA: team(memberId),
+            teamB: team(other),
+            sent: deal.outIds.map(label),
+            received: deal.inIds.map(label),
+            fromRound: deal.fromRound,
+          })
+        : deal.type === "drop"
+          ? announceDrop({
+              teamName: team(memberId),
+              players: deal.outIds.map(label),
+              fromRound: deal.fromRound,
+            })
+          : announceAdd({
+              teamName: team(memberId),
+              players: deal.inIds.map(label),
+              fromRound: deal.fromRound,
+            });
+    return {
+      id: deal.transactionId,
+      sentence,
+      impactSentence: announceImpact({
+        type: deal.type,
+        deltaTenths: deal.deltaTenths,
+      }),
+      deltaTenths: deal.deltaTenths,
+      deltaPir: deal.deltaPir,
+      byRound: deal.byRound.map((row) => ({
+        round: row.round,
+        deltaTenths: row.deltaTenths,
+      })),
+    };
+  });
 }

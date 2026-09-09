@@ -192,6 +192,12 @@ export function formatTenths(tenths: number): string {
   return `${sign}${Math.trunc(absolute / 10)}.${absolute % 10}`;
 }
 
+/** A signed fantasy total for deltas. Hyphen, never an em dash. */
+export function formatSignedTenths(tenths: number): string {
+  if (tenths < 0) return formatTenths(tenths);
+  return `+${formatTenths(tenths)}`;
+}
+
 /** A sum of tenths is still tenths — provided nobody divided on the way in. */
 export function sumTenths(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);

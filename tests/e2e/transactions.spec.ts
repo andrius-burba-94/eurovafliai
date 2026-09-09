@@ -162,6 +162,12 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await page.getByTestId("enter-roster").filter({ hasText: "Chief FC" }).click();
   await expect(page.getByTestId("roster-player")).toContainText(role.name);
   await expect(page.getByTestId("roster-player")).not.toContainText(star.name);
+  await page.goto(`/leagues/${league.id}/teams/${chief.id}?season=E2099`);
+  await expect(page.getByTestId("impact-delta")).toHaveText("-4.3");
+  await expect(page.getByTestId("impact-deal")).toContainText(
+    "This trade is -4.3 fantasy so far.",
+  );
+  await expect(page.getByTestId("impact-deal")).toContainText("R2 -4.3");
 
   await page.getByRole("link", { name: "The lobby" }).click();
   await page.getByTestId("enter-roster").filter({ hasText: "Other FC" }).click();
