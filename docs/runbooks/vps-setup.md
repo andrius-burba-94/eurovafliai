@@ -138,10 +138,13 @@ nginx -t && systemctl reload nginx
 ```
 
 Certbot rewrites the vhost in place, adding the 443 block and the HTTP
-redirect. That divergence from git is expected and `deploy.sh` only warns about
-it. **Re-read the file afterwards** and confirm certbot did not disturb the
-`/pb/` block — `proxy_buffering off`, `Connection ''`, `proxy_http_version 1.1`
-and the `Authorization` header must all still be there.
+redirect. Keep the committed file as plain `:80` — a post-certbot file would
+make nginx refuse to start on a box that has no certificate yet. `deploy.sh`
+strips certbot's lines (and the leftover HTTP stub) before comparing, so a
+warning means a real edit, not that rewrite. **Re-read the file afterwards**
+and confirm certbot did not disturb the `/pb/` block — `proxy_buffering off`,
+`Connection ''`, `proxy_http_version 1.1` and the `Authorization` header must
+all still be there.
 
 ## 6. First deploy
 

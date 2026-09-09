@@ -3,6 +3,27 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.0 has landed, and deploy.sh now runs the copy it just pulled.** bash
+reads a script by byte offset, so a `git pull` that replaced `deploy.sh` used
+to keep executing the previous file: a change never applied to its own deploy,
+and a length change could resume mid-line. The fix is pull, then `exec` the
+fresh copy exactly once. The SHAs travel through the environment. After exec,
+HEAD is already the new commit; recomputing both would make `BEFORE == AFTER`
+and `changed()` would restart PocketBase on every deploy — the trap the
+vps-deploy skill already documents for a true no-op retry. A no-op pull does
+not exec: the on-disk script *is* current.
+
+The nginx warning is the same class of check that had trained everyone to
+ignore it. The committed vhost stays `:80` so a fresh box can obtain a
+certificate; certbot then rewrites the live file. The compare now drops
+`# managed by Certbot` lines and the leftover HTTP stub (`return 301` /
+`return 404`, no `location`) and diffs that against git. A hand-edit that
+turns `proxy_buffering` back on still warns. Do not commit the post-certbot
+file: nginx would refuse to start before the cert exists.
+
+The deploy that ships this still runs the previous script. Proof is the
+*next* log: `Deploy script after re-exec`, and no vhost warning.
+
 **R1 has landed, and the ceremony is executable evidence now.** Eight isolated
 browser contexts take the real route through team names, ready states, the
 roll, the pool confirm, the shared pick pipeline, pause/resume, rollback and
