@@ -334,6 +334,9 @@ export default async function DraftPage({
           authToken={session.token}
           initial={view.chat}
           myMemberId={view.you?.memberId ?? null}
+          authorNames={Object.fromEntries(
+            view.members.map((member) => [member.id, member.name]),
+          )}
         />
         </ArmedPickProvider>
       </Sheet>

@@ -1,13 +1,13 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import {
   BackLink,
   Bank,
-  CardName,
   BoardPlan,
+  Door,
   PositionPatch,
   Sheet,
+  Slots,
   TopRail,
 } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
@@ -70,66 +70,6 @@ export default async function LobbyPage({
     <>
       <TopRail action={<BackLink href="/">Leagues</BackLink>} />
       <Sheet testId="lobby">
-        {league.status === "drafting" ? (
-          <Link
-            href={`/leagues/${league.id}/draft`}
-            data-testid="enter-draft"
-            className="slot-live flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-live/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <span className="text-lg font-semibold uppercase tracking-[0.04em]">
-              The draft is live
-            </span>
-            <span className="slot-label text-live">Enter the room &rarr;</span>
-          </Link>
-        ) : null}
-        {league.status === "season" && viewerIsMember ? (
-          <Link
-            href={`/leagues/${league.id}/standings`}
-            data-testid="enter-standings"
-            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <span className="flex flex-col gap-1">
-              <CardName>Standings</CardName>
-              <span className="text-sm text-ink-soft">
-                The table, from the draft and the nights since.
-              </span>
-            </span>
-            <span className="slot-label shrink-0">Open &rarr;</span>
-          </Link>
-        ) : null}
-        {league.status === "season" && viewerIsMember ? (
-          <Link
-            href={`/leagues/${league.id}/recap`}
-            data-testid="enter-recap"
-            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <span className="flex flex-col gap-1">
-              <CardName>This round</CardName>
-              <span className="text-sm text-ink-soft">
-                Each team&apos;s night, the best night, the deal that moved
-                most.
-              </span>
-            </span>
-            <span className="slot-label shrink-0">Open &rarr;</span>
-          </Link>
-        ) : null}
-        {league.status === "season" &&
-        (isCommissioner ||
-          members.some((member) => member.isYou && member.canManage)) ? (
-          <Link
-            href={`/leagues/${league.id}/transactions/new`}
-            data-testid="record-transaction"
-            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <span className="flex flex-col gap-1">
-              <CardName>Record a transaction</CardName>
-              <span className="text-sm text-ink-soft">
-                A trade, an add or a drop, once the room has agreed.
-              </span>
-            </span>
-            <span className="slot-label shrink-0">Write it down &rarr;</span>
-          </Link>
-        ) : null}
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
             {league.name}
@@ -147,6 +87,52 @@ export default async function LobbyPage({
           </div>
         </div>
 
+        {league.status === "drafting" ? (
+          <Bank label="Draft room" framed>
+            <Slots>
+              <Door
+                href={`/leagues/${league.id}/draft`}
+                testId="enter-draft"
+                title="The draft is live"
+                description="The board, clock and player pool are in the room."
+                action="Enter the room"
+                actionTone="live"
+              />
+            </Slots>
+          </Bank>
+        ) : null}
+
+        {league.status === "season" && viewerIsMember ? (
+          <Bank label="League doors" framed>
+            <Slots>
+              <Door
+                href={`/leagues/${league.id}/standings`}
+                testId="enter-standings"
+                title="Standings"
+                description="The table, from the draft and the nights since."
+                action="Open"
+              />
+              <Door
+                href={`/leagues/${league.id}/recap`}
+                testId="enter-recap"
+                title="This round"
+                description="Each team's night, the best night and the deal that moved most."
+                action="Open"
+              />
+              {isCommissioner ||
+              members.some((member) => member.isYou && member.canManage) ? (
+                <Door
+                  href={`/leagues/${league.id}/transactions/new`}
+                  testId="record-transaction"
+                  title="Record a transaction"
+                  description="A trade, an add or a drop, once the room has agreed."
+                  action="Write it down"
+                />
+              ) : null}
+            </Slots>
+          </Bank>
+        ) : null}
+
         {league.status === "setup" ? (
           <Bank
             label="Invite code"
@@ -155,6 +141,7 @@ export default async function LobbyPage({
                 ? `${slotsLeft} of ${settings.max_members} free`
                 : `full · ${settings.max_members}`
             }
+            framed
           >
             {/* Ruled, not struck. The marker means one thing on this board —
                 who is on the clock — so the code is written in it rather than
@@ -191,6 +178,24 @@ export default async function LobbyPage({
           settings={settings}
         />
 
+        {/* Setup apparatus stays together. From chat onward the order is
+            conversation, private sheet, then the folded way out. */}
+        {league.status === "setup" ? (
+          <div className="hidden sm:block">
+            <BoardPlan
+              slots={settings.max_members}
+              caption={`13 rounds × ${settings.max_members} slots`}
+            />
+          </div>
+        ) : null}
+
+        {isCommissioner && league.status === "setup" ? (
+          <p className="text-sm text-ink-soft">
+            You run this league. Open <em>Manage</em> on any row to rename or
+            remove a member, and roll the draft order when everyone is in.
+          </p>
+        ) : null}
+
         {/* The lobby half of league chat. The roll announces itself here,
             which is where people are looking when it happens, and it is the
             same thread the room shows. */}
@@ -199,6 +204,13 @@ export default async function LobbyPage({
           authToken={session.token}
           initial={chat}
           myMemberId={members.find((member) => member.isYou)?.id ?? null}
+          initiallyOpen
+          authorNames={Object.fromEntries(
+            members.map((member) => [
+              member.id,
+              member.teamName || member.name,
+            ]),
+          )}
         />
 
         {/* The cheat sheet, from the lobby — the hours before a draft are when
@@ -206,55 +218,31 @@ export default async function LobbyPage({
             commissioner without a membership has no roster to rank for, and a
             sheet is private to the member who owns it. */}
         {viewerIsMember ? (
-          <Link
-            href={`/leagues/${league.id}/sheet`}
-            data-testid="lobby-sheet"
-            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <span className="flex flex-col gap-1">
-              {/* `CardName`, not a one-off `text-lg` at display tracking.
-                  That is the exact mistake DESIGN.md records the board making
-                  and the pool's critique fixing, and it had crept back as a
-                  sixth type size on this row. */}
-              <CardName>Your cheat sheet</CardName>
-              <span className="text-sm text-ink-soft">
-                Private to you. Autodraft picks from it.
-              </span>
-            </span>
-            <span className="slot-label shrink-0">Open &rarr;</span>
-          </Link>
-        ) : null}
-
-        {isCommissioner ? (
-          <>
-            <p className="text-sm text-ink-soft">
-              You run this league. Open <em>Manage</em> on any row to rename or
-              remove a member, and roll the draft order when everyone is in.
-            </p>
-            {/* Last on the page, and folded: the way out of a league should be
-                findable and never in the way. */}
-            <DeleteLeague
-              leagueId={league.id}
-              leagueName={league.name}
-              memberCount={members.length}
-              hasDrafted={league.status !== "setup"}
+          <Slots>
+            <Door
+              href={`/leagues/${league.id}/sheet`}
+              testId="lobby-sheet"
+              title="Your cheat sheet"
+              description={
+                league.status === "season"
+                  ? "Private to you. Review the list you took into draft night."
+                  : "Private to you. Autodraft picks from it."
+              }
+              action="Open"
             />
-          </>
+          </Slots>
         ) : null}
 
-        {/* The board this lobby is filling, at its real width: one column per
-            place in this league, thirteen rounds deep.
-
-            Desktop only. On a phone it added a third to the scroll of the
-            mobile-first surface to restate the slot run immediately above it —
-            and this page already shows the board's shape in that run. The
-            login page, which has no run to restate, keeps it at every size. */}
-        <div className="hidden sm:block">
-          <BoardPlan
-            slots={settings.max_members}
-            caption={`13 rounds × ${settings.max_members} slots`}
+        {/* Last on the page, and folded: the way out of a league should be
+            findable and never in the way. */}
+        {isCommissioner ? (
+          <DeleteLeague
+            leagueId={league.id}
+            leagueName={league.name}
+            memberCount={members.length}
+            hasDrafted={league.status !== "setup"}
           />
-        </div>
+        ) : null}
       </Sheet>
     </>
   );

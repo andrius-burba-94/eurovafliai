@@ -131,6 +131,8 @@ export function LeagueChat({
   authToken,
   initial,
   myMemberId,
+  initiallyOpen = false,
+  authorNames,
 }: {
   leagueId: string;
   /** The viewer's own token, so PB's read rules scope the stream. */
@@ -139,6 +141,10 @@ export function LeagueChat({
   initial: readonly ChatMessage[];
   /** Null for somebody with no membership — they can read, not write. */
   myMemberId: string | null;
+  /** Lobby chat is a task; the denser draft room keeps it folded. */
+  initiallyOpen?: boolean;
+  /** Member id to visible team or account name, for unnamed teams. */
+  authorNames: Readonly<Record<string, string>>;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([...initial]);
   /**
@@ -168,7 +174,7 @@ export function LeagueChat({
     setSeededFrom(initial);
     setMessages((current) => mergeById(current, initial));
   }
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -402,27 +408,44 @@ export function LeagueChat({
       // when there was unread — so the one number that gives the badge its
       // scale disappeared at the moment it was needed. The badge lives in the
       // header, once.
-      aside={chatTotal(messages.length)}
+      aside={
+        open ? (
+          <span className="flex items-center gap-3">
+            <span>{chatTotal(messages.length)}</span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              data-testid="chat-toggle"
+              data-open="true"
+              aria-expanded="true"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+            >
+              Hide
+            </button>
+          </span>
+        ) : (
+          chatTotal(messages.length)
+        )
+      }
+      framed
     >
       {/* The closed state is not a bare label. It carries the latest line, so a
           rollback announcement is readable without opening anything — which is
           the whole reason this slice exists, and would have been defeated by a
           panel that merely said "Chat". */}
-      <button
-        type="button"
-        onClick={() => setOpen((was) => !was)}
-        data-testid="chat-toggle"
-        data-open={open ? "true" : "false"}
-        aria-expanded={open}
-        // No hover wash. Measured: the header's rail-blue line sits at 4.64:1
-        // on stock and **4.22:1 over `ink/5`** — under AA, in what is a
-        // desktop's normal reading state, because the pointer rests there. The
-        // row is a whole-width control whose affordance is its rule and its
-        // focus ring; it does not need a tint that costs the one line on it
-        // half its contrast headroom.
-        className="slot-filled -mx-3 flex min-h-11 w-full items-baseline gap-x-3 px-3 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
-      >
-        <span className="slot-label shrink-0">{open ? "Hide" : "Show"}</span>
+      {open ? null : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          data-testid="chat-toggle"
+          data-open="false"
+          aria-expanded="false"
+          // No hover wash. Measured: the header's rail-blue line sits at 4.64:1
+          // on stock and **4.22:1 over `ink/5`** — under AA, in what is a
+          // desktop's normal reading state, because the pointer rests there.
+          className="slot-filled -mx-3 flex min-h-11 w-full items-baseline gap-x-3 px-3 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+        >
+          <span className="slot-label shrink-0">Show</span>
         {/* **Two lines, not one, and the whole point of the panel being
             collapsed.** Measured at 390px before this: the rollback line got
             212px of 350px — 43.7% of it — a six-team roll showed 36 of 142
@@ -440,23 +463,24 @@ export function LeagueChat({
             
             `break-words` because a pasted URL is one unbroken token and would
             otherwise push this row wide. */}
-        <span
-          className={`min-w-0 flex-1 break-words text-sm [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden ${
-            newest?.system ? "chat-system" : "text-ink"
-          }`}
-          data-testid="chat-latest"
-        >
-          {summary}
-        </span>
-        {unread > 0 ? (
           <span
-            className="slot-label shrink-0 tabular-nums"
-            data-testid="chat-unread"
+            className={`min-w-0 flex-1 break-words text-sm [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden ${
+              newest?.system ? "chat-system" : "text-ink"
+            }`}
+            data-testid="chat-latest"
           >
-            {chatUnread(unread)}
+            {summary}
           </span>
-        ) : null}
-      </button>
+          {unread > 0 ? (
+            <span
+              className="slot-label shrink-0 tabular-nums"
+              data-testid="chat-unread"
+            >
+              {chatUnread(unread)}
+            </span>
+          ) : null}
+        </button>
+      )}
 
       {/* No appearance, purely a fact a spec can wait on. See `live`. */}
       <span data-testid="chat-live" data-live={live ? "true" : "false"} hidden />
@@ -525,7 +549,9 @@ export function LeagueChat({
                         <span className="sr-only">{CHAT_UI.systemPrefix}</span>
                       ) : (
                         <span className="slot-label shrink-0">
-                          {message.teamName ?? "A member"}
+                          {message.teamName?.trim() ||
+                            authorNames[message.authorId ?? ""] ||
+                            "A member"}
                         </span>
                       )}
                       {/* A clock. CONTEXT.md calls this "the record of draft
@@ -618,8 +644,24 @@ export function LeagueChat({
             </div>
           ) : null}
 
+          {/* A sentence, set as a sentence. It was 42 characters of 11px
+              uppercase `slot-label` at wide tracking — the `all-caps-body`
+              defect both previous critiques flagged, in a third place. */}
+          {!connected ? (
+            <p
+              role="status"
+              data-testid="chat-reconnecting"
+              className="max-w-prose text-sm text-ink-soft"
+            >
+              {CHAT_UI.disconnected}
+            </p>
+          ) : null}
+
           {myMemberId === null ? null : (
-            <div className="flex flex-wrap items-end gap-2">
+            <div
+              data-testid="chat-composer"
+              className="-mx-4 -mb-4 flex flex-wrap items-end gap-2 border-t border-rule-strong px-4 pb-4 pt-3"
+            >
               <label className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="sr-only">Say something to the league</span>
                 <input
@@ -668,19 +710,6 @@ export function LeagueChat({
               </button>
             </div>
           )}
-
-          {/* A sentence, set as a sentence. It was 42 characters of 11px
-              uppercase `slot-label` at wide tracking — the `all-caps-body`
-              defect both previous critiques flagged, in a third place. */}
-          {!connected ? (
-            <p
-              role="status"
-              data-testid="chat-reconnecting"
-              className="max-w-prose text-sm text-ink-soft"
-            >
-              {CHAT_UI.disconnected}
-            </p>
-          ) : null}
         </>
       ) : null}
     </Bank>

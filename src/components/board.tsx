@@ -197,6 +197,52 @@ export function Slot({
   );
 }
 
+/**
+ * A route out of the current board, drawn as one of its slots.
+ *
+ * The destination gets the whole row. Keeping the title, explanation and verb
+ * here stops lobby and season doors from inventing different type and targets.
+ */
+export function Door({
+  href,
+  title,
+  description,
+  action,
+  testId,
+  state = "filled",
+  actionTone = "ink",
+}: {
+  href: string;
+  title: string;
+  description: string;
+  action: string;
+  testId?: string;
+  state?: SlotState;
+  actionTone?: "ink" | "live";
+}) {
+  return (
+    <Slot state={state}>
+      <Link
+        href={href}
+        data-testid={testId}
+        className="-mx-3 -my-3 flex min-h-11 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+      >
+        <span className="flex min-w-0 flex-col gap-1">
+          <CardName>{title}</CardName>
+          <span className="text-sm text-ink-soft">{description}</span>
+        </span>
+        <span
+          className={`slot-label shrink-0 ${
+            actionTone === "live" ? "text-live" : "text-ink"
+          }`}
+        >
+          {action} &rarr;
+        </span>
+      </Link>
+    </Slot>
+  );
+}
+
 export function Slots({
   children,
   testId,

@@ -59,6 +59,26 @@ try {
   }
 
   /**
+   * A setup lobby, kept separate from the live draft planted below.
+   *
+   * The lobby capture used to point at that live draft and therefore omitted
+   * its own team controls and invite door, the two pieces U2 needs to judge.
+   */
+  const lobbyLeague = await createLeagueFor(commissioner, "Vafliai Setup");
+  for (const [index, label] of ["Lukas", "Mantas"].entries()) {
+    const member = await createTestUser(label);
+    await pb.collection("league_members").create(
+      {
+        league: lobbyLeague.id,
+        user: member.id,
+        team_name: `${label} Ballers`,
+        is_ready: index === 0,
+      },
+      { requestKey: null },
+    );
+  }
+
+  /**
    * The draft room, mid-draft and on the clock.
    *
    * Planted rather than clicked: the room only looks like itself with a live
@@ -153,6 +173,46 @@ try {
    * never written a sheet is the common case on the night before a draft.
    */
   const otherLeague = await createLeagueFor(commissioner, "Vafliai Reserves");
+  const [otherMember] = await pb.collection("league_members").getFullList<{
+    id: string;
+  }>({
+    filter: `league = '${otherLeague.id}'`,
+    fields: "id",
+    requestKey: null,
+  });
+  await pb.collection("drafts").create(
+    {
+      league: otherLeague.id,
+      format: "snake",
+      status: "complete",
+      order: [otherMember!.id],
+      rounds: 13,
+      current_pick: 14,
+      pick_seconds: 120,
+      seed: "capture-season",
+    },
+    { requestKey: null },
+  );
+  await pb
+    .collection("leagues")
+    .update(otherLeague.id, { status: "season" }, { requestKey: null });
+  await pb.collection("chat_messages").create(
+    {
+      league: otherLeague.id,
+      body: "Rosters are set. The season can begin.",
+      kind: "system",
+    },
+    { requestKey: null },
+  );
+  await pb.collection("chat_messages").create(
+    {
+      league: otherLeague.id,
+      author: otherMember!.id,
+      body: "First round starts Thursday.",
+      kind: "user",
+    },
+    { requestKey: null },
+  );
 
   const surfaces: {
     name: string;
@@ -192,10 +252,47 @@ try {
     },
     {
       name: "lobby",
+      path: `/leagues/${lobbyLeague.id}`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("invite-code")).toBeVisible();
+        await expect(page.getByTestId("lobby-sheet")).toBeVisible();
+      },
+    },
+    {
+      name: "lobby-season",
+      path: `/leagues/${otherLeague.id}`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("enter-standings")).toBeVisible();
+        await expect(page.getByTestId("enter-recap")).toBeVisible();
+      },
+    },
+    {
+      name: "lobby-drafting",
       path: `/leagues/${league.id}`,
       signedIn: true,
       assert: async (page) => {
-        await expect(page.getByTestId("lobby-sheet")).toBeVisible();
+        await expect(page.getByTestId("enter-draft").locator("..")).toHaveAttribute(
+          "data-state",
+          "filled",
+        );
+      },
+    },
+    {
+      name: "lobby-chat",
+      path: `/leagues/${otherLeague.id}`,
+      signedIn: true,
+      before: async (page) => {
+        if (
+          (await page.getByTestId("chat-toggle").getAttribute("data-open")) !==
+          "true"
+        ) {
+          await page.getByTestId("chat-toggle").click();
+        }
+      },
+      assert: async (page) => {
+        await expect(page.getByTestId("chat-composer")).toBeVisible();
       },
     },
     {

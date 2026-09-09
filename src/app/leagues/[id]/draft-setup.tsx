@@ -43,8 +43,8 @@ const START: SetupResult = { error: null };
 const DRAFT_START: DraftResult = { error: null };
 
 const FORMAT_LABELS: Record<(typeof DRAFT_FORMATS)[number], string> = {
-  linear: "Linear — same order every round",
-  snake: "Snake — reverses each round",
+  linear: "Linear: same order every round",
+  snake: "Snake: reverses each round",
   snake3rr: "Snake + third-round reversal",
 };
 
@@ -67,6 +67,8 @@ export function DraftSetup({
   const [started, startAction] = useActionState(startDraft, DRAFT_START);
 
   const positioned = members.filter((member) => member.draftPosition).length;
+  const allReady =
+    members.length >= 2 && members.every((member) => member.isReady);
   const inOrder = [...members].sort(
     (a, b) => (a.draftPosition ?? 99) - (b.draftPosition ?? 99),
   );
@@ -121,12 +123,12 @@ export function DraftSetup({
               data-testid="draft-order-mode"
               className={inputStyles}
             >
-              <option value="roll">Roll — a seeded shuffle</option>
+              <option value="roll">Roll: a seeded shuffle</option>
               <option value="manual">
-                By hand — whatever the league agreed
+                By hand: whatever the league agreed
               </option>
               <option value="reverse_standings">
-                Reverse standings — needs a finished season
+                Reverse standings: needs a finished season
               </option>
             </select>
           </Field>
@@ -161,10 +163,10 @@ export function DraftSetup({
                 key={member.id}
                 state={member.draftPosition ? "filled" : "waiting"}
               >
-                <span className="slot-label tabular-nums text-live">
+                <span className="slot-label tabular-nums text-ink">
                   {member.draftPosition
                     ? String(member.draftPosition).padStart(2, "0")
-                    : "—"}
+                    : "Not set"}
                 </span>
                 <span className="text-sm">
                   {member.teamName || member.name}
@@ -185,7 +187,7 @@ export function DraftSetup({
             <input type="hidden" name="leagueId" value={leagueId} />
             <SubmitButton
               testId="draft-roll"
-              tone="live"
+              tone={allReady && positioned === 0 ? "live" : "ink"}
               pendingLabel="Rolling…"
             >
               {settings.roll_seed ? "Re-apply the roll" : "Roll the order"}
@@ -196,20 +198,22 @@ export function DraftSetup({
               order of these hidden fields IS the submitted order, so the list
               above is what gets saved — no drag-and-drop until 3.4 brings
               dnd-kit for cheat sheets. */}
-          <form action={manualAction} className="sm:flex-1">
-            <input type="hidden" name="leagueId" value={leagueId} />
-            {inOrder.map((member) => (
-              <input
-                key={member.id}
-                type="hidden"
-                name="order"
-                value={member.id}
-              />
-            ))}
-            <SubmitButton testId="draft-manual" pendingLabel="Saving…">
-              Keep this order
-            </SubmitButton>
-          </form>
+          {positioned > 0 ? (
+            <form action={manualAction} className="sm:flex-1">
+              <input type="hidden" name="leagueId" value={leagueId} />
+              {inOrder.map((member) => (
+                <input
+                  key={member.id}
+                  type="hidden"
+                  name="order"
+                  value={member.id}
+                />
+              ))}
+              <SubmitButton testId="draft-manual" pendingLabel="Saving…">
+                Keep this order
+              </SubmitButton>
+            </form>
+          ) : null}
         </div>
 
         {/* Once everyone has a slot there is nothing left to decide, so the
@@ -239,7 +243,10 @@ export function DraftSetup({
             the opposite of "Re-apply", which is safe to press twice. */}
         {positioned > 0 ? (
           <details className="slot-waiting px-3 py-3">
-            <summary className="slot-label cursor-pointer list-none hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
+            <summary
+              data-testid="draft-reshuffle-toggle"
+              className="slot-label inline-flex min-h-11 min-w-11 cursor-pointer list-none items-center hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+            >
               Reshuffle&hellip;
             </summary>
             <form action={reshuffleAction} className="mt-4 flex flex-col gap-4">
@@ -260,7 +267,7 @@ export function DraftSetup({
               </label>
               <SubmitButton
                 testId="draft-reshuffle"
-                tone="live"
+                tone="ink"
                 pendingLabel="Reshuffling…"
               >
                 Reshuffle the order
