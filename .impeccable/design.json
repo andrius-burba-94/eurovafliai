@@ -377,7 +377,7 @@
       "name": "Position Patch",
       "kind": "chip",
       "refersTo": "patch-g",
-      "description": "A twill patch for Guards, Forwards and Centers. The letter is always rendered: colour never carries position on its own.",
+      "description": "A twill patch for Guards, Forwards and Centers. The letter is always rendered; roster summaries may show current/template counts with a full accessible label.",
       "html": "<span class=\"ds-patch ds-patch-g\"><span>5</span><span>G</span></span> <span class=\"ds-patch ds-patch-f\"><span>5</span><span>F</span></span> <span class=\"ds-patch ds-patch-c\"><span>3</span><span>C</span></span>",
       "css": ".ds-patch { display: inline-flex; align-items: baseline; gap: 0.25rem; padding: 0.25rem 0.5rem; border: 1px solid; border-radius: 0; font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }\n.ds-patch-g { color: var(--color-pos-g, #2e6c8d); border-color: color-mix(in oklab, var(--color-pos-g, #2e6c8d) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-g, #2e6c8d) 10%, transparent); }\n.ds-patch-f { color: var(--color-pos-f, #586e3b); border-color: color-mix(in oklab, var(--color-pos-f, #586e3b) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-f, #586e3b) 10%, transparent); }\n.ds-patch-c { color: var(--color-pos-c, #71568f); border-color: color-mix(in oklab, var(--color-pos-c, #71568f) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-c, #71568f) 10%, transparent); }"
     },

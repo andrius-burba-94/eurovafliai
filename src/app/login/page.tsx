@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 
-import { BoardPlan, Correction, Sheet, TopRail } from "@/components/board";
+import {
+  Bank,
+  BoardPlan,
+  Correction,
+  Sheet,
+  TopRail,
+} from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { startGoogleLogin } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
@@ -61,12 +67,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             Take your slot
           </h1>
           <p className="text-ink-soft">
-            Invite only. Sign in, then join your league with its code.
+            Invite only. Google verifies identity; the invite code takes the
+            slot after sign-in.
           </p>
           {/* Sits with the standfirst rather than above the slot, because it
               qualifies the invitation — it is not an event on the board. */}
           {note ? (
-            <p data-testid="login-note" className="slot-label text-ink-soft">
+            <p data-testid="login-note" className="text-sm text-ink-soft">
               {note}
             </p>
           ) : null}
@@ -76,18 +83,20 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <Correction testId="login-error">{message}</Correction>
         ) : null}
 
-        <div className="slot-waiting flex flex-col gap-4 px-3 py-5">
-          <p className="slot-label">Slot 01 &middot; waiting</p>
-          <form action={startGoogleLogin}>
-            <SubmitButton
-              testId="login-google"
-              tone="live"
-              pendingLabel="Redirecting to Google…"
-            >
-              Continue with Google
-            </SubmitButton>
-          </form>
-        </div>
+        <Bank label="Sign in" framed>
+          <div className="slot-waiting flex flex-col gap-4 px-3 py-4">
+            <p className="slot-label">Waiting for identity</p>
+            <form action={startGoogleLogin}>
+              <SubmitButton
+                testId="login-google"
+                tone="live"
+                pendingLabel="Redirecting to Google…"
+              >
+                Continue with Google
+              </SubmitButton>
+            </form>
+          </div>
+        </Bank>
 
         <BoardPlan caption="13 rounds · up to 12 slots" />
       </Sheet>
