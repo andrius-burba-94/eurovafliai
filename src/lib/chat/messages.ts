@@ -1,3 +1,5 @@
+import { formatSignedTenths } from "@/lib/stats/scoring";
+
 /**
  * What the app says in chat, and nothing about how it is stored.
  *
@@ -115,6 +117,15 @@ export function announceAdd(input: {
   readonly fromRound: number;
 }): string {
   return `${input.teamName} signed ${nameList(input.players)}, counting from round ${input.fromRound}.`;
+}
+
+export function announceImpact(input: {
+  readonly type: "trade" | "add" | "drop";
+  readonly deltaTenths: number;
+}): string {
+  const noun =
+    input.type === "trade" ? "trade" : input.type === "add" ? "signing" : "drop";
+  return `This ${noun} is ${formatSignedTenths(input.deltaTenths)} fantasy so far.`;
 }
 
 /** How long a member must wait between messages, and how long one may be. */

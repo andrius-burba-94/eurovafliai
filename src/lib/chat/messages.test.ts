@@ -12,6 +12,7 @@ import {
   announceComplete,
   announceDrop,
   announceAdd,
+  announceImpact,
   announceTrade,
   announcePause,
   announcePick,
@@ -164,6 +165,17 @@ describe("a recorded transaction", () => {
   });
 });
 
+describe("a live delta", () => {
+  it("names the kind and the signed fantasy total", () => {
+    expect(announceImpact({ type: "trade", deltaTenths: 37 })).toBe(
+      "This trade is +3.7 fantasy so far.",
+    );
+    expect(announceImpact({ type: "drop", deltaTenths: -50 })).toBe(
+      "This drop is -5.0 fantasy so far.",
+    );
+  });
+});
+
 describe("every system line is a whole sentence", () => {
   // The house rule, asserted rather than trusted. These sit in a run beside
   // people's own messages, and a verbless fragment reads like a broken one —
@@ -192,6 +204,8 @@ describe("every system line is a whole sentence", () => {
     }),
     announceDrop({ teamName: "Chief FC", players: ["Nunn"], fromRound: 3 }),
     announceAdd({ teamName: "Chief FC", players: ["Nunn"], fromRound: 3 }),
+    announceImpact({ type: "trade", deltaTenths: 37 }),
+    announceImpact({ type: "drop", deltaTenths: -50 }),
   ];
 
   it.each(lines)("ends in a full stop and starts with a capital: %s", (line) => {

@@ -51,8 +51,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **roster template** | The shape of a legal team: `{G:5, F:5, C:3}` by default. Lives in settings, never hardcoded. | `leagues.settings.roster_template` |
 | **membership** | A player's stay on a team. Calendar `from_date`/`to_date` (empty `to_date` = active) back the unique index; scoring uses Euroleague **`from_round`/`to_round`** (empty `to_round` = still open). Inclusive from, exclusive to. | `roster_memberships` |
 | **transaction** | A recorded trade, add or drop. Friends negotiate out loud; the app stores the result. No pending offers. `from_round` is the first night the new squad counts. | `transactions` |
-| **transaction** | A trade, add or drop. | `transactions` |
-| **impact / delta** | Fantasy points of players-in minus players-out **since** a transaction's date. | Phase 5.3 |
+| **impact / delta** | Fantasy tenths (and PIR) of players-in minus players-out from a deal's `from_round` onward. Live from box scores, not a stored cache. | `impactForMember()` |
 | **free agent** | A pool player owned by nobody after the draft. | — |
 | **snapshot** | The standings table frozen for one round; powers the round-over-round chart. | `standings_snapshots` |
 | **round** | Ambiguous on purpose — qualify it. A *draft round* is one pass through the order (1…13). A *Euroleague round* is a game week (1…38). | `picks.round` vs `player_game_stats.round` |

@@ -13,23 +13,33 @@ import {
 } from "@/components/board";
 import { RosterRadar } from "@/components/roster-radar";
 import { getSession } from "@/lib/auth/session";
+import { serverConfig } from "@/lib/config/server";
 import { buildRadar, radarSize } from "@/lib/engine";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { readMemberRoster } from "@/lib/memberships/queries";
+import { readMemberDeals, readMemberRoster } from "@/lib/memberships/queries";
+
+import { ImpactList } from "./impact-list";
 
 /**
- * One member's current roster — slice 5.1.
+ * One member's current roster — slices 5.1 and 5.3.
  *
- * The squad of record is active `roster_memberships`, not the draft board.
- * Radar is the same component the room uses, with nobody on the clock.
+ * The squad of record is active `roster_memberships`. Transactions below it
+ * are live deltas from box scores, not a stored cache.
  */
 export default async function TeamPage({
   params,
+  searchParams,
 }: PageProps<"/leagues/[id]/teams/[memberId]">) {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
 
   const { id, memberId } = await params;
+  const query = await searchParams;
+  const seasonRaw = typeof query.season === "string" ? query.season : "";
+  const season = /^E\d{4}$/i.test(seasonRaw)
+    ? seasonRaw.toUpperCase()
+    : serverConfig().EUROLEAGUE_SEASON;
+
   const data = await getLeagueWithMembers(id);
   if (!data) notFound();
 
@@ -39,7 +49,16 @@ export default async function TeamPage({
   const member = data.members.find((row) => row.id === memberId);
   if (!member) notFound();
 
-  const roster = await readMemberRoster(id, memberId);
+  const teamNames = Object.fromEntries(
+    data.members.map((row) => [
+      row.id,
+      row.teamName.trim() ? row.teamName : row.name,
+    ]),
+  );
+  const [roster, deals] = await Promise.all([
+    readMemberRoster(id, memberId),
+    readMemberDeals(id, memberId, season, teamNames),
+  ]);
   const template = data.settings.roster_template;
   const radarPicks = roster.map((player, index) => ({
     overallNo: player.overallNo ?? index + 1,
@@ -109,6 +128,8 @@ export default async function TeamPage({
             </Slots>
           </Bank>
         )}
+
+        <ImpactList deals={deals} teamName={displayName} />
 
         <RosterRadar
           rows={radar}
