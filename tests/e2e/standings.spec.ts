@@ -33,6 +33,16 @@ test("a member sees an empty table before the draft is complete", async ({
 
   await page.goto(`/leagues/${league.id}/standings`);
   await expect(page.getByTestId("standings")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Season", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
+  await expect(page.getByTestId("standings-empty").locator("..")).toHaveAttribute(
+    "data-framed",
+    "true",
+  );
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
   await expect(page.getByTestId("standings-empty")).toContainText(
     "draft is not complete",
   );
@@ -145,7 +155,12 @@ test("a counted round ranks the members who scored it", async ({
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}/standings?season=E2099`);
 
+  await expect(page.getByTestId("season-select")).toHaveValue("E2099");
   await expect(page.getByTestId("standings-table")).toBeVisible();
+  await expect(page.getByTestId("standings-table").locator("..")).toHaveAttribute(
+    "data-framed",
+    "true",
+  );
   const rows = page.getByTestId("standings-row");
   await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText("14.2");
@@ -157,7 +172,12 @@ test("a counted round ranks the members who scored it", async ({
   await expect(regularSeason).toHaveAttribute("aria-pressed", "true");
 
   await rows.first().getByTestId("standings-team").click();
+  await expect(page).toHaveURL(/season=E2099/);
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
+
+  await page.getByTestId("season-select").selectOption("E2025");
+  await page.getByTestId("season-submit").click();
+  await expect(page).toHaveURL(/season=E2025/);
 });
 
 test("a signed-in member reads a player's stored game log", async ({

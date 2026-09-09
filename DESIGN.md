@@ -592,6 +592,19 @@ The lobby opens it as a task; the denser draft room folds it to the latest line.
 When open, Hide belongs in the Bank heading rather than occupying a transcript
 row.
 
+### Season control — `SeasonControl`
+
+Every season surface starts with the same framed GET control: one Euroleague
+season select and one ink action. The code appears once, as the selected value;
+the Bank heading does not repeat it against the fixed competition year in the
+rail. It
+offers the configured season, the preceding season used for backfills, and any
+valid historical code already in the URL. Standings and recap carry that code
+into team links; the recap's round control carries it forward too. Changing
+season resets page-local choices such as round and phase rather than combining
+an old choice with a new season. It is one component on standings, recap, team
+and transaction pages, not four copies of query-string parsing.
+
 ### Card name — `CardName`
 
 The name written on a card: 600 caps at 0.06em, 1rem at every size. Use it

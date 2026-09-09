@@ -154,12 +154,35 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   );
   await page.getByTestId("record-transaction").click();
   await expect(page.getByTestId("transaction-builder")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Season", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
+  for (const label of ["This side", "The other side"]) {
+    await expect(
+      page.getByRole("region", { name: label, exact: true }),
+    ).toHaveAttribute("data-framed", "true");
+  }
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
+  await page.getByTestId("season-select").selectOption("E2025");
+  await page.getByTestId("season-submit").click();
+  await expect(page).toHaveURL(/season=E2025/);
 
   await page.getByTestId(`pick-a-${chief.id}`).click();
   await page.getByTestId(`pick-b-${mate.id}`).click();
   await page.getByTestId("from-round").fill("2");
   await page.getByTestId("trade-player-a").click();
   await page.getByTestId("trade-player-b").click();
+  await expect(page.getByTestId("trade-player-a")).toHaveAttribute(
+    "data-state",
+    "transit",
+  );
+  await expect(page.getByTestId("trade-player-b")).toHaveAttribute(
+    "data-state",
+    "transit",
+  );
+  await expect(page.locator('[data-state="live"]')).toHaveCount(0);
   await expect(page.getByTestId("confirm-sentence")).toContainText(
     "counting from round 2",
   );

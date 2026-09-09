@@ -32,6 +32,13 @@ test("a member sees an empty recap before the draft is complete", async ({
 
   await page.goto(`/leagues/${league.id}/recap`);
   await expect(page.getByTestId("recap")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Season", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
+  await expect(page.getByTestId("recap-empty").locator("..")).toHaveAttribute(
+    "data-framed",
+    "true",
+  );
   await expect(page.getByTestId("recap-empty")).toContainText(
     "draft is not complete",
   );
@@ -190,7 +197,19 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   await expect(page.getByTestId("enter-recap")).toBeVisible();
   await page.goto(`/leagues/${league.id}/recap?season=E2099`);
 
+  await expect(page.getByTestId("season-select")).toHaveValue("E2099");
   await expect(page.getByTestId("recap-table")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Round", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
+  for (const label of ["The night", "Best night", "Biggest swing"]) {
+    await expect(
+      page.getByRole("region", { name: label, exact: true }),
+    ).toHaveAttribute("data-framed", "true");
+  }
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
   const rows = page.getByTestId("recap-row");
   await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText("Other FC");
@@ -207,6 +226,9 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   await expect(page.getByTestId("recap-swing-deal")).toContainText(
     "counting from round 2",
   );
+  await rows.first().getByTestId("recap-team").click();
+  await expect(page).toHaveURL(/season=E2099/);
+  await page.goto(`/leagues/${league.id}/recap?season=E2099`);
 
   await page.getByTestId("recap-round").selectOption("1");
   await page.getByTestId("recap-show-round").click();

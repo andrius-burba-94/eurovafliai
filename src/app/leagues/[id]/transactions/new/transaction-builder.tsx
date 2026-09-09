@@ -192,7 +192,7 @@ export function TransactionBuilder({
 
       {mode === "trade" ? (
         <>
-          <Bank label="This side">
+          <Bank framed label="This side">
             <div className="flex flex-wrap gap-2 px-3 py-2">
               {members.map((member) => (
                 <FilterToggle
@@ -228,7 +228,7 @@ export function TransactionBuilder({
                 <Slot
                   key={seat.id}
                   testId="trade-player-a"
-                  state={outA.includes(seat.player) ? "live" : "filled"}
+                  state={outA.includes(seat.player) ? "transit" : "filled"}
                 >
                   <button
                     type="button"
@@ -246,7 +246,7 @@ export function TransactionBuilder({
               )}
             </Slots>
           </Bank>
-          <Bank label="The other side">
+          <Bank framed label="The other side">
             <div className="flex flex-wrap gap-2 px-3 py-2">
               {members
                 .filter((member) => member.id !== memberA)
@@ -278,7 +278,7 @@ export function TransactionBuilder({
                 <Slot
                   key={seat.id}
                   testId="trade-player-b"
-                  state={outB.includes(seat.player) ? "live" : "filled"}
+                  state={outB.includes(seat.player) ? "transit" : "filled"}
                 >
                   <button
                     type="button"
@@ -299,7 +299,7 @@ export function TransactionBuilder({
         </>
       ) : (
         <>
-          <Bank label="Whose roster">
+          <Bank framed label="Whose roster">
             <div className="flex flex-wrap gap-2 px-3 py-2">
               {members.map((member) => (
                 <FilterToggle
@@ -319,13 +319,13 @@ export function TransactionBuilder({
             </div>
           </Bank>
           {mode === "drop" ? (
-            <Bank label="Drop">
+            <Bank framed label="Drop">
               <Slots label={`${nameSolo} roster`}>
                 {roster(memberSolo).map((seat) => (
                   <Slot
                     key={seat.id}
                     testId="drop-player"
-                    state={picked.includes(seat.player) ? "live" : "filled"}
+                    state={picked.includes(seat.player) ? "transit" : "filled"}
                   >
                     <button
                       type="button"
@@ -345,7 +345,7 @@ export function TransactionBuilder({
               </Slots>
             </Bank>
           ) : (
-            <Bank label="Free agents" aside={`${agents.length}`}>
+            <Bank framed label="Free agents" aside={`${agents.length}`}>
               <div className="flex flex-col gap-3 px-3 py-3">
                 <input
                   value={query}
@@ -378,7 +378,7 @@ export function TransactionBuilder({
                     <Slot
                       key={player.id}
                       testId="add-player"
-                      state={picked.includes(player.id) ? "live" : "waiting"}
+                      state={picked.includes(player.id) ? "transit" : "waiting"}
                     >
                       <button
                         type="button"

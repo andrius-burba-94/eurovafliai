@@ -29,10 +29,12 @@ export function StandingsTable({
   snapshots,
   names,
   leagueId,
+  season,
 }: {
   snapshots: RoundSnapshot[];
   names: Record<string, string>;
   leagueId: string;
+  season: string;
 }) {
   const [on, setOn] = useState<Record<Phase, boolean>>({
     RS: true,
@@ -70,20 +72,21 @@ export function StandingsTable({
         ))}
       </div>
 
-      {rows.length === 0 ? (
-        <p className="text-sm text-ink-soft">
-          No counted games in the phases you have on.
-        </p>
-      ) : (
-        <Bank
-          label="The table"
-          aside={`${rounds.length} round${rounds.length === 1 ? "" : "s"}`}
-        >
+      <Bank
+        framed
+        label="The table"
+        aside={`${rounds.length} round${rounds.length === 1 ? "" : "s"}`}
+      >
+        {rows.length === 0 ? (
+          <p className="text-sm text-ink-soft">
+            No counted games in the phases you have on.
+          </p>
+        ) : (
           <Slots testId="standings-table">
             {rows.map((row, index) => (
               <Slot key={row.memberId} testId="standings-row" state="filled">
                 <Link
-                  href={`/leagues/${leagueId}/teams/${row.memberId}`}
+                  href={`/leagues/${leagueId}/teams/${row.memberId}?season=${encodeURIComponent(season)}`}
                   data-testid="standings-team"
                   className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
                 >
@@ -110,8 +113,8 @@ export function StandingsTable({
               </Slot>
             ))}
           </Slots>
-        </Bank>
-      )}
+        )}
+      </Bank>
     </>
   );
 }

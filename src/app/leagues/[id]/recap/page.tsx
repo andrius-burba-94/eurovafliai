@@ -1,6 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Correction, Sheet, TopRail } from "@/components/board";
+import {
+  BackLink,
+  Bank,
+  Correction,
+  Sheet,
+  TopRail,
+} from "@/components/board";
+import {
+  resolveSeason,
+  SeasonControl,
+} from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -24,10 +34,8 @@ export default async function RecapPage({
 
   const { id } = await params;
   const query = await searchParams;
-  const seasonRaw = typeof query.season === "string" ? query.season : "";
-  const season = /^E\d{4}$/i.test(seasonRaw)
-    ? seasonRaw.toUpperCase()
-    : serverConfig().EUROLEAGUE_SEASON;
+  const currentSeason = serverConfig().EUROLEAGUE_SEASON;
+  const season = resolveSeason(query.season, currentSeason);
   const roundRaw = typeof query.round === "string" ? Number(query.round) : NaN;
   const requestedRound =
     Number.isInteger(roundRaw) && roundRaw > 0 ? roundRaw : null;
@@ -63,10 +71,14 @@ export default async function RecapPage({
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
             This round
           </h1>
-          <p className="slot-label">
-            {data.league.name} · {season}
-          </p>
+          <p className="slot-label">{data.league.name}</p>
         </div>
+
+        <SeasonControl
+          action={`/leagues/${id}/recap`}
+          season={season}
+          currentSeason={currentSeason}
+        />
 
         {requestedRound !== null &&
         page &&
@@ -78,13 +90,17 @@ export default async function RecapPage({
         ) : null}
 
         {emptyDraft ? (
-          <p className="text-ink-soft" data-testid="recap-empty">
-            The draft is not complete, so there is no recap yet.
-          </p>
+          <Bank framed label="The night">
+            <p className="text-ink-soft" data-testid="recap-empty">
+              The draft is not complete, so there is no recap yet.
+            </p>
+          </Bank>
         ) : emptyScores ? (
-          <p className="text-ink-soft" data-testid="recap-empty">
-            No box scores counted for {season} yet.
-          </p>
+          <Bank framed label="The night">
+            <p className="text-ink-soft" data-testid="recap-empty">
+              No box scores counted for {season} yet.
+            </p>
+          </Bank>
         ) : page ? (
           <>
             <RoundPicker
@@ -98,6 +114,7 @@ export default async function RecapPage({
               names={names}
               playerNames={page.playerNames}
               leagueId={id}
+              season={season}
             />
           </>
         ) : null}

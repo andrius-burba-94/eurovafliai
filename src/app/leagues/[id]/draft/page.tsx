@@ -313,6 +313,7 @@ export default async function DraftPage({
             columns={columns}
             total={view.rosterTotal}
             onClockMemberId={onClock?.memberId ?? null}
+            linkToBoard
           />
         </Bank>
 

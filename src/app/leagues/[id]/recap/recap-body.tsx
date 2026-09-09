@@ -10,11 +10,13 @@ export function RecapBody({
   names,
   playerNames,
   leagueId,
+  season,
 }: {
   recap: Recap;
   names: Readonly<Record<string, string>>;
   playerNames: Readonly<Record<string, string>>;
   leagueId: string;
+  season: string;
 }) {
   const team = (id: string) => names[id] ?? id;
   const player = (id: string) => playerNames[id] ?? id;
@@ -44,7 +46,7 @@ export function RecapBody({
 
   return (
     <>
-      <Bank label="The night" aside={`Round ${recap.round}`}>
+      <Bank framed label="The night" aside={`Round ${recap.round}`}>
         {recap.rows.length === 0 ? (
           <p className="text-ink-soft" data-testid="recap-table-empty">
             No teams scored this round.
@@ -54,7 +56,7 @@ export function RecapBody({
             {recap.rows.map((row, index) => (
               <Slot key={row.memberId} testId="recap-row" state="filled">
                 <Link
-                  href={`/leagues/${leagueId}/teams/${row.memberId}`}
+                  href={`/leagues/${leagueId}/teams/${row.memberId}?season=${encodeURIComponent(season)}`}
                   data-testid="recap-team"
                   className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
                 >
@@ -75,7 +77,7 @@ export function RecapBody({
         )}
       </Bank>
 
-      <Bank label="Best night">
+      <Bank framed label="Best night">
         {night ? (
           <Slots testId="recap-best" label="Best night">
             <Slot testId="recap-best-night" state="filled">
@@ -99,7 +101,7 @@ export function RecapBody({
         )}
       </Bank>
 
-      <Bank label="Biggest swing">
+      <Bank framed label="Biggest swing">
         {swing && swingSentence ? (
           <Slots testId="recap-swing" label="Biggest swing">
             <Slot testId="recap-swing-deal" state="filled">

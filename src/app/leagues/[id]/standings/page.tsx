@@ -1,6 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Sheet, TopRail } from "@/components/board";
+import { BackLink, Bank, Sheet, TopRail } from "@/components/board";
+import {
+  resolveSeason,
+  SeasonControl,
+} from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -24,10 +28,8 @@ export default async function StandingsPage({
 
   const { id } = await params;
   const query = await searchParams;
-  const seasonRaw = typeof query.season === "string" ? query.season : "";
-  const season = /^E\d{4}$/i.test(seasonRaw)
-    ? seasonRaw.toUpperCase()
-    : serverConfig().EUROLEAGUE_SEASON;
+  const currentSeason = serverConfig().EUROLEAGUE_SEASON;
+  const season = resolveSeason(query.season, currentSeason);
 
   const data = await getLeagueWithMembers(id);
   if (!data) notFound();
@@ -60,24 +62,33 @@ export default async function StandingsPage({
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
             Standings
           </h1>
-          <p className="slot-label">
-            {data.league.name} · {season}
-          </p>
+          <p className="slot-label">{data.league.name}</p>
         </div>
 
+        <SeasonControl
+          action={`/leagues/${id}/standings`}
+          season={season}
+          currentSeason={currentSeason}
+        />
+
         {emptyDraft ? (
-          <p className="text-ink-soft" data-testid="standings-empty">
-            The draft is not complete, so there is no table yet.
-          </p>
+          <Bank framed label="The table">
+            <p className="text-ink-soft" data-testid="standings-empty">
+              The draft is not complete, so there is no table yet.
+            </p>
+          </Bank>
         ) : emptyScores ? (
-          <p className="text-ink-soft" data-testid="standings-empty">
-            No box scores counted for {season} yet.
-          </p>
+          <Bank framed label="The table">
+            <p className="text-ink-soft" data-testid="standings-empty">
+              No box scores counted for {season} yet.
+            </p>
+          </Bank>
         ) : (
           <StandingsTable
             snapshots={snapshots}
             names={names}
             leagueId={id}
+            season={season}
           />
         )}
       </Sheet>

@@ -83,11 +83,29 @@ test("a member opens a roster from the season lobby", async ({
   await page.getByTestId("enter-roster").click();
 
   await expect(page.getByTestId("roster")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Season", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
   await expect(page.getByTestId("roster-list")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "The roster", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
   await expect(page.getByTestId("roster-player")).toContainText("#1");
   await expect(page.getByTestId("roster-radar")).toBeVisible();
+  await expect(
+    page.getByTestId("roster-radar").getByRole("link"),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Roster shape", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
   await expect(page.getByTestId("impact-empty")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Transactions", exact: true }),
+  ).toHaveAttribute("data-framed", "true");
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
 
   await page.getByTestId("roster-player").getByRole("link").click();
   await expect(page.getByTestId("player-log")).toBeVisible();
