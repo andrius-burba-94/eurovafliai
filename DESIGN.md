@@ -3,13 +3,14 @@ name: Eurovafliai
 description: A physical draft board rendered as an interface — card stock, ruled slots, one marker red.
 colors:
   stock: "oklch(0.943 0.004 240)"
+  stock-deep: "oklch(0.905 0.005 240)"
   ink: "oklch(0.24 0.012 250)"
   ink-soft: "oklch(0.47 0.011 250)"
-  ink-faint: "oklch(0.513 0.009 250)"
-  rule: "oklch(0.614 0.008 240)"
+  ink-faint: "oklch(0.501 0.009 250)"
+  rule: "oklch(0.598 0.008 240)"
   rule-strong: "oklch(0.533 0.01 240)"
-  rail: "oklch(0.52 0.042 245)"
-  live: "oklch(0.548 0.198 27)"
+  rail: "oklch(0.5 0.042 245)"
+  live: "oklch(0.525 0.198 27)"
   live-sunk: "oklch(0.925 0.055 27)"
   pos-g: "oklch(0.49 0.082 235)"
   pos-f: "oklch(0.49 0.079 128)"
@@ -114,6 +115,11 @@ components:
   input-field-focus:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
+  bank-framed:
+    backgroundColor: "{colors.stock-deep}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.none}"
+    padding: "1rem"
   slot-waiting:
     backgroundColor: "transparent"
     textColor: "{colors.ink-faint}"
@@ -186,9 +192,9 @@ language is drawn in border weight, not in badge colour.
 
 The direction contract shipped in the emitted HTML of every page
 (`src/app/layout.tsx`) states the refusals literally: no near-black surface with
-one glowing accent, no metric-tile hero, **no cards inside cards**. A design
-whose thesis is "the app is the draft board" cannot show the user a stack of
-floating cards.
+one glowing accent, no metric-tile hero, **no cards inside cards**. The board may
+group one level of content into framed Banks, cut from deeper stock; it never
+stacks floating cards.
 
 **Key Characteristics:**
 
@@ -199,7 +205,7 @@ floating cards.
 - Zero corner radius, zero shadows, zero gradients, anywhere.
 - One type family (Archivo), caps for names and labels, tabular figures for
   every number in the app.
-- Exactly one animation is implemented, on exactly one event.
+- Exactly two animations are implemented, on exactly two state-change events.
 - Mobile-first with a single breakpoint; the phone gets the complete rail.
 
 ## Colors
@@ -211,12 +217,12 @@ dead grey.
 
 Contrast ratios below are **measured**, not estimated: `src/app/tokens.test.ts`
 parses `globals.css`, converts OKLCH to WCAG relative luminance and asserts the
-floors. Twenty-three assertions, all passing.
+floors. Sixty-four assertions pass, including both stock materials.
 
 ### Primary
 
-- **Commissioner's Marker Red** (`oklch(0.548 0.198 27)`, token `live`,
-  **4.58:1** on stock): the one accent. Kept cooler and more saturated than a
+- **Commissioner's Marker Red** (`oklch(0.525 0.198 27)`, token `live`,
+  **5.06:1** on stock): the one accent. Kept cooler and more saturated than a
   terracotta specifically so the surface cannot drift into the cream-and-clay
   cluster every generated interface lands in. It is the 2px rule over the slot on
   the clock, the caret, the selection background, the focus ring, the border and
@@ -231,28 +237,30 @@ floors. Twenty-three assertions, all passing.
 ### Neutral
 
 - **Cool Card Stock** (`oklch(0.943 0.004 240)`, token `stock`): the ground.
-  Set on `body` and on the root element. There is no second surface colour: no
-  panel, no elevated card, no striped row.
+  Set on `body` and on the root element.
+- **Deep Card Stock** (`oklch(0.905 0.005 240)`, token `stock-deep`, **1.12:1**
+  against stock): the one panel material. It fills a framed `Bank`; it never
+  becomes a page ground, striped row or nested panel.
 - **Board Ink** (`oklch(0.24 0.012 250)`, token `ink`, **13.92:1** on stock):
   all primary text, and the 2px stroke of a correction.
 - **Soft Ink** (`oklch(0.47 0.011 250)`, token `ink-soft`, **5.77:1**): slot
   labels, field labels, secondary sentences under a heading, a member's real name
   beside their team name.
-- **Faint Ink** (`oklch(0.513 0.009 250)`, token `ink-faint`, **4.80:1**): input
+- **Faint Ink** (`oklch(0.501 0.009 250)`, token `ink-faint`, **5.05:1**): input
   placeholders, the "Slot 07" numbering on an unfilled slot, the round numbers
   down the left of the board plan. It was once 2.96:1 and carried form labels —
   the text that tells somebody what to type. That was solved by measurement, not
   by eye.
-- **Waiting Rule Grey** (`oklch(0.614 0.008 240)`, token `rule`, **3.15:1**): the
+- **Waiting Rule Grey** (`oklch(0.598 0.008 240)`, token `rule`, **3.36:1**): the
   thin dashed rule of an empty slot, and every interior line of the board plan.
   It was once 1.36:1, which is not a boundary, it is a rounding error — and since
   the rule *is* the state language, a rule you cannot see means a surface with no
   states.
 - **Heavy Rule Grey** (`oklch(0.533 0.01 240)`, token `rule-strong`, **4.40:1**):
   the solid rule of a filled slot, and the frame that closes a run of slots. It
-  is 1.40× the contrast of `rule` — the major/minor hierarchy a real board has,
+  is 1.31× the contrast of `rule` — the major/minor hierarchy a real board has,
   asserted as a ratio between the two rather than as a fixed number.
-- **Rail Slate Blue** (`oklch(0.52 0.042 245)`, token `rail`, **4.64:1**): used
+- **Rail Slate Blue** (`oklch(0.5 0.042 245)`, token `rail`, **5.05:1**): used
   only for the top rail's bottom border, at 40% opacity. The one neutral with
   visible chroma; the rest of the ramp is tinted toward it.
 
@@ -285,8 +293,8 @@ in marker), but the code's own slot stays `slot-filled` — ruled, not struck.
 failures, which made an error and an invite code render identically.
 
 **The Ink-on-Blush Rule.** Text on a live field is ink (**12.62:1** on
-`live-sunk`). Marker red on `live-sunk` measures 4.15:1 and fails the text
-floor — never put marker text on the live tint.
+`live-sunk`). Marker red now clears the floor there, but ink remains the label:
+the marker's two jobs are semantic, not merely a contrast workaround.
 
 **The Letter-Always Rule.** Colour never carries position on its own. A
 `PositionPatch` always renders its G / F / C letter, for colour-blind readers and
@@ -402,20 +410,23 @@ Tailwind's 0.25rem step. Do not introduce a third spacing system.
 `backdrop-filter` or gradient exists in the codebase. There is also no second
 surface colour: every page is card stock all the way down.
 
-Depth is made of exactly two materials:
+Depth is made of exactly three materials:
 
 1. **Rule weight.** 1px dashed (light) → 1px solid at heavy rule grey → 2px
    solid marker. Heavier reads nearer and more settled; dashed reads unfinished.
    A run of slots is closed at the bottom by a heavy 1px rule, the way a board
    has a bottom rail.
 2. **A single tint.** `live-sunk` fills the live slot. It is the only fill in the
-   system besides the 10% position-patch washes.
+   state system besides the 10% position-patch washes.
+3. **Deep stock.** `stock-deep` fills a framed `Bank`, bounded by one 1px
+   `rule-strong` frame. It groups a whole task without lifting it off the board.
 
 ### Named Rules
 
-**The No-Card Rule.** Nothing is a card, so nothing can be a card inside a card.
-Sections are separated by their heading and their rules, not by a container. If a
-new surface seems to need a panel, it needs a `Bank` and a rule.
+**The Panel Rule.** A `Bank` may be `framed`: deep stock, one 1px strong rule,
+zero radius and zero shadow. A framed Bank is one level of task grouping and
+never sits inside another framed Bank. Rows and controls inside it keep their
+own material; they do not become cards.
 
 **The Flatness-Is-Not-Negotiable Rule.** A shadow, a gradient, a glow or a
 rounded corner arriving anywhere in this system is a regression, not a variant.
@@ -431,8 +442,9 @@ app chrome" read, and it is not adjustable per component.
 **Borders are the whole form language.** Almost every border in the system is on
 one side: `border-top` on a slot (that is the ruling), `border-bottom` on the
 sheet's slot run and under an input, `border-bottom` on the top rail. The only
-four-sided borders in the system are the button (1px at 35–60% opacity) and the
-position patch (1px at 55% opacity).
+four-sided borders in the system are controls, position patches and a framed
+Bank. The Bank's 1px strong frame groups a task; it never rounds, lifts or
+nests.
 
 **The only filled shapes** are the position patch (a 10% wash of its own hue) and
 the live slot (`live-sunk`). Hover and active states use 5–10% ink washes.
@@ -456,7 +468,7 @@ the app that never leaves, because the pool sits below it and the countdown and
 the search box otherwise could not both be on a 390px screen — so "under a
 minute to find a player and commit" was not an instruction anybody could follow
 while watching the minute. The precedent is the board's own `sticky left-0`
-round gutter; it needs no shadow, no blur and no second surface colour.
+round gutter; it needs no shadow, blur or panel treatment.
 
 **Do not add `bg-stock` to it unconditionally.** `slot-live` brings its own
 opaque blush, and a plain `bg-stock` alongside it paints straight over that —
@@ -492,8 +504,9 @@ it and is told nothing. One `id` fixes it for every section on every surface.
 A section of the board. Heading is a slot label; an optional `aside` (also a slot
 label) sits baseline-aligned at the right of the same line and carries the
 count — "3 of 12", "9 of 12 free", "2 on the board", "none yet". Heading and
-content are `0.75rem` apart. No border, no background: a `Bank` is a column head,
-not a container.
+content are `0.75rem` apart. The default Bank stays open on stock. A framed Bank
+uses `bank-framed`: deep stock, a 1px strong frame and `1rem` interior padding.
+It never nests inside another framed Bank.
 
 ### Slot run — `Slots` + `Slot`
 
@@ -593,13 +606,11 @@ A form on card stock. Character: a ruled line to write on, not a box to type in.
 ### Action — `SubmitButton`
 
 `liveOnField` is the one act sitting *inside* a live row — the pool's armed
-pick. Its label cannot be the marker's own red: `live` on `live-sunk` is 4.15:1
-and the Ink-on-Blush Rule forbids it by name. So the border goes to
-full-strength marker at 2px (4.15:1, which clears the 3:1 boundary floor) and
-the label goes to ink (12.62:1). The act is still struck in marker; it is the
-rule that says so, which is how this system says everything else. 3.3 shipped
-`tone="live"` there and broke a named rule on the one control it matters most
-for — the last thing read before an action only a commissioner can undo.
+pick. Its label stays ink under the Ink-on-Blush Rule; marker text now clears
+the floor, but that does not give the marker a third semantic job. The border
+goes to full-strength marker at 2px (4.59:1 on the blush) and the label goes to
+ink (12.62:1). The act is still struck in marker; it is the rule that says so,
+which is how this system says everything else.
 
 `compact` drops the full-width phone treatment for a button that belongs to a
 *row* rather than to a surface: a list of thirty rows each with a full-width
@@ -754,14 +765,11 @@ absolutely positioned, and a background painted on a zero-height box hides
 nothing.
 
 **The Wash-Costs-A-Tenth Rule.** A 10% wash over stock costs roughly a tenth of
-every contrast ratio measured on top of it. `ink-faint` is 4.80:1 on stock and
-**4.42:1** on a position wash; a position colour on its own 10% wash is 4.50:1 at
-best and 4.21:1 at worst — and that letter is the colour-blind fallback for
-position, so it is an accessibility floor twice over. So text on a washed field
-is `ink` or `ink-soft`, and a rule on one is `rule-strong`. 3.1 shipped the
-opposite of all three, and `tokens.test.ts` was green throughout, because until
-3.1 it could only compare one opaque token with another and had no way to express
-an alpha background at all. It can now, and these pairs are asserted.
+every contrast ratio measured on top of it, and a wash over stock-deep costs
+more. So text on a washed field is `ink` or `ink-soft`, and a rule on one is
+`rule-strong`. `tokens.test.ts` asserts those pairs over both stock materials.
+3.1 shipped the opposite of all three, and the test was green throughout,
+because it could not yet express an alpha background.
 
 **The Composite-In-Gamma Rule.** A browser blends translucent colour in the
 gamma-encoded space its pixels live in, not in linear light. 3.1's `wash()`
@@ -841,7 +849,7 @@ on their own rules. A table naming its axis once is not a per-cell letter.
 `bg-pos-*/10` it measures **1.14:1** against stock — 62% short of the 3:1
 boundary floor, and identical for all three hues. What separates filled from
 waiting is *form*: a solid `rule-strong` rule over a filled box (4.37:1) against
-a dashed `rule` hairline (3.15:1), which survives grayscale and every CVD
+a dashed `rule` hairline (3.36:1 on stock), which survives grayscale and every CVD
 simulation. The wash reinforces; it never carried.
 
 ### Marks are a picture; the sentence is the content
@@ -941,8 +949,8 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 
 ### Don't:
 
-- **Don't** add a corner radius, a shadow, a gradient, a blur or a second surface
-  colour. None exist today; each would be a regression, not a variant.
+- **Don't** add a corner radius, a shadow, a gradient, a blur or any surface
+  colour beyond stock and stock-deep. A framed Bank never nests inside another.
 - **Don't** compose a utility name from a variable. Tailwind reads source text,
   so `` `slot-${state}` `` emits nothing, the rule does not exist, and the
   surface looks plausible with its whole state language missing. Write the map
@@ -959,8 +967,8 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
   board whose whole state language is red used sparingly.
 - **Don't** strike an error in marker. Corrections are ink
   (`slot-correction`) — an error and an invite code must never look alike.
-- **Don't** put marker-red text on the live tint: 4.15:1. Ink on the live tint is
-  12.62:1.
+- **Don't** put marker-red text on the live tint. It now clears contrast, but ink
+  is 12.62:1 and marker text would still violate the Two Jobs Rule.
 - **Don't** use `slot-live` for anything that is not a slot on the clock. It is
   the 2px marker and it has exactly one meaning. 3.4a used it for a "Saved"
   confirmation on a page that is open *during* a live draft, on the same phone.
