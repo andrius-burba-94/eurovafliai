@@ -21,13 +21,26 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: 5.2 transactions.** Phase 4 is closed in code: **4.1–4.5 have
-landed**, and **5.1 has landed**: a finished draft writes `roster_memberships`,
-standings join those rows, and each member has a roster page. Standings still
-ignore `from_date`/`to_date` until 5.2 closes a window. Phase 3 is closed apart
-from the **human rehearsal** its DoD asks for — a draft night with 3+ friends on
+**Next up: 5.3 impact tracking.** Phase 4 is closed in code: **4.1–4.5 have
+landed**, and **5.1–5.2 have landed**: a finished draft writes
+`roster_memberships`, a commissioner records trades and add/drops against those
+windows, and standings join by Euroleague round. Phase 3 is closed apart from
+the **human rehearsal** its DoD asks for — a draft night with 3+ friends on
 mixed devices, inherited from Phase 2 (blueprint D12). That is the only claim in
 this file no test can make.
+
+## Try it on localhost — slice 5.2
+
+```bash
+npm run dev
+# league already in season (finish a tiny practice draft if needed)
+```
+
+Open the lobby as commissioner. **Record a transaction** → pick Trade, tap one
+player on each roster, set **Counts from round** to `2`, Record this. The lobby
+chat names both teams. Open each roster: the names have swapped. Open
+Standings (use `?season=E2025` if you imported last season): round 1 still sits
+with the old owner, round 2 and after with the new one.
 
 ## Try it on localhost — slice 5.1
 
@@ -109,7 +122,7 @@ In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
 
-`npm run test` is **913** unit tests after 5.1.
+`npm run test` is **934** unit tests after 5.2.
 
 ## Try it on localhost — slice 4.2
 
@@ -325,17 +338,18 @@ now landed on top of them.
 
 ## Phase 5 — Season mode: rosters, trades, impact tracking
 
-**Started.** 5.1 is in; 5.2 is next.
+**Started.** 5.1 and 5.2 are in; 5.3 is next.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
-| **5.1 Membership backbone** | done | — | On the last pick, `advance` writes `roster_memberships` (`from_date` = that instant, `acquired_via: draft`) after the draft is complete and the league is `season`. Unique active `(league, player)` is the backstop; a second pass skips anyone who already has an open window. `recomputeStandings` repairs an incomplete set from the newest complete draft **only while no window has been closed** — once 5.2 sets a `to_date`, rebuilding from picks would reopen a dropped player. A complete set does not reread picks. Start-over deletes memberships *before* drafts. **No game-date filter yet:** E2025 backfill games sit before a September 2026 `from_date`, and applying windows now would zero the table. Squad of record is the open windows; `/leagues/[id]/teams/[memberId]` is the roster plus that member's radar |
+| **5.1 Membership backbone** | done | — | On the last pick, `advance` writes `roster_memberships` (`from_date` = that instant, `from_round: 1`, `acquired_via: draft`) after the draft is complete and the league is `season`. Unique active `(league, player)` is the backstop; a second pass skips anyone who already has an open window. `recomputeStandings` repairs an incomplete set from the newest complete draft **only while no window has been closed**. A complete set does not reread picks. Start-over deletes memberships *before* drafts. Squad of record is the open windows; `/leagues/[id]/teams/[memberId]` is the roster plus that member's radar |
+| **5.2 Transactions** | done | — | **Record, do not broker.** Commissioner or deputy writes a trade or an add/drop; there is no offer queue. N-for-N only; drop may leave a hole; add needs a vacancy and an unsigned player. Intent row first (`transactions`), then close windows (`to_date` + exclusive `to_round`), then open, then `announce()` which never throws. Standings join `from_round`/`to_round` so a trade at round 2 leaves round 1 with the old owner. Open draft windows still own every round, so an E2025 backfill matches 4.5 until the first close. Impact deltas stay 5.3. `/leagues/[id]/transactions/new` is the builder |
 
 ## Phases 5–8
 
 | Phase | State |
 |---|---|
-| 5 — Season mode: rosters, trades, impact tracking | **started** — 5.1 memberships have swapped the standings join off picks |
+| 5 — Season mode: rosters, trades, impact tracking | **started** — 5.2 records trades; 5.3 is the impact overlay |
 | 6 — Optional formats | todo |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
 | 8 — Hardening & ops polish | todo |
@@ -394,7 +408,6 @@ touch should be fixed by that slice rather than deferred again.
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
 | **Autodraft ranks unsheeted members by last-5** | Closed in 4.4. A member with a sheet is still picked from the sheet first. A member with no played games in the projected season still ties on player id | Nothing |
 | **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. Standings now filter by phase; last-5 on the pool still does not. A September ranking built from last season therefore uses late-playoff form for anyone who was still playing in May | Nothing; a known skew on the preseason ranking |
-| **Standings ignore membership date windows until 5.2** | 5.1 swapped the join onto active `roster_memberships` but still attributes every stored line to the current owner. Filtering by `from_date`/`to_date` would zero an E2025 backfill against a 2026 draft. 5.2 must apply windows in the same PR that first closes a `to_date` | Phase 5.2 |
 | **No path from the pool *into* a sheet** | What is left of 3.4a's central critique finding after 3.4b closed two thirds of it. A sheet can now be reordered and a player removed from it, but the only way to *add* somebody is still to paste a list — there is no "put this player on my sheet" from the pool or from the room. It needs a picker over 323 players and a decision about where it lives, so it is its own piece of work rather than a rough edge | Nothing; a sheet can still be built, just not incrementally |
 | **A sheet still cannot be edited from inside the room** | The third thing blueprint 3.4 asks for, and the only part of that line still unmet: "editable before *and during* the draft in a sidebar". It is a page, and the room links to it and pins the best three from it. On a phone that is arguably the right answer — this app is one column and a sixty-row list does not sit beside a board — but it is a divergence rather than a finished thought | Nothing; the sheet is reachable mid-draft, just not beside the board |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |

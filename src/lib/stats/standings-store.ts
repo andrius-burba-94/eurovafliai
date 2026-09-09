@@ -11,7 +11,7 @@ import {
   snapshotsFromStandings,
   type SnapshotRow,
   type StandingLine,
-  type StandingRoster,
+  type StandingWindow,
 } from "./standings";
 
 /**
@@ -29,9 +29,9 @@ import {
  * snapshot here: a later import that no longer mentions round 4 must not
  * erase it, the same trap a partial CSV must not spring on box scores.
  *
- * Until 5.2 closes a window, a member's squad is every *active*
- * `roster_memberships` row. Game-date windows are 5.2: filtering E2025 lines
- * by a September 2026 `from_date` would zero the backfill standings use today.
+ * Once any window is closed, a member's nights follow `from_round`/`to_round`
+ * (not calendar `from_date`). An open draft window still owns every round, so
+ * an E2025 backfill matches 4.5 until the first trade.
  *
  * A season league whose open memberships do not fill its completed draft
  * rematerializes the missing rows — the crash between `advance` and the
@@ -45,7 +45,13 @@ type DraftRef = {
   rounds?: number;
   updated?: string;
 };
-type MembershipRef = { member: string; player: string; to_date?: string | null };
+type MembershipRef = {
+  member: string;
+  player: string;
+  to_date?: string | null;
+  from_round?: number | null;
+  to_round?: number | null;
+};
 type StatRef = {
   player: string;
   round: number;
@@ -80,18 +86,15 @@ function sameSnapshot(
   return stored.phase === phase && JSON.stringify(stored.table) === JSON.stringify(table);
 }
 
-function rostersFromMemberships(
+function windowsFromMemberships(
   rows: readonly MembershipRef[],
-): StandingRoster[] {
-  const byMember = new Map<string, string[]>();
-  for (const row of rows) {
-    const ids = byMember.get(row.member) ?? [];
-    ids.push(row.player);
-    byMember.set(row.member, ids);
-  }
-  return [...byMember.entries()].map(([memberId, playerIds]) => ({
-    memberId,
-    playerIds,
+): StandingWindow[] {
+  return rows.map((row) => ({
+    memberId: row.member,
+    playerId: row.player,
+    from_round: row.from_round,
+    to_round: row.to_round,
+    to_date: row.to_date,
   }));
 }
 
@@ -203,13 +206,14 @@ export async function recomputeStandings(
       .collection("roster_memberships")
       .getFullList<MembershipRef>({
         filter: `league = '${league.id}'`,
-        fields: "member,player,to_date",
+        fields: "member,player,to_date,from_round,to_round",
         requestKey: null,
       });
     const hasClosed = stored.some((row) => !isActiveMembership(row.to_date));
-    let memberships = stored.filter((row) => isActiveMembership(row.to_date));
+    let memberships = stored;
+    const open = stored.filter((row) => isActiveMembership(row.to_date));
     const expected = expectedRosterRows(draft);
-    if (!hasClosed && (expected === null || memberships.length < expected)) {
+    if (!hasClosed && (expected === null || open.length < expected)) {
       const picks = await readPicks(pb, draft.id);
       await materializeDraftMemberships(
         pb,
@@ -217,20 +221,20 @@ export async function recomputeStandings(
         picks,
         fromDraftStamp(draft.updated),
       );
-      memberships = (
-        await pb.collection("roster_memberships").getFullList<MembershipRef>({
+      memberships = await pb
+        .collection("roster_memberships")
+        .getFullList<MembershipRef>({
           filter: `league = '${league.id}'`,
-          fields: "member,player,to_date",
+          fields: "member,player,to_date,from_round,to_round",
           requestKey: null,
-        })
-      ).filter((row) => isActiveMembership(row.to_date));
+        });
     }
 
-    const rosters = rostersFromMemberships(memberships);
-    if (rosters.length === 0) continue;
+    const windows = windowsFromMemberships(memberships);
+    if (windows.length === 0) continue;
 
     scored += 1;
-    const table = computeStandings(rosters, standingLines, PHASES);
+    const table = computeStandings(windows, standingLines, PHASES);
     const scoredRounds = new Map<number, Phase>();
     const phases = phaseByRound(standingLines);
     for (const row of table) {

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
 import { createUserClient } from "@/lib/pb/server";
 
+import type { Seat } from "./plan";
 import { listActiveMemberships } from "./store";
 
 type ExpandedPlayer = {
@@ -15,6 +16,7 @@ type ExpandedPlayer = {
 };
 
 type MembershipRow = {
+  id: string;
   player: string;
   member: string;
   to_date?: string | null;
@@ -81,4 +83,77 @@ export async function readMemberRoster(
       },
     ];
   });
+}
+
+export type BoardSeat = Seat & {
+  readonly name: string;
+  readonly clubName: string;
+};
+
+export type FreeAgent = {
+  readonly id: string;
+  readonly name: string;
+  readonly clubName: string;
+  readonly clubCode: string;
+  readonly position: Position;
+  readonly normalized: string;
+};
+
+type PoolRow = {
+  id: string;
+  name: string;
+  name_normalized?: string;
+  club_code: string;
+  club_name: string;
+  position: Position;
+  status: string;
+};
+
+/**
+ * Active seats plus unsigned players — what the transaction builder needs.
+ */
+export async function readTransactionBoard(leagueId: string): Promise<{
+  seats: BoardSeat[];
+  freeAgents: FreeAgent[];
+} | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  const pb = createUserClient(session.token);
+  const [memberships, pool] = await Promise.all([
+    listActiveMemberships<MembershipRow>(pb, leagueId, { expand: "player" }),
+    pb.collection("players").getFullList<PoolRow>({
+      filter: "status != 'left'",
+      fields: "id,name,name_normalized,club_code,club_name,position,status",
+      requestKey: null,
+    }),
+  ]);
+
+  const seats: BoardSeat[] = memberships.flatMap((row) => {
+    const player = row.expand?.player;
+    if (!player) return [];
+    return [
+      {
+        id: row.id,
+        member: row.member,
+        player: player.id,
+        position: player.position,
+        name: player.name,
+        clubName: player.club_name,
+      },
+    ];
+  });
+  const owned = new Set(seats.map((seat) => seat.player));
+  const freeAgents = pool
+    .filter((player) => !owned.has(player.id))
+    .map((player) => ({
+      id: player.id,
+      name: player.name,
+      clubName: player.club_name,
+      clubCode: player.club_code,
+      position: player.position,
+      normalized: player.name_normalized ?? player.name,
+    }));
+
+  return { seats, freeAgents };
 }

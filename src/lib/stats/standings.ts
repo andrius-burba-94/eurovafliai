@@ -1,3 +1,4 @@
+import { coversRound } from "@/lib/memberships/from";
 import { type Phase, PHASES } from "./csv";
 import { sumTenths } from "./scoring";
 
@@ -8,17 +9,22 @@ import { sumTenths } from "./scoring";
  * recomputes after an ingest, a script repairs a crash, and a page filters by
  * phase. Three callers, one sum.
  *
- * Until 5.2 closes a window, a member's squad is the players on active
- * `roster_memberships` rows. Missing a line is 0, not "skip this round" — a
- * DNP still occupied a roster slot that night.
+ * A member's squad is the `roster_memberships` windows that cover each
+ * Euroleague round: inclusive `from_round`, exclusive `to_round`. An open
+ * draft window (`to_round` 0, empty `to_date`) owns every round, so an E2025
+ * backfill still scores until a trade closes a window. Missing a line is 0,
+ * not "skip this round" — a DNP still occupied a roster slot that night.
  *
  * Ties break on `memberId`, the same total-then-id discipline autodraft uses
  * when two legal players score the same.
  */
 
-export type StandingRoster = {
+export type StandingWindow = {
   readonly memberId: string;
-  readonly playerIds: readonly string[];
+  readonly playerId: string;
+  readonly from_round?: number | null;
+  readonly to_round?: number | null;
+  readonly to_date?: string | null;
 };
 
 export type StandingLine = {
@@ -82,25 +88,25 @@ function rankRows(rows: StandingRow[]): StandingRow[] {
  * recompute.
  */
 export function computeStandings(
-  rosters: readonly StandingRoster[],
+  windows: readonly StandingWindow[],
   lines: readonly StandingLine[],
   phases: readonly Phase[],
 ): StandingRow[] {
   const byPlayer = tenthsByPlayerRound(lines, allowed(phases));
-  const rows: StandingRow[] = rosters.map((roster) => {
+  const memberIds = [...new Set(windows.map((window) => window.memberId))];
+  const rows: StandingRow[] = memberIds.map((memberId) => {
     const byRound: Record<number, number> = {};
-    const seen = new Set<string>();
-    for (const playerId of roster.playerIds) {
-      if (seen.has(playerId)) continue;
-      seen.add(playerId);
-      const scored = byPlayer.get(playerId);
+    for (const window of windows) {
+      if (window.memberId !== memberId) continue;
+      const scored = byPlayer.get(window.playerId);
       if (!scored) continue;
       for (const [round, tenths] of scored) {
+        if (!coversRound(window, round)) continue;
         byRound[round] = (byRound[round] ?? 0) + tenths;
       }
     }
     return {
-      memberId: roster.memberId,
+      memberId,
       totalTenths: sumTenths(Object.values(byRound)),
       byRound,
     };

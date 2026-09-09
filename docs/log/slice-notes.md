@@ -3,6 +3,19 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**5.2 has landed, and a trade is a recorded result, not a negotiation.** The
+room still argues out loud (D10); the app writes the agreed swap against
+`roster_memberships` and a `transactions` row. Scoring windows are Euroleague
+rounds, not calendar dates: box scores have `season` + `round` and no game
+date, so a September `from_date` would have zeroed the E2025 backfill. An open
+draft window (`to_round` empty) still owns every round; the first close is
+exclusive, so `from_round: 2` leaves round 1 with the old owner. N-for-N only,
+add and drop separate, no pending offers, no impact overlay (that is 5.3).
+Repair is the intent row first: retry finishes the closes and opens; unique
+active `(league, player)` refuses a double open. Chat names both teams and
+never says "you". The builder is one surface with Trade / Drop / Add filters,
+confirm in the sticky band, whole-row 44px hits.
+
 **5.1 has landed, and the squad of record is a window, not a pick.** A pick
 stays the draft-night event; on complete, `advance` copies the board into
 `roster_memberships` so a later trade can close one row without rewriting

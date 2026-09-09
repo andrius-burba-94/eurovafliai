@@ -49,7 +49,8 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **league status** | A league's coarse lifecycle: `setup` (lobby open) → `drafting` (a draft is running) → `season` (drafted, tracking games) → `complete`. Distinct from the finer-grained `drafts.status`. | `leagues.status` |
 | **draft position** | A member's slot in the draft order, 1…N. Unset until the roll. | `league_members.draft_position` |
 | **roster template** | The shape of a legal team: `{G:5, F:5, C:3}` by default. Lives in settings, never hardcoded. | `leagues.settings.roster_template` |
-| **membership** | A player's stay on a team, as a date window (`from_date` → `to_date`). The backbone of trade-impact maths. | `roster_memberships` |
+| **membership** | A player's stay on a team. Calendar `from_date`/`to_date` (empty `to_date` = active) back the unique index; scoring uses Euroleague **`from_round`/`to_round`** (empty `to_round` = still open). Inclusive from, exclusive to. | `roster_memberships` |
+| **transaction** | A recorded trade, add or drop. Friends negotiate out loud; the app stores the result. No pending offers. `from_round` is the first night the new squad counts. | `transactions` |
 | **transaction** | A trade, add or drop. | `transactions` |
 | **impact / delta** | Fantasy points of players-in minus players-out **since** a transaction's date. | Phase 5.3 |
 | **free agent** | A pool player owned by nobody after the draft. | — |

@@ -12,6 +12,7 @@ export type DraftMembership = {
   readonly member: string;
   readonly player: string;
   readonly from_date: string;
+  readonly from_round: number;
   readonly acquired_via: "draft";
 };
 
@@ -30,6 +31,7 @@ export function fromPicks(
       member: pick.memberId,
       player: pick.playerId,
       from_date: fromDate,
+      from_round: 1,
       acquired_via: "draft",
     });
   }
@@ -38,4 +40,29 @@ export function fromPicks(
 
 export function isActiveMembership(toDate: unknown): boolean {
   return toDate === undefined || toDate === null || toDate === "";
+}
+
+/**
+ * Does this window own a Euroleague round?
+ *
+ * Inclusive `from_round`, exclusive `to_round`. 0 / unset `to_round` means
+ * still open — unless the calendar `to_date` is already closed without a
+ * round, which is a fixture or a crash: that window covers no rounds rather
+ * than all of them.
+ */
+export function coversRound(
+  window: {
+    readonly from_round?: number | null;
+    readonly to_round?: number | null;
+    readonly to_date?: string | null;
+  },
+  round: number,
+): boolean {
+  const from = window.from_round && window.from_round > 0 ? window.from_round : 1;
+  if (round < from) return false;
+  const to = window.to_round && window.to_round > 0 ? window.to_round : 0;
+  if (to === 0) {
+    return isActiveMembership(window.to_date);
+  }
+  return round < to;
 }
