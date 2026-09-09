@@ -209,7 +209,7 @@ export function LiveLobby({
         <p
           data-testid="reveal-running"
           aria-live="polite"
-          className="slot-label text-live"
+          className="slot-label text-ink"
         >
           Drawing the order&hellip;
         </p>
