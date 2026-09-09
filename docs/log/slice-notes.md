@@ -3,6 +3,26 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**R1 has landed, and the ceremony is executable evidence now.** Eight isolated
+browser contexts take the real route through team names, ready states, the
+roll, the pool confirm, the shared pick pipeline, pause/resume, rollback and
+chat until all 104 slots are full. Five use the Pixel 7 profile and three use
+desktop; two members arm autodraft and one never taps, so the production sweep
+has to enforce the 15-second deadline. Every turn checks that exactly one room
+says "You are on the clock", and every pick waits for seven peers to draw the
+new slot. The script refuses a non-local PocketBase URL and cleans up even on a
+failure. It is deliberately not a Vitest or Playwright-suite spec: this is a
+long local rehearsal with a measured report, not a per-commit test.
+
+The first complete run also corrected the measurement itself. Seeing
+`drafts.status = complete` happens before the final request has finished
+materializing 104 membership windows, so an immediate count saw 89 and called
+a healthy sequential write loop incomplete. The final assertion now waits for
+the completion side effects, just as each board assertion waits for realtime,
+rather than treating an intermediate state as the result. D12 is amended:
+automation owns the mechanics; whether eight friends like the night in one
+room is still a human claim.
+
 **5.4 has landed, and a recap is a read, not a stored overlay.** Rank comes
 from the standings snapshot for that Euroleague round, re-sorted by that
 night's tenths. Best night is whoever scored it while covering the round, so

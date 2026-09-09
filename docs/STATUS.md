@@ -21,13 +21,28 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: 6.1 keepers (luxury, not now).** Phase 4 is closed in code: **4.1–4.5 have
+**Next up: [U0](https://github.com/andrius-burba-94/eurovafliai/issues/90)
+panel material (D17), then
+[U1–U4](https://github.com/andrius-burba-94/eurovafliai/issues/91)
+home / lobby / room / season.** The scripted eight-client rehearsal
+([R1](https://github.com/andrius-burba-94/eurovafliai/issues/89)) has landed.
+Phase 4 is closed in code: **4.1–4.5 have
 landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft writes
 `roster_memberships`, a commissioner records trades, standings join by
 Euroleague round, the team page shows live deltas, and **This round** recaps
-one night. Phase 3 is closed apart from the **human rehearsal** its DoD asks
-for — a draft night with 3+ friends on mixed devices, inherited from Phase 2
-(blueprint D12). That is the only claim in this file no test can make.
+one night. Phase 6 keepers stay luxury. Phase 3 is closed in product code;
+R1 scripts the mechanical half of 3.7 / D12. Whether it feels right with
+friends in one room remains human. Backups on the VPS are live.
+
+## Try it on localhost — R1
+
+```bash
+npm run dev
+npm run rehearsal
+```
+
+Watch eight isolated rooms complete 104 picks. The command prints propagation
+percentiles and writes the same report to `docs/log/rehearsal.md`.
 
 ## Try it on localhost — slice 5.4
 
@@ -345,6 +360,7 @@ now landed on top of them.
 | **3.6b Delete the league** | done | `281bbe1` | The way out. Commissioner only and **not delegable** — a deputy is trusted to help run the league, not to end it, the same line `setMemberPermission` draws. Confirmed by typing the league's **name** rather than a fixed word, because a commissioner with three leagues open should have to look at which one they are deleting; case and stray spaces are forgiven. Deletes the drafts first, then the league: deleting the league alone *does* work — PocketBase walks the cascade tree — but that leans on an order nothing here pins, while a **direct** delete of a member or player a pick points at is genuinely refused. Both halves measured against 0.39.11 and written into the `pocketbase-patterns` skill, because the difference between "refuses" and "happens to work" is exactly the kind of thing this repo should not have to rediscover. A lobby somebody else has open no longer sits there empty afterwards: every membership vanishing at once means the league is gone, so the list hands back to the server and the page says so — which also, for free, ejects a member who has just been kicked |
 | 3.6 Commissioner console — the rest | **cut** | — | Blueprint **D13**, and the argument is that each of the four already has a working path: the sweep autodrafts an absent member from their own sheet and "Pick for them" covers a manager who will not wait; the rollback field works and the board shows every pick number; the timer never needs changing mid-draft if it was set sensibly, and pause covers the rest; and "Pick for them" **is** the offline pick entry the blueprint text predates. What was left was commissioner comfort for eight friends in one room. 3.6a and 3.6b shipped and stay |
 | **3.7 Draft-day polish** | done | — | **A tap arms; the tap that drafts is in the sticky band.** Until now a tap on a pool row submitted immediately — so on the device draft night happens on, one tap drafted a player irreversibly, undoable only by a rollback that deletes every pick after it too. The confirm is in the band rather than on the row for a specific reason: with it on the row's own button **a fast double-tap armed and picked inside 200ms**, so the guard would have caught a stray single tap and missed the exact gesture it was built for. That also gives the pointer a `Cancel` it never had, since Escape was keyboard-only, and it makes the pointer path identical to the keyboard's — one idiom, and `ConfirmPick` takes focus so two keystrokes still draft and one still cannot. Same shape 3.4b reached for the sheet, independently. **And the clock can be heard.** A polite live region says "Your turn. Pick 7, round 1." when your turn arrives and **nothing** when somebody else's does; a synthesized two-note tone and `navigator.vibrate` sit behind a per-device toggle beside "Draft for me", off by default. `clockCue` is pure, so the rule that matters is tested without a browser: the cue fires on the *transition into* your turn and never on a re-render — the room re-renders on all ~156 picks of a draft. **Toasts were cut** (blueprint D14). **Followed by an `/impeccable critique` that scored it 24/40 — the best in this project's corpus — and whose every finding is fixed in the slice**; see below. The human rehearsal is what remains of the slice's text |
+| **R1 Scripted rehearsal** | done | — | Eight signed-in browser contexts, five Pixel 7 and three desktop, drive the real lobby and draft controls through 104 picks. Two members arm autodraft; one never taps and waits out the 15-second server clock. The run pauses, resumes, rolls pick 16 back, sends chat, checks the one correct on-clock banner on every turn, waits for seven peers to fill the slot, and verifies the season handoff plus all 104 membership windows. It records p50/p95 propagation rather than asking someone to watch eight screens. D12 now separates that repeatable evidence from the one claim only friends in a room can make: whether the night feels right |
 
 ## Phase 4 — Player stats, projections, standings
 
