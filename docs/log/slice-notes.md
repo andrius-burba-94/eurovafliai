@@ -384,3 +384,29 @@ both a system line and the viewer's named line. The deterministic detector is
 clean. A final pass removed marker from every order number, sorted the drafting
 lobby by slot and moved Hide into the chat heading. It scored 30/40 with no
 remaining P0/P1/P2 finding.
+
+## U3 — Draft-room panel material
+
+The draft room kept the working pick ceremony and changed only how its three
+large questions are grouped and connected. Pool, radar and board are now
+sibling framed Banks. The sticky blush still names the pick and owns
+confirmation, but it also carries `You still need`, the one roster fact that
+has to survive a long pool scroll.
+
+The baseline Impeccable critique scored 27/40 and found the three U3 gaps
+directly: no grouping around the three regions, an orphan needs line, and no
+way from a radar row to the matching board column. The implementation treats a
+radar row as a 44px destination link. Its client handler focuses the labelled
+column header, scrolls the board's own horizontal viewport, then measures and
+corrects the page against the sticky band's current height. This avoids a
+fixed hash offset, which would be wrong while the confirm controls make the
+band taller. The linked header uses an explicit focus outline, so pointer
+navigation has a visible destination too.
+
+The board's sticky gutters now use deep stock so the framed surface does not
+show through while columns move. The desktop keyboard sentence was also moved
+out of small-cap slot-label styling. No draft-state or pick-pipeline behavior
+changed: clients still choose and request, while the server decides and writes.
+The final independent pass scored 31/40 with no P0/P1 findings. Its two cheap
+interaction-language findings were fixed before ship: radar links now wash on
+hover and press, and keyboard help says Choose then Draft.

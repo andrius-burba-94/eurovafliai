@@ -165,7 +165,8 @@ export function DraftBoard({
           className="grid items-end gap-0"
           style={{ gridTemplateColumns: template }}
         >
-          {/* Sticky and on stock, like the round numbers below it: without
+          {/* Sticky and on the framed Bank's deep stock, like the round numbers
+              below it: without
               that, a member's name scrolls underneath the gutter and its tail
               shows through where the round numbers will be. `self-stretch`
               because the cell has no content of its own, and a background
@@ -173,14 +174,17 @@ export function DraftBoard({
           <span
             role="columnheader"
             aria-label="Draft round"
-            className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock"
+            className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock-deep"
           />
           {columns.map((column, index) => (
             <span
               role="columnheader"
               key={column.memberId}
+              id={`board-member-${column.memberId}`}
+              data-testid="board-column"
+              tabIndex={-1}
               title={column.name}
-              className={`slot-label truncate border-b border-rule-strong px-1.5 pb-1 ${
+              className={`slot-label scroll-mt-72 scroll-ml-8 truncate border-b border-rule-strong px-1.5 pb-1 focus:outline-2 focus:-outline-offset-2 focus:outline-live ${
                 column.isYou ? "text-ink" : ""
               } ${index === lastColumn ? "border-r-2 border-r-rule-strong" : ""}`}
             >
@@ -207,7 +211,7 @@ export function DraftBoard({
                   you are looking at stays labelled while the columns move. */}
               <span
                 role="rowheader"
-                className="sticky left-0 z-10 border-r border-rule-strong bg-stock pt-1 pr-1.5 text-right text-slot tabular-nums text-ink-faint"
+                className="sticky left-0 z-10 border-r border-rule-strong bg-stock-deep pt-1 pr-1.5 text-right text-slot tabular-nums text-ink-faint"
               >
                 {row[0]?.round ?? index + 1}
               </span>

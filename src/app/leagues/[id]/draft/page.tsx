@@ -83,6 +83,29 @@ export default async function DraftPage({
   const needs = (["G", "F", "C"] as const).filter(
     (position) => yourNeeds[position] > 0,
   );
+  const needsLine =
+    needs.length > 0 ? (
+      <span
+        data-testid="draft-needs"
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span className="slot-label">You still need</span>
+        {needs.map((position) => (
+          <PositionPatch
+            key={position}
+            position={position}
+            count={yourNeeds[position]}
+            label={`${yourNeeds[position]} ${
+              position === "G"
+                ? "guards"
+                : position === "F"
+                  ? "forwards"
+                  : "centers"
+            } still needed`}
+          />
+        ))}
+      </span>
+    ) : null;
 
   return (
     <>
@@ -129,6 +152,7 @@ export default async function DraftPage({
               <p className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
                 The draft is paused
               </p>
+              {needsLine ? <div className="mt-2">{needsLine}</div> : null}
             </>
           ) : onClock ? (
             <>
@@ -143,7 +167,10 @@ export default async function DraftPage({
               {/* The clock is the room's, not the picker's: everybody watches
                   the same number run down. It only renders while a draft is
                   live, which is the only state `onClock` is non-null in. */}
-              <PickClock deadline={draft.deadline} />
+              <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+                <PickClock deadline={draft.deadline} className="" />
+                {needsLine}
+              </div>
             </>
           ) : (
             <>
@@ -183,19 +210,6 @@ export default async function DraftPage({
             here, high in the room, because "this board may be behind" is only
             useful next to the board it is about. */}
         <LiveDraft draftId={draft.id} authToken={session.token} />
-
-        {needs.length > 0 ? (
-          <p className="flex flex-wrap items-center gap-2">
-            <span className="slot-label">You still need</span>
-            {needs.map((position) => (
-              <PositionPatch
-                key={position}
-                position={position}
-                count={yourNeeds[position]}
-              />
-            ))}
-          </p>
-        ) : null}
 
         {/* The way to a sheet for somebody who has not written one — the pool
             pins a link for everybody who has. Shown to a member only: a
@@ -260,6 +274,7 @@ export default async function DraftPage({
                     : "The pool"
             }
             aside={`${view.availableCount} available`}
+            framed
           >
             {isPaused ? (
               <p className="slot-waiting px-3 py-4 text-sm text-ink-soft">
@@ -291,6 +306,7 @@ export default async function DraftPage({
         <Bank
           label="The radar"
           aside={`${draft.order.length} rosters × ${view.rosterTotal}`}
+          framed
         >
           <RosterRadar
             rows={view.radar}
@@ -305,6 +321,7 @@ export default async function DraftPage({
         <Bank
           label="The board"
           aside={`${picks.length} of ${draft.order.length * draft.rounds}`}
+          framed
         >
           <DraftBoard
             shape={shape}

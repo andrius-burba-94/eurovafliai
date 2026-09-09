@@ -319,6 +319,16 @@ try {
         ).toHaveText("#1");
         await expect(page.getByTestId("sheet-pinned")).toHaveCount(0);
         await expect(page.getByTestId("edit-sheet")).toBeVisible();
+        await expect(
+          page.getByTestId("on-the-clock").getByTestId("draft-needs"),
+        ).toBeVisible();
+        for (const testId of ["pick-pool", "roster-radar", "draft-board"]) {
+          await expect(
+            page.locator('section[data-framed="true"]').filter({
+              has: page.getByTestId(testId),
+            }),
+          ).toHaveCount(1);
+        }
       },
     },
     {

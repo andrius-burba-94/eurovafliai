@@ -1,3 +1,7 @@
+"use client";
+
+import type { MouseEvent } from "react";
+
 import type { Position, RadarRow, RadarSlot } from "@/lib/engine";
 import { positionSentence } from "@/lib/positions";
 
@@ -57,6 +61,29 @@ const PATCH_WASH: Record<Position, string> = {
 /** "3 guards, 4 forwards and 3 centers", or "nothing" when a roster is full. */
 const needsSentence = (needs: Record<Position, number>) =>
   positionSentence(needs);
+
+function revealBoardColumn(
+  event: MouseEvent<HTMLAnchorElement>,
+  memberId: string,
+): void {
+  const target = document.getElementById(`board-member-${memberId}`);
+  if (!target) return;
+
+  event.preventDefault();
+  window.history.replaceState(null, "", `#board-member-${memberId}`);
+  target.focus({ preventScroll: true });
+  target.scrollIntoView({ block: "start", inline: "center" });
+
+  const band = document.querySelector<HTMLElement>(
+    '[data-testid="on-the-clock"]',
+  );
+  if (!band) return;
+  const clearance =
+    target.getBoundingClientRect().top -
+    band.getBoundingClientRect().bottom -
+    8;
+  window.scrollBy({ top: clearance });
+}
 
 /**
  * The whole row, spoken.
@@ -212,10 +239,21 @@ export function RosterRadar({
               // The member on the clock takes `slot-live` instead: the marker
               // rule and the blush, which is what red means on every other
               // surface here.
-              className={`flex items-center gap-2 py-1.5 ${
+              className={
                 row.memberId === onClockMemberId ? "slot-live" : "slot-filled"
-              }`}
+              }
             >
+              <a
+                href={`#board-member-${row.memberId}`}
+                onClick={(event) => revealBoardColumn(event, row.memberId)}
+                aria-label={rowSentence(
+                  row,
+                  column,
+                  total,
+                  row.memberId === onClockMemberId,
+                )}
+                className="flex min-h-11 w-full items-center gap-2 py-1.5 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+              >
               {/* Your own row is `text-ink` and `· you`, and nothing else,
                   which is exactly what the board does for your column. The
                   heavier rule this used to carry bought 1.39:1 on a hairline,
@@ -294,6 +332,7 @@ export function RosterRadar({
                   row.memberId === onClockMemberId,
                 )}
               </span>
+              </a>
             </li>
           );
         })}

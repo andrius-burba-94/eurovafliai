@@ -21,8 +21,9 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: [U3 room](https://github.com/andrius-burba-94/eurovafliai/issues/93),
-then [U4 season](https://github.com/andrius-burba-94/eurovafliai/issues/94).**
+**Next up: [U4 season](https://github.com/andrius-burba-94/eurovafliai/issues/94).**
+The draft-room rollout
+([U3](https://github.com/andrius-burba-94/eurovafliai/issues/93)) has landed.
 The lobby and chat rollout
 ([U2](https://github.com/andrius-burba-94/eurovafliai/issues/92)) has landed.
 The shell, home and login rollout
@@ -38,6 +39,16 @@ Euroleague round, the team page shows live deltas, and **This round** recaps
 one night. Phase 6 keepers stay luxury. Phase 3 is closed in product code;
 R1 scripts the mechanical half of 3.7 / D12. Whether it feels right with
 friends in one room remains human. Backups on the VPS are live.
+
+## Try it on localhost — U3
+
+```bash
+npm run dev
+```
+
+Open a live draft room. Pool, radar and board are framed sibling tasks; roster
+needs stay beside the clock. Tap the last radar row in a wide league and its
+board column moves into view below the sticky band.
 
 ## Try it on localhost — U2
 
@@ -399,6 +410,7 @@ now landed on top of them.
 | **U0 Panel material** | done | — | D17 amends the no-card rule without abandoning it: a Bank may be framed once with deep stock and one strong rule, but framed Banks never nest and nothing rounds, shadows or floats. The deeper field forced the honest cost into the palette: marker, rail, faint ink and the waiting rule darkened just enough to keep their existing contrast floors on both stocks. `tokens.test.ts` measures every text, boundary and position-wash pairing before any page adopts the material. U1 is the first visual rollout |
 | **U1 Shell, home and login** | done | — | The home now leads with an `h1` and a framed league board, with Start and Join as sibling framed tasks. Setup uses the waiting rule; every established league uses the filled rule, so `drafting` no longer steals the on-the-clock marker. Each row says `Your roster`, prints current/template G/F/C counts and exposes full spoken labels. The rail names the signed-in member and gives Leagues, Pool and Sign out 44px targets on both axes. Login explains the Google handoff and groups its one act in one framed Bank. Independent Impeccable critique moved from 29/40 before to 31/40 after the first post-change pass was corrected; the final pass has no P0/P1 findings and the detector is clean |
 | **U2 Lobby and chat** | done | — | The lobby now reads title first, then one framed invite or Door run, Your team, framed Members, framed chat, the private sheet and the folded way out. `Door` owns every whole-row destination. During setup, an unready member is waiting and a ready member filled, with both states also written; after setup, free slots and the ready tally disappear. Lobby chat opens with its transcript and composer attached to the lower rule; the denser draft room still folds it. System lines remain rail blue and a member line always has a team or account name. The critique's no-ship pass caught two competing marker acts, an empty manual-order control and unevidenced chat claims; the final pass scores 30/40 with no P0/P1/P2 findings and a clean detector |
+| **U3 Draft room** | done | — | Pool, radar and board are one level of sibling framed Banks; the sticky band keeps its blush, 2px rule and server-owned confirm path. `You still need` now shares the clock line, so it remains visible while the pool scrolls. Every 44px radar row names and focuses its matching board header, centers far columns inside the horizontal scrollport and measures the actual sticky-band clearance before adjusting the page. Deep-stock gutters keep the board opaque while it moves. The pool's keyboard help is sentence text rather than a long slot label. Independent Impeccable critique moved from 27/40 to 31/40 with no P0/P1 findings and a clean detector. `draftPlayer` and `submitPick` remain the only browser helper tap paths |
 
 ## Phase 4 — Player stats, projections, standings
 

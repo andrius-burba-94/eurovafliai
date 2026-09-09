@@ -92,6 +92,64 @@ test("the radar draws every roster's every slot, all waiting", async ({
   await expect(needs.nth(0)).toHaveText("5");
   await expect(needs.nth(1)).toHaveText("5");
   await expect(needs.nth(2)).toHaveText("3");
+
+  // A radar row is the compact index into that member's full board column.
+  const second = page.getByTestId("radar-row").nth(1);
+  const memberId = await second.getAttribute("data-member");
+  const rowLink = second.getByRole("link");
+  await expect(rowLink).toHaveAttribute("href", `#board-member-${memberId}`);
+  const linkBox = await rowLink.boundingBox();
+  expect(linkBox).not.toBeNull();
+  expect(linkBox!.height).toBeGreaterThanOrEqual(44);
+  await rowLink.click();
+  await expect(page.locator(`#board-member-${memberId}`)).toBeFocused();
+});
+
+test("a radar row reveals a far board column below the sticky band", async ({
+  page,
+  context,
+}) => {
+  const { commissioner, league } = await radarLeague("Radar Jump League");
+  for (let index = 0; index < 6; index += 1) {
+    await addMemberTo(
+      league.id,
+      await createTestUser(`far-${index}`),
+      `Far Team ${index}`,
+    );
+  }
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const board = page.getByTestId("draft-board");
+  await board.evaluate((node) => {
+    node.scrollLeft = 0;
+  });
+
+  const lastRow = page.getByTestId("radar-row").last();
+  const memberId = await lastRow.getAttribute("data-member");
+  const target = page.locator(`#board-member-${memberId}`);
+  await lastRow.getByRole("link").click();
+
+  await expect(target).toBeFocused();
+  await expect.poll(() => board.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+  const placement = await target.evaluate((node) => {
+    const targetRect = node.getBoundingClientRect();
+    const boardRect = document
+      .querySelector('[data-testid="draft-board"]')!
+      .getBoundingClientRect();
+    const bandRect = document
+      .querySelector('[data-testid="on-the-clock"]')!
+      .getBoundingClientRect();
+    return {
+      horizontallyVisible:
+        targetRect.left >= boardRect.left && targetRect.right <= boardRect.right,
+      belowBand: targetRect.top >= bandRect.bottom,
+      outline: getComputedStyle(node).outlineWidth,
+    };
+  });
+  expect(placement.horizontallyVisible).toBe(true);
+  expect(placement.belowBand).toBe(true);
+  expect(Number.parseFloat(placement.outline)).toBeGreaterThanOrEqual(2);
 });
 
 test("a full run stops asking, and prints nothing rather than a nought", async ({
