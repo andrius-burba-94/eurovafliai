@@ -477,6 +477,11 @@ both set `background-color`, and the plain utility wins. Only the finished state
 through it. Shipped broken once, and `tests/e2e/draft.spec.ts` now asserts the
 computed background and the 2px marker rule.
 
+The viewer's `You still need` patches share the band's lower line with the
+server-offset clock. They are not a detached status row between the clock and
+the pool. The pool, radar and board below are three sibling framed Banks; none
+contains another, and the sticky band itself remains unframed.
+
 ### Top rail — `TopRail`
 
 The board's top rail. Character: a label on the frame, not a navigation bar.
@@ -742,8 +747,9 @@ per member across, every slot drawn whether it is filled or not. Lives in
   not write "Valančiūnas" or "Papanikolaou" and the only recovery was a `title`
   tooltip, which does not exist on a phone. The letter therefore sits on the
   number line, right-aligned, and the name gets the column. Round numbers are
-  `sticky left-0` on stock, so the row you are reading stays labelled while the
-  columns move. Slot height is `min-h-slot` — the board's own spacing unit.
+  `sticky left-0` on the framed Bank's deep stock, so the row you are reading
+  stays labelled while the columns move. Slot height is `min-h-slot` — the
+  board's own spacing unit.
 - **Column separators are `rule-strong`, and the board's outer edge is 2px of
   it.** `rule` over a position wash measures 2.90:1, under this system's own 3:1
   floor for a boundary that means something — and which column a pick is in is
@@ -783,10 +789,11 @@ overflow its own border box — that is what makes the board scroll — so a
 row-level border is only as wide as the scrollport and stops halfway across a
 twelve-member board once you scroll right. The header's heavy underline and the
 last round's bottom rule are both per cell for this reason. The gutter cells are
-additionally `sticky left-0` on stock, header included, or a member's name
-scrolls underneath and its tail shows through; the header's gutter cell needs
-`self-stretch` on top of that, because its only child is `sr-only` and therefore
-absolutely positioned, and a background painted on a zero-height box hides
+additionally `sticky left-0` on the framed Bank's deep stock, header included,
+or a member's name scrolls underneath and its tail shows through; the header's
+gutter cell needs `self-stretch` on top of that, because its only child is
+`sr-only` and therefore absolutely positioned, and a background painted on a
+zero-height box hides
 nothing.
 
 **The Wash-Costs-A-Tenth Rule.** A 10% wash over stock costs roughly a tenth of
@@ -854,6 +861,9 @@ against one `columns` array.
   rather than thirteen slots. It is also a material `globals.css` does not have.
 - **The list closes** with `border-b border-rule-strong`, like every other run in
   the app. It used to just stop.
+- **Each row links to its board column.** The whole row is a 44px target; its
+  hash target is the matching focusable column header, so the compact roster
+  index can move a phone's horizontally scrolling board to the same member.
 - **A surplus is drawn, not dropped**, at a fixed width so it cannot shrink the
   thirteen real marks beside it. A pick that does not fit the template is struck
   in `slot-correction` — 2px ink, the system's word for an error. There should

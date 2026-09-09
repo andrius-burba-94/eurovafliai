@@ -131,6 +131,21 @@ test("a commissioner starts the draft and the room opens", async ({
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("draft-room")).toBeVisible();
   await expect(page.getByTestId("on-the-clock")).toContainText(/on the clock/i);
+  await expect(
+    page.getByTestId("on-the-clock").getByTestId("draft-needs"),
+  ).toBeVisible();
+  await expect(page.getByTestId("draft-needs")).toHaveCount(1);
+
+  for (const testId of ["pick-pool", "roster-radar", "draft-board"]) {
+    await expect(
+      page.locator('section[data-framed="true"]').filter({
+        has: page.getByTestId(testId),
+      }),
+    ).toHaveCount(1);
+  }
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
 });
 
 test("the clock stays on screen, and keeps its blush", async ({

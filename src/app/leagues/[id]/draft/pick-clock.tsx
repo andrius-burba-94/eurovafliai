@@ -51,7 +51,13 @@ const PULL_EVERY_MS = 3_000;
 /** Five, then give up: after fifteen seconds the worker is not coming. */
 const MAX_PULLS = 5;
 
-export function PickClock({ deadline }: { deadline: string }) {
+export function PickClock({
+  deadline,
+  className = "mt-2",
+}: {
+  deadline: string;
+  className?: string;
+}) {
   const router = useRouter();
   const [remaining, setRemaining] = useState<number | null>(null);
   /** Server clock minus this device's clock, in milliseconds. */
@@ -116,7 +122,7 @@ export function PickClock({ deadline }: { deadline: string }) {
       // every second would make the room unusable with a screen reader on.
       role="timer"
       data-testid="pick-clock"
-      className="mt-2 flex items-baseline gap-2"
+      className={`${className} flex items-baseline gap-2`}
     >
       <span className="slot-label">{expired ? "Time's up" : "Time left"}</span>
       <span className="text-2xl font-semibold tabular-nums">

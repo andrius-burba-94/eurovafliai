@@ -561,9 +561,9 @@ export function PickForm({
           still points at it, and a screen-reader user on a phone with a
           Bluetooth keyboard is exactly who benefits from it being announced
           rather than drawn. */}
-      <p id="pool-keys" className="slot-label hidden text-ink-faint sm:block">
+      <p id="pool-keys" className="hidden max-w-prose text-sm text-ink-soft sm:block">
         {canPick
-          ? "Arrows to move · Enter to arm · Enter again to pick · Esc to cancel"
+          ? "Arrows to move · Enter to choose · Enter again to draft · Esc to cancel"
           : "Arrows to move through the pool"}
       </p>
 
