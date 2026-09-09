@@ -94,7 +94,28 @@ test("a message typed on one device appears on another, with no reload", async (
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
+  await expect(page.getByTestId("chat-toggle")).toHaveAttribute(
+    "data-open",
+    "true",
+  );
   await openChat(page);
+  const chatPanel = page.getByRole("region", {
+    name: "League chat",
+    exact: true,
+  });
+  await expect(chatPanel).toHaveAttribute("data-framed", "true");
+  const composer = page.getByTestId("chat-composer");
+  await expect(composer).toBeVisible();
+  const composerMaterial = await composer.evaluate((node) => ({
+    closesPanel: node.parentElement?.lastElementChild === node,
+    topRule: getComputedStyle(node).borderTopWidth,
+    background: getComputedStyle(node).backgroundColor,
+    panelBackground: getComputedStyle(node.parentElement!).backgroundColor,
+  }));
+  expect(composerMaterial.closesPanel).toBe(true);
+  expect(composerMaterial.topRule).toBe("1px");
+  expect(composerMaterial.background).toBe("rgba(0, 0, 0, 0)");
+  expect(composerMaterial.panelBackground).not.toBe("rgba(0, 0, 0, 0)");
 
   const watcher = await browser.newContext();
   await signIn(watcher, other);
@@ -137,6 +158,13 @@ test("a rollback announces itself, and is readable without opening the panel", a
   await page.goto(`/leagues/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.getByTestId("start-draft").click();
+  await expect(page.getByTestId("enter-draft").locator("..")).toHaveAttribute(
+    "data-state",
+    "filled",
+  );
+  await expect(page.getByTestId("enter-draft").locator(".text-live")).toContainText(
+    "Enter the room",
+  );
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();
 
@@ -349,11 +377,10 @@ test("the roll announces itself in the lobby, where it happens", async ({
   await page.goto(`/leagues/${league.id}`);
   await page.getByTestId("draft-roll").click();
 
-  await expect(page.getByTestId("chat-latest")).toContainText(
+  await expect(messages(page).last()).toContainText(
     /the draft order was rolled/i,
   );
   // The whole order, numbered — it is the announcement people scroll back to.
-  await openChat(page);
   await expect(messages(page).last()).toContainText("1.");
   await expect(messages(page).last()).toContainText("Chief FC");
 });
@@ -386,6 +413,11 @@ test("the collapsed header shows the rollback, not a third of it", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
+  await expect(page.getByTestId("chat-toggle")).toHaveAttribute(
+    "data-open",
+    "true",
+  );
+  await page.getByTestId("chat-toggle").click();
   await expect(page.getByTestId("chat-toggle")).toHaveAttribute(
     "data-open",
     "false",
@@ -438,7 +470,7 @@ test("an announcement is said out loud; a member's message is not", async ({
   });
   // Arrived at all, first — so a failure below names the live region rather
   // than the subscription.
-  await expect(page.getByTestId("chat-latest")).toContainText(
+  await expect(messages(page).last()).toContainText(
     "Nobody is on the clock",
   );
   await expect(said).toContainText("Nobody is on the clock");
@@ -447,7 +479,7 @@ test("an announcement is said out loud; a member's message is not", async ({
   await openChat(page);
   await page.getByTestId("chat-input").fill("what happened");
   await page.getByTestId("chat-send").click();
-  await expect(page.getByTestId("chat-latest")).toContainText("what happened");
+  await expect(messages(page).last()).toContainText("what happened");
   // Never spoken. The region is a *channel*, not a record — it holds whatever
   // was last worth saying and goes quiet otherwise, which is why this asserts
   // the absence of the chatter rather than the persistence of the
@@ -633,14 +665,22 @@ test("every message carries a time, and the panel keeps its total", async ({
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
 
-  // The total is on the closed panel, alongside the unread badge rather than
-  // instead of it.
+  // The lobby opens chat as a task, so the initial transcript is already read.
   await expect(page.getByText("3 messages")).toBeVisible();
-  await expect(page.getByTestId("chat-unread")).toContainText("3 new");
+  await expect(page.getByTestId("chat-unread")).toHaveCount(0);
+  await page.getByTestId("chat-toggle").click();
+  await subscribed(page);
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    body: "The draft order is fixed.",
+    kind: "system",
+  });
+  await expect(page.getByText("4 messages")).toBeVisible();
+  await expect(page.getByTestId("chat-unread")).toContainText("1 new");
 
   await openChat(page);
   const times = page.locator("[data-row] time");
-  await expect(times).toHaveCount(3);
+  await expect(times).toHaveCount(4);
   await expect(times.first()).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}/);
   await expect(times.first()).toHaveText(/^\d{2}:\d{2}$/);
 });

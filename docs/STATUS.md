@@ -21,9 +21,10 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: [U2 lobby and chat](https://github.com/andrius-burba-94/eurovafliai/issues/92),
-then [U3 room](https://github.com/andrius-burba-94/eurovafliai/issues/93) and
-[U4 season](https://github.com/andrius-burba-94/eurovafliai/issues/94).**
+**Next up: [U3 room](https://github.com/andrius-burba-94/eurovafliai/issues/93),
+then [U4 season](https://github.com/andrius-burba-94/eurovafliai/issues/94).**
+The lobby and chat rollout
+([U2](https://github.com/andrius-burba-94/eurovafliai/issues/92)) has landed.
 The shell, home and login rollout
 ([U1](https://github.com/andrius-burba-94/eurovafliai/issues/91)) has landed.
 The panel material
@@ -37,6 +38,16 @@ Euroleague round, the team page shows live deltas, and **This round** recaps
 one night. Phase 6 keepers stay luxury. Phase 3 is closed in product code;
 R1 scripts the mechanical half of 3.7 / D12. Whether it feels right with
 friends in one room remains human. Backups on the VPS are live.
+
+## Try it on localhost — U2
+
+```bash
+npm run dev
+```
+
+Open a setup league at `/leagues/[id]`, then mark a team ready. The member
+rule changes from waiting to filled, chat and its composer stay open in one
+framed panel, and Roll does not take the marker until everybody is ready.
 
 ## Try it on localhost — U1
 
@@ -387,6 +398,7 @@ now landed on top of them.
 | **R1 Scripted rehearsal** | done | — | Eight signed-in browser contexts, five Pixel 7 and three desktop, drive the real lobby and draft controls through 104 picks. Two members arm autodraft; one never taps and waits out the 15-second server clock. The run pauses, resumes, rolls pick 16 back, sends chat, checks the one correct on-clock banner on every turn, waits for seven peers to fill the slot, and verifies the season handoff plus all 104 membership windows. It records p50/p95 propagation rather than asking someone to watch eight screens. D12 now separates that repeatable evidence from the one claim only friends in a room can make: whether the night feels right |
 | **U0 Panel material** | done | — | D17 amends the no-card rule without abandoning it: a Bank may be framed once with deep stock and one strong rule, but framed Banks never nest and nothing rounds, shadows or floats. The deeper field forced the honest cost into the palette: marker, rail, faint ink and the waiting rule darkened just enough to keep their existing contrast floors on both stocks. `tokens.test.ts` measures every text, boundary and position-wash pairing before any page adopts the material. U1 is the first visual rollout |
 | **U1 Shell, home and login** | done | — | The home now leads with an `h1` and a framed league board, with Start and Join as sibling framed tasks. Setup uses the waiting rule; every established league uses the filled rule, so `drafting` no longer steals the on-the-clock marker. Each row says `Your roster`, prints current/template G/F/C counts and exposes full spoken labels. The rail names the signed-in member and gives Leagues, Pool and Sign out 44px targets on both axes. Login explains the Google handoff and groups its one act in one framed Bank. Independent Impeccable critique moved from 29/40 before to 31/40 after the first post-change pass was corrected; the final pass has no P0/P1 findings and the detector is clean |
+| **U2 Lobby and chat** | done | — | The lobby now reads title first, then one framed invite or Door run, Your team, framed Members, framed chat, the private sheet and the folded way out. `Door` owns every whole-row destination. During setup, an unready member is waiting and a ready member filled, with both states also written; after setup, free slots and the ready tally disappear. Lobby chat opens with its transcript and composer attached to the lower rule; the denser draft room still folds it. System lines remain rail blue and a member line always has a team or account name. The critique's no-ship pass caught two competing marker acts, an empty manual-order control and unevidenced chat claims; the final pass scores 30/40 with no P0/P1/P2 findings and a clean detector |
 
 ## Phase 4 — Player stats, projections, standings
 

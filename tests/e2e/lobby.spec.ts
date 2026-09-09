@@ -124,15 +124,60 @@ test("a member marks themselves ready, and can take it back", async ({
 
   await page.goto(`/leagues/${id}`);
   await expect(page.getByTestId("member-tally")).toContainText("0 of 1 ready");
+  await expect(page.getByTestId("member")).toHaveAttribute(
+    "data-state",
+    "waiting",
+  );
+
+  const order = await page
+    .locator(
+      "h1, [data-testid='invite-code'], [data-testid='team-name-input'], [data-testid='member-list'], [data-testid='chat-toggle'], [data-testid='lobby-sheet'], [data-testid='delete-league-toggle']",
+    )
+    .evaluateAll((nodes) =>
+      nodes.map((node) =>
+        node.tagName === "H1"
+          ? "title"
+          : node.getAttribute("data-testid"),
+      ),
+    );
+  expect(order).toEqual([
+    "title",
+    "invite-code",
+    "team-name-input",
+    "member-list",
+    "chat-toggle",
+    "lobby-sheet",
+    "delete-league-toggle",
+  ]);
+  for (const name of ["Invite code", "Members", "League chat"]) {
+    await expect(
+      page.getByRole("region", { name, exact: true }),
+    ).toHaveAttribute("data-framed", "true");
+  }
+  await expect(
+    page.locator('[data-framed="true"] [data-framed="true"]'),
+  ).toHaveCount(0);
+  const deleteBox = await page.getByTestId("delete-league-toggle").boundingBox();
+  expect(deleteBox).not.toBeNull();
+  expect(deleteBox!.width).toBeGreaterThanOrEqual(44);
+  expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 
   await page.getByTestId("toggle-ready").click();
   await expect(page.getByTestId("member-tally")).toContainText("1 of 1 ready");
+  await expect(page.getByTestId("member")).toHaveAttribute(
+    "data-state",
+    "filled",
+  );
   await expect(page.getByTestId("member-labels").first()).toContainText(
     "ready",
   );
 
   await page.getByTestId("toggle-ready").click();
   await expect(page.getByTestId("member-tally")).toContainText("0 of 1 ready");
+  await expect(page.getByTestId("member")).toHaveAttribute(
+    "data-state",
+    "waiting",
+  );
 });
 
 test("the commissioner removes a member, and the slot frees up", async ({
@@ -149,7 +194,13 @@ test("the commissioner removes a member, and the slot frees up", async ({
   await expect(page.getByTestId("member")).toHaveCount(2);
 
   // The commissioner's powers are folded away behind a per-row summary.
-  await page.getByTestId("manage-member").first().click();
+  const manage = page.getByTestId("manage-member").first();
+  await expect(manage).toBeVisible();
+  const manageBox = await manage.boundingBox();
+  expect(manageBox).not.toBeNull();
+  expect(manageBox!.width).toBeGreaterThanOrEqual(44);
+  expect(manageBox!.height).toBeGreaterThanOrEqual(44);
+  await manage.click();
   await page.getByTestId("kick-member").first().click();
 
   await expect(page.getByTestId("member")).toHaveCount(1);

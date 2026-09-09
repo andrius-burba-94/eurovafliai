@@ -144,9 +144,14 @@ export function LiveLobby({
   const { connected } = useLiveSubscription({ authToken, subscribe, onConnect });
 
   const you = members.find((member) => member.isYou);
-  const slotsLeft = Math.max(maxMembers - members.length, 0);
   const readyCount = members.filter((member) => member.isReady).length;
   const inSetup = leagueStatus === "setup";
+  const slotsLeft = inSetup ? Math.max(maxMembers - members.length, 0) : 0;
+  const displayedMembers = inSetup
+    ? members
+    : [...members].sort(
+        (a, b) => (a.draftPosition ?? 99) - (b.draftPosition ?? 99),
+      );
 
   return (
     <>
@@ -156,9 +161,12 @@ export function LiveLobby({
         label="Members"
         aside={
           <span data-testid="member-tally">
-            {readyCount} of {members.length} ready
+            {inSetup
+              ? `${readyCount} of ${members.length} ready`
+              : `${members.length} ${members.length === 1 ? "team" : "teams"}`}
           </span>
         }
+        framed
       >
         {connected ? null : (
           <p
@@ -166,12 +174,12 @@ export function LiveLobby({
             role="status"
             className="slot-label px-3 pb-1 text-ink-soft"
           >
-            Reconnecting — this list may be behind
+            Reconnecting, this list may be behind
           </p>
         )}
 
         <Slots testId="member-list">
-          {members.map((member) => (
+          {displayedMembers.map((member) => (
             <MemberSlot
               key={member.id}
               leagueId={leagueId}
@@ -279,10 +287,8 @@ function YourTeam({ leagueId, you }: { leagueId: string; you: Member }) {
 /**
  * One member on the board.
  *
- * Readiness is written as a word in the label run, not as a colour or a heavier
- * rule. The board's marker means exactly one thing — who is on the clock — and
- * spending it on "ready" here would leave the draft room with nothing left to
- * say with (DESIGN.md).
+ * In setup, readiness is carried by the row's rule as well as its word: dashed
+ * until ready, solid after. The board's marker remains reserved for the clock.
  */
 function MemberSlot({
   leagueId,
@@ -308,7 +314,11 @@ function MemberSlot({
     // is the sort of thing the league should be able to see.
     !member.isCommissioner && member.canManage ? "helps run it" : null,
     member.isYou ? "you" : null,
-    member.isReady ? "ready" : null,
+    leagueStatus === "setup"
+      ? member.isReady
+        ? "ready"
+        : "not ready"
+      : null,
   ].filter(Boolean);
 
   const name = member.teamName || member.name;
@@ -324,7 +334,7 @@ function MemberSlot({
         {member.draftPosition && positionRevealed ? (
           <span
             data-testid="member-position"
-            className="card-lands slot-label tabular-nums text-live"
+            className="card-lands slot-label tabular-nums text-ink"
           >
             {String(member.draftPosition).padStart(2, "0")}
           </span>
@@ -347,6 +357,7 @@ function MemberSlot({
   return (
     <Slot
       testId="member"
+      state={leagueStatus === "setup" && !member.isReady ? "waiting" : "filled"}
       landed={landed}
       className={canManage && !member.isYou ? "flex-col items-stretch" : ""}
     >
@@ -430,7 +441,7 @@ function CommissionerControls({
     <details className="mt-2 w-full">
       <summary
         data-testid="manage-member"
-        className="slot-label cursor-pointer list-none text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+        className="slot-label inline-flex min-h-11 min-w-11 cursor-pointer list-none items-center text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
       >
         Manage
       </summary>

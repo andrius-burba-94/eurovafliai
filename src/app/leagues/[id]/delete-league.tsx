@@ -49,7 +49,7 @@ export function DeleteLeague({
         type="button"
         onClick={() => setOpen((was) => !was)}
         data-testid="delete-league-toggle"
-        className="slot-label self-start underline underline-offset-4 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+        className="slot-label inline-flex min-h-11 min-w-11 self-start items-center underline underline-offset-4 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
       >
         {open ? "Never mind" : "Delete this league"}
       </button>

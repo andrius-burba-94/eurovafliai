@@ -559,12 +559,33 @@ above it is.
 **The Material-Carries-State Rule.** A slot's state is its own top border. Never
 add a coloured pill, chip or badge beside an otherwise normal row to say
 "waiting" or "on the clock". This system has no chip component and does not want
-one.
+one. In a setup lobby, an unready member is `waiting` and a ready member is
+`filled`; the word remains in the row so the rule is never the only carrier.
 
 **The Board-Shows-Its-Shape Rule.** A list of things that occupy slots renders
 its empty slots too. A lobby that is a quarter full looks a quarter full; the
 signed-in home continues past your leagues into free slots. A list that just
 stops is not a board.
+
+### Door — `Door`
+
+A whole-row route out of the current board, implemented as a `Slot` so its
+material, focus ring and 44px target cannot drift between lobby destinations.
+It takes a title, one sentence, a trailing verb and an explicit destination.
+Several related doors form one `Slots` run inside one framed Bank; a standalone
+door, such as the cheat sheet, still belongs to a `Slots` run and does not gain
+a floating container. A live draft door remains a `filled` slot and may put its
+one trailing verb in marker; `slot-live` belongs to the on-clock slot only.
+
+### Chat panel — `LeagueChat`
+
+Chat is one framed Bank, never a bubble stack. Its transcript is a ruled slot
+run: system lines are waiting/dashed and rail blue with no team name; member
+lines are filled and remain left-aligned, with ownership carried by the printed
+team or account name. The composer closes the Bank behind one strong top rule.
+The lobby opens it as a task; the denser draft room folds it to the latest line.
+When open, Hide belongs in the Bank heading rather than occupying a transcript
+row.
 
 ### Card name — `CardName`
 

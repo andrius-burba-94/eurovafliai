@@ -351,3 +351,36 @@ the smaller findings, and the final pass scored 31/40 with no P0/P1 findings.
 The deterministic scan is clean; its live overlay remains unavailable because
 this Impeccable build does not ship `detect.js` and the app's CSP would refuse
 that cross-origin script.
+
+## U2 — Lobby and chat
+
+The lobby had accumulated every phase in one order. A live draft door sat above
+the title, a season still counted readiness and drew free setup slots, and the
+commissioner was told to Manage and roll after those controls had disappeared.
+U2 makes phase boundaries visible: title and meta come first; setup gets one
+framed invite, drafting one filled room Door, and season one framed run of
+Doors. Setup alone shows free slots, readiness, its board plan and its helper
+copy.
+
+`Door` is now the one title, sentence, verb and full-row target used by the
+room, standings, recap, transaction and sheet routes. A live room Door stays a
+filled slot and puts only its trailing act in marker; `slot-live` remains the
+clock. Members are framed. In setup, the row is waiting and says `not ready`,
+or filled and says `ready`; after setup the header counts teams instead.
+
+Lobby chat is no longer a drawer. It opens with the ruled transcript inside one
+framed Bank and the composer attached to its lower edge. The draft room keeps
+the old collapsed default because it already carries a clock, board, radar and
+pool. System lines stay dashed and rail blue; member lines keep the same
+alignment and print a team name, falling back to the member's account name
+before a team has been named.
+
+The independent baseline scored 24/40 with five cognitive-load failures. The
+first post-change pass scored 27/40 and remained no-ship: Ready and Roll both
+carried marker, an empty order still offered `Keep this order`, and empty
+captures could not prove the chat treatment. Roll is now ink until everybody
+is ready, the manual-order act requires an order, and the capture fixture shows
+both a system line and the viewer's named line. The deterministic detector is
+clean. A final pass removed marker from every order number, sorted the drafting
+lobby by slot and moved Hide into the chat heading. It scored 30/40 with no
+remaining P0/P1/P2 finding.

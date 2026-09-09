@@ -374,6 +374,22 @@
       "css": ".ds-slots { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--color-rule-strong, #686e72); }\n.ds-slot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.75rem; border-radius: 0; }\n.ds-slot-waiting { border-top: 1px dashed var(--color-rule, #808589); padding-top: 0.5rem; padding-bottom: 0.5rem; }\n.ds-slot-filled { border-top: 1px solid var(--color-rule-strong, #686e72); }\n.ds-slot-live { border-top: 2px solid var(--color-live, #cb2928); background-color: var(--color-live-sunk, #ffd9d3); }\n.ds-card-name { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink, #1b2025); }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); }\n.ds-slot-num { color: var(--color-ink-faint, #63676c); }"
     },
     {
+      "name": "Door",
+      "kind": "nav",
+      "refersTo": "Slot",
+      "description": "A whole-row destination drawn as a filled slot: title and explanation on the left, one trailing verb on the right, with the full row as a 44px target. A live-draft door may color only that verb in marker; slot-live remains the clock.",
+      "html": "<ul class=\"ds-slots\"><li class=\"ds-slot ds-slot-filled\"><a class=\"ds-door\" href=\"#\"><span><strong class=\"ds-card-name\">Standings</strong><span class=\"ds-door-copy\">The table, from the draft and the nights since.</span></span><span class=\"ds-slot-label\">Open &rarr;</span></a></li></ul>",
+      "css": ".ds-door { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; min-height: 2.75rem; margin: -0.75rem; padding: 0.75rem; color: var(--color-ink, #1b2025); text-decoration: none; }\n.ds-door-copy { display: block; margin-top: 0.25rem; max-width: 65ch; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-ink-soft, #565b61); }"
+    },
+    {
+      "name": "Chat Panel",
+      "kind": "card",
+      "refersTo": "LeagueChat",
+      "description": "One framed Bank with a ruled transcript and composer closing its lower edge. System lines are dashed and rail blue; member lines stay left-aligned and print their team or account name. Lobby opens it; the draft room folds it.",
+      "html": "<section class=\"ds-bank-framed\"><div class=\"ds-bank-head\"><h2 class=\"ds-slot-label\">League chat</h2><button class=\"ds-slot-label\">Hide</button></div><ul class=\"ds-slots\"><li class=\"ds-slot ds-slot-waiting\">Rosters are set. The season can begin.</li><li class=\"ds-slot ds-slot-filled\"><span class=\"ds-slot-label\">Rimas</span> First round starts Thursday.</li></ul><form class=\"ds-chat-composer\"><input class=\"ds-input\" placeholder=\"Say something\" /><button>Send</button></form></section>",
+      "css": ".ds-chat-composer { display: flex; align-items: end; gap: 0.5rem; margin: 0 -1rem -1rem; padding: 0.75rem 1rem 1rem; border-top: 1px solid var(--color-rule-strong, #686e72); }\n.ds-chat-composer .ds-input { flex: 1; }"
+    },
+    {
       "name": "Position Patch",
       "kind": "chip",
       "refersTo": "patch-g",

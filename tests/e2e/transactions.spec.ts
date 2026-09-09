@@ -143,7 +143,15 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
+  const doors = page.getByRole("region", { name: "League doors" });
+  await expect(doors).toHaveAttribute("data-framed", "true");
+  await expect(doors.getByTestId("enter-standings")).toBeVisible();
+  await expect(doors.getByTestId("enter-recap")).toBeVisible();
   await expect(page.getByTestId("record-transaction")).toBeVisible();
+  await expect(page.getByTestId("record-transaction").locator("..")).toHaveAttribute(
+    "data-state",
+    "filled",
+  );
   await page.getByTestId("record-transaction").click();
   await expect(page.getByTestId("transaction-builder")).toBeVisible();
 
