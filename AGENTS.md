@@ -49,7 +49,8 @@ src/lib/memberships/  roster windows (5.1) and recorded trades (5.2):
                   `to_round`. Actions are the request-facing half.
 src/lib/euroleague/http.ts  ONE HTTP client for the Euroleague feed
 src/lib/stats/    box scores and scoring; `scoring.ts` is pure; golden fixtures.
-                  `impact.ts` is the live in-minus-out for a recorded deal
+                  `impact.ts` is the live in-minus-out for a recorded deal.
+                  `recap.ts` is one Euroleague night: rank, best night, swing
 src/lib/pb/browser.ts  the page's ONE shared realtime client
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
 src/lib/positions.ts  position words and the one list-join

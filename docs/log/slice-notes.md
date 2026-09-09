@@ -3,6 +3,15 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**5.4 has landed, and a recap is a read, not a stored overlay.** Rank comes
+from the standings snapshot for that Euroleague round, re-sorted by that
+night's tenths. Best night is whoever scored it while covering the round, so
+a traded-in player can win. Biggest swing is `impactForMember` for that round
+only, shown from the side that gained, in the same sentence chat already uses.
+No new collection and no ingest announce: people open **This round** from the
+lobby. Round is a select of counted nights, default latest; `?season=` matches
+standings. "Pick" stays draft-night vocabulary.
+
 **5.3 has landed, and the delta is a subtract, not a stored overlay.** In minus
 out, from the transaction's `from_round`, against real box scores. The calendar
 `date` on the row is when somebody wrote it down. A wrapping round run is the

@@ -21,13 +21,25 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: 5.4 weekly recap.** Phase 4 is closed in code: **4.1–4.5 have
-landed**, and **5.1–5.3 have landed**: a finished draft writes
+**Next up: 6.1 keepers (luxury, not now).** Phase 4 is closed in code: **4.1–4.5 have
+landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft writes
 `roster_memberships`, a commissioner records trades, standings join by
-Euroleague round, and the team page shows live deltas. Phase 3 is closed apart
-from the **human rehearsal** its DoD asks for — a draft night with 3+ friends on
-mixed devices, inherited from Phase 2 (blueprint D12). That is the only claim in
-this file no test can make.
+Euroleague round, the team page shows live deltas, and **This round** recaps
+one night. Phase 3 is closed apart from the **human rehearsal** its DoD asks
+for — a draft night with 3+ friends on mixed devices, inherited from Phase 2
+(blueprint D12). That is the only claim in this file no test can make.
+
+## Try it on localhost — slice 5.4
+
+```bash
+npm run dev
+# season league with counted snapshots (see 5.3 / 4.5)
+```
+
+Open the lobby. **This round** is next to Standings. Latest counted night:
+each team's tenths, the best night, the deal that moved most. Add
+`?round=2&season=E2025` for a known night. A league still drafting says there
+is no recap yet.
 
 ## Try it on localhost — slice 5.3
 
@@ -134,7 +146,7 @@ In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
 
-`npm run test` is **944** unit tests after 5.3.
+`npm run test` is **955** unit tests after 5.4.
 
 ## Try it on localhost — slice 4.2
 
@@ -350,20 +362,22 @@ now landed on top of them.
 
 ## Phase 5 — Season mode: rosters, trades, impact tracking
 
-**Started.** 5.1–5.3 are in; 5.4 is next.
+**Done.** 5.1–5.4 are in. Phase 6 (keepers / slow draft) is luxury; not before
+season two is on the horizon.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **5.1 Membership backbone** | done | — | On the last pick, `advance` writes `roster_memberships` (`from_date` = that instant, `from_round: 1`, `acquired_via: draft`) after the draft is complete and the league is `season`. Unique active `(league, player)` is the backstop; a second pass skips anyone who already has an open window. `recomputeStandings` repairs an incomplete set from the newest complete draft **only while no window has been closed**. A complete set does not reread picks. Start-over deletes memberships *before* drafts. Squad of record is the open windows; `/leagues/[id]/teams/[memberId]` is the roster plus that member's radar |
 | **5.2 Transactions** | done | — | **Record, do not broker.** Commissioner or deputy writes a trade or an add/drop; there is no offer queue. N-for-N only; drop may leave a hole; add needs a vacancy and an unsigned player. Intent row first (`transactions`), then close windows (`to_date` + exclusive `to_round`), then open, then `announce()` which never throws. Standings join `from_round`/`to_round` so a trade at round 2 leaves round 1 with the old owner. Open draft windows still own every round, so an E2025 backfill matches 4.5 until the first close. `/leagues/[id]/transactions/new` is the builder |
 | **5.3 Impact tracking** | done | — | Live in − out from box scores, from `from_round` onward, all phases. Fantasy tenths are the headline; PIR sits under them. No new collection and no chart library: a wrapping `R2 -4.3` run. Team page lists that member's deals; a drop's counterfactual is the out sum. `?season=` matches standings |
+| **5.4 Weekly recap** | done | — | One Euroleague night. Rank is that round's tenths from `standings_snapshots`, not season-to-date. **Best night** is the highest `fantasy_pts` among players whose window covers the round (a traded-in player can win). **Biggest swing** is the covering deal with the largest absolute `impactForMember` delta that night, shown from the side that gained. No new collection; no chat announce on ingest. `/leagues/[id]/recap?round=&season=` |
 
 ## Phases 5–8
 
 | Phase | State |
 |---|---|
-| 5 — Season mode: rosters, trades, impact tracking | **started** — 5.3 is the overlay; 5.4 is the weekly recap |
-| 6 — Optional formats | todo |
+| 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
+| 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
 | 8 — Hardening & ops polish | todo |
 

@@ -97,6 +97,22 @@ export default async function LobbyPage({
             <span className="slot-label shrink-0">Open &rarr;</span>
           </Link>
         ) : null}
+        {league.status === "season" && viewerIsMember ? (
+          <Link
+            href={`/leagues/${league.id}/recap`}
+            data-testid="enter-recap"
+            className="slot-filled flex items-baseline justify-between gap-4 px-3 py-4 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          >
+            <span className="flex flex-col gap-1">
+              <CardName>This round</CardName>
+              <span className="text-sm text-ink-soft">
+                Each team&apos;s night, the best night, the deal that moved
+                most.
+              </span>
+            </span>
+            <span className="slot-label shrink-0">Open &rarr;</span>
+          </Link>
+        ) : null}
         {league.status === "season" &&
         (isCommissioner ||
           members.some((member) => member.isYou && member.canManage)) ? (

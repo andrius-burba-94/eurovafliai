@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import { createUserClient } from "@/lib/pb/server";
 import type { Position } from "@/lib/engine";
 import { type Phase, PHASES } from "./csv";
+import type { ImpactLine, ImpactTransaction } from "./impact";
+import { recapForRound, type Recap } from "./recap";
 import type { RoundSnapshot, SnapshotRow } from "./standings";
 
 /**
@@ -59,6 +61,156 @@ export async function readStandingsSnapshots(
     phase: asPhase(record.phase),
     table: asRows(record.table),
   }));
+}
+
+function asIdMap(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!Array.isArray(value)) continue;
+    out[key] = value.filter((id): id is string => typeof id === "string");
+  }
+  return out;
+}
+
+function asTransactions(
+  rows: readonly {
+    id: string;
+    type: string;
+    from_round: number;
+    players_in: unknown;
+    players_out: unknown;
+  }[],
+): ImpactTransaction[] {
+  return rows.flatMap((row) => {
+    if (row.type !== "trade" && row.type !== "add" && row.type !== "drop") {
+      return [];
+    }
+    return [
+      {
+        id: row.id,
+        type: row.type,
+        fromRound: row.from_round,
+        playersIn: asIdMap(row.players_in),
+        playersOut: asIdMap(row.players_out),
+      },
+    ];
+  });
+}
+
+export type RecapPageData = {
+  readonly recap: Recap;
+  readonly countedRounds: readonly number[];
+  readonly playerNames: Readonly<Record<string, string>>;
+};
+
+/**
+ * One counted night: the snapshot for rank, windows for who owned whom,
+ * box scores for the best night, deals for the swing.
+ */
+export async function readLeagueRecap(
+  leagueId: string,
+  season: string,
+  requestedRound: number | null,
+): Promise<RecapPageData | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  const snapshots = await readStandingsSnapshots(leagueId, season);
+  if (snapshots.length === 0) return null;
+
+  const countedRounds = snapshots.map((snap) => snap.round);
+  const latest = countedRounds[countedRounds.length - 1]!;
+  const round =
+    requestedRound !== null && countedRounds.includes(requestedRound)
+      ? requestedRound
+      : latest;
+  const snap = snapshots.find((row) => row.round === round);
+  if (!snap) return null;
+
+  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const pb = createUserClient(session.token);
+  const [memberships, txRows, statRows] = await Promise.all([
+    pb.collection("roster_memberships").getFullList<{
+      member: string;
+      player: string;
+      from_round?: number | null;
+      to_round?: number | null;
+      to_date?: string | null;
+    }>({
+      filter: `league = '${leagueId}'`,
+      fields: "member,player,from_round,to_round,to_date",
+      requestKey: null,
+    }),
+    pb.collection("transactions").getFullList<{
+      id: string;
+      type: string;
+      from_round: number;
+      players_in: unknown;
+      players_out: unknown;
+    }>({
+      filter: `league = '${leagueId}'`,
+      requestKey: null,
+    }),
+    pb.collection("player_game_stats").getFullList<{
+      player: string;
+      round: number;
+      fantasy_pts: number;
+      pir: number;
+    }>({
+      filter: `season = "${code}" && round = ${round}`,
+      fields: "player,round,fantasy_pts,pir",
+      requestKey: null,
+    }),
+  ]);
+
+  const lines: ImpactLine[] = statRows.map((row) => ({
+    playerId: row.player,
+    round: row.round,
+    fantasyTenths: row.fantasy_pts,
+    pir: row.pir,
+  }));
+  const recap = recapForRound(
+    round,
+    snap.table,
+    memberships.map((row) => ({
+      memberId: row.member,
+      playerId: row.player,
+      from_round: row.from_round,
+      to_round: row.to_round,
+      to_date: row.to_date,
+    })),
+    lines,
+    asTransactions(txRows),
+  );
+
+  const nameIds = [
+    ...new Set(
+      [
+        recap.bestNight?.playerId,
+        ...(recap.biggestSwing?.inIds ?? []),
+        ...(recap.biggestSwing?.outIds ?? []),
+      ].filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const playerNames: Record<string, string> = {};
+  if (nameIds.length > 0) {
+    const people = await pb.collection("players").getFullList<{
+      id: string;
+      name: string;
+    }>({
+      filter: nameIds.map((id) => `id = '${id}'`).join(" || "),
+      fields: "id,name",
+      requestKey: null,
+    });
+    for (const person of people) playerNames[person.id] = person.name;
+  }
+
+  return {
+    recap,
+    countedRounds,
+    playerNames,
+  };
 }
 
 export type PlayerProfile = {
