@@ -54,6 +54,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **impact / delta** | Fantasy tenths (and PIR) of players-in minus players-out from a deal's `from_round` onward. Live from box scores, not a stored cache. | `impactForMember()` |
 | **free agent** | A pool player owned by nobody after the draft. | — |
 | **snapshot** | The standings table frozen for one round; powers the round-over-round chart. | `standings_snapshots` |
+| **recap** | One Euroleague round: each team's night, the best night, the deal that moved most. Rank is that round's tenths, not season-to-date. | `recapForRound()`; `/leagues/[id]/recap` |
 | **round** | Ambiguous on purpose — qualify it. A *draft round* is one pass through the order (1…13). A *Euroleague round* is a game week (1…38). | `picks.round` vs `player_game_stats.round` |
 
 ## Players & scoring
