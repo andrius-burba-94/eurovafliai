@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import type { Position, RadarRow, RadarSlot } from "@/lib/engine";
 import { positionSentence } from "@/lib/positions";
@@ -85,6 +85,41 @@ function revealBoardColumn(
   window.scrollBy({ top: clearance });
 }
 
+function RadarRowFrame({
+  memberId,
+  sentence,
+  linkToBoard,
+  children,
+}: {
+  memberId: string;
+  sentence: string;
+  linkToBoard: boolean;
+  children: ReactNode;
+}) {
+  const content = (
+    <>
+      <span aria-hidden="true" className="contents">
+        {children}
+      </span>
+      <span className="sr-only">{sentence}</span>
+    </>
+  );
+
+  return linkToBoard ? (
+    <a
+      href={`#board-member-${memberId}`}
+      onClick={(event) => revealBoardColumn(event, memberId)}
+      className="flex min-h-11 w-full items-center gap-2 py-1.5 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+    >
+      {content}
+    </a>
+  ) : (
+    <div className="flex min-h-11 w-full items-center gap-2 py-1.5">
+      {content}
+    </div>
+  );
+}
+
 /**
  * The whole row, spoken.
  *
@@ -151,6 +186,7 @@ export function RosterRadar({
   columns,
   total,
   onClockMemberId,
+  linkToBoard = false,
 }: {
   rows: readonly RadarRow[];
   /** Ordered exactly as `rows` — the same array the board's columns come from. */
@@ -167,6 +203,7 @@ export function RosterRadar({
    * red means everywhere else in this app.
    */
   onClockMemberId: string | null;
+  linkToBoard?: boolean;
 }) {
   // The same guard the board carries, for the same reason: a mismatch here
   // would put every member's name against somebody else's roster, and it would
@@ -243,16 +280,15 @@ export function RosterRadar({
                 row.memberId === onClockMemberId ? "slot-live" : "slot-filled"
               }
             >
-              <a
-                href={`#board-member-${row.memberId}`}
-                onClick={(event) => revealBoardColumn(event, row.memberId)}
-                aria-label={rowSentence(
+              <RadarRowFrame
+                memberId={row.memberId}
+                sentence={rowSentence(
                   row,
                   column,
                   total,
                   row.memberId === onClockMemberId,
                 )}
-                className="flex min-h-11 w-full items-center gap-2 py-1.5 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+                linkToBoard={linkToBoard}
               >
               {/* Your own row is `text-ink` and `· you`, and nothing else,
                   which is exactly what the board does for your column. The
@@ -324,15 +360,7 @@ export function RosterRadar({
                 ))}
               </span>
 
-              <span className="sr-only">
-                {rowSentence(
-                  row,
-                  column,
-                  total,
-                  row.memberId === onClockMemberId,
-                )}
-              </span>
-              </a>
+              </RadarRowFrame>
             </li>
           );
         })}

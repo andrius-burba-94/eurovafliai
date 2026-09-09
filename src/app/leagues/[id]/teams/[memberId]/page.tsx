@@ -12,6 +12,10 @@ import {
   TopRail,
 } from "@/components/board";
 import { RosterRadar } from "@/components/roster-radar";
+import {
+  resolveSeason,
+  SeasonControl,
+} from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { buildRadar, radarSize } from "@/lib/engine";
@@ -35,10 +39,8 @@ export default async function TeamPage({
 
   const { id, memberId } = await params;
   const query = await searchParams;
-  const seasonRaw = typeof query.season === "string" ? query.season : "";
-  const season = /^E\d{4}$/i.test(seasonRaw)
-    ? seasonRaw.toUpperCase()
-    : serverConfig().EUROLEAGUE_SEASON;
+  const currentSeason = serverConfig().EUROLEAGUE_SEASON;
+  const season = resolveSeason(query.season, currentSeason);
 
   const data = await getLeagueWithMembers(id);
   if (!data) notFound();
@@ -89,12 +91,24 @@ export default async function TeamPage({
           </p>
         </div>
 
+        <SeasonControl
+          action={`/leagues/${id}/teams/${memberId}`}
+          season={season}
+          currentSeason={currentSeason}
+        />
+
         {roster.length === 0 ? (
-          <p className="text-ink-soft" data-testid="roster-empty">
-            No players are on this roster yet.
-          </p>
+          <Bank framed label="The roster" aside={`0 of ${rosterSize}`}>
+            <p className="text-ink-soft" data-testid="roster-empty">
+              No players are on this roster yet.
+            </p>
+          </Bank>
         ) : (
-          <Bank label="The roster" aside={`${roster.length} of ${rosterSize}`}>
+          <Bank
+            framed
+            label="The roster"
+            aside={`${roster.length} of ${rosterSize}`}
+          >
             <Slots testId="roster-list" label={`${displayName} roster`}>
               {roster.map((player) => (
                 <Slot key={player.id} testId="roster-player" state="filled">
@@ -131,14 +145,16 @@ export default async function TeamPage({
 
         <ImpactList deals={deals} teamName={displayName} />
 
-        <RosterRadar
-          rows={radar}
-          columns={[
-            { memberId: member.id, name: displayName, isYou: member.isYou },
-          ]}
-          total={rosterSize}
-          onClockMemberId={null}
-        />
+        <Bank framed label="Roster shape">
+          <RosterRadar
+            rows={radar}
+            columns={[
+              { memberId: member.id, name: displayName, isYou: member.isYou },
+            ]}
+            total={rosterSize}
+            onClockMemberId={null}
+          />
+        </Bank>
       </Sheet>
     </>
   );

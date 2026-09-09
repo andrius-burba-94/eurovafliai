@@ -390,6 +390,14 @@
       "css": ".ds-chat-composer { display: flex; align-items: end; gap: 0.5rem; margin: 0 -1rem -1rem; padding: 0.75rem 1rem 1rem; border-top: 1px solid var(--color-rule-strong, #686e72); }\n.ds-chat-composer .ds-input { flex: 1; }"
     },
     {
+      "name": "Season Control",
+      "kind": "form",
+      "refersTo": "SeasonControl",
+      "description": "The shared framed GET control on standings, recap, team and transaction pages. It offers the configured season, the previous backfill season and any valid historical URL selection; changing it resets page-local filters.",
+      "html": "<section class=\"ds-bank-framed\"><div class=\"ds-bank-head\"><h2 class=\"ds-slot-label\">Season</h2></div><form class=\"ds-season-control\"><label class=\"ds-field\"><span class=\"ds-field-label\">Euroleague season</span><select class=\"ds-input\"><option>E2026 · current</option><option>E2025</option></select></label><button>Show season</button></form></section>",
+      "css": ".ds-season-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.75rem; }\n@media (max-width: 639px) { .ds-season-control { grid-template-columns: 1fr; } }\n.ds-season-control button { min-height: 2.75rem; border: 1px solid var(--color-ink, #1b2025); border-radius: 0; background: transparent; color: var(--color-ink, #1b2025); }"
+    },
+    {
       "name": "Position Patch",
       "kind": "chip",
       "refersTo": "patch-g",

@@ -173,21 +173,41 @@ try {
    * never written a sheet is the common case on the night before a draft.
    */
   const otherLeague = await createLeagueFor(commissioner, "Vafliai Reserves");
-  const [otherMember] = await pb.collection("league_members").getFullList<{
+  const seasonMateUser = await createTestUser("Jonas");
+  await pb.collection("league_members").create(
+    {
+      league: otherLeague.id,
+      user: seasonMateUser.id,
+      team_name: "Jonas Ballers",
+    },
+    { requestKey: null },
+  );
+  const otherMembers = await pb.collection("league_members").getFullList<{
     id: string;
+    user: string;
   }>({
     filter: `league = '${otherLeague.id}'`,
-    fields: "id",
+    fields: "id,user",
+    sort: "created",
     requestKey: null,
   });
+  const otherMember = otherMembers.find(
+    (member) => member.user === commissioner.id,
+  );
+  const seasonMate = otherMembers.find(
+    (member) => member.user === seasonMateUser.id,
+  );
+  if (!otherMember || !seasonMate) {
+    throw new Error("capture season members missing");
+  }
   await pb.collection("drafts").create(
     {
       league: otherLeague.id,
       format: "snake",
       status: "complete",
-      order: [otherMember!.id],
+      order: otherMembers.map((member) => member.id),
       rounds: 13,
-      current_pick: 14,
+      current_pick: 27,
       pick_seconds: 120,
       seed: "capture-season",
     },
@@ -196,6 +216,24 @@ try {
   await pb
     .collection("leagues")
     .update(otherLeague.id, { status: "season" }, { requestKey: null });
+  if (sheetPlayers[0] && sheetPlayers[1]) {
+    for (const [member, player] of [
+      [otherMember, sheetPlayers[0]],
+      [seasonMate, sheetPlayers[1]],
+    ] as const) {
+      await pb.collection("roster_memberships").create(
+        {
+          league: otherLeague.id,
+          member: member.id,
+          player: player.id,
+          from_date: "2026-09-09 12:00:00.000Z",
+          from_round: 1,
+          acquired_via: "draft",
+        },
+        { requestKey: null },
+      );
+    }
+  }
   await pb.collection("chat_messages").create(
     {
       league: otherLeague.id,
@@ -266,6 +304,38 @@ try {
       assert: async (page) => {
         await expect(page.getByTestId("enter-standings")).toBeVisible();
         await expect(page.getByTestId("enter-recap")).toBeVisible();
+      },
+    },
+    {
+      name: "standings",
+      path: `/leagues/${otherLeague.id}/standings?season=E2025`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("standings-empty")).toBeVisible();
+      },
+    },
+    {
+      name: "recap",
+      path: `/leagues/${otherLeague.id}/recap?season=E2025`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("recap-empty")).toBeVisible();
+      },
+    },
+    {
+      name: "roster",
+      path: `/leagues/${otherLeague.id}/teams/${otherMember.id}?season=E2025`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("roster-list")).toBeVisible();
+      },
+    },
+    {
+      name: "transaction",
+      path: `/leagues/${otherLeague.id}/transactions/new?season=E2025`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("transaction-builder")).toBeVisible();
       },
     },
     {

@@ -1,7 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 
 import { BackLink, Sheet, TopRail } from "@/components/board";
+import {
+  resolveSeason,
+  SeasonControl,
+} from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
+import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { readTransactionBoard } from "@/lib/memberships/queries";
 
@@ -16,11 +21,15 @@ import { TransactionBuilder } from "./transaction-builder";
  */
 export default async function NewTransactionPage({
   params,
+  searchParams,
 }: PageProps<"/leagues/[id]/transactions/new">) {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
 
   const { id } = await params;
+  const query = await searchParams;
+  const currentSeason = serverConfig().EUROLEAGUE_SEASON;
+  const season = resolveSeason(query.season, currentSeason);
   const data = await getLeagueWithMembers(id);
   if (!data) notFound();
 
@@ -48,9 +57,15 @@ export default async function NewTransactionPage({
             Record a transaction
           </h1>
           <p className="text-ink-soft">
-            {data.league.name}. The room already agreed. This writes it down.
+            {data.league.name}. The room already agreed. The season sets the
+            scoring context; the roster change applies now.
           </p>
         </div>
+        <SeasonControl
+          action={`/leagues/${id}/transactions/new`}
+          season={season}
+          currentSeason={currentSeason}
+        />
         <TransactionBuilder
           leagueId={id}
           members={people}

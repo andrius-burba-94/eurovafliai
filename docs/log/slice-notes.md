@@ -410,3 +410,27 @@ changed: clients still choose and request, while the server decides and writes.
 The final independent pass scored 31/40 with no P0/P1 findings. Its two cheap
 interaction-language findings were fixed before ship: radar links now wash on
 hover and press, and keyboard help says Choose then Draft.
+
+## U4 — Season-surface panel material
+
+The last rollout makes season an interface choice instead of STATUS knowledge.
+Standings, This round, team rosters and the transaction builder now render the
+same framed GET control. It offers the configured Euroleague code, the previous
+backfill code and any valid historical selection already in the URL. Standings
+and recap team links carry that code forward; the recap round form keeps it,
+while changing season deliberately drops page-local round and phase choices.
+
+Every content group on the four routes now uses the same one-level framed Bank.
+Empty tables and empty rosters keep their heading and shape rather than falling
+back to an orphan sentence. The transaction builder exposed an older marker
+mistake during critique: selected players used `slot-live` while Record this
+also carried marker. Selection now uses ink transit, leaving marker to the one
+write act. The page also states the boundary the data model already enforces:
+season is scoring context, while a roster change applies now.
+
+The baseline critique scored 24/40 and found the hidden query string, unframed
+tasks and competing marker acts as P1. The final pass scored 32/40 with no
+P0/P1 findings and a clean detector. A late shared-component review found that
+team-page radar rows had inherited draft-room hash links without owning a
+board. Linking is now an explicit draft-room capability; a roster radar remains
+a readable row.

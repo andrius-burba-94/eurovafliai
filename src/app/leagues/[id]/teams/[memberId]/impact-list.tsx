@@ -21,14 +21,16 @@ export function ImpactList({
 }) {
   if (deals.length === 0) {
     return (
-      <p className="text-ink-soft" data-testid="impact-empty">
-        No trades recorded for this roster yet.
-      </p>
+      <Bank framed label="Transactions" aside="0">
+        <p className="text-ink-soft" data-testid="impact-empty">
+          No trades recorded for this roster yet.
+        </p>
+      </Bank>
     );
   }
 
   return (
-    <Bank label="Transactions" aside={`${deals.length}`}>
+    <Bank framed label="Transactions" aside={`${deals.length}`}>
       <Slots testId="impact-list" label={`${teamName} transactions`}>
         {deals.map((deal) => (
           <Slot key={deal.id} testId="impact-deal" state="filled">
