@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
     "src/lib/engine/index.ts",
-    "scripts/*.{mts,mjs}",
+    "scripts/*.{mts,mjs,ts}",
     "tests/e2e/**/*.spec.ts"
   ],
   "ignore": ["pb/pb_migrations/**", "ecosystem.config.js"],

@@ -24,25 +24,38 @@ cd "$APP_DIR"
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\n\033[33m!!  %s\033[0m\n' "$*" >&2; }
 
-say "Node in use"
-node -v
-npm -v
-
-# ── 1. Move to the new code ──────────────────────────────────────────────────
+# ── 1. Move to the new code, then run *that* copy of this file ───────────────
+#
+# bash reads a script by byte offset. `git pull` can replace this file while
+# we are still in it, so a length change resumes mid-line, and a change to
+# deploy.sh never applies to its own deploy. Pull, then exec the fresh copy
+# exactly once. Pass the SHAs through: after exec, HEAD is already AFTER, and
+# recomputing both would make changed() restart PocketBase on every deploy.
 #
 # --ff-only, so a dirty or diverged working tree fails loudly here rather than
 # producing a merge commit nobody asked for on a production box.
-say "Pulling main"
-BEFORE_SHA="$(git rev-parse HEAD)"
-git pull --ff-only origin main
-AFTER_SHA="$(git rev-parse HEAD)"
-
-if [ "$BEFORE_SHA" = "$AFTER_SHA" ]; then
+if [ "${DEPLOY_REEXEC:-}" = "1" ]; then
+  : "${BEFORE_SHA:?BEFORE_SHA must be set after re-exec}"
+  : "${AFTER_SHA:?AFTER_SHA must be set after re-exec}"
+  say "Deploy script after re-exec"
+  echo "$BEFORE_SHA -> $AFTER_SHA"
+else
+  say "Pulling main"
+  BEFORE_SHA="$(git rev-parse HEAD)"
+  git pull --ff-only origin main
+  AFTER_SHA="$(git rev-parse HEAD)"
+  export BEFORE_SHA AFTER_SHA
+  if [ "$BEFORE_SHA" != "$AFTER_SHA" ]; then
+    say "Re-executing the pulled deploy.sh"
+    DEPLOY_REEXEC=1 exec "$0" "$@"
+  fi
   echo "Already at $AFTER_SHA — continuing anyway (a rebuild is cheap and this"
   echo "makes a re-run after a failed deploy do the right thing)."
-else
-  echo "$BEFORE_SHA -> $AFTER_SHA"
 fi
+
+say "Node in use"
+node -v
+npm -v
 
 changed() {
   # True when $1 changed between the two commits. Always true on the first
@@ -115,12 +128,14 @@ pm2 save
 #
 # The vhost is committed but installed by hand, so the two can diverge and the
 # failure that causes — realtime dying because proxy_buffering came back — is
-# invisible until draft night. Certbot legitimately rewrites the file on
-# renewal, so this warns rather than fails.
+# invisible until draft night. Certbot rewrites the live file in place (443 +
+# HTTP redirect); the committed file stays :80 on purpose. Compare the
+# canonical form so a warning means a real hand-edit, not certbot.
 if [ -f "$NGINX_LIVE" ]; then
-  if ! diff -q "$NGINX_LIVE" deploy/nginx/eurovafliai.labrium.online.conf > /dev/null 2>&1; then
+  if ! npx --no-install tsx scripts/nginx-vhost-canonical.ts \
+      "$NGINX_LIVE" deploy/nginx/eurovafliai.labrium.online.conf; then
     warn "The installed nginx vhost differs from the one in git."
-    warn "Expected after a certbot issue/renewal. Otherwise, reconcile them."
+    warn "Certbot's TLS lines are ignored. Reconcile a real /pb/ (or other) edit."
   fi
 else
   warn "No nginx vhost installed at $NGINX_LIVE — see docs/runbooks/vps-setup.md"

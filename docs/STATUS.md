@@ -21,7 +21,13 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: no implementation slice is queued.** The season-surface rollout
+**Next up: the rest of Phase 8.** **8.0 has landed** (deploy script hygiene:
+[#34](https://github.com/andrius-burba-94/eurovafliai/issues/34),
+[#35](https://github.com/andrius-burba-94/eurovafliai/issues/35)). Still open
+in the phase: impeccable harden / onboard / adapt / audit, the accessibility
+pass, enabling the backup timer and proving a restore, PM2 log rotation, and
+worker failure alerts to system chat. R1 already covers the client-load check.
+The season-surface rollout
 ([U4](https://github.com/andrius-burba-94/eurovafliai/issues/94)) has landed.
 The draft-room rollout
 ([U3](https://github.com/andrius-burba-94/eurovafliai/issues/93)) has landed.
@@ -37,9 +43,21 @@ Phase 4 is closed in code: **4.1–4.5 have
 landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft writes
 `roster_memberships`, a commissioner records trades, standings join by
 Euroleague round, the team page shows live deltas, and **This round** recaps
-one night. Phase 6 keepers stay luxury. Phase 3 is closed in product code;
-R1 scripts the mechanical half of 3.7 / D12. Whether it feels right with
-friends in one room remains human. Backups on the VPS are live.
+one night. Phase 6 keepers stay luxury. Phase 7 AI is not next. Phase 3 is
+closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
+it feels right with friends in one room remains human. Backups on the VPS are
+live.
+
+## Try it — slice 8.0
+
+```bash
+npx vitest run tests/unit/nginx-vhost-canonical.test.ts tests/unit/deploy-reexec.test.ts
+```
+
+There is no changed page. After this merges, the **first** production deploy
+still runs the previous `deploy.sh` (it has no re-exec). The **next** deploy's
+log must show `Deploy script after re-exec` and must **not** warn that the
+nginx vhost differs from git.
 
 ## Try it on localhost — U4
 
@@ -426,7 +444,7 @@ now landed on top of them.
 
 ## Phase 4 — Player stats, projections, standings
 
-**Started.** 4.1–4.5 are in; Phase 5 is next.
+**Done.** 4.1–4.5 are in; Phase 5 is closed after them.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
@@ -450,6 +468,14 @@ season two is on the horizon.
 | **5.3 Impact tracking** | done | — | Live in − out from box scores, from `from_round` onward, all phases. Fantasy tenths are the headline; PIR sits under them. No new collection and no chart library: a wrapping `R2 -4.3` run. Team page lists that member's deals; a drop's counterfactual is the out sum. `?season=` matches standings |
 | **5.4 Weekly recap** | done | — | One Euroleague night. Rank is that round's tenths from `standings_snapshots`, not season-to-date. **Best night** is the highest `fantasy_pts` among players whose window covers the round (a traded-in player can win). **Biggest swing** is the covering deal with the largest absolute `impactForMember` delta that night, shown from the side that gained. No new collection; no chat announce on ingest. `/leagues/[id]/recap?round=&season=` |
 
+## Phase 8 — Hardening & ops polish
+
+**Started.** 8.0 is in. The rest of the blueprint's Phase 8 list is still open.
+
+| Slice | State | Landed | Notes |
+|---|---|---|---|
+| **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34 and #35. The deploy that *ships* this still runs the old script; the following deploy is the proof |
+
 ## Phases 5–8
 
 | Phase | State |
@@ -457,7 +483,7 @@ season two is on the horizon.
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
-| 8 — Hardening & ops polish | todo |
+| 8 — Hardening & ops polish | **started** — 8.0 is deploy script hygiene |
 
 ---
 
@@ -517,8 +543,6 @@ touch should be fixed by that slice rather than deferred again.
 | **A sheet still cannot be edited from inside the room** | The third thing blueprint 3.4 asks for, and the only part of that line still unmet: "editable before *and during* the draft in a sidebar". It is a page, and the room links to it and pins the best three from it. On a phone that is arguably the right answer — this app is one column and a sixty-row list does not sit beside a board — but it is a divergence rather than a finished thought | Nothing; the sheet is reachable mid-draft, just not beside the board |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |
 | **A sheet outlives the season it was written for** | The consequence of keying `cheat_sheets` on the membership rather than on the draft, and the price of the argument in that migration. A league that drafts a second season on the same memberships inherits last season's ranking rather than starting blank. It is a stale sheet a member can see and replace, not a lost one; a per-season sheet is Phase 6's keeper work | Nothing yet; there is no season 2 |
-| [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34) | **`deploy.sh` rewrites itself mid-run**, so a change to it never applies to its own deploy — 2.5's worker-liveness check did not run on the deploy that shipped it, and will from the next one. Worse in principle than in practice so far: bash reads a script by byte offset, so a pull that changes a not-yet-executed part of the file can make the shell resume mid-line | Nothing yet; a deploy-tooling trap |
-| [#35](https://github.com/andrius-burba-94/eurovafliai/issues/35) | **The nginx vhost drift warning can never be silenced.** The committed vhost is the plain `:80` one *by design* (certbot needs a working vhost to answer the ACME challenge and then rewrites the file in place), so every deploy warns. The whole drift is certbot's own `# managed by Certbot` lines; `/pb/` is byte-identical. A warning that fires every time is one nobody reads, which is a problem because the thing it exists to catch — a hand-edit that loses `proxy_buffering off` — kills realtime silently | Nothing; the check protects nothing until it is quiet |
 | **Half the room gets no vibration** | `navigator.vibrate` does not exist on iOS Safari — not gated, not permission-prompted, simply absent — so on an iPhone the clock cue is the tone and the live region and nothing in the hand. `clockCue` returns the vibration pattern regardless and `clock-cue.tsx` feature-detects before calling, so there is no error and no console noise; there is also nothing telling an iPhone owner that half of what the toggle offers cannot happen for them. The toggle's own label says "Sound" rather than "Sound and vibration" for that reason, which is honest but not informative. A real fix means either detecting the absence and saying so, or dropping vibration from the copy entirely | Nothing; a silent asymmetry between the phones in one room |
 | **A commissioner with no membership row hears no clock** | `ClockCue` renders only inside the `view.you` branch, because everything it says is about *your* turn and somebody with no turn has nothing to be told. That is right for the live region and for the cue, and it means a commissioner who runs a draft without playing in it has no audible surface at all — including no way to reach the toggle. Recorded because it looks like a bug from the outside: the toggle simply is not there. If a non-playing commissioner ever needs a cue it wants a different sentence ("Pick 7 is on the clock"), not this one moved | Nothing; a deliberate gating, documented so it is not "fixed" into noise |
 | **Scoring weights are settings that nothing reads yet** | 4.5 answered the immediate question by summing stored `fantasy_pts` tenths, so the table is honest about the official weights. Custom per-league weights would still be a lie until a later rescore from components: box scores are app-global, weights would be per-league, and the importer still passes `OFFICIAL_WEIGHTS` unconditionally | Nothing yet; a settings screen would still be a lie |

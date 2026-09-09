@@ -48,13 +48,18 @@ Check the ports are actually free before you claim them: `ss -tlnp` and
 
 Run on the VPS from the app directory. The flow, in order:
 
-1. `git pull --ff-only origin main`
+1. `git pull --ff-only origin main`, then `exec` the pulled `deploy.sh` once
+   (passing `BEFORE_SHA` / `AFTER_SHA`). Skip the exec when the pull was a
+   no-op. Do not recompute the SHAs after exec — HEAD is already AFTER, and
+   `changed()` would restart PocketBase on every deploy.
 2. `npm ci` — but only when `package-lock.json` actually changed; track the
    lockfile hash in a marker inside `node_modules` so a manual pull cannot
    leave dependencies stale
 3. `npm run build`
 4. apply PocketBase migrations (they also apply on PB boot)
 5. `pm2 reload ecosystem.config.js --update-env`
+6. canonical nginx vhost compare (certbot TLS + HTTP stub ignored; warn on
+   a real `/pb/` edit)
 
 A GitHub Action on push to `main` SSHes in and runs it. Nothing reaches
 production without passing CI first.
@@ -102,8 +107,11 @@ otherwise allowed Next asset or PocketBase connection.
 
 - Certbot (Let's Encrypt), auto-renewing.
 - DNS records in Hostinger's panel.
-- The vhost is committed in this repo and applied on the VPS by hand; the file
-  on the box and the file in git must never diverge.
+- The vhost is committed in this repo (plain `:80`) and applied on the VPS by
+  hand. Certbot then rewrites the live file. `deploy.sh` compares the
+  canonical form, not the bytes; a warning means a real edit (usually `/pb/`),
+  not certbot. Do not commit the post-certbot file — a fresh box would
+  reference certificates that do not exist yet.
 
 ## Environment
 
