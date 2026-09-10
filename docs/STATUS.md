@@ -27,6 +27,18 @@ keeps the tables, the open debt, the next step and the current phase's
 in the phase: impeccable harden / onboard / adapt / audit, the accessibility
 pass, enabling the backup timer and proving a restore, PM2 log rotation, and
 worker failure alerts to system chat. R1 already covers the client-load check.
+
+A **full three-account draft has now been run on production** — thirteen rounds,
+three real Google accounts, all three rosters legal at the end (5 G / 5 F / 3 C
+each) and no repair needed. It found exactly one defect, since fixed: the pool's
+legality preview followed the member *on the clock* rather than the viewer, for
+anybody who could enter somebody else's pick. See "the commissioner legality
+fix" below and the note in [`docs/log/slice-notes.md`](log/slice-notes.md).
+Recorded because it is a real draft against production rather than a scripted
+one, and it caught something no test on the repo was asking about. It does not
+close the human half of 3.7 / D12: three accounts driven by one person is not
+three friends in one room, and that check is still open.
+
 The season-surface rollout
 ([U4](https://github.com/andrius-burba-94/eurovafliai/issues/94)) has landed.
 The draft-room rollout
@@ -47,6 +59,19 @@ one night. Phase 6 keepers stay luxury. Phase 7 AI is not next. Phase 3 is
 closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
 it feels right with friends in one room remains human. Backups on the VPS are
 live.
+
+## Try it on localhost — the commissioner legality fix
+
+```bash
+npm run dev
+```
+
+Roll and start a two-member draft as the commissioner, then enter a pick for
+the *other* member until one of their position buckets is full. Open the pool
+with `Position C` on: the remaining center reads as yours to take, because it
+is — no "No room", and `Legal for me` keeps it. Tapping the row still asks the
+server, and the server still refuses the pick *for them*. The "You still need"
+line, the radar and the pool now all name one roster: yours.
 
 ## Try it — slice 8.0
 

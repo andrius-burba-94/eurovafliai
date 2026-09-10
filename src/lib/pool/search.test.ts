@@ -272,10 +272,10 @@ describe("selectPool — legality", () => {
     ).toEqual([]);
   });
 
-  it("mutes nothing when nobody is on the clock", () => {
-    // A paused or finished draft has no picker, so there is no roster to be
-    // full. Muting the whole pool because `needs` happened to be absent would
-    // read as "you can take nobody".
+  it("mutes nothing when there is no roster to be full", () => {
+    // The room always has the viewer's own count, so this is the tolerant
+    // branch rather than a state it reaches. Muting the whole pool because
+    // `needs` happened to be absent would read as "you can take nobody".
     const rows = run("", {}, null);
     expect(rows.every((row) => row.noRoom)).toBe(false);
   });

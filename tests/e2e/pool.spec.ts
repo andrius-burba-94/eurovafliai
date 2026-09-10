@@ -245,53 +245,85 @@ test("drafted players are hidden by default, and say who took them when shown", 
   await expect(page.getByTestId(`pick-${taken.id}`)).toHaveCount(0);
 });
 
-test("a position the picker has filled is muted, but still offered to the server", async ({
-  page,
-  context,
-}) => {
-  // 3.2's word is *muted*, not removed: which centers are left matters even
-  // when you cannot take one. And the button stays, because the server is the
-  // authority and a refusal in the league's own words beats a missing control.
-  const { commissioner, league } = await poolLeague("Muted League");
-  const centers = [];
-  for (const label of ["Centrea", "Centreb", "Centrec", "Centred", "Centree"]) {
-    centers.push(await createFoldedPlayer(label, { position: "C" }));
-  }
-  const guards = [
-    await createFoldedPlayer("Guarda", { position: "G" }),
-    await createFoldedPlayer("Guardb", { position: "G" }),
-  ];
+/**
+ * Snake with two members: who owns overall picks 1–8, as an index into the
+ * rolled draft order. Written out because the order is *rolled*, so which of
+ * these two users sits at index 0 changes run to run — every assertion below
+ * has to be built from the viewer's own place in it rather than from a guess.
+ */
+const OWNER = [0, 1, 1, 0, 0, 1, 1, 0];
 
-  await signIn(context, commissioner);
-  await enterDraft(page, league.id);
+/** Where the signed-in member sits in the rolled order. */
+async function viewerIndex(page: Page): Promise<number> {
+  const rows = page.getByTestId("radar-row");
+  await expect(rows).toHaveCount(2);
+  const first = await rows.first().textContent();
+  return first?.includes("· you") ? 0 : 1;
+}
 
-  // Two members and a snake, so the picks go A B B A A B: the *second* member
-  // owns 2, 3 and 6. Three centers into those three slots fills their C bucket
-  // and leaves them on the clock for pick 7. (Written out because the first
-  // version of this test gave picks 1 and 4 to one member — both of which
-  // belong to the member who drafts *first* — and filled nobody's bucket.)
-  const order = [
-    centers[0]!, // 1 · first member
-    centers[1]!, // 2 · second
-    centers[2]!, // 3 · second
-    guards[0]!, // 4 · first
-    guards[1]!, // 5 · first
-    centers[3]!, // 6 · second — their third center
-  ];
-  for (const [index, player] of order.entries()) {
+/**
+ * Draft until `target` is on the clock holding three centers.
+ *
+ * Their own picks take centers; everybody else's take guards. Stops on the slot
+ * *before* target's fourth pick, so the room under test is the one where a
+ * bucket is full and its owner has to pick anyway.
+ */
+async function fillCentersThenStop(
+  page: Page,
+  target: number,
+  centers: { id: string }[],
+  guards: { id: string }[],
+) {
+  let center = 0;
+  let guard = 0;
+  for (const [index, owner] of OWNER.entries()) {
+    if (owner === target && center === 3) return;
+    const player = owner === target ? centers[center++]! : guards[guard++]!;
     await draftPlayer(page, player.id);
     await expect(page.getByTestId(`board-slot-${index + 1}`)).toHaveAttribute(
       "data-state",
       "filled",
     );
   }
+  throw new Error("ran out of slots before the target was back on the clock");
+}
 
-  // Pick 7 belongs to the member now holding three centers, so the fifth
-  // center is muted — for them, not for the commissioner looking at the screen.
+async function mutedLeague(name: string) {
+  const { commissioner, league } = await poolLeague(name);
+  // Four centers, so filling a bucket with three leaves exactly one to assert
+  // against, and four guards, which is the most either branch of `OWNER` needs.
+  const centers = [];
+  for (const label of ["Centrea", "Centreb", "Centrec", "Centred"]) {
+    centers.push(await createFoldedPlayer(label, { position: "C" }));
+  }
+  const guards = [];
+  for (const label of ["Guarda", "Guardb", "Guardc", "Guardd"]) {
+    guards.push(await createFoldedPlayer(label, { position: "G" }));
+  }
+  return { commissioner, league, centers, guards };
+}
+
+test("a position the viewer has filled is muted, but still offered to the server", async ({
+  page,
+  context,
+}) => {
+  // 3.2's word is *muted*, not removed: which centers are left matters even
+  // when you cannot take one. And the button stays, because the server is the
+  // authority and a refusal in the league's own words beats a missing control.
+  const { commissioner, league, centers, guards } =
+    await mutedLeague("Muted League");
+
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  await fillCentersThenStop(page, await viewerIndex(page), centers, guards);
+
+  // The viewer holds three centers and is on the clock, so the fourth center is
+  // muted for them.
   await page.getByTestId("filter-position-C").click();
   await expect(rows(page)).toHaveCount(1);
   const remaining = rows(page).first();
-  await expect(remaining).toContainText("Centree");
+  await expect(remaining).toContainText("Centred");
   await expect(page.getByTestId("pool-no-room")).toBeVisible();
 
   // The button is still there, and the server still says no — in its words,
@@ -312,6 +344,47 @@ test("a position the picker has filled is muted, but still offered to the server
   // And "legal for me" is what removes them, opt in.
   await page.getByTestId("filter-legal-only").click();
   await expect(rows(page)).toHaveCount(0);
+});
+
+test("somebody else's full bucket does not mute the commissioner's own pool", async ({
+  page,
+  context,
+}) => {
+  // The production bug from the first full three-account run. `canPick` is
+  // permanently true for a commissioner — they may enter anyone's pick — and
+  // the pool used to read its legality off the member on the clock whenever it
+  // was. So a commissioner spent the whole draft looking at somebody else's
+  // roster: in round thirteen the room told them "you still need 1 C" over a
+  // pool where every center was dimmed and only forwards were legal, and the
+  // forwards were the one thing they were full at.
+  //
+  // The needs line, the radar and the pool now all read the viewer's roster.
+  const { commissioner, league, centers, guards } =
+    await mutedLeague("Other Bucket League");
+
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const you = await viewerIndex(page);
+  await fillCentersThenStop(page, you === 0 ? 1 : 0, centers, guards);
+
+  // The *other* member is on the clock holding three centers. The viewer holds
+  // guards only, so the last center is theirs to take and must read that way.
+  await page.getByTestId("filter-position-C").click();
+  await expect(rows(page)).toHaveCount(1);
+  const remaining = rows(page).first();
+  await expect(remaining).toContainText("Centred");
+  await expect(page.getByTestId("pool-no-room")).toHaveCount(0);
+  await page.getByTestId("filter-legal-only").click();
+  await expect(rows(page)).toHaveCount(1);
+
+  // Which does not make it a legal pick *for the member on the clock* — the
+  // server is still the only authority on that, and it still refuses in the
+  // league's own words. That is the trade: the room stops guessing on somebody
+  // else's behalf, and the refusal arrives when the pick is actually attempted.
+  await remaining.getByRole("button").click();
+  await page.getByTestId("confirm-pick-go").click();
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(/all the Cs/i);
 });
 
 test("the keyboard arms a pick and never lands one on its own", async ({

@@ -200,10 +200,15 @@ export function selectPool({
   filters: PoolFilters;
   query: string;
   /**
-   * How many slots the *picker* has left per position — the member on the
-   * clock, not necessarily the viewer, because a manager entering a pick for a
-   * dead phone needs that member's legality and not their own. Null when nobody
-   * is on the clock, which mutes nothing.
+   * How many slots the **viewer** has left per position.
+   *
+   * The viewer's own roster, never the on-clock member's. Deciding it per
+   * picker is what let a commissioner's pool dim the position they still needed
+   * and light up the one they were full at, for the whole of somebody else's
+   * turn — the room's own "you still need" line was reading a different roster
+   * from the pool underneath it. Null still mutes nothing, but the room no
+   * longer passes it: a paused draft has no picker, and the viewer has a roster
+   * either way.
    */
   needs: Record<Position, number> | null;
   /** A prebuilt index over `pool`. Built here if absent, which tests do. */

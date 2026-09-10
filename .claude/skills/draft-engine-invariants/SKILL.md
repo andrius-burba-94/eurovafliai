@@ -111,6 +111,15 @@ that blocks a manual override.
 - **The sweep is app-global.** `sweepOnce` looks for every live draft. From a
   spec, script or REPL, pass `onlyDraft` with the id under test
   (`tests/e2e/worker.spec.ts`).
+- **`canPick` says "may enter a pick", never "whose legality to show".** It is
+  `isYourTurn || canManage`, so it is permanently true for a commissioner or a
+  deputy. Reading the legality preview off it made the pool mute against
+  whoever was on the clock for the whole draft, while the "you still need" line
+  and the radar beside it read the viewer's own roster. Found on the first full
+  three-account production run: round thirteen said "you still need 1 C" over a
+  pool where every center was dimmed and only forwards were legal. The pool
+  takes `yourNeeds` and nothing else — on your own turn the picker *is* you, so
+  there is nothing to branch on.
 - **Never assume who the roll put first.** Draft order comes from a random seed.
   Read the banner and branch, or assert the biconditional (the "for whom" line
   exists **iff** it is not your turn).

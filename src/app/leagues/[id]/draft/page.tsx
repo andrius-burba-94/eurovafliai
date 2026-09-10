@@ -286,7 +286,6 @@ export default async function DraftPage({
               view={{
                 pool: view.pool,
                 isYourTurn,
-                clockNeeds: view.clockNeeds,
                 yourNeeds,
                 clockMemberName: onClock?.memberName ?? null,
                 sheet: view.sheet,
