@@ -11,6 +11,7 @@ import {
   superuser,
   trackLeague,
 } from "./helpers/session";
+import { expectNotFound } from "./helpers/not-found";
 
 /**
  * Creating and joining a league, driven through the UI as two different signed-in
@@ -171,18 +172,11 @@ test("someone else's lobby is not reachable by URL", async ({
   // The read rule refuses it, and the page answers "not found" rather than
   // "forbidden": confirming a league exists would let anyone probe for it.
   await page.goto(`/leagues/${id}`);
-  await expectNotFound(page);
+  await expectNoLobby(page);
 });
 
-/**
- * The lobby route streams behind a `loading.tsx`, so by the time `notFound()`
- * is reached the 200 and the shell have already gone out; the not-found page
- * arrives in the stream. The status is no longer the fact to assert — the
- * rendered outcome is, and it is the same for a league that does not exist
- * and one that is not yours, which is the property the two callers care about.
- */
-async function expectNotFound(page: Page) {
-  await expect(page.getByText("This page could not be found")).toBeVisible();
+async function expectNoLobby(page: Page) {
+  await expectNotFound(page);
   await expect(page.getByTestId("lobby")).toHaveCount(0);
 }
 
@@ -302,7 +296,7 @@ test("the commissioner deletes the league, board and all", async ({
   // delete a member while one does.
   await expect(page).toHaveURL("/");
   await page.goto(`/leagues/${league.id}`);
-  await expectNotFound(page);
+  await expectNoLobby(page);
 });
 
 test("a deputy is trusted to help run the league, not to end it", async ({

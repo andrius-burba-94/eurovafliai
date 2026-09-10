@@ -1,6 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Bank, Sheet, TopRail } from "@/components/board";
+import {
+  BackLink,
+  Bank,
+  Door,
+  EmptyNotice,
+  Sheet,
+  Slots,
+  TopRail,
+} from "@/components/board";
 import {
   resolveSeason,
   SeasonControl,
@@ -73,15 +81,35 @@ export default async function StandingsPage({
 
         {emptyDraft ? (
           <Bank framed label="The table">
-            <p className="text-ink-soft" data-testid="standings-empty">
-              The draft is not complete, so there is no table yet.
-            </p>
+            <EmptyNotice testId="standings-empty">
+              The draft is not complete, so there is no table yet. Rank lands
+              after the last pick, from real Euroleague nights.
+            </EmptyNotice>
+            <Slots>
+              <Door
+                href={`/leagues/${id}`}
+                title="The lobby"
+                description="Finish the draft, then come back for the table."
+                action="Open"
+                testId="standings-empty-lobby"
+              />
+            </Slots>
           </Bank>
         ) : emptyScores ? (
           <Bank framed label="The table">
-            <p className="text-ink-soft" data-testid="standings-empty">
-              No box scores counted for {season} yet.
-            </p>
+            <EmptyNotice testId="standings-empty">
+              No box scores counted for {season} yet. The table fills after a
+              counted round.
+            </EmptyNotice>
+            <Slots>
+              <Door
+                href={`/leagues/${id}`}
+                title="The lobby"
+                description="The season board is already open. Nights land on their own."
+                action="Open"
+                testId="standings-empty-lobby"
+              />
+            </Slots>
           </Bank>
         ) : (
           <StandingsTable

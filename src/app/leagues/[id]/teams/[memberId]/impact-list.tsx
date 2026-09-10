@@ -1,6 +1,8 @@
 import {
   Bank,
   CardName,
+  Door,
+  EmptyNotice,
   Slot,
   Slots,
 } from "@/components/board";
@@ -15,16 +17,34 @@ function signedPir(value: number): string {
 export function ImpactList({
   deals,
   teamName,
+  leagueId,
+  canManage,
+  season,
 }: {
   deals: readonly DealView[];
   teamName: string;
+  leagueId: string;
+  canManage: boolean;
+  season: boolean;
 }) {
   if (deals.length === 0) {
     return (
       <Bank framed label="Transactions" aside="0">
-        <p className="text-ink-soft" data-testid="impact-empty">
-          No trades recorded for this roster yet.
-        </p>
+        <EmptyNotice testId="impact-empty">
+          No trades recorded for this roster yet. Friends agree out loud; the
+          commissioner writes the swap so scoring follows the new squad.
+        </EmptyNotice>
+        {canManage && season ? (
+          <Slots>
+            <Door
+              href={`/leagues/${leagueId}/transactions/new`}
+              title="Record a transaction"
+              description="Write the trade, add or drop the room already agreed."
+              action="Record"
+              testId="impact-empty-record"
+            />
+          </Slots>
+        ) : null}
       </Bank>
     );
   }
@@ -44,7 +64,9 @@ export function ImpactList({
                   {formatSignedTenths(deal.deltaTenths)}
                 </span>
               </span>
-              <p className="text-sm text-ink-soft">{deal.sentence}</p>
+              <p className="min-w-0 text-sm break-words text-ink-soft">
+                {deal.sentence}
+              </p>
               <p className="slot-label">PIR {signedPir(deal.deltaPir)}</p>
               {deal.byRound.length > 0 ? (
                 <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums text-ink-soft">

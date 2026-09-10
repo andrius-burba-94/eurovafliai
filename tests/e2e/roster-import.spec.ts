@@ -9,6 +9,7 @@ import {
   signIn,
   TEST_CLUB,
 } from "./helpers/session";
+import { expectNotFound } from "./helpers/not-found";
 
 /**
  * The CSV front door — slice 2.1b.
@@ -36,7 +37,7 @@ test("a member with no league of their own cannot reach the importer", async ({
 
   await page.goto("/players/import");
   // notFound, not a refusal: the page does not confirm it exists.
-  await expect(page.getByText(/404|not found/i).first()).toBeVisible();
+  await expectNotFound(page);
 });
 
 test("a commissioner previews a CSV without writing anything", async ({

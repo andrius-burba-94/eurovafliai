@@ -9,6 +9,7 @@ import {
   superuser,
   TEST_CLUB,
 } from "./helpers/session";
+import { expectNotFound } from "./helpers/not-found";
 
 /**
  * Importing box scores — slice 4.1.
@@ -95,7 +96,7 @@ test("a member with no league of their own cannot reach the importer", async ({
 
   await page.goto("/stats/import");
   // notFound, not a refusal — the page does not confirm it exists.
-  await expect(page.getByText(/404|not found/i).first()).toBeVisible();
+  await expectNotFound(page);
 });
 
 test("a commissioner reads a sheet without storing anything", async ({

@@ -23,19 +23,22 @@ keeps the tables, the open debt, the next step and the current phase's
 
 **Next up: the rest of Phase 8.** **8.0 has landed** (deploy script hygiene:
 [#34](https://github.com/andrius-burba-94/eurovafliai/issues/34),
-[#35](https://github.com/andrius-burba-94/eurovafliai/issues/35)). Still open
-in the phase: impeccable harden / onboard / adapt / audit, the accessibility
-pass, enabling the backup timer and proving a restore, PM2 log rotation, and
-worker failure alerts to system chat. R1 already covers the client-load check.
+[#35](https://github.com/andrius-burba-94/eurovafliai/issues/35)) and **8.5 has
+landed** (impeccable harden / onboard / adapt / audit). Still open in the phase:
+**8.1** enabling the backup timer and proving a restore, **8.2** worker failure
+alerts to system chat, **8.3** PM2 log rotation, and **8.4** the accessibility
+pass. R1 already covers the client-load check.
 
-A **full three-account draft has now been run on production** — thirteen rounds,
-three real Google accounts, all three rosters legal at the end (5 G / 5 F / 3 C
-each) and no repair needed. It found exactly one defect, since fixed: the pool's
-legality preview followed the member *on the clock* rather than the viewer, for
-anybody who could enter somebody else's pick. See "the commissioner legality
-fix" below and the note in [`docs/log/slice-notes.md`](log/slice-notes.md).
-Recorded because it is a real draft against production rather than a scripted
-one, and it caught something no test on the repo was asking about. It does not
+A **full three-account draft has now been run on production, across several real
+devices** — thirteen rounds, three real Google accounts, all three rosters legal
+at the end (5 G / 5 F / 3 C each) and no repair needed. It found exactly one
+defect, since fixed: the pool's legality preview followed the member *on the
+clock* rather than the viewer, for anybody who could enter somebody else's pick.
+See "the commissioner legality fix" below and the note in
+[`docs/log/slice-notes.md`](log/slice-notes.md). Recorded because it is a real
+draft against production rather than a scripted one, and it caught something no
+test on the repo was asking about. Real devices rather than browser profiles is
+what **closes Phase 1's DoD** and the two-device debt below. It still does not
 close the human half of 3.7 / D12: three accounts driven by one person is not
 three friends in one room, and that check is still open.
 
@@ -57,8 +60,20 @@ landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft
 Euroleague round, the team page shows live deltas, and **This round** recaps
 one night. Phase 6 keepers stay luxury. Phase 7 AI is not next. Phase 3 is
 closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
-it feels right with friends in one room remains human. Backups on the VPS are
-live.
+it feels right with friends in one room remains human. The backup timer is
+committed; enabling it on the box is 8.1.
+
+## Try it on localhost — 8.5
+
+```bash
+npm run dev
+```
+
+Sign in at `http://localhost:3007`. With no leagues, the empty slot names Start
+and Join below it. Open `/leagues/not-a-real-id`: the board says the slot is
+missing and **Your leagues** is the way back (the same page a stranger sees on
+someone else's lobby). On a league still in setup, Standings and This round
+point back to the lobby instead of a blank table.
 
 ## Try it on localhost — the commissioner legality fix
 
@@ -249,7 +264,7 @@ has to rank on. Then:
 
 ```bash
 npm run lint:dead        # knip: unused files, exports, dependencies — now a CI job
-npm run test             # 913 unit tests; memberships, standings join, and the snapshot recompute are covered now
+npm run test             # 983 unit tests; memberships, standings join, and the snapshot recompute are covered now
 CI=1 npm run test:e2e    # what CI runs: Playwright against `next start` over a fresh build
 ```
 
@@ -261,7 +276,7 @@ In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
 
-`npm run test` is **955** unit tests after 5.4.
+`npm run test` is **983** unit tests after 8.5.
 
 ## Try it on localhost — slice 4.2
 
@@ -379,12 +394,13 @@ npm run dev`, and PRs go green through CI.
 
 ## Phase 1 — Walking skeleton: auth, league, lobby, deployed
 
-**Deployed.** DoD — *"phone + PC, two Google accounts, live lobby on the
-production subdomain"* — is met in every mechanical sense: the site serves over
-TLS, and realtime is confirmed working through the production nginx proxy. What
-has *not* happened is the human half: two people, two devices, one lobby. Until
-somebody does that, Phase 1 is complete-pending-confirmation rather than
-complete.
+**Done.** DoD — *"phone + PC, two Google accounts, live lobby on the production
+subdomain"* — is met. The site serves over TLS, realtime is confirmed through
+the production nginx proxy, and the three-account production draft recorded at
+the top of this file ran across several real devices, the board updating on each
+of them. One person drove all of them, so this closes Phase 1's device claim and
+**not** the separate question 3.7 / D12 asks: whether the night feels right with
+friends in one room.
 
 **Production:** `https://eurovafliai.labrium.online`, on the shared Hostinger
 box `srv837724` — app on `127.0.0.1:3007`, PocketBase on `127.0.0.1:8095`.
@@ -425,9 +441,10 @@ with humans on two devices**, with a rollback in the middle. Until somebody runs
 it, this phase was complete-pending-rehearsal. It is now simply complete, and
 the rehearsal lives in 3.7.
 
-**Phase 1's two-device confirmation is a separate row and is still open**, listed
-under Open debt. It is a smaller thing — two accounts, two devices, one lobby —
-and most of it has already happened incidentally.
+**Phase 1's two-device confirmation was a separate, smaller row — two accounts,
+two devices, one lobby — and it is now closed** by the three-account production
+draft, which ran on several real devices. Its row under Open debt records what
+that does and does not prove.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
@@ -495,11 +512,17 @@ season two is on the horizon.
 
 ## Phase 8 — Hardening & ops polish
 
-**Started.** 8.0 is in. The rest of the blueprint's Phase 8 list is still open.
+**Started.** 8.0 and 8.5 are in. The ops half of the blueprint's Phase 8 list —
+backups, log hygiene, worker alerts — and the accessibility pass are still open.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34 and #35. The deploy that *ships* this still runs the old script; the following deploy is the proof |
+| 8.1 Nightly backup + restore drill | todo | — | The timer is committed and retains 14 archives; it is not installed on the VPS |
+| 8.2 Worker failure → system chat | todo | — | |
+| 8.3 PM2 log rotation | todo | — | |
+| 8.4 Accessibility pass | todo | — | Focus order in the draft room. The clock's live-region announcements already shipped with 3.7 |
+| **8.5 Impeccable harden / onboard / adapt / audit** | done | — | A board-shaped `not-found` (missing and forbidden still look the same), Archivo loaded on `global-error` because that file replaces the root layout, a 44×44 `retry`, and `break-words` / `min-w-0` on every name that can be a long one. Empty Banks name the next act as a sibling `Door` in a `Slots` run, never a nested framed Bank, and their `data-testid` stays on the sentence so the framed-Bank E2E assertions still hold. **No tours** — PRODUCT rules out onboarding hand-holding, so first-run is the empty slot itself. English-only, so i18n and RTL were skipped deliberately and the budget went to overflow and recovery. Audit 17/20 |
 
 ## Phases 5–8
 
@@ -508,7 +531,7 @@ season two is on the horizon.
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
-| 8 — Hardening & ops polish | **started** — 8.0 is deploy script hygiene |
+| 8 — Hardening & ops polish | **started** — 8.0 and 8.5 are in; 8.1–8.4 remain |
 
 ---
 
@@ -555,7 +578,7 @@ touch should be fixed by that slice rather than deferred again.
 | # | What | Blocks |
 |---|---|---|
 | **Local PocketBase drifts from `main`** | A dev database only applies migrations on boot, so a checkout that has been running across a schema change silently tests the old shape. It cost a confusing run of lobby-spec failures. `npm run dev` after pulling is the whole fix; the symptom is `pb:verify` disagreeing with CI | Nothing; a time sink |
-| **Two-device confirmation** | Most of the way there. Two Google accounts have now joined one production league, rolled an order and started a draft — and the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board, so the live surface is confirmed by more than a protocol check. What is not recorded is whether that was two devices (a phone and a PC) rather than two browsers on one machine, which is the literal wording of Phase 1's DoD. One deliberate run closes this | Declaring Phase 1 finished |
+| **Two-device confirmation** | Closed, and recorded here so the thread is not re-opened. Phase 1's DoD wanted real devices rather than two browsers on one machine, because the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board. The three-account production draft ran on several real devices and every one of them drew the board as picks landed — which is also how the commissioner legality defect was spotted. What it is **not** is the human half of 3.7 / D12: one person drove all the devices, so "does draft night feel right with friends in one room" is still unanswered and still needs other people | Nothing; Phase 1 is complete |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
 | **A partial CSV still empties the pool** | Mitigated, not removed. Any player missing from an applied sheet is marked `left`, and beyond a quarter of the pool the upload now demands a tick-box (`assessDepartures`) and the sync script demands `--allow-departures`. Below that threshold a partial sheet still departs people quietly. Departures are a status and never a deletion, and the next sync revives them — which is exactly how this was found | Nothing; a known edge |
 | **Every alpha boundary is measured now — one is not** | Closed, and recorded here because the thread ran across four slices and the next person should not re-open it: 3.3 darkened the position letter (`pos-g`/`pos-f` to L 0.49) after `tokens.test.ts` learned to composite; 3.2's critique corrected that compositing to gamma-encoded sRGB, which is how a browser actually blends and is ~0.2 *stricter*; and #48/#49 fixed the last three sub-floor boundaries — the button border (2.10:1), the patch border (2.22–2.26:1) and an input's ruled line (1.87:1, the lowest in the app, and the one DESIGN.md itself calls the whole affordance). All now clear 3:1 and all are asserted. **What is left:** nothing measured. If a new colour or modifier is added, `tokens.test.ts` is where it has to be proved, and `wash()`/`contrastOn2()` are the helpers for it | Nothing |
@@ -588,7 +611,7 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **913 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, and the idempotent snapshot recompute |
+| `npm run test` | **983 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, and the idempotent snapshot recompute |
 | `npm run build` | pass |
 | `npm run test:e2e` | Roster page + access boundary, standings one-round, and start-over membership cleanup pass on chromium and Pixel 7. Full suite in CI |
 | `npm run pb:verify` | **126 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, and superuser-only writes |

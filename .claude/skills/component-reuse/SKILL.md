@@ -39,7 +39,7 @@ change. Do not leave two versions.
 
 | Module | Role |
 |---|---|
-| `src/components/board.tsx` | Slot vocabulary and state language (`waiting`, `filled`, `transit`, …). Server-safe. Maps states to complete CSS rules — never interpolate class names. |
+| `src/components/board.tsx` | Slot vocabulary and state language (`waiting`, `filled`, `transit`, …). Server-safe. Maps states to complete CSS rules — never interpolate class names. `EmptyNotice` is the empty-state sentence; keep `data-testid` on it so E2E parent selectors remain the Bank. |
 | `src/components/draft-board.tsx` | Draft-night board using that vocabulary. |
 | `src/components/board-scroll.tsx` | Scrollport: `tabIndex={0}`, `role="region"`, `aria-label`. |
 | `src/components/submit-button.tsx` | The primary act. Marker-red is for the act, not for leftover state. |

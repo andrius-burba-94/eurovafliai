@@ -99,6 +99,34 @@ export function LoadingSheet({ label }: { label: string }) {
 }
 
 /**
+ * Marker-struck recovery control for `error.tsx` / `global-error.tsx`.
+ * `SubmitButton` needs a form; these pages retry in place.
+ */
+export const retryButtonStyles =
+  "min-h-11 min-w-11 w-full border-2 border-live px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] text-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live sm:w-auto";
+
+/**
+ * First-use / no-data copy inside a Bank. Test ids stay on this `<p>` so E2E
+ * parent selectors still land on the framed Bank rather than a nested wrapper.
+ */
+export function EmptyNotice({
+  children,
+  testId,
+}: {
+  children: ReactNode;
+  testId?: string;
+}) {
+  return (
+    <p
+      data-testid={testId}
+      className="min-w-0 text-sm break-words text-ink-soft"
+    >
+      {children}
+    </p>
+  );
+}
+
+/**
  * A section of the board. The heading is a slot label, so a section reads as a
  * column head on the wall rather than as a card in a stack of cards.
  */
@@ -229,7 +257,9 @@ export function Door({
       >
         <span className="flex min-w-0 flex-col gap-1">
           <CardName>{title}</CardName>
-          <span className="text-sm text-ink-soft">{description}</span>
+          <span className="min-w-0 text-sm break-words text-ink-soft">
+            {description}
+          </span>
         </span>
         <span
           className={`slot-label shrink-0 ${
@@ -302,7 +332,7 @@ export function CardName({
 }) {
   return (
     <span
-      className={`${scale === "slot" ? "text-sm" : "text-base"} font-semibold uppercase tracking-[0.06em]`}
+      className={`${scale === "slot" ? "text-sm" : "text-base"} min-w-0 break-words font-semibold uppercase tracking-[0.06em]`}
     >
       {children}
     </span>
