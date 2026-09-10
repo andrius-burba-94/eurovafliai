@@ -164,6 +164,24 @@ elif [ -n "$(find "$NEWEST_BACKUP" -mmin +2880 2>/dev/null)" ]; then
   warn "The timer may be enabled but failing — check: journalctl -u eurovafliai-backup.service"
 fi
 
+# ── 6c. Tell me if PM2 log rotation is missing or drifted ────────────────────
+#
+# PM2 itself never rotates. pm2-logrotate is a daemon-global module and would
+# change logging for every app on this shared box, so it is not an option.
+# out_file/error_file in ecosystem.config.js need a delete+start to take
+# effect (reload does not re-open paths). The committed logrotate file is the
+# one safe door: scoped to eurovafliai-*.log, copytruncate so PM2 keeps the
+# same fd. Installed by hand to /etc/logrotate.d/ — warn until it matches.
+LOGROTATE_LIVE="/etc/logrotate.d/eurovafliai"
+LOGROTATE_GIT="$APP_DIR/deploy/logrotate/eurovafliai"
+if [ ! -f "$LOGROTATE_LIVE" ]; then
+  warn "No logrotate config at $LOGROTATE_LIVE — PM2 logs for eurovafliai-* are unbounded."
+  warn "Install steps: docs/runbooks/vps-setup.md §9"
+elif ! cmp -s "$LOGROTATE_LIVE" "$LOGROTATE_GIT"; then
+  warn "Installed logrotate config differs from deploy/logrotate/eurovafliai."
+  warn "Reconcile, then: logrotate -d $LOGROTATE_LIVE"
+fi
+
 # ── 7. Prove it actually serves ──────────────────────────────────────────────
 say "Smoke test"
 for _ in $(seq 1 30); do

@@ -1,0 +1,13 @@
+# Eurovafliai PM2 logs only — never a sibling app on this shared box.
+# Installed by hand to /etc/logrotate.d/eurovafliai (see docs/runbooks/vps-setup.md).
+# copytruncate is load-bearing: without it PM2 keeps writing the rotated inode
+# and the live log silently stops growing, which looks like a quiet worker.
+/root/.pm2/logs/eurovafliai-*.log {
+	daily
+	rotate 14
+	compress
+	delaycompress
+	missingok
+	notifempty
+	copytruncate
+}

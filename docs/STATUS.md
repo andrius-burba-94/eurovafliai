@@ -21,9 +21,9 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: the rest of Phase 8.** **8.0**, **8.1**, **8.2** and **8.5** have
-landed. Still open in the phase: **8.3** PM2 log rotation, and **8.4** the
-accessibility pass. R1 already covers the client-load check.
+**Next up: the rest of Phase 8.** **8.0**, **8.1**, **8.2**, **8.3** and
+**8.5** have landed. Still open in the phase: **8.4** the accessibility pass.
+R1 already covers the client-load check.
 
 A **full three-account draft has now been run on production, across several real
 devices** — thirteen rounds, three real Google accounts, all three rosters legal
@@ -59,6 +59,23 @@ closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
 it feels right with friends in one room remains human. The backup timer and
 restore drill are in git; enabling the units on the VPS is the human half of
 8.1 and is recorded in the open-debt row below until it is done.
+
+## Try it on localhost — 8.3
+
+```bash
+# No VPS required to prove the file:
+cat deploy/logrotate/eurovafliai
+npm test -- tests/unit/logrotate-config.test.ts
+```
+
+On the VPS, copy the file and dry-run before enabling:
+
+```bash
+scp deploy/logrotate/eurovafliai hstgr:/etc/logrotate.d/eurovafliai
+ssh hstgr 'logrotate -d /etc/logrotate.d/eurovafliai'
+```
+
+The next `deploy.sh` must stop warning about a missing logrotate config.
 
 ## Try it on localhost — 8.2
 
@@ -536,15 +553,14 @@ season two is on the horizon.
 
 ## Phase 8 — Hardening & ops polish
 
-**Started.** 8.0, 8.1, 8.2 and 8.5 are in. Log hygiene and the accessibility
-pass are still open.
+**Started.** 8.0–8.3 and 8.5 are in. The accessibility pass is still open.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34 and #35. The deploy that *ships* this still runs the old script; the following deploy is the proof |
 | **8.1 Nightly backup + restore drill** | done | — | Timer + oneshot were already committed. This slice adds `scripts/restore-drill.sh` (`npm run pb:restore-drill`), deploy warnings when the timer is off or the newest archive is older than 48h, the runbook install steps, and a unit-file test that keeps the timer name and `Persistent=true` honest. **Human half still open:** install and enable the units on the VPS (open-debt row below) |
 | **8.2 Draft-breaking failure → commissioner banner** | done | — | `stuck_reason` / `stuck_since` on `drafts`; sweep writes on no-legal / board-hole / three consecutive throws, clears when it can move again; commissioner-only `Correction` in the room. Not chat — `chat_messages` has no per-member visibility. Stats failures stay in the log |
-| 8.3 PM2 log rotation | todo | — | |
+| **8.3 PM2 log rotation** | done | — | `deploy/logrotate/eurovafliai` → `/etc/logrotate.d/eurovafliai`, glob `/root/.pm2/logs/eurovafliai-*.log` only, `copytruncate` required. `pm2-logrotate` rejected (daemon-global on a shared box); `out_file` rejected (needs delete+start). Deploy warns on missing/drift. **Human half:** copy the file and dry-run on the VPS |
 | 8.4 Accessibility pass | todo | — | Focus order in the draft room. The clock's live-region announcements already shipped with 3.7 |
 | **8.5 Impeccable harden / onboard / adapt / audit** | done | — | A board-shaped `not-found` (missing and forbidden still look the same), Archivo loaded on `global-error` because that file replaces the root layout, a 44×44 `retry`, and `break-words` / `min-w-0` on every name that can be a long one. Empty Banks name the next act as a sibling `Door` in a `Slots` run, never a nested framed Bank, and their `data-testid` stays on the sentence so the framed-Bank E2E assertions still hold. **No tours** — PRODUCT rules out onboarding hand-holding, so first-run is the empty slot itself. English-only, so i18n and RTL were skipped deliberately and the budget went to overflow and recovery. Audit 17/20 |
 
@@ -555,7 +571,7 @@ pass are still open.
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
-| 8 — Hardening & ops polish | **started** — 8.0–8.2 and 8.5 are in; 8.3–8.4 remain |
+| 8 — Hardening & ops polish | **started** — 8.0–8.3 and 8.5 are in; 8.4 remains |
 
 ---
 
@@ -624,6 +640,7 @@ touch should be fixed by that slice rather than deferred again.
 | **A quarantine needs somebody to notice it** | 4.2 stops a sync splitting a player in two, and the price is that the pair stays unresolved until a person opens `/players/mapping`. Nothing chases them: the sync script prints the held-back pairs and the page lists them, but no chat announcement, no email, nothing on the lobby. Fifteen unanswered renames means fifteen players whose display name is stale and whose box scores cannot attach — which matters from 24 September, not before. The cheapest fix is a count somewhere a commissioner already looks | Nothing yet; a queue with no doorbell |
 | **A rename is only ever proposed against the *same club*** | `proposeRenames` never pairs across clubs, which is what stops it merging two unrelated players who share a surname. The cost is the case it cannot see: a player who was re-registered under a passport name **and** transferred between two syncs. That is a departure plus an add, as before 4.2, and the duplicate has to be spotted by eye. Rare, and the alternative — fuzzy matching across the whole 330-player pool — is how you merge the wrong Nunn | Nothing; a narrow blind spot, chosen over a wide one |
 | **Enable backups on the VPS** | 8.1 landed the restore drill and the deploy warnings; the units are still not installed on the box. Follow `docs/runbooks/vps-setup.md` §8, then confirm the next deploy log is quiet about `eurovafliai-backup.timer`. Archives live on the same disk as the database (PocketBase's backup API), so this protects against a bad delete and not against disk loss | Drill proved locally; no live VPS backup yet |
+| **Install PM2 logrotate on the VPS** | 8.3 landed the config and the deploy warning; `/etc/logrotate.d/eurovafliai` is still not on the box. Follow `docs/runbooks/vps-setup.md` §9 (`scp` + `logrotate -d`), then confirm the next deploy log is quiet about logrotate | Config proved by unit test; not installed on the box |
 
 ## Verification status
 
