@@ -3,6 +3,19 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.3 has landed in git; copying the file onto the VPS is the human half.** PM2
+writes `eurovafliai-{web,worker}-{out,error}.log` with no size bound. Two doors
+were rejected on purpose: `pm2 install pm2-logrotate` is a daemon-global
+module and would change logging for the eight sibling apps on this box, and
+`out_file` / `error_file` in `ecosystem.config.js` need a `pm2 delete` +
+`start` to take effect (`reload` does not re-open paths) — an outage to move a
+file. So the slice ships `deploy/logrotate/eurovafliai` for
+`/etc/logrotate.d/eurovafliai`, globbing only `/root/.pm2/logs/eurovafliai-*.log`,
+with `copytruncate` as the load-bearing line (without it PM2 keeps writing the
+rotated inode and the live log silently stops growing). `deploy.sh` warns when
+the file is missing or drifted; the runbook §9 has the install and dry-run
+steps; a unit test keeps `copytruncate` and the scoped glob honest.
+
 **8.2 has landed: a draft-breaking failure reaches the commissioner, not
 chat.** The sweep already refused a hole in the board and a pool with no legal
 player, and logged once via an in-memory set that a restart cleared. Nothing on
