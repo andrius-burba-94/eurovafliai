@@ -264,7 +264,7 @@ has to rank on. Then:
 
 ```bash
 npm run lint:dead        # knip: unused files, exports, dependencies — now a CI job
-npm run test             # 913 unit tests; memberships, standings join, and the snapshot recompute are covered now
+npm run test             # 983 unit tests; memberships, standings join, and the snapshot recompute are covered now
 CI=1 npm run test:e2e    # what CI runs: Playwright against `next start` over a fresh build
 ```
 
@@ -276,7 +276,7 @@ In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
 
-`npm run test` is **955** unit tests after 5.4.
+`npm run test` is **983** unit tests after 8.5.
 
 ## Try it on localhost — slice 4.2
 
@@ -611,7 +611,7 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **913 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, and the idempotent snapshot recompute |
+| `npm run test` | **983 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, and the idempotent snapshot recompute |
 | `npm run build` | pass |
 | `npm run test:e2e` | Roster page + access boundary, standings one-round, and start-over membership cleanup pass on chromium and Pixel 7. Full suite in CI |
 | `npm run pb:verify` | **126 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, and superuser-only writes |
