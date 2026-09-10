@@ -862,9 +862,9 @@ test("cancel and Escape both put a chosen player back", async ({
   await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("confirm-pick-go")).toHaveCount(0);
-  // Focus goes back where choosing happens rather than to the document — the
-  // defect 3.4b and 3.5 each shipped once.
-  await expect(page.getByTestId("pool-search")).toBeFocused();
+  // Focus returns to the armed row, not to search — so Tab does not walk every
+  // filter and every earlier row again (slice 8.4).
+  await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeFocused();
 
   await expect(
     page.locator('[data-board-slot][data-state="filled"]'),

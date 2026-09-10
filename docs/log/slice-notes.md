@@ -3,6 +3,25 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.4 has landed: the draft room is a first-class page for assistive tech.**
+Three defects, one missing measurement. The room was the only surface without
+an `h1` — all three band states titled as a plain `<p>`, while every other page
+had exactly one. Arming a row threw focus into the sticky confirm, and cancel
+or Escape put it on `pool-search`, so Tab walked every filter and every earlier
+row again; focus now returns to the armed row's Choose button (the cheat
+sheet's `focusWanted` idiom), falling back to search only when the row is gone
+because the pick landed. Arrow keys then move focus with the highlight, so
+Enter arms the row you moved to rather than the one Escape left you on. A skip
+link sits first in the root layout, visible on focus, targeting `#main` on
+`Sheet`; `LoadingSheet` stopped rendering a second `<main>` so streaming no
+longer doubles the landmark. Position patches with a spoken label take
+`role="img"` — a bare `span[aria-label]` is prohibited. `@axe-core/playwright`
+asserts no serious or critical violations on login, home, lobby, draft and
+standings — the measurement STATUS already said was missing. The one finding
+axe raised was contrast (`live` on `stock-deep` at 4.49:1): that rule is
+disabled in the suite on purpose and recorded as open debt, because
+`tokens.test.ts` is already the source of truth for every ink/stock pair.
+
 **8.3 has landed in git; copying the file onto the VPS is the human half.** PM2
 writes `eurovafliai-{web,worker}-{out,error}.log` with no size bound. Two doors
 were rejected on purpose: `pm2 install pm2-logrotate` is a daemon-global

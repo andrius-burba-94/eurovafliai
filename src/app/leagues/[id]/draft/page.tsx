@@ -151,9 +151,9 @@ export default async function DraftPage({
               <p className="slot-label">
                 Paused &middot; pick {draft.current_pick}
               </p>
-              <p className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
+              <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
                 The draft is paused
-              </p>
+              </h1>
               {needsLine ? <div className="mt-2">{needsLine}</div> : null}
             </>
           ) : onClock ? (
@@ -161,11 +161,11 @@ export default async function DraftPage({
               <p className="slot-label">
                 Pick {onClock.overallNo} &middot; round {onClock.round}
               </p>
-              <p className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
+              <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
                 {isYourTurn
                   ? "You are on the clock"
                   : `${onClock.memberName} is on the clock`}
-              </p>
+              </h1>
               {/* The clock is the room's, not the picker's: everybody watches
                   the same number run down. It only renders while a draft is
                   live, which is the only state `onClock` is non-null in. */}
@@ -177,9 +177,9 @@ export default async function DraftPage({
           ) : (
             <>
               <p className="slot-label">Complete</p>
-              <p className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em]">
+              <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em]">
                 Every slot is filled
-              </p>
+              </h1>
               {view.you ? (
                 <Link
                   href={`/leagues/${id}/standings`}
