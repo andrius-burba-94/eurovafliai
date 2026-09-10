@@ -29,6 +29,7 @@
     "pb:verify": "tsx --env-file=.env scripts/pb-verify-rules.mjs",
     "pb:verify:oauth2": "tsx --env-file=.env scripts/pb-verify-oauth2-signup.mjs",
     "pb:backup": "tsx --env-file=.env scripts/backup-pocketbase.mts",
+    "pb:restore-drill": "bash scripts/restore-drill.sh",
     "rosters:sync": "tsx --env-file=.env scripts/sync-rosters.mts",
     "seed:members": "tsx --env-file=.env scripts/seed-members.mts",
     "stats:golden": "tsx scripts/fetch-golden-boxscores.mts",

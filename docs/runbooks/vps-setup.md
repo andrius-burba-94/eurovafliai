@@ -179,17 +179,57 @@ ssh hstgr 'pm2 logs eurovafliai-web'
 ## 8. Backups
 
 Nightly `pb_data` backup with retention. **Never a naive `cp` of a live SQLite
-file** — use PocketBase's own backup API, which snapshots consistently:
+file** — use PocketBase's own backup API, which snapshots consistently. The
+units and script are already in the repo:
+
+- `deploy/systemd/eurovafliai-backup.service` — oneshot that runs
+  `scripts/backup-pocketbase.mts` (keeps 14 `eurovafliai-*.zip` archives)
+- `deploy/systemd/eurovafliai-backup.timer` — `03:15` local time,
+  `Persistent=true`, 15-minute jitter so a shared box does not stampede
+
+Install and enable on the VPS (same idiom as §4):
 
 ```bash
-curl -X POST http://127.0.0.1:8095/api/backups \
-  -H "Authorization: $SUPERUSER_TOKEN"
+scp deploy/systemd/eurovafliai-backup.service \
+    deploy/systemd/eurovafliai-backup.timer \
+    hstgr:/etc/systemd/system/
+ssh hstgr 'systemctl daemon-reload && systemctl enable --now eurovafliai-backup.timer'
+ssh hstgr 'systemctl list-timers eurovafliai-backup.timer --no-pager'
 ```
 
-Do a restore drill once. An untested backup is not a backup.
+Prove the oneshot itself once, without waiting for 03:15:
 
-> Not yet implemented. Tracked as debt in `docs/STATUS.md` — it belongs before
-> draft night, not before the first deploy.
+```bash
+ssh hstgr 'systemctl start eurovafliai-backup.service && systemctl status eurovafliai-backup.service --no-pager'
+ssh hstgr 'ls -lt /var/www/eurovafliai/pb/pb_data/backups/eurovafliai-*.zip | head'
+```
+
+`scripts/deploy.sh` warns on every deploy when the timer is not enabled, or when
+the newest archive is older than 48 hours (a timer that is enabled but failing
+would otherwise be silent — the oneshot has no `OnFailure=`).
+
+### Restore drill
+
+An untested backup is not a backup. The drill boots the pinned binary against a
+disposable copy of an archive and runs `pb:verify` — never against the live
+`pb_data`.
+
+Locally (no VPS required to prove the mechanism):
+
+```bash
+npm run pb:backup
+npm run pb:restore-drill -- pb/pb_data/backups/eurovafliai-<stamp>.zip
+```
+
+Against a production archive: scp one zip down, then run the same
+`pb:restore-drill` locally. The archive's superuser must match
+`PB_SUPERUSER_EMAIL` / `PB_SUPERUSER_PASSWORD` in the `.env` you point at it.
+
+Two limits worth knowing, not fixing here: archives land in
+`pb/pb_data/backups/` on the **same disk as the database**, so this protects
+against a bad delete and not against disk loss; and `backup-pocketbase.mts`
+goes through `parseServerEnv`, which also requires the Google OAuth secrets, so
+a `.env` that lost those would fail the backup too.
 
 ## Never patch in production
 

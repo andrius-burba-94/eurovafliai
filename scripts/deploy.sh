@@ -141,6 +141,29 @@ else
   warn "No nginx vhost installed at $NGINX_LIVE — see docs/runbooks/vps-setup.md"
 fi
 
+# ── 6b. Tell me if nightly backups are off or stale ──────────────────────────
+#
+# The units are committed under deploy/systemd/ but installed by hand (same
+# shape as the nginx vhost). A box that never enabled the timer, or a timer that
+# is enabled but failing, would otherwise be silent: the oneshot has no
+# OnFailure=, and nothing else reads pb/pb_data/backups/. Warn here so every
+# deploy surfaces the gap. See docs/runbooks/vps-setup.md §8.
+BACKUP_TIMER="eurovafliai-backup.timer"
+BACKUP_DIR="$APP_DIR/pb/pb_data/backups"
+if command -v systemctl >/dev/null 2>&1; then
+  if [ "$(systemctl is-enabled "$BACKUP_TIMER" 2>/dev/null || true)" != "enabled" ]; then
+    warn "$BACKUP_TIMER is not enabled — nightly backups are off."
+    warn "Install steps: docs/runbooks/vps-setup.md §8"
+  fi
+fi
+NEWEST_BACKUP="$(ls -t "$BACKUP_DIR"/eurovafliai-*.zip 2>/dev/null | head -n 1 || true)"
+if [ -z "$NEWEST_BACKUP" ]; then
+  warn "No eurovafliai-*.zip archives in $BACKUP_DIR — no backup has been proved on this box."
+elif [ -n "$(find "$NEWEST_BACKUP" -mmin +2880 2>/dev/null)" ]; then
+  warn "Newest backup is older than 48h: $NEWEST_BACKUP"
+  warn "The timer may be enabled but failing — check: journalctl -u eurovafliai-backup.service"
+fi
+
 # ── 7. Prove it actually serves ──────────────────────────────────────────────
 say "Smoke test"
 for _ in $(seq 1 30); do
