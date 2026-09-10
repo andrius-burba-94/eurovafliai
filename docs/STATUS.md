@@ -21,9 +21,10 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: the rest of Phase 8.** **8.0**, **8.1**, **8.2**, **8.3** and
-**8.5** have landed. Still open in the phase: **8.4** the accessibility pass.
-R1 already covers the client-load check.
+**Next up: Phase 8 is closed in code.** **8.0–8.5** have all landed. The human
+halves of **8.1** (enable backup units) and **8.3** (install logrotate) remain
+open-debt rows until they are done on the VPS. R1 already covers the
+client-load check.
 
 A **full three-account draft has now been run on production, across several real
 devices** — thirteen rounds, three real Google accounts, all three rosters legal
@@ -59,6 +60,16 @@ closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
 it feels right with friends in one room remains human. The backup timer and
 restore drill are in git; enabling the units on the VPS is the human half of
 8.1 and is recorded in the open-debt row below until it is done.
+
+## Try it on localhost — 8.4
+
+```bash
+npm run dev
+# Open the draft room. Confirm one h1 (the band title).
+# Arm a row, press Escape: focus returns to that row's Choose button, not to search.
+# Tab from a cold page: the first stop is "Skip to content", Enter lands on #main.
+npm run test:e2e -- tests/e2e/a11y.spec.ts
+```
 
 ## Try it on localhost — 8.3
 
@@ -553,7 +564,8 @@ season two is on the horizon.
 
 ## Phase 8 — Hardening & ops polish
 
-**Started.** 8.0–8.3 and 8.5 are in. The accessibility pass is still open.
+**Done in code.** 8.0–8.5 are in. Enabling backups and installing logrotate on
+the VPS are the remaining human halves (open-debt rows below).
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
@@ -561,7 +573,7 @@ season two is on the horizon.
 | **8.1 Nightly backup + restore drill** | done | — | Timer + oneshot were already committed. This slice adds `scripts/restore-drill.sh` (`npm run pb:restore-drill`), deploy warnings when the timer is off or the newest archive is older than 48h, the runbook install steps, and a unit-file test that keeps the timer name and `Persistent=true` honest. **Human half still open:** install and enable the units on the VPS (open-debt row below) |
 | **8.2 Draft-breaking failure → commissioner banner** | done | — | `stuck_reason` / `stuck_since` on `drafts`; sweep writes on no-legal / board-hole / three consecutive throws, clears when it can move again; commissioner-only `Correction` in the room. Not chat — `chat_messages` has no per-member visibility. Stats failures stay in the log |
 | **8.3 PM2 log rotation** | done | — | `deploy/logrotate/eurovafliai` → `/etc/logrotate.d/eurovafliai`, glob `/root/.pm2/logs/eurovafliai-*.log` only, `copytruncate` required. `pm2-logrotate` rejected (daemon-global on a shared box); `out_file` rejected (needs delete+start). Deploy warns on missing/drift. **Human half:** copy the file and dry-run on the VPS |
-| 8.4 Accessibility pass | todo | — | Focus order in the draft room. The clock's live-region announcements already shipped with 3.7 |
+| **8.4 Accessibility pass** | done | — | Draft room `h1` (all three band states); disarm restores focus to the armed row (cheat-sheet `focusWanted` idiom); skip link in the root layout → `#main` on `Sheet`; `@axe-core/playwright` over login, home, lobby, draft, standings (serious/critical). Clock live regions already shipped with 3.7 |
 | **8.5 Impeccable harden / onboard / adapt / audit** | done | — | A board-shaped `not-found` (missing and forbidden still look the same), Archivo loaded on `global-error` because that file replaces the root layout, a 44×44 `retry`, and `break-words` / `min-w-0` on every name that can be a long one. Empty Banks name the next act as a sibling `Door` in a `Slots` run, never a nested framed Bank, and their `data-testid` stays on the sentence so the framed-Bank E2E assertions still hold. **No tours** — PRODUCT rules out onboarding hand-holding, so first-run is the empty slot itself. English-only, so i18n and RTL were skipped deliberately and the budget went to overflow and recovery. Audit 17/20 |
 
 ## Phases 5–8
@@ -571,7 +583,7 @@ season two is on the horizon.
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
-| 8 — Hardening & ops polish | **started** — 8.0–8.3 and 8.5 are in; 8.4 remains |
+| 8 — Hardening & ops polish | **done in code** — 8.0–8.5 are in; VPS enable of backups + logrotate remain human |
 
 ---
 
@@ -641,6 +653,7 @@ touch should be fixed by that slice rather than deferred again.
 | **A rename is only ever proposed against the *same club*** | `proposeRenames` never pairs across clubs, which is what stops it merging two unrelated players who share a surname. The cost is the case it cannot see: a player who was re-registered under a passport name **and** transferred between two syncs. That is a departure plus an add, as before 4.2, and the duplicate has to be spotted by eye. Rare, and the alternative — fuzzy matching across the whole 330-player pool — is how you merge the wrong Nunn | Nothing; a narrow blind spot, chosen over a wide one |
 | **Enable backups on the VPS** | 8.1 landed the restore drill and the deploy warnings; the units are still not installed on the box. Follow `docs/runbooks/vps-setup.md` §8, then confirm the next deploy log is quiet about `eurovafliai-backup.timer`. Archives live on the same disk as the database (PocketBase's backup API), so this protects against a bad delete and not against disk loss | Drill proved locally; no live VPS backup yet |
 | **Install PM2 logrotate on the VPS** | 8.3 landed the config and the deploy warning; `/etc/logrotate.d/eurovafliai` is still not on the box. Follow `docs/runbooks/vps-setup.md` §9 (`scp` + `logrotate -d`), then confirm the next deploy log is quiet about logrotate | Config proved by unit test; not installed on the box |
+| **Axe defers contrast to the token suite** | 8.4's `@axe-core/playwright` suite disables `color-contrast` on purpose. Axe reports `live` on `stock-deep` at 4.49:1 (needs 4.5:1) on the Google button and faint board numbers — the same near-miss `tokens.test.ts` already measures and the design system has accepted. Running both would mean two sources of truth fighting over a hundredth of a ratio. Landmarks, names and focus order stay in axe; every ink/stock pair stays in the token suite | Nothing; a deliberate split, recorded so nobody "fixes" the disable |
 
 ## Verification status
 

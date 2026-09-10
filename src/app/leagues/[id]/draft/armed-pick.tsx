@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -60,7 +62,10 @@ type ArmedContext = {
    * nothing. Both now.
    */
   readonly refused: { playerId: string; reason: string } | null;
-  readonly refuse: (refusal: { playerId: string; reason: string } | null) => void;
+  readonly refuse: (refusal: {
+    playerId: string;
+    reason: string;
+  } | null) => void;
 };
 
 const Context = createContext<ArmedContext | null>(null);
@@ -71,6 +76,14 @@ export function ArmedPickProvider({ children }: { children: ReactNode }) {
     playerId: string;
     reason: string;
   } | null>(null);
+  /**
+   * Row to restore focus to after a disarm. Set before clearing `armed`, then
+   * consumed by the effect below — same ref-then-effect idiom as the cheat
+   * sheet's `focusWanted`. Without this, cancel/Escape either dumped focus on
+   * `<body>` (before 3.5) or jumped all the way back to search (3.5–8.3), so
+   * Tab walked every filter and every earlier row again.
+   */
+  const focusWanted = useRef<string | null>(null);
 
   const arm = useCallback((pick: ArmedPick) => {
     // Arming a different row clears a refusal about the last one, so a stale
@@ -79,33 +92,36 @@ export function ArmedPickProvider({ children }: { children: ReactNode }) {
     setArmed(pick);
   }, []);
   const disarm = useCallback(() => {
+    // Capture before clearing — the confirm button unmounts with `armed`, and
+    // the row id is what we need to put focus back on.
+    if (armed) focusWanted.current = armed.playerId;
     setRefused(null);
     setArmed(null);
-    /**
-     * Put focus back where choosing happens.
-     *
-     * Without this, disarming drops focus on the floor: the confirming button
-     * takes focus when it appears (that is what keeps the keyboard at two
-     * keystrokes), and cancelling unmounts the element focus is on, so the
-     * browser falls back to `<body>` — with a clock running. It is the same
-     * defect 3.5 and 3.4b each shipped once and each had found by a critique,
-     * so it is closed here before anybody has to measure it.
-     *
-     * Queried off the document rather than threaded through a ref: the pool's
-     * own Escape handler has always done exactly this, `pool-search` is unique
-     * on the page, and the alternative is a ref passed through a context whose
-     * whole point is that it carries one id and no coupling.
-     */
-    document
-      .querySelector<HTMLInputElement>('[data-testid="pool-search"]')
-      ?.focus();
-  }, []);
+  }, [armed]);
   const refuse = useCallback(
     (refusal: { playerId: string; reason: string } | null) => {
       setRefused(refusal);
     },
     [],
   );
+
+  useEffect(() => {
+    const id = focusWanted.current;
+    if (!id) return;
+    focusWanted.current = null;
+    const row = document.querySelector<HTMLElement>(
+      `[data-testid="pick-${id}"]`,
+    );
+    if (row) {
+      row.focus();
+      return;
+    }
+    // The row is gone (a pick just landed) or the pool filtered it out — fall
+    // back to search so focus is never left on the document.
+    document
+      .querySelector<HTMLInputElement>('[data-testid="pool-search"]')
+      ?.focus();
+  });
 
   const value = useMemo(
     () => ({ armed, arm, disarm, refused, refuse }),
@@ -123,9 +139,9 @@ export function ArmedPickProvider({ children }: { children: ReactNode }) {
         onKeyDown={(event) => {
           if (event.key === "Escape" && armed) {
             event.preventDefault();
-            // `disarm`, not `setArmed(null)`: it also puts focus back where
-            // choosing happens, and Escape is the one path that arrives with
-            // focus on a button about to unmount.
+            // `disarm`, not `setArmed(null)`: it also puts focus back on the
+            // armed row (or search if the row is gone), and Escape is the one
+            // path that arrives with focus on a button about to unmount.
             disarm();
           }
         }}

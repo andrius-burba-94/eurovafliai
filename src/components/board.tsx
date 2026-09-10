@@ -75,6 +75,7 @@ export function Sheet({
 }) {
   return (
     <main
+      id="main"
       data-testid={testId}
       className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12"
     >
@@ -86,15 +87,19 @@ export function Sheet({
 /**
  * The route-level loading fallback: a sheet with one label and one waiting
  * slot, so a navigation shows the board's own shape rather than a spinner.
+ *
+ * Deliberately **not** a `Sheet`/`<main>`: the App Router streams this beside
+ * the resolving page, and two `<main id="main">` would break the skip link
+ * (slice 8.4). Same column measure, no landmark.
  */
 export function LoadingSheet({ label }: { label: string }) {
   return (
-    <Sheet>
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12">
       <p className="text-sm text-ink-soft" role="status">
         {label}
       </p>
       <div className="slot-waiting min-h-16" aria-hidden="true" />
-    </Sheet>
+    </div>
   );
 }
 
@@ -391,6 +396,10 @@ export function PositionPatch({
 }) {
   return (
     <span
+      // A label needs a role: a bare span with aria-label is prohibited
+      // (axe aria-prohibited-attr). `img` is the right fit for a badge whose
+      // visible letters are decorative once the label names the need.
+      role={label ? "img" : undefined}
       aria-label={label}
       className={`${PATCH[position]} inline-flex items-baseline gap-1 border px-2 py-1 text-slot font-semibold tracking-[0.1em]`}
     >
