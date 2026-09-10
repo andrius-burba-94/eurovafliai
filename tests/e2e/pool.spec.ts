@@ -489,7 +489,7 @@ test("Escape still cancels once a pick is armed", async ({ page, context }) => {
   // `page.keyboard.press`, never `locator.press`: the latter focuses the
   // element first, which is why the original spec passed against the bug.
   const { commissioner, league } = await poolLeague("Escape League");
-  await alphaPlayers();
+  const players = await alphaPlayers();
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
 
@@ -504,7 +504,8 @@ test("Escape still cancels once a pick is armed", async ({ page, context }) => {
   await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(armed).toHaveAttribute("data-state", "waiting");
-  await expect(page.getByTestId("pool-search")).toBeFocused();
+  // Slice 8.4: focus lands back on the row that was armed, not on search.
+  await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeFocused();
 
   // And the arrows work again from there — but note *from there*. Since 3.7,
   // arming moves focus to the band, and an arrow pressed while a pick is
