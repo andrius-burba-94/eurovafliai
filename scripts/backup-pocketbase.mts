@@ -10,7 +10,12 @@ await pb
   .collection("_superusers")
   .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
 
-const stamp = new Date().toISOString().replaceAll(":", "-").replace(/\.\d{3}Z$/, "Z");
+// PocketBase rejects uppercase letters in backup names (the ISO `T`/`Z`), so
+// stamp as compact UTC digits only: eurovafliai-20260910T201526Z would fail.
+const stamp = new Date()
+  .toISOString()
+  .replace(/[-:TZ.]/g, "")
+  .slice(0, 14);
 const key = `eurovafliai-${stamp}.zip`;
 
 await pb.backups.create(key);

@@ -3,6 +3,22 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.1 has landed in git; enabling the units on the VPS is the human half.** The
+timer and oneshot were already committed. What was missing was anything that
+noticed they were not installed, and a restore path that did not need the box.
+`scripts/restore-drill.sh` extracts an archive into a disposable directory,
+boots the pinned binary on a spare port, runs `pb:verify` against it, and tears
+everything down — so the mechanism is proved on a laptop before a production
+archive is ever downloaded. `deploy.sh` now warns when
+`eurovafliai-backup.timer` is not enabled, and again when the newest
+`eurovafliai-*.zip` is older than 48 hours (a timer that is enabled but failing
+would otherwise be silent: the oneshot has no `OnFailure=`). The runbook §8 is
+the install steps. Two limits stay as debt rather than scope: archives live on
+the same disk as the database, and `backup-pocketbase.mts` goes through
+`parseServerEnv`, which also wants the Google OAuth secrets. The stamp format
+had to change in this slice: PocketBase rejects uppercase letters in backup
+names, so an ISO-shaped `…T…Z.zip` never created an archive at all.
+
 **8.5 has landed, and first-run is the empty slot, not a tour.** PRODUCT forbids
 onboarding hand-holding beyond what the room needs. The aha moment is join or
 create a league, then draft night. English-only, so harden skipped i18n/RTL and
