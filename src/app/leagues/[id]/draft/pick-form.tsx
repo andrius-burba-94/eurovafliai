@@ -36,18 +36,30 @@ import {
 type PoolProps = {
   pool: DraftView["pool"];
   isYourTurn: boolean;
-  clockNeeds: DraftView["clockNeeds"];
   /**
-   * The viewer's own remaining room, used when they cannot pick.
+   * The viewer's own remaining room — what the pool mutes and filters against.
    *
    * Eleven of twelve people in this league are spectators at any moment, and
    * the pool was muting against the *picker's* roster for all of them — so a
    * member holding four open center slots watched the centers dim and read
-   * "No room". Legality is only somebody else's business while you are the one
-   * entering their pick.
+   * "No room". The first fix kept the picker's roster "while you are the one
+   * entering their pick" and read that off `canPick`, which is permanently true
+   * for a commissioner; see the note on `needs` in `PickForm`. The viewer's own
+   * room is now the only answer this pool has.
    */
   yourNeeds: DraftView["yourNeeds"];
-  /** Whose legality is being shown, when it is not the viewer's. */
+  /**
+   * Whose pick is being entered — the row buttons' "for whom". Null when
+   * nobody is on the clock.
+   *
+   * Carried into `arm()`, so it is said on the Bank heading above the list
+   * ("Pick for Other FC") and again on the sticky band where the confirming tap
+   * lands — not on all thirty Choose buttons. 2.4 put "Pick for them" on every
+   * one of them, and at that length the button wrapped onto a second line and
+   * doubled the height of every row on a phone. The heading owns *for whom*;
+   * the row owns *whom*. It says nothing about legality: the pool mutes against
+   * `yourNeeds` whoever is picking.
+   */
   clockMemberName: string | null;
   /** The viewer's own cheat sheet — slice 3.4. Empty when they have not written one. */
   sheet: DraftView["sheet"];
@@ -202,26 +214,28 @@ export function PickForm({
   /** The list has been asked for more than its resting eight rows. */
   const [expanded, setExpanded] = useState(false);
 
-  /**
-   * A manager entering somebody else's pick.
-   *
-   * 2.4 said so on every row's button ("Pick for them"). The Bank heading
-   * directly above the list already reads "Pick for B Ballers", so the row was
-   * repeating it 30 times — and at that length the button wrapped onto a second
-   * line, doubling the height of every row in the list on a phone. The heading
-   * owns *for whom*; the row owns *whom*. The filter that needs the name still
-   * says it ("Legal for B Ballers"), because that one has no heading above it.
-   */
-  const onBehalf = !view.isYourTurn;
-
   // Built against the pool array, not on every keystroke: fuse builds its index
   // up front, and rebuilding it per character is the one way to make a 324-row
   // local search feel slow.
   const index = useMemo(() => poolIndex(view.pool), [view.pool]);
 
-  // Whose legality this pool is about: the picker's if you are the one picking
-  // (your turn, or a manager entering it for them), otherwise your own.
-  const needs = canPick ? view.clockNeeds : view.yourNeeds;
+  /**
+   * Whose legality this pool is about: **always the viewer's**.
+   *
+   * It used to be the on-clock member's whenever `canPick` was true — and
+   * `canPick` is true for a commissioner or a deputy on *every* turn of the
+   * draft, not only the ones they are entering. So a commissioner watched the
+   * pool mute against somebody else's roster all evening while the "You still
+   * need" line and the radar beside it named their own. In round thirteen that
+   * finally became two different positions: the room said "you still need 1 C"
+   * over a pool where every C was dimmed and only forwards were legal.
+   *
+   * There is no branch left because there is nothing to branch on. On your own
+   * turn the member on the clock *is* you, so the picker's needs and yours are
+   * the same count from the same roster. One source, so the two surfaces cannot
+   * disagree again.
+   */
+  const needs = view.yourNeeds;
 
   /**
    * The viewer's sheet, as a lookup. Memoised against the array the server
@@ -605,9 +619,7 @@ export function PickForm({
           pressed={filters.legalOnly}
           onPressedChange={(next) => setFilter("legalOnly", next)}
         >
-          {onBehalf && view.clockMemberName
-            ? `Legal for ${view.clockMemberName}`
-            : "Legal for me"}
+          Legal for me
         </FilterToggle>
         {/* Only offered to somebody who has a sheet. A filter that can only
             ever empty the list is not a control, it is a trap. */}

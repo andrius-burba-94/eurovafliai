@@ -78,15 +78,17 @@ export type DraftView = {
    */
   canManage: boolean;
   members: { id: string; name: string; isYou: boolean }[];
-  /** Positions the viewer still has room for — "needs: 1 C, 2 F". */
-  yourNeeds: Record<Position, number>;
   /**
-   * The same count for **whoever is on the clock**, which is not always the
-   * viewer: a commissioner entering a pick for a dead phone needs that member's
-   * legality, not their own. The pool mutes rows against this. Null while
-   * nobody is on the clock, which mutes nothing.
+   * Positions the viewer still has room for — "needs: 1 C, 2 F".
+   *
+   * The one legality count the room has. There used to be a second for
+   * whoever was on the clock, which the pool muted against whenever the viewer
+   * *could* pick — and a commissioner can always pick, so their pool followed
+   * somebody else's roster while their needs line followed their own. Two
+   * counts meant two answers to one question; see the note on `needs` in
+   * `pick-form.tsx`.
    */
-  clockNeeds: Record<Position, number> | null;
+  yourNeeds: Record<Position, number>;
   /**
    * The whole draftable pool, drafted players included and marked as such.
    *
@@ -400,9 +402,6 @@ export async function getDraftView(
       isYou: record.id === youId,
     })),
     yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
-    clockNeeds: clock
-      ? needsOf(rosterOf(clock.memberId), settings.roster_template)
-      : null,
     pool: players.map((player) => {
       const held = heldBy.get(player.id);
       return {
