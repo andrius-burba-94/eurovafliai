@@ -139,9 +139,15 @@ function main(): void {
    * is a set of a few strings that a restart clears.
    */
   const reported = new Set<string>();
+  /**
+   * Consecutive thrown ticks per draft. Same lifetime as `reported`: a restart
+   * clears it, and three throws in a row is what marks the draft stuck for the
+   * commissioner (slice 8.2).
+   */
+  const failures = new Map<string, number>();
   /** Intervals fired — counted out here, so a stuck tick cannot stop the count. */
   let ticks = 0;
-  let failures = 0;
+  let tickFailures = 0;
   let inFlight: Promise<void> | null = null;
   let startedAt = 0;
   let stallReported = false;
@@ -160,6 +166,7 @@ function main(): void {
         clock: () => new Date(),
         log,
         reported,
+        failures,
       });
 
       // Every action the sweep takes has already logged itself, naming the
@@ -168,15 +175,15 @@ function main(): void {
       // alongside a pick — which is when those lines stop reading in sequence.
       if (eventCount(report) > 1) log(summarise(report));
       live = report.live;
-      if (failures > 0) {
-        log(`recovered after ${failures} failed tick(s)`);
-        failures = 0;
+      if (tickFailures > 0) {
+        log(`recovered after ${tickFailures} failed tick(s)`);
+        tickFailures = 0;
       }
     } catch (error) {
-      failures += 1;
-      if (failures === 1 || failures % FAILURE_LOG_EVERY === 0) {
+      tickFailures += 1;
+      if (tickFailures === 1 || tickFailures % FAILURE_LOG_EVERY === 0) {
         log(
-          `tick failed (${failures} in a row): ${describeError(error)}`,
+          `tick failed (${tickFailures} in a row): ${describeError(error)}`,
           "error",
         );
       }

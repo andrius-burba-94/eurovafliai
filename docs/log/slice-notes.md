@@ -3,6 +3,22 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.2 has landed: a draft-breaking failure reaches the commissioner, not
+chat.** The sweep already refused a hole in the board and a pool with no legal
+player, and logged once via an in-memory set that a restart cleared. Nothing on
+the draft said so. This slice adds optional `stuck_reason` / `stuck_since` on
+`drafts`, a pure sentence builder, and writes at those choke points (plus three
+consecutive thrown ticks on the same draft). Cleared when the sweep can move
+the draft again. Write only on change, so a stuck draft is one write and not
+one a second. The room renders a `Correction` above the controls for managers
+only — `chat_messages` has no per-member visibility, so chat was the wrong
+door. Stats failures stay in the worker log: they are app-global and none of
+them stop a draft. Failure-recovery: a single write after the refusal; if it
+fails the draft is still stuck, the log still says so, and the next tick tries
+again. Two existing sweep assertions that expected `writes === []` on a refusal
+now expect the stuck update, which is honest — the refusal stops being a pure
+no-op.
+
 **8.1 has landed in git; enabling the units on the VPS is the human half.** The
 timer and oneshot were already committed. What was missing was anything that
 noticed they were not installed, and a restore path that did not need the box.

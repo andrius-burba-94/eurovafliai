@@ -1137,3 +1137,34 @@ test("the band stays a band: one act, and the name said once", async ({
   expect(band.share).toBeLessThan(0.34);
   expect(band.markerControls).toBe(1);
 });
+
+test("a stuck draft tells only the commissioner", async ({ page, context }) => {
+  // Slice 8.2: the worker writes a reason onto the draft; the room shows it
+  // as a Correction to managers only. Chat cannot do per-member visibility,
+  // so this is the surface that carries it.
+  const { commissioner, league, other } = await readyLeague("Stuck Banner League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const pb = await superuser();
+  const draft = (
+    await pb.collection("drafts").getFullList({
+      filter: `league = '${league.id}'`,
+      requestKey: null,
+    })
+  )[0]!;
+  await pb.collection("drafts").update(draft.id, {
+    stuck_reason: "no_legal_player",
+    stuck_since: new Date().toISOString(),
+  });
+
+  await page.reload();
+  await expect(page.getByTestId("draft-stuck")).toContainText(
+    /no legal player/i,
+  );
+
+  await signIn(context, other);
+  await page.goto(`/leagues/${league.id}/draft`);
+  await expect(page.getByTestId("draft-room")).toBeVisible();
+  await expect(page.getByTestId("draft-stuck")).toHaveCount(0);
+});
