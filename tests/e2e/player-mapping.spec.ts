@@ -9,6 +9,7 @@ import {
   superuser,
   TEST_CLUB,
 } from "./helpers/session";
+import { expectNotFound } from "./helpers/not-found";
 
 /**
  * Player mapping — slice 4.2.
@@ -179,7 +180,7 @@ test("a member with no league of their own cannot reach the mapping page", async
   await signIn(context, nobody);
 
   await page.goto("/players/mapping");
-  await expect(page.getByText(/404|not found/i).first()).toBeVisible();
+  await expectNotFound(page);
 });
 
 test("an unattached code from a box score is offered the player it probably is", async ({
