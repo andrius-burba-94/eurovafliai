@@ -23,6 +23,14 @@ export type DraftRecord = {
   deadline: string;
   pick_seconds: number;
   seed: string;
+  /**
+   * Why the worker cannot advance this draft — a `StuckReason` code, or empty
+   * when the draft is healthy. Set by the sweep; cleared when it can move
+   * again. Commissioners read it as a banner in the room (slice 8.2).
+   */
+  stuck_reason?: string;
+  /** When `stuck_reason` was first set for the current stuck stretch. */
+  stuck_since?: string;
 };
 
 /** The `picks` record, as PocketBase stores it. */

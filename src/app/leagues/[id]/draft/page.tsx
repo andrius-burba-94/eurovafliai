@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   BackLink,
   Bank,
+  Correction,
   PositionPatch,
   Sheet,
   TopRail,
@@ -13,6 +14,7 @@ import { LeagueChat } from "@/components/league-chat";
 import { RosterRadar } from "@/components/roster-radar";
 import { getSession } from "@/lib/auth/session";
 import { getDraftView } from "@/lib/drafts/queries";
+import { isStuckReason, stuckSentence } from "@/lib/drafts/stuck";
 import { buildBoardShape } from "@/lib/engine";
 
 import { ArmedPickProvider } from "./armed-pick";
@@ -258,6 +260,17 @@ export default async function DraftPage({
           canManage={view.canManage}
           picksMade={picks.length}
         />
+
+        {view.canManage &&
+        draft.stuck_reason &&
+        isStuckReason(draft.stuck_reason) ? (
+          <Correction testId="draft-stuck">
+            {stuckSentence({
+              reason: draft.stuck_reason,
+              pickNo: draft.current_pick,
+            })}
+          </Correction>
+        ) : null}
 
         {/* The pool stays readable while paused — you just cannot pick from
             it. Offering a button the server is about to refuse would be worse

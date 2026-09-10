@@ -13,6 +13,7 @@ import {
   toState,
 } from "@/lib/drafts/pipeline";
 import type { DraftRecord } from "@/lib/drafts/types";
+import type { StuckReason } from "@/lib/drafts/stuck";
 import {
   isDraftComplete,
   selectAutoPick,
@@ -75,6 +76,12 @@ export type SweepInput = {
    * caller owns the set, because it has to outlive the tick.
    */
   readonly reported?: Set<string>;
+  /**
+   * Consecutive thrown ticks per draft id. Owned by the caller the same way
+   * `reported` is: a single throw is noise, three in a row is a stuck draft
+   * (slice 8.2). Cleared when the sweep handles the draft again.
+   */
+  readonly failures?: Map<string, number>;
   readonly graceMs?: number;
   /**
    * Sweep one draft instead of all of them.
@@ -87,6 +94,9 @@ export type SweepInput = {
    */
   readonly onlyDraft?: string;
 };
+
+/** How many consecutive thrown ticks before a draft is marked stuck. */
+export const STUCK_FAILURE_THRESHOLD = 3;
 
 /** What one tick did. Every field is a count of writes, not of considerations. */
 export type SweepReport = {
@@ -140,7 +150,7 @@ export function eventCount(report: SweepReport): number {
 type PoolPlayer = EnginePlayer & { readonly name: string };
 
 export async function sweepOnce(input: SweepInput): Promise<SweepReport> {
-  const { pb, log } = input;
+  const { pb, log, clock } = input;
   const report = emptyReport();
   /**
    * A caller that does not keep a set across ticks — a spec, a script — still
@@ -166,13 +176,22 @@ export async function sweepOnce(input: SweepInput): Promise<SweepReport> {
       // A draft that the sweep could move is a draft whose earlier complaint is
       // spent. Without this, a commissioner who fixed a gap and later hit the
       // same state again would get no log line for the life of the process.
-      if (outcome !== "stuck") forget(reported, draft.id);
+      if (outcome !== "stuck") {
+        forget(reported, draft.id);
+        input.failures?.delete(draft.id);
+        await clearStuck(pb, draft);
+      }
     } catch (error) {
       // One league's draft must never take the others down with it: at 10
       // users there may be two drafts running, and the second one's members
       // did nothing wrong.
       report.failed += 1;
       log(`draft ${draft.id} failed: ${describeError(error)}`);
+      const count = (input.failures?.get(draft.id) ?? 0) + 1;
+      input.failures?.set(draft.id, count);
+      if (count >= STUCK_FAILURE_THRESHOLD) {
+        await markStuck(pb, draft, "repeated_failure", clock);
+      }
     }
   }
 
@@ -228,6 +247,7 @@ async function sweepDraft(
       `${draft.id}:hole`,
       `draft ${draft.id} · live with a gap in the board and nobody on the clock — needs a commissioner`,
     );
+    await markStuck(pb, draft, "board_hole", clock);
     return "stuck";
   }
 
@@ -304,6 +324,7 @@ async function sweepDraft(
       `${draft.id}:${onClock.overallNo}`,
       `draft ${draft.id} · pick ${onClock.overallNo}: no legal player left in the pool — needs a commissioner`,
     );
+    await markStuck(pb, draft, "no_legal_player", clock);
     return "stuck";
   }
 
@@ -438,4 +459,45 @@ function forget(reported: Set<string>, draftId: string): void {
   for (const key of reported) {
     if (key.startsWith(`${draftId}:`)) reported.delete(key);
   }
+}
+
+/**
+ * Persist a stuck reason on the draft so the room can show it to a
+ * commissioner. Write only when the reason changes — a stuck draft is one
+ * write, not one a second. `stuck_since` is set on the first mark of a stretch
+ * and kept if the reason merely changes.
+ */
+async function markStuck(
+  pb: PocketBase,
+  draft: DraftRecord,
+  reason: StuckReason,
+  clock: () => Date,
+): Promise<void> {
+  if (draft.stuck_reason === reason) return;
+  const stuck_since =
+    draft.stuck_reason && draft.stuck_since
+      ? draft.stuck_since
+      : clock().toISOString();
+  await pb.collection("drafts").update(
+    draft.id,
+    { stuck_reason: reason, stuck_since },
+    { requestKey: null },
+  );
+  draft.stuck_reason = reason;
+  draft.stuck_since = stuck_since;
+}
+
+/** Clear a stuck reason once the sweep can move the draft again. */
+async function clearStuck(
+  pb: PocketBase,
+  draft: DraftRecord,
+): Promise<void> {
+  if (!draft.stuck_reason) return;
+  await pb.collection("drafts").update(
+    draft.id,
+    { stuck_reason: "", stuck_since: "" },
+    { requestKey: null },
+  );
+  draft.stuck_reason = "";
+  draft.stuck_since = "";
 }

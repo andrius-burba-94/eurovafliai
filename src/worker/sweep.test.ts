@@ -40,6 +40,7 @@ type World = {
   log: string[];
   run(options?: {
     reported?: Set<string>;
+    failures?: Map<string, number>;
     graceMs?: number;
     /**
      * The fake copies the data it is given, so a hook that wants to stage a
@@ -131,8 +132,15 @@ function world(
         clock: () => NOW,
         log: (message) => log.push(message),
         reported: options.reported,
+        failures: options.failures,
         graceMs: options.graceMs,
       });
+      // The fake starts from a shallow copy. Without this, a second run on the
+      // same world would not see the stuck stamp (or the pick) the first left,
+      // and the write-only-on-change guard could never be proved.
+      for (const [name, rows] of Object.entries(pb.db)) {
+        db[name] = rows;
+      }
       return { report, writes: pb.writes, db: pb.db };
     },
   };
@@ -477,10 +485,16 @@ describe("legality, through the engine", () => {
         { id: "charlie", name: "Charlie", position: "C", status: "active" },
       ],
     });
-    const { report, writes } = await stuck.run();
+    const { report, writes, db } = await stuck.run();
 
     expect(report).toMatchObject({ stuck: 1, autopicked: 0 });
-    expect(writes).toEqual([]);
+    // One write: the stuck reason for the commissioner banner (8.2). The
+    // refusal itself still invents no pick.
+    expect(writes).toEqual(["update drafts:d1"]);
+    expect(db.drafts[0]).toMatchObject({
+      stuck_reason: "no_legal_player",
+      stuck_since: NOW.toISOString(),
+    });
     expect(stuck.log.join(" ")).toContain("no legal player");
   });
 
@@ -492,11 +506,15 @@ describe("legality, through the engine", () => {
       ],
     });
     const reported = new Set<string>();
-    await stuck.run({ reported });
-    await stuck.run({ reported });
-    await stuck.run({ reported });
+    const first = await stuck.run({ reported });
+    const second = await stuck.run({ reported });
+    const third = await stuck.run({ reported });
 
     expect(stuck.log).toHaveLength(1);
+    // Write only on change: the reason is stamped once, then left alone.
+    expect(first.writes).toEqual(["update drafts:d1"]);
+    expect(second.writes).toEqual([]);
+    expect(third.writes).toEqual([]);
   });
 
   it("complains again about a draft that was fixed and broke again", async () => {
@@ -514,6 +532,7 @@ describe("legality, through the engine", () => {
 
     await stuck.run({ reported });
     expect(stuck.log).toHaveLength(1);
+    expect(stuck.db.drafts[0].stuck_reason).toBe("no_legal_player");
 
     // A guard turns up in the pool, the pick lands, and the complaint is spent.
     stuck.db.players.push({
@@ -522,16 +541,23 @@ describe("legality, through the engine", () => {
       position: "G",
       status: "active",
     });
-    await stuck.run({ reported });
+    const recovered = await stuck.run({ reported });
+    expect(recovered.report.autopicked).toBe(1);
+    expect(recovered.db.drafts[0].stuck_reason).toBe("");
+    expect(reported.size).toBe(0);
 
-    // Back to a pool with nothing legal in it, and the sweep says so again.
+    // Back to a pool with nothing legal in it. The recover left a fresh
+    // deadline on the next member — push it into the past so this tick is
+    // the one that would autodraft, and the sweep says so again.
     stuck.db.players = [
       { id: "charlie", name: "Charlie", position: "C", status: "active" },
     ];
+    stuck.db.drafts[0].deadline = deadlineAt(-5_000);
     await stuck.run({ reported });
     expect(
       stuck.log.filter((line) => line.includes("no legal player")),
     ).toHaveLength(2);
+    expect(stuck.db.drafts[0].stuck_reason).toBe("no_legal_player");
   });
 
   it("does not autodraft a player who has left the Euroleague", async () => {
@@ -759,10 +785,14 @@ describe("the repairs nobody else would notice", () => {
         },
       ],
     });
-    const { report, writes } = await holed.run();
+    const { report, writes, db } = await holed.run();
 
     expect(report).toMatchObject({ stuck: 1, autopicked: 0, finished: 0 });
-    expect(writes).toEqual([]);
+    expect(writes).toEqual(["update drafts:d1"]);
+    expect(db.drafts[0]).toMatchObject({
+      stuck_reason: "board_hole",
+      stuck_since: NOW.toISOString(),
+    });
     expect(holed.log.join(" ")).toContain("gap in the board");
   });
 });
@@ -839,6 +869,55 @@ describe("races and failures", () => {
     expect(report).toMatchObject({ live: 2, failed: 1, autopicked: 1 });
     expect(db.picks.every((pick) => pick.draft === "d2")).toBe(true);
     expect(two.log.join(" ")).toContain("PocketBase said no");
+  });
+
+  it("marks a draft stuck only after several consecutive throws", async () => {
+    // One throw is noise (a blip on PocketBase). Three in a row is a draft
+    // that cannot advance until a human looks — that is when the banner lands.
+    const broken = world({ draft: { deadline: deadlineAt(-5_000) } });
+    const failures = new Map<string, number>();
+
+    const first = await broken.run({
+      failures,
+      hooks: () => ({
+        beforeList(collection, filter) {
+          if (collection === "picks" && filter.includes("d1")) {
+            throw new Error("PocketBase said no");
+          }
+        },
+      }),
+    });
+    expect(first.report.failed).toBe(1);
+    expect(first.db.drafts[0].stuck_reason).toBeUndefined();
+    expect(first.writes).toEqual([]);
+
+    await broken.run({
+      failures,
+      hooks: () => ({
+        beforeList(collection, filter) {
+          if (collection === "picks" && filter.includes("d1")) {
+            throw new Error("PocketBase said no");
+          }
+        },
+      }),
+    });
+    expect(broken.db.drafts[0].stuck_reason).toBeUndefined();
+
+    const third = await broken.run({
+      failures,
+      hooks: () => ({
+        beforeList(collection, filter) {
+          if (collection === "picks" && filter.includes("d1")) {
+            throw new Error("PocketBase said no");
+          }
+        },
+      }),
+    });
+    expect(third.writes).toEqual(["update drafts:d1"]);
+    expect(third.db.drafts[0]).toMatchObject({
+      stuck_reason: "repeated_failure",
+      stuck_since: NOW.toISOString(),
+    });
   });
 });
 
