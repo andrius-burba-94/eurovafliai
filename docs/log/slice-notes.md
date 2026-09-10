@@ -3,6 +3,59 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**The first full three-account production draft has been run, and it found one
+defect.** Thirteen rounds, three real accounts, and three legal rosters at the
+end — 5 G / 5 F / 3 C each. The engine, the pick pipeline and the autodraft were
+all correct and nothing needed repairing. What was wrong was the room: it showed
+two different rosters at once.
+
+The room used to carry two legality counts, `yourNeeds` and `clockNeeds`, and
+the pool chose between them with `canPick` — which is `(isYourTurn ||
+canManage) && !isPaused && !!onClock`. `canManage` is true for a commissioner
+for the whole draft, so `canPick` never went false for them, and the pool
+therefore muted and filtered against **whoever was on the clock**, every turn,
+all evening. The "You still need" line and the radar kept reading the viewer's
+own roster. Two counts, two answers, one question.
+
+Rounds one to twelve hid it: the three rosters still had overlapping open
+positions and the two answers agreed often enough to look like one. Round
+thirteen was the exact inversion — both other members needed a forward and were
+full at center, the commissioner needed a center and was full at forward. So the
+room said "you still need 1 C" over a pool where every center was dimmed "No
+room" and only forwards were legal, and a forward was the one thing that could
+not be taken. The commissioner's own pick landed correctly seven seconds after
+their turn opened; the confusion was entirely in what the forty-six seconds
+before it had been showing.
+
+Diagnosed against the real data rather than by reading: a read-only copy of the
+production database, the room's own query replayed against it through superuser
+impersonation (`users` is OAuth2-only, so there is no password path), and every
+pick's `expand.player.position` checked against the `players` table. All 39
+matched. That ruled out the plausible-looking suspects — a dropped expand
+falling back to `"G"`, a stale position after a roster sync — and left the one
+branch that could produce two different answers from one payload.
+
+`clockNeeds` is gone rather than fixed. On your own turn the member on the clock
+*is* you, so `canPick ? clockNeeds : yourNeeds` collapses to `yourNeeds` with no
+branch left; deleting the second count is what makes the two surfaces unable to
+disagree again, and the type system now refuses the mistake instead of a comment
+warning against it. The cost is real and was chosen: a commissioner entering a
+pick for a dead phone no longer sees that member's buckets dimmed. The row's
+"Pick for them" button is still there, the server is still the only authority on
+legality, and the refusal arrives — in the league's own words, on the row that
+was tapped — when the pick is attempted. That was always the argument for muting
+a row rather than hiding it.
+
+The E2E test that covered this had encoded the bug as the expectation, in as
+many words: "muted — for them, not for the commissioner looking at the screen."
+It was also silently order-dependent, since the roll decides who sits first, so
+it would have passed or failed at random under the new rule. It is now a
+deterministic pair built from the viewer's own place in the rolled order: one
+asserts a bucket the viewer filled is muted for them, the other asserts somebody
+else's full bucket is not — and that the server still refuses the pick anyway.
+The second fails on the old code with "No room" on a center the commissioner had
+room for, which is the production symptom reproduced.
+
 **8.0 has landed, and deploy.sh now runs the copy it just pulled.** bash
 reads a script by byte offset, so a `git pull` that replaced `deploy.sh` used
 to keep executing the previous file: a change never applied to its own deploy,
