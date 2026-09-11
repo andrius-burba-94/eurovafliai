@@ -5,18 +5,35 @@
 #   npm run pb:restore-drill -- \
 #     pb/pb_data/backups/eurovafliai-….zip
 #
+#   npm run pb:restore-drill -- \
+#     /tmp/eurovafliai-….zip --adopt-superuser   # a production archive
+#
 # Extracts into a disposable directory, boots the pinned binary from pb/VERSION
 # on a spare localhost port, runs pb:verify against it, then tears everything
 # down. Never touches the live pb/pb_data.
 #
-# The archive's superuser must match PB_SUPERUSER_EMAIL / _PASSWORD in .env —
-# true for a local backup, and true for a production archive only when those
-# credentials are the production ones.
+# pb:verify authenticates as a superuser, so the archive's superuser has to
+# match PB_SUPERUSER_EMAIL / _PASSWORD in .env. That is true for a local
+# backup and false for a production one — and the fix is NOT to copy the
+# production secrets onto a laptop. Pass --adopt-superuser to upsert the .env
+# credentials into the *extracted copy* before it boots: the archive on disk,
+# the box and the live database are all untouched, and pb:verify asserts
+# collection rules and unique indexes rather than anything about the superuser
+# record, so the drill proves exactly what it claims either way.
 set -euo pipefail
 
-ARCHIVE="${1:-}"
+ARCHIVE=""
+ADOPT_SUPERUSER=0
+for arg in "$@"; do
+  case "$arg" in
+    --adopt-superuser) ADOPT_SUPERUSER=1 ;;
+    -*) echo "Unknown option: $arg" >&2; exit 2 ;;
+    *) ARCHIVE="$arg" ;;
+  esac
+done
+
 if [ -z "$ARCHIVE" ] || [ ! -f "$ARCHIVE" ]; then
-  echo "Usage: $0 <path-to-eurovafliai-*.zip>" >&2
+  echo "Usage: $0 <path-to-eurovafliai-*.zip> [--adopt-superuser]" >&2
   exit 2
 fi
 
@@ -49,6 +66,27 @@ trap cleanup EXIT
 echo "Extracting $(basename "$ARCHIVE") into $TMP/pb_data"
 mkdir -p "$TMP/pb_data"
 unzip -q "$ARCHIVE" -d "$TMP/pb_data"
+
+# Only the two keys, read straight into the environment: the rest of .env is
+# none of this script's business, and nothing is echoed.
+if [ "$ADOPT_SUPERUSER" = "1" ]; then
+  ENV_FILE="$ROOT/.env"
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "--adopt-superuser needs $ENV_FILE" >&2
+    exit 1
+  fi
+  set -a
+  # shellcheck disable=SC1090
+  . <(grep -E '^PB_SUPERUSER_(EMAIL|PASSWORD)=' "$ENV_FILE")
+  set +a
+  if [ -z "${PB_SUPERUSER_EMAIL:-}" ] || [ -z "${PB_SUPERUSER_PASSWORD:-}" ]; then
+    echo "PB_SUPERUSER_EMAIL / PB_SUPERUSER_PASSWORD missing from $ENV_FILE" >&2
+    exit 1
+  fi
+  echo "Adopting the .env superuser into the extracted copy"
+  "$PB_BIN" superuser upsert \
+    "$PB_SUPERUSER_EMAIL" "$PB_SUPERUSER_PASSWORD" --dir "$TMP/pb_data" >/dev/null
+fi
 
 # A restored backup already carries its schema. Do not point --migrationsDir at
 # the live tree: re-applying migrations against restored data is not the drill.
