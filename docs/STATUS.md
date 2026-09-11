@@ -21,10 +21,10 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: Phase 8 is closed in code.** **8.0–8.5** have all landed. The human
-halves of **8.1** (enable backup units) and **8.3** (install logrotate) remain
-open-debt rows until they are done on the VPS. R1 already covers the
-client-load check.
+**Next up: Phase 8 is closed, on the box as well as in code.** **8.0–8.5** have
+all landed, and the human halves are now done: the backup timer is enabled and
+has written a real archive, that archive has been through the restore drill,
+and logrotate is installed. R1 already covers the client-load check.
 
 A **full three-account draft has now been run on production, across several real
 devices** — thirteen rounds, three real Google accounts, all three rosters legal
@@ -57,9 +57,9 @@ landed**, and **Phase 5 is closed**: **5.1–5.4 have landed**. A finished draft
 Euroleague round, the team page shows live deltas, and **This round** recaps
 one night. Phase 6 keepers stay luxury. Phase 7 AI is not next. Phase 3 is
 closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
-it feels right with friends in one room remains human. The backup timer and
-restore drill are in git; enabling the units on the VPS is the human half of
-8.1 and is recorded in the open-debt row below until it is done.
+it feels right with friends in one room remains human. Nightly backups run on
+the box, and a production archive has been restored and re-verified — so the
+backup is a backup and not a hope.
 
 ## Try it on localhost — 8.4
 
@@ -139,6 +139,30 @@ with `Position C` on: the remaining center reads as yours to take, because it
 is — no "No room", and `Legal for me` keeps it. Tapping the row still asks the
 server, and the server still refuses the pick *for them*. The "You still need"
 line, the radar and the pool now all name one roster: yours.
+
+## Try it — the nginx drift warning, and a production restore drill
+
+```bash
+npx vitest run tests/unit/nginx-vhost-canonical.test.ts
+scp hstgr:/etc/nginx/sites-available/eurovafliai.labrium.online /tmp/live.conf
+npx tsx scripts/nginx-vhost-canonical.ts /tmp/live.conf \
+  deploy/nginx/eurovafliai.labrium.online.conf && echo "clean"
+```
+
+The live vhost must now compare **clean**, because the only differences were a
+comment header that no deploy refreshes and the `listen` line certbot rewrites
+— neither of which is configuration. A real `/pb/` edit still warns; there is a
+test for a hand-edit hiding behind a comment.
+
+For the drill against a production archive:
+
+```bash
+scp hstgr:/var/www/eurovafliai/pb/pb_data/backups/eurovafliai-<stamp>.zip /tmp/
+npm run pb:restore-drill -- /tmp/eurovafliai-<stamp>.zip --adopt-superuser
+```
+
+Ends with `Restore drill passed`. Delete the archive afterwards — it is the
+league's real data.
 
 ## Try it — slice 8.0
 
@@ -569,7 +593,7 @@ the VPS are the remaining human halves (open-debt rows below).
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
-| **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34 and #35. The deploy that *ships* this still runs the old script; the following deploy is the proof |
+| **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34; the re-exec proved itself on the deploy after this one, as designed. #35 it did **not** close — the canonical form still compared comments and the `listen` line certbot rewrites, so the box warned on every deploy with a byte-correct `/pb/` block. Its own test fixture appended certbot's lines instead of *replacing* `listen 80;`, so CI could not see it. Fixed after the Phase 8 VPS install |
 | **8.1 Nightly backup + restore drill** | done | — | Timer + oneshot were already committed. This slice adds `scripts/restore-drill.sh` (`npm run pb:restore-drill`), deploy warnings when the timer is off or the newest archive is older than 48h, the runbook install steps, and a unit-file test that keeps the timer name and `Persistent=true` honest. **Human half still open:** install and enable the units on the VPS (open-debt row below) |
 | **8.2 Draft-breaking failure → commissioner banner** | done | — | `stuck_reason` / `stuck_since` on `drafts`; sweep writes on no-legal / board-hole / three consecutive throws, clears when it can move again; commissioner-only `Correction` in the room. Not chat — `chat_messages` has no per-member visibility. Stats failures stay in the log |
 | **8.3 PM2 log rotation** | done | — | `deploy/logrotate/eurovafliai` → `/etc/logrotate.d/eurovafliai`, glob `/root/.pm2/logs/eurovafliai-*.log` only, `copytruncate` required. `pm2-logrotate` rejected (daemon-global on a shared box); `out_file` rejected (needs delete+start). Deploy warns on missing/drift. **Human half:** copy the file and dry-run on the VPS |
@@ -651,8 +675,7 @@ touch should be fixed by that slice rather than deferred again.
 | **A game imported with some rows refused stays "done"** | `readStoredGameCodes` asks whether a game has *anything* stored, not whether it has all 24 lines. So a game where two players were refused — no person code, or a PIR that disagreed with its own components — counts as imported and the fetcher never returns to it. Deliberate: the refusals are named in the batch log, and re-fetching a game whose other 22 rows are already correct would rewrite them to fix nothing. It does mean the *only* record that a line is missing is a `stat_imports` log nobody reads unprompted | Nothing; two players' lines, and a log entry that has to be looked for |
 | **A quarantine needs somebody to notice it** | 4.2 stops a sync splitting a player in two, and the price is that the pair stays unresolved until a person opens `/players/mapping`. Nothing chases them: the sync script prints the held-back pairs and the page lists them, but no chat announcement, no email, nothing on the lobby. Fifteen unanswered renames means fifteen players whose display name is stale and whose box scores cannot attach — which matters from 24 September, not before. The cheapest fix is a count somewhere a commissioner already looks | Nothing yet; a queue with no doorbell |
 | **A rename is only ever proposed against the *same club*** | `proposeRenames` never pairs across clubs, which is what stops it merging two unrelated players who share a surname. The cost is the case it cannot see: a player who was re-registered under a passport name **and** transferred between two syncs. That is a departure plus an add, as before 4.2, and the duplicate has to be spotted by eye. Rare, and the alternative — fuzzy matching across the whole 330-player pool — is how you merge the wrong Nunn | Nothing; a narrow blind spot, chosen over a wide one |
-| **Enable backups on the VPS** | 8.1 landed the restore drill and the deploy warnings; the units are still not installed on the box. Follow `docs/runbooks/vps-setup.md` §8, then confirm the next deploy log is quiet about `eurovafliai-backup.timer`. Archives live on the same disk as the database (PocketBase's backup API), so this protects against a bad delete and not against disk loss | Drill proved locally; no live VPS backup yet |
-| **Install PM2 logrotate on the VPS** | 8.3 landed the config and the deploy warning; `/etc/logrotate.d/eurovafliai` is still not on the box. Follow `docs/runbooks/vps-setup.md` §9 (`scp` + `logrotate -d`), then confirm the next deploy log is quiet about logrotate | Config proved by unit test; not installed on the box |
+| **Backups protect against a delete, not a disk** | Closed on the box: `eurovafliai-backup.timer` is enabled (03:15 + jitter), the oneshot has written a real 33 MB archive, that archive passed `pb:restore-drill --adopt-superuser`, and logrotate is installed and scoped to the four `eurovafliai-*.log` files. What is *not* solved is where the archives live — PocketBase's backup API writes them to `pb/pb_data/backups/`, the **same disk as the database**. A bad delete is survivable; losing the volume is not. Off-box copies are a decision nobody has made yet | Nothing today; one disk is one disk |
 | **Axe defers contrast to the token suite** | 8.4's `@axe-core/playwright` suite disables `color-contrast` on purpose. Axe reports `live` on `stock-deep` at 4.49:1 (needs 4.5:1) on the Google button and faint board numbers — the same near-miss `tokens.test.ts` already measures and the design system has accepted. Running both would mean two sources of truth fighting over a hundredth of a ratio. Landmarks, names and focus order stay in axe; every ink/stock pair stays in the token suite | Nothing; a deliberate split, recorded so nobody "fixes" the disable |
 
 ## Verification status
