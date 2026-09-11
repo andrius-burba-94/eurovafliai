@@ -3,6 +3,54 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+**8.4 has landed: the draft room is a first-class page for assistive tech.**
+Three defects, one missing measurement. The room was the only surface without
+an `h1` — all three band states titled as a plain `<p>`, while every other page
+had exactly one. Arming a row threw focus into the sticky confirm, and cancel
+or Escape put it on `pool-search`, so Tab walked every filter and every earlier
+row again; focus now returns to the armed row's Choose button (the cheat
+sheet's `focusWanted` idiom), falling back to search only when the row is gone
+because the pick landed. Arrow keys then move focus with the highlight, so
+Enter arms the row you moved to rather than the one Escape left you on. A skip
+link sits first in the root layout, visible on focus, targeting `#main` on
+`Sheet`; `LoadingSheet` stopped rendering a second `<main>` so streaming no
+longer doubles the landmark. Position patches with a spoken label take
+`role="img"` — a bare `span[aria-label]` is prohibited. `@axe-core/playwright`
+asserts no serious or critical violations on login, home, lobby, draft and
+standings — the measurement STATUS already said was missing. The one finding
+axe raised was contrast (`live` on `stock-deep` at 4.49:1): that rule is
+disabled in the suite on purpose and recorded as open debt, because
+`tokens.test.ts` is already the source of truth for every ink/stock pair.
+
+**8.3 has landed in git; copying the file onto the VPS is the human half.** PM2
+writes `eurovafliai-{web,worker}-{out,error}.log` with no size bound. Two doors
+were rejected on purpose: `pm2 install pm2-logrotate` is a daemon-global
+module and would change logging for the eight sibling apps on this box, and
+`out_file` / `error_file` in `ecosystem.config.js` need a `pm2 delete` +
+`start` to take effect (`reload` does not re-open paths) — an outage to move a
+file. So the slice ships `deploy/logrotate/eurovafliai` for
+`/etc/logrotate.d/eurovafliai`, globbing only `/root/.pm2/logs/eurovafliai-*.log`,
+with `copytruncate` as the load-bearing line (without it PM2 keeps writing the
+rotated inode and the live log silently stops growing). `deploy.sh` warns when
+the file is missing or drifted; the runbook §9 has the install and dry-run
+steps; a unit test keeps `copytruncate` and the scoped glob honest.
+
+**8.2 has landed: a draft-breaking failure reaches the commissioner, not
+chat.** The sweep already refused a hole in the board and a pool with no legal
+player, and logged once via an in-memory set that a restart cleared. Nothing on
+the draft said so. This slice adds optional `stuck_reason` / `stuck_since` on
+`drafts`, a pure sentence builder, and writes at those choke points (plus three
+consecutive thrown ticks on the same draft). Cleared when the sweep can move
+the draft again. Write only on change, so a stuck draft is one write and not
+one a second. The room renders a `Correction` above the controls for managers
+only — `chat_messages` has no per-member visibility, so chat was the wrong
+door. Stats failures stay in the worker log: they are app-global and none of
+them stop a draft. Failure-recovery: a single write after the refusal; if it
+fails the draft is still stuck, the log still says so, and the next tick tries
+again. Two existing sweep assertions that expected `writes === []` on a refusal
+now expect the stuck update, which is honest — the refusal stops being a pure
+no-op.
+
 **8.1 has landed in git; enabling the units on the VPS is the human half.** The
 timer and oneshot were already committed. What was missing was anything that
 noticed they were not installed, and a restore path that did not need the box.

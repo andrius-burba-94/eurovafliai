@@ -231,6 +231,32 @@ against a bad delete and not against disk loss; and `backup-pocketbase.mts`
 goes through `parseServerEnv`, which also requires the Google OAuth secrets, so
 a `.env` that lost those would fail the backup too.
 
+## 9. PM2 log hygiene
+
+Both PM2 apps write to `/root/.pm2/logs/eurovafliai-{web,worker}-{out,error}.log`
+with no size bound. `pm2-logrotate` is a **daemon-global** module and would
+change logging for the eight sibling apps on this box — ruled out. Pointing
+`out_file` / `error_file` in `ecosystem.config.js` would need a `pm2 delete` +
+`start` to take effect (`reload` does not re-open log paths) — an outage to
+move a file. So rotation is a logrotate file scoped to this app only:
+
+- `deploy/logrotate/eurovafliai` → `/etc/logrotate.d/eurovafliai`
+- Glob: `/root/.pm2/logs/eurovafliai-*.log` (nothing else)
+- `copytruncate` is required: without it PM2 keeps writing the rotated inode
+  and the live log silently stops growing
+
+Install:
+
+```bash
+scp deploy/logrotate/eurovafliai hstgr:/etc/logrotate.d/eurovafliai
+ssh hstgr 'chmod 644 /etc/logrotate.d/eurovafliai'
+ssh hstgr 'logrotate -d /etc/logrotate.d/eurovafliai'
+```
+
+The dry run must mention the four `eurovafliai-*.log` files and must not name
+another app's logs. `scripts/deploy.sh` warns when the file is missing or
+differs from git.
+
 ## Never patch in production
 
 No editing files on the box, no hotfix straight to `main`, no schema clicked

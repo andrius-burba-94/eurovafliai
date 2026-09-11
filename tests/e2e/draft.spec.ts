@@ -862,9 +862,9 @@ test("cancel and Escape both put a chosen player back", async ({
   await expect(page.getByTestId("confirm-pick-go")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("confirm-pick-go")).toHaveCount(0);
-  // Focus goes back where choosing happens rather than to the document — the
-  // defect 3.4b and 3.5 each shipped once.
-  await expect(page.getByTestId("pool-search")).toBeFocused();
+  // Focus returns to the armed row, not to search — so Tab does not walk every
+  // filter and every earlier row again (slice 8.4).
+  await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeFocused();
 
   await expect(
     page.locator('[data-board-slot][data-state="filled"]'),
@@ -1136,4 +1136,35 @@ test("the band stays a band: one act, and the name said once", async ({
   // A third of a phone, not nearly half.
   expect(band.share).toBeLessThan(0.34);
   expect(band.markerControls).toBe(1);
+});
+
+test("a stuck draft tells only the commissioner", async ({ page, context }) => {
+  // Slice 8.2: the worker writes a reason onto the draft; the room shows it
+  // as a Correction to managers only. Chat cannot do per-member visibility,
+  // so this is the surface that carries it.
+  const { commissioner, league, other } = await readyLeague("Stuck Banner League");
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const pb = await superuser();
+  const draft = (
+    await pb.collection("drafts").getFullList({
+      filter: `league = '${league.id}'`,
+      requestKey: null,
+    })
+  )[0]!;
+  await pb.collection("drafts").update(draft.id, {
+    stuck_reason: "no_legal_player",
+    stuck_since: new Date().toISOString(),
+  });
+
+  await page.reload();
+  await expect(page.getByTestId("draft-stuck")).toContainText(
+    /no legal player/i,
+  );
+
+  await signIn(context, other);
+  await page.goto(`/leagues/${league.id}/draft`);
+  await expect(page.getByTestId("draft-room")).toBeVisible();
+  await expect(page.getByTestId("draft-stuck")).toHaveCount(0);
 });

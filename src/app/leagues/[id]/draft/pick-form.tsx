@@ -383,10 +383,9 @@ export function PickForm({
 
     if (event.key === "Escape") {
       event.preventDefault();
+      // Focus restoration lives in `disarm` (back to the armed row). Do not
+      // also yank it to search here — that was the 8.4 defect.
       disarm();
-      document
-        .querySelector<HTMLInputElement>('[data-testid="pool-search"]')
-        ?.focus();
       return;
     }
 
@@ -400,10 +399,27 @@ export function PickForm({
       // Wraps at both ends: on a phone, holding an arrow to the bottom of a
       // 30-row list and having to hold it all the way back up is worse than
       // arriving at the top.
-      setHighlighted(
-        next < 0 ? shortlist.length - 1 : next >= shortlist.length ? 0 : next,
-      );
+      const nextIndex =
+        next < 0
+          ? shortlist.length - 1
+          : next >= shortlist.length
+            ? 0
+            : next;
+      setHighlighted(nextIndex);
       disarm();
+      // Move focus with the highlight. Without this, Escape returns focus to
+      // the armed row's Choose button (8.4), ArrowDown only flips
+      // `aria-current`, and Enter activates the *old* button — so the keyboard
+      // arms the row you left. Microtask waits for the state write; the button
+      // is already in the DOM.
+      const nextId = shortlist[nextIndex]?.id;
+      if (nextId) {
+        queueMicrotask(() => {
+          document
+            .querySelector<HTMLElement>(`[data-testid="pick-${nextId}"]`)
+            ?.focus();
+        });
+      }
       return;
     }
 
