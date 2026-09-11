@@ -51,17 +51,41 @@ function isCertbotHttpStub(server: string): boolean {
   return !hasLocation(server) && /return\s+(404|301)\b/.test(server);
 }
 
-function dropCertbotLines(text: string): string {
+/**
+ * Lines this comparison cannot meaningfully read.
+ *
+ * Three kinds, each for its own reason:
+ *
+ *  - **Certbot's own lines**, tagged. Certbot owns the TLS half of the live
+ *    file and git deliberately does not carry it.
+ *  - **`listen` directives.** The committed file is by design the *pre*-certbot
+ *    one, because certbot needs a working `:80` vhost to answer the ACME
+ *    challenge — and certbot then *replaces* that `listen 80;` with its own
+ *    `listen 443 ssl;`. So git says `:80`, the box says `:443`, and neither is
+ *    wrong. Comparing them is the one thing this file must not do. The cost,
+ *    stated plainly: a deliberate port change in git is not caught here.
+ *  - **Whole-line comments.** A comment is not configuration, and the live file
+ *    is hand-installed, so a prose edit in git leaves the box's header stale
+ *    for ever. That alone warned on every deploy. Trailing comments on a real
+ *    directive are left alone — the directive is still compared.
+ *
+ * Every one of these was a live false positive: the box's `/pb/` block was
+ * byte-correct and the deploy still cried wolf, which is exactly how a warning
+ * stops being read.
+ */
+function dropIgnorableLines(text: string): string {
   return text
     .split("\n")
     .filter((line) => !line.includes(CERTBOT_TAG))
+    .filter((line) => !/^\s*#/.test(line))
+    .filter((line) => !/^\s*listen\s/.test(line))
     .join("\n");
 }
 
 export function canonicalizeVhost(source: string): string {
   const kept = partitionVhost(source)
     .filter((part) => part.kind === "text" || !isCertbotHttpStub(part.body))
-    .map((part) => dropCertbotLines(part.body))
+    .map((part) => dropIgnorableLines(part.body))
     .join("");
   return normalizeVhost(kept);
 }

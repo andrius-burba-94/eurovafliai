@@ -221,9 +221,20 @@ npm run pb:backup
 npm run pb:restore-drill -- pb/pb_data/backups/eurovafliai-<stamp>.zip
 ```
 
-Against a production archive: scp one zip down, then run the same
-`pb:restore-drill` locally. The archive's superuser must match
-`PB_SUPERUSER_EMAIL` / `PB_SUPERUSER_PASSWORD` in the `.env` you point at it.
+Against a production archive: scp one zip down, then add `--adopt-superuser`:
+
+```bash
+scp hstgr:/var/www/eurovafliai/pb/pb_data/backups/eurovafliai-<stamp>.zip /tmp/
+npm run pb:restore-drill -- /tmp/eurovafliai-<stamp>.zip --adopt-superuser
+```
+
+`pb:verify` authenticates as a superuser, and a production archive carries
+production's — which will not match the `.env` on your laptop. The flag upserts
+the `.env` credentials into the **extracted copy** before it boots. Do not
+reach for the other fix: copying production secrets onto a laptop to satisfy a
+drill trades a real risk for a rehearsal. Nothing on the box, in the archive or
+in the live database is touched, and `pb:verify` asserts collection rules and
+unique indexes rather than anything about the superuser record.
 
 Two limits worth knowing, not fixing here: archives land in
 `pb/pb_data/backups/` on the **same disk as the database**, so this protects
