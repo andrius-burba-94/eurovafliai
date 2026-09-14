@@ -175,6 +175,10 @@ export type ApiRosterRow = {
     name?: string | null;
     passportName?: string | null;
     passportSurname?: string | null;
+    height?: number | null;
+    weight?: number | null;
+    birthDate?: string | null;
+    country?: { code?: string | null; name?: string | null } | null;
   } | null;
   type?: string | null;
   /** "Player" / "Coach" — carried for readability at call sites; `type` decides. */
@@ -183,6 +187,23 @@ export type ApiRosterRow = {
   dorsal?: string | null;
   club?: { code?: string | null; name?: string | null } | null;
 };
+
+/**
+ * A bio number the feed may not have.
+ *
+ * `0` is the same as absent here and that is not a shortcut: a height of zero
+ * is not a measurement, and PocketBase stores an unset number as 0 anyway, so
+ * the two are indistinguishable once written. One of 332 E2026 players has no
+ * height.
+ */
+function bioNumber(value: number | null | undefined): number | undefined {
+  return typeof value === "number" && value > 0 ? value : undefined;
+}
+
+function bioText(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 /**
  * One api-live roster row → the shared normalized shape.
@@ -221,6 +242,16 @@ export function normalizeApiRow(row: ApiRosterRow): NormalizedPlayer {
 
   const personCode = row.person?.code?.trim();
 
+  // Spread-if-present rather than assigned-as-undefined, because `diffRosters`
+  // reads absence as "this import does not know" and `exactOptionalPropertyTypes`
+  // draws the same distinction: a key holding `undefined` is not the same thing
+  // as no key.
+  const height = bioNumber(row.person?.height);
+  const weight = bioNumber(row.person?.weight);
+  const birthDate = bioText(row.person?.birthDate);
+  const countryCode = bioText(row.person?.country?.code);
+  const countryName = bioText(row.person?.country?.name);
+
   return {
     name: display,
     name_normalized: normalizeName(display),
@@ -233,5 +264,10 @@ export function normalizeApiRow(row: ApiRosterRow): NormalizedPlayer {
     person_code: personCode ? personCode : null,
     source: "api",
     dorsal: row.dorsal?.trim() ?? "",
+    ...(height === undefined ? {} : { height }),
+    ...(weight === undefined ? {} : { weight }),
+    ...(birthDate === undefined ? {} : { birth_date: birthDate }),
+    ...(countryCode === undefined ? {} : { country_code: countryCode }),
+    ...(countryName === undefined ? {} : { country_name: countryName }),
   };
 }

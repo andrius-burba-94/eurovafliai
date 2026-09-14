@@ -48,7 +48,11 @@ function player(name: string, over: Partial<PoolPlayer> = {}): PoolPlayer {
     status: over.status ?? "active",
     takenBy: over.takenBy ?? null,
     takenAt: over.takenAt ?? null,
-    projectedLast5: over.projectedLast5 ?? null,
+    averagePir: over.averagePir ?? null,
+    averageGames: over.averageGames ?? 0,
+    averageSource: over.averageSource ?? null,
+    averageSeason: over.averageSeason ?? null,
+    averageFantasy: over.averageFantasy ?? null,
     ...over,
   };
 }
@@ -191,13 +195,16 @@ describe("selectPool — filters", () => {
     expect(run("", { club: "" })).toHaveLength(POOL.length);
   });
 
-  it("filters by a last-5 floor, and treats unprojected as below any floor", () => {
+  it("filters by a PIR floor, and treats a player with no games as below any floor", () => {
     const pool = [
-      player("High, One", { projectedLast5: 200 }),
-      player("Edge, Two", { projectedLast5: 150 }),
-      player("Low, Three", { projectedLast5: 149 }),
+      player("High, One", { averagePir: 200, averageGames: 5 }),
+      player("Edge, Two", { averagePir: 150, averageGames: 5 }),
+      player("Low, Three", { averagePir: 149, averageGames: 5 }),
       player("None, Four"),
-      player("Zero, Five", { projectedLast5: 0 }),
+      // A genuine 0.0 average is a real number and is not absence: it fails a
+      // floor of 15.0 the way 14.9 does, and passes "no floor" the way nothing
+      // with a null average can.
+      player("Zero, Five", { averagePir: 0, averageGames: 5 }),
     ];
     expect(ids(run("", { minProjection: 150 }, OPEN, pool)).sort()).toEqual(
       ["edge", "high"].sort(),

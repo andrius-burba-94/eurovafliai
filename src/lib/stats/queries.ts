@@ -220,7 +220,68 @@ export type PlayerProfile = {
   clubName: string;
   position: Position;
   status: string;
+  /** Bio from the roster feed — 9.1. Every field may be absent. */
+  bio: {
+    /** Centimetres. */
+    height: number | null;
+    /** Kilograms. */
+    weight: number | null;
+    /** Year of birth, the only part of the feed's date worth showing. */
+    birthYear: number | null;
+    country: string | null;
+    dorsal: string | null;
+  };
+  /**
+   * Last season, imported from the official stats table.
+   *
+   * Null when nothing has been imported for this player, which is different
+   * from an average of zero and is why this is a nullable object rather than
+   * a row of nullable numbers.
+   */
+  previousSeason: {
+    season: string;
+    games: number;
+    /** Integer tenths. */
+    pir: number;
+    /** Integer tenths, and null when we never backfilled their box scores. */
+    fantasy: number | null;
+    points: number | null;
+    rebounds: number | null;
+    assists: number | null;
+    minutes: number | null;
+    twoPointPct: string | null;
+    threePointPct: string | null;
+    freeThrowPct: string | null;
+  } | null;
 };
+
+/** `"1995-06-30T00:00:00"` → `1995`. Anything else is nothing. */
+function birthYearOf(raw: string | undefined): number | null {
+  const year = Number((raw ?? "").slice(0, 4));
+  return Number.isInteger(year) && year > 1900 ? year : null;
+}
+
+function nonZero(value: number | undefined): number | null {
+  return typeof value === "number" && value !== 0 ? value : null;
+}
+
+function nonEmpty(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/** The json column's shape, read defensively — nothing else validates it. */
+function statsField(raw: unknown, key: string): number | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = (raw as Record<string, unknown>)[key];
+  return typeof value === "number" ? value : null;
+}
+
+function statsText(raw: unknown, key: string): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = (raw as Record<string, unknown>)[key];
+  return typeof value === "string" && value !== "" ? value : null;
+}
 
 export type GameLogLine = {
   id: string;
@@ -248,6 +309,16 @@ export async function readPlayerProfile(
       club_name: string;
       position: Position;
       status: string;
+      dorsal?: string;
+      height?: number;
+      weight?: number;
+      birth_date?: string;
+      country_name?: string;
+      prev_season_code?: string;
+      prev_season_games?: number;
+      prev_season_pir?: number;
+      prev_season_fantasy?: number;
+      prev_season_stats?: unknown;
     }>(playerId, { requestKey: null });
 
     const lines = await pb.collection("player_game_stats").getFullList<{
@@ -281,6 +352,12 @@ export async function readPlayerProfile(
         gameCode: row.game_code,
       }));
 
+    // Games, never the average: an unset column reads as 0, so a player who
+    // averaged 0.0 over thirty games and a player nobody imported would look
+    // identical if this keyed off the PIR.
+    const prevGames = record.prev_season_games ?? 0;
+    const prevStats = record.prev_season_stats;
+
     return {
       player: {
         id: record.id,
@@ -289,6 +366,32 @@ export async function readPlayerProfile(
         clubName: record.club_name,
         position: record.position,
         status: record.status,
+        bio: {
+          height: nonZero(record.height),
+          weight: nonZero(record.weight),
+          birthYear: birthYearOf(record.birth_date),
+          country: nonEmpty(record.country_name),
+          dorsal: nonEmpty(record.dorsal),
+        },
+        previousSeason:
+          prevGames > 0
+            ? {
+                season: record.prev_season_code ?? "",
+                games: prevGames,
+                pir: record.prev_season_pir ?? 0,
+                // Fantasy points are PIR plus a win bonus, so they cannot be
+                // derived from a season total — they come from our own
+                // backfill, and a player we never backfilled has none.
+                fantasy: nonZero(record.prev_season_fantasy),
+                points: statsField(prevStats, "points"),
+                rebounds: statsField(prevStats, "rebounds"),
+                assists: statsField(prevStats, "assists"),
+                minutes: statsField(prevStats, "minutes"),
+                twoPointPct: statsText(prevStats, "twoPointPct"),
+                threePointPct: statsText(prevStats, "threePointPct"),
+                freeThrowPct: statsText(prevStats, "freeThrowPct"),
+              }
+            : null,
       },
       log,
     };

@@ -50,11 +50,17 @@ export type EnginePlayer = {
   readonly id: string;
   readonly position: Position;
   /**
-   * Projection used to rank the pool when a member has no cheat sheet, or has
-   * exhausted it. Absent is treated as the worst possible projection rather
-   * than as zero, so an unprojected player never outranks a genuinely bad one.
+   * Average PIR in integer tenths, used to rank the pool when a member has no
+   * cheat sheet or has exhausted it. Absent is treated as the worst possible
+   * ranking rather than as zero, so a player nobody has data for never
+   * outranks one genuinely averaging −2.
+   *
+   * Named for the number it carries. It was `projectedPoints` and carried
+   * *fantasy* tenths, which is PIR plus a win bonus — a different number to
+   * the one the pool displays and the league talks in. The adapters decide
+   * which season it comes from (`averagePirOf`); the engine only compares.
    */
-  readonly projectedPoints?: number;
+  readonly rankPir?: number;
 };
 
 /** As much of a `picks` record as the engine needs. */

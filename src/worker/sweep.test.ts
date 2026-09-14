@@ -178,7 +178,7 @@ describe("autodraft on a deadline", () => {
     expect(it_.log[0]).toContain("out of time");
   });
 
-  it("ranks an unsheeted member by last-5, not by name", async () => {
+  it("ranks an unsheeted member by average PIR, not by name", async () => {
     const it_ = world({
       draft: { deadline: deadlineAt(-5_000) },
       players: [
@@ -188,7 +188,7 @@ describe("autodraft on a deadline", () => {
           position: "G",
           status: "active",
           proj_last5_games: 5,
-          proj_last5_fantasy: 50,
+          proj_last5_pir: 50,
         },
         { id: "bravo", name: "Bravo", position: "F", status: "active" },
         { id: "charlie", name: "Charlie", position: "C", status: "active" },
@@ -198,7 +198,39 @@ describe("autodraft on a deadline", () => {
           position: "G",
           status: "active",
           proj_last5_games: 5,
-          proj_last5_fantasy: 200,
+          proj_last5_pir: 200,
+        },
+      ],
+    });
+    const { db } = await it_.run();
+    expect(onlyPick(db).player).toBe("zane");
+  });
+
+  // Draft night: E2026 has not tipped off, so nobody has a current-season
+  // number and every rank is last season's. The sweep has to read those
+  // columns or autodraft falls all the way through to the id tiebreak and
+  // picks alphabetically — which is what it did before 9.1.
+  it("ranks on last season when nobody has played this one", async () => {
+    const it_ = world({
+      draft: { deadline: deadlineAt(-5_000) },
+      players: [
+        {
+          id: "aaron",
+          name: "Aaron",
+          position: "G",
+          status: "active",
+          prev_season_games: 30,
+          prev_season_pir: 50,
+        },
+        { id: "bravo", name: "Bravo", position: "F", status: "active" },
+        { id: "charlie", name: "Charlie", position: "C", status: "active" },
+        {
+          id: "zane",
+          name: "Zane",
+          position: "G",
+          status: "active",
+          prev_season_games: 30,
+          prev_season_pir: 200,
         },
       ],
     });

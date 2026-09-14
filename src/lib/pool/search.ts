@@ -50,10 +50,28 @@ export type PoolPlayer = {
   /** The `overall_no` they went at, or null. */
   readonly takenAt: number | null;
   /**
-   * Last-5 fantasy tenths, or null when they have not played. Null is not 0:
-   * an unprojected player fails a min-projection filter and ranks last.
+   * Average PIR in tenths, or null when nobody has data for them. Null is not
+   * 0: a player with no games fails a PIR floor and ranks last, while somebody
+   * genuinely averaging 0.0 is a real number that does not.
+   *
+   * Which season it is from is `averageSource` — the engine ranks on this same
+   * number, so the row and the pick the worker would make agree.
    */
-  readonly projectedLast5: number | null;
+  readonly averagePir: number | null;
+  /** Games behind the average. A 22.1 from 3 games is not a 22.1 from 39. */
+  readonly averageGames: number;
+  /** `last5` for this season's form, `prev` for last season's whole body. */
+  readonly averageSource: "last5" | "prev" | null;
+  /** The season code, when the average is a past season's. */
+  readonly averageSeason: string | null;
+  /**
+   * The matching fantasy average, from the same season as `averagePir`.
+   *
+   * Kept on the row and labelled rather than dropped: fantasy points are what
+   * the standings sum, so hiding them would be the opposite mistake to the one
+   * this slice fixes.
+   */
+  readonly averageFantasy: number | null;
 };
 
 export type PoolFilters = {
@@ -83,8 +101,12 @@ export type PoolFilters = {
    */
   readonly tier: number;
   /**
-   * Hide anyone whose last-5 is below this many tenths. `0` means off.
-   * Unprojected players fail it — same rule autodraft uses.
+   * Hide anyone whose **average PIR** is below this many tenths. `0` means off.
+   *
+   * PIR, because that is the number the row now leads with: a threshold that
+   * filtered fantasy points while the eye read PIR would quietly disagree with
+   * the list it was narrowing. Players with no games fail it — the same rule
+   * autodraft uses.
    */
   readonly minProjection: number;
 };
@@ -241,8 +263,8 @@ export function selectPool({
       if (filters.tier > 0 && place?.tier !== filters.tier) return false;
       if (
         filters.minProjection > 0 &&
-        (player.projectedLast5 === null ||
-          player.projectedLast5 < filters.minProjection)
+        (player.averagePir === null ||
+          player.averagePir < filters.minProjection)
       ) {
         return false;
       }

@@ -176,7 +176,7 @@ test("the position and club filters narrow the pool", async ({
   );
 });
 
-test("the last-5 floor hides anyone below it, including the unprojected", async ({
+test("the PIR floor hides anyone below it, including a player with no games", async ({
   page,
   context,
 }) => {
@@ -184,12 +184,15 @@ test("the last-5 floor hides anyone below it, including the unprojected", async 
   await createFoldedPlayer("Highproj", {
     position: "G",
     proj_last5_games: 5,
-    proj_last5_fantasy: 200,
+    proj_last5_pir: 200,
+    proj_last5_fantasy: 220,
   });
+  // Last season only, which is what every player looks like on draft night.
+  // The floor has to read this too, or it would hide the whole pool.
   await createFoldedPlayer("Lowproj", {
     position: "G",
-    proj_last5_games: 5,
-    proj_last5_fantasy: 50,
+    prev_season_games: 30,
+    prev_season_pir: 50,
   });
   await createFoldedPlayer("Noproj", { position: "G" });
 
@@ -199,7 +202,9 @@ test("the last-5 floor hides anyone below it, including the unprojected", async 
   await expect(page.getByTestId("pick-pool")).toContainText("Highproj");
   await expect(page.getByTestId("pick-pool")).toContainText("Lowproj");
   await expect(page.getByTestId("pick-pool")).toContainText("Noproj");
-  await expect(page.getByTestId("pool-proj").first()).toContainText("20.0");
+  // PIR leads the row in full ink; the fantasy average trails it, named.
+  await expect(page.getByTestId("pool-pir").first()).toContainText("20.0");
+  await expect(page.getByTestId("pool-proj").first()).toContainText("22.0");
 
   await page.getByTestId("filter-proj-150").click();
   await expect(page.getByTestId("filter-proj-150")).toHaveAttribute(

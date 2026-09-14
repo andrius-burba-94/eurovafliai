@@ -5,10 +5,10 @@ import type { EnginePlayer, Position, RosterTemplate } from "./types";
 
 const TEMPLATE: RosterTemplate = { G: 5, F: 5, C: 3 };
 
-const p = (id: string, position: Position, projectedPoints?: number): EnginePlayer => ({
+const p = (id: string, position: Position, rankPir?: number): EnginePlayer => ({
   id,
   position,
-  ...(projectedPoints === undefined ? {} : { projectedPoints }),
+  ...(rankPir === undefined ? {} : { rankPir }),
 });
 
 const roster = (g: number, f: number, c: number): { position: Position }[] => [

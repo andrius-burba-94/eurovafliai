@@ -35,10 +35,13 @@ export type AutoPickInput = {
  * The pool in the order this member would want it, best first.
  *
  * Cheat sheet entries come first in the member's own order; everything else
- * follows by projection descending. Exported because the draft room pins "best
- * available from my sheet" (Phase 3.4) and must agree with what autodraft would
- * actually do — two rankings that disagree would make the pinned suggestion a
- * lie.
+ * follows by average PIR descending. Exported because the draft room pins
+ * "best available from my sheet" (Phase 3.4) and must agree with what
+ * autodraft would actually do — two rankings that disagree would make the
+ * pinned suggestion a lie.
+ *
+ * **A sheet still wins.** PIR only orders the players a member never ranked;
+ * somebody who wrote a list is drafted from their list.
  */
 export function rankForMember(
   candidates: readonly EnginePlayer[],
@@ -62,9 +65,9 @@ export function rankForMember(
     .filter((player) => !seen.has(player.id))
     .sort((a, b) => {
       // Absent projection is the worst possible, not zero: an unprojected
-      // player must not outrank someone genuinely projected at -2.
-      const left = a.projectedPoints ?? Number.NEGATIVE_INFINITY;
-      const right = b.projectedPoints ?? Number.NEGATIVE_INFINITY;
+      // player must not outrank someone genuinely averaging -2.
+      const left = a.rankPir ?? Number.NEGATIVE_INFINITY;
+      const right = b.rankPir ?? Number.NEGATIVE_INFINITY;
       // Compared before subtracting, and that is not a style choice.
       // `-Infinity - -Infinity` is NaN, which `Array#sort` coerces to +0 — so
       // subtracting first made the tiebreak below dead code for a pool with no
