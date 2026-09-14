@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  addMemberTo,
   cleanupTestData,
   createLeagueFor,
   createPlayer,
@@ -530,5 +531,82 @@ test("a candidate offers its alternatives, and the chosen one is what lands", as
     expect(after.name).toContain("Guess Two");
   } finally {
     await removeRosterBatch(batch);
+  }
+});
+
+/**
+ * The doorbell on the queue above.
+ *
+ * Presence is asserted through the **unmatched-code** half rather than the
+ * rename half, and that is a parallelism decision rather than a preference.
+ * `countMappingQueue` reads one winning rename batch (the newest carrying
+ * proposals) but *unions* the code batches, so with `fullyParallel: true` a
+ * sibling spec planting its own check can displace a planted rename and leave
+ * this one asserting against an empty queue. A planted code cannot be
+ * displaced, only joined.
+ *
+ * The exact number is never asserted for the same reason: the queue is
+ * app-global, so the only honest claims here are that it rings at all, that it
+ * points somewhere, and that it stays silent for somebody who could not act on
+ * it anyway.
+ */
+test("the lobby rings for a commissioner while the queue holds a question", async ({
+  page,
+  context,
+}) => {
+  const code = personCode();
+  const batch = await plantUnmatchedBatch({
+    code,
+    name: `Doorbell ${code}, E2e`,
+    club: TEST_CLUB,
+    games: [301],
+  });
+
+  const commissioner = await createTestUser("doorbell");
+  const league = await createLeagueFor(commissioner, "Doorbell League");
+  await signIn(context, commissioner);
+
+  try {
+    await page.goto(`/leagues/${league.id}`);
+
+    const bell = page.getByTestId("mapping-queue");
+    await expect(bell).toBeVisible();
+    // The cost, not just a count — a number alone does not say why it matters.
+    await expect(bell).toContainText("box scores cannot attach");
+    await expect(
+      bell.getByRole("link", { name: "Open player mapping" }),
+    ).toHaveAttribute("href", "/players/mapping");
+  } finally {
+    await removeBatch(batch);
+  }
+});
+
+test("a plain member is not told about a queue they cannot answer", async ({
+  page,
+  context,
+}) => {
+  const code = personCode();
+  const batch = await plantUnmatchedBatch({
+    code,
+    name: `Silent ${code}, E2e`,
+    club: TEST_CLUB,
+    games: [302],
+  });
+
+  const commissioner = await createTestUser("bellowner");
+  const league = await createLeagueFor(commissioner, "Doorbell League");
+  // Commissions nothing of their own, so `canManageRosters()` is false and
+  // `/players/mapping` would 404 for them: a notice would be a dead end.
+  const member = await createTestUser("bellmember");
+  await addMemberTo(league.id, member);
+  await signIn(context, member);
+
+  try {
+    await page.goto(`/leagues/${league.id}`);
+
+    await expect(page.getByTestId("lobby")).toBeVisible();
+    await expect(page.getByTestId("mapping-queue")).toHaveCount(0);
+  } finally {
+    await removeBatch(batch);
   }
 });
