@@ -1,9 +1,11 @@
 import "server-only";
 
+import { serverConfig } from "@/lib/config/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { rankCandidates } from "@/lib/rosters/rename";
 import {
+  codesWorthChasing,
   newestCheckBatch,
   pendingCodes,
   pendingRenames,
@@ -112,12 +114,17 @@ export async function readUnmatchedCodes(limit = 20): Promise<UnmatchedCode[]> {
  * reads fetch it twice, and it never ranks candidates — a count does not need
  * to know who the player might be, and `suggest` builds a fuse index per code.
  *
+ * Only **this season's** unmatched codes are counted, which a full E2025
+ * backfill is what proved necessary: it leaves 123 codes that are not work,
+ * because they belong to players who left the league. See `codesWorthChasing`.
+ *
  * It throws what PocketBase throws. Callers that render this beside something
  * else fall back to `EMPTY_QUEUE`, the way the lobby already does with chat: a
  * doorbell is not worth a surface.
  */
 export async function countMappingQueue(limit = 20): Promise<MappingQueue> {
   const pb = await getSuperuserClient();
+  const season = serverConfig().EUROLEAGUE_SEASON;
 
   const [checkBatches, codeBatches, players] = await Promise.all([
     readCheckBatches(pb),
@@ -127,7 +134,7 @@ export async function countMappingQueue(limit = 20): Promise<MappingQueue> {
 
   return {
     renames: pendingRenames(newestCheckBatch(checkBatches), players).length,
-    codes: pendingCodes(codeBatches, players).length,
+    codes: codesWorthChasing(pendingCodes(codeBatches, players), season).length,
   };
 }
 

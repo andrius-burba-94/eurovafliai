@@ -664,3 +664,49 @@ open the app. No chat announcement, because `chat_messages` has no per-member
 visibility and this is manager-only — the same argument 8.2 made for the stuck
 banner — and no email, because this repo has kept configuration on the box out of
 itself.
+
+### The doorbell's first contact with real data
+
+The slice above shipped, and then the pre-season pass ran a full E2025 backfill
+against the live E2026 pool — 34 passes, 6,902 game lines, 0 corrections — and
+the doorbell was immediately wrong in the exact way it was designed not to be.
+
+`readUnmatchedCodes` reports every person code an import could not attach, and a
+backfill of *last* season against *this* season's roster leaves **123** of them.
+None is work. They are players who left the league; there is nobody in the pool
+for their code to belong to, and there never will be. The notice would have
+opened on "102 person codes belong to nobody in the pool" on the first lobby a
+commissioner visited after backfilling, which is a hundred things nobody can act
+on and precisely the training that makes the fifteen real renames invisible.
+
+So `countMappingQueue` now counts only the season being **played**
+(`codesWorthChasing`). A code from the current season is a live player whose
+points are landing nowhere, which from 24 September is worth interrupting
+somebody for; a code from a backfill season is history. `/players/mapping` still
+lists every season, because that is the working surface — history is context
+there and noise only in a notice. Verified against the real backfilled database:
+102 unmatched codes in the window, all E2025, and `queueSentence` returns `null`.
+
+Worth writing down because the first version was not sloppy — it was correct
+against every test and every fixture, and it was measured wrong within an hour
+of meeting a real season. The spec that guards it now plants a code under
+`E2019` and asserts the banner does not name it while the mapping page does.
+
+One limitation found and *not* fixed: `readUnmatchedCodes` reads the newest 20
+`stat_imports` batches, and the backfill wrote 34, so 22 codes are outside the
+window and invisible to both the page and the count. In normal operation this
+does not bite — an empty fetcher pass deliberately writes no batch, so 20 batches
+is many game nights rather than five hours — and every code it hides is a
+departed player. It would matter if somebody bulk-imported the current season.
+
+### What the backfill said about draft night
+
+Also measured, and more important than the doorbell: **222 of 326 active E2026
+players carry a last-5 projection and 104 do not.** Twenty-two have no person
+code yet. The other 82 have one and simply did not play a Euroleague game last
+season — NBA arrivals, domestic-league signings, promoted juniors. Autodraft
+ranks a missing projection below −2 and the pool's 10+/15+/20+ filters drop them,
+so a genuine signing sorts beneath a fringe player who logged garbage minutes in
+May. Nothing is broken; this is what ranking a new season on an old one means.
+It is the strongest argument this project has for writing a cheat sheet before
+draft night, because the sheet is read before any projection is.

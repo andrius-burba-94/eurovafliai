@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  codesWorthChasing,
   newestCheckBatch,
   pendingCodes,
   pendingRenames,
@@ -133,6 +134,30 @@ describe("pendingCodes", () => {
 
   it("ignores an entry with no code", () => {
     expect(pendingCodes([codeBatch([{ lines: [1] }])], [])).toEqual([]);
+  });
+});
+
+describe("codesWorthChasing", () => {
+  const codes = [
+    { personCode: "1", name: null, clubCode: null, games: [], season: "E2026" },
+    { personCode: "2", name: null, clubCode: null, games: [], season: "E2025" },
+    { personCode: "3", name: null, clubCode: null, games: [], season: "E2025" },
+  ];
+
+  /**
+   * The measurement this rule came from: a full E2025 backfill against an
+   * E2026 pool leaves 123 unmatched codes and **none of them is work** — they
+   * are players who left the league. Counting them would have opened the
+   * doorbell on a hundred things nobody can act on.
+   */
+  it("keeps only the season being played", () => {
+    expect(codesWorthChasing(codes, "E2026").map((c) => c.personCode)).toEqual([
+      "1",
+    ]);
+  });
+
+  it("counts nothing when the whole queue is last season's", () => {
+    expect(codesWorthChasing(codes.slice(1), "E2026")).toEqual([]);
   });
 });
 
