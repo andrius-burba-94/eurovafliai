@@ -1,9 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 
+import Link from "next/link";
+
 import {
   BackLink,
   Bank,
   BoardPlan,
+  Correction,
   Door,
   PositionPatch,
   Sheet,
@@ -13,6 +16,8 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { LeagueChat } from "@/components/league-chat";
 import { readMessages } from "@/lib/chat/store";
+import { countMappingQueue } from "@/lib/mapping/queries";
+import { EMPTY_QUEUE, queueSentence } from "@/lib/mapping/queue";
 import { createUserClient } from "@/lib/pb/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { rosterSize } from "@/lib/leagues/settings";
@@ -65,6 +70,16 @@ export default async function LobbyPage({
   // A cheat sheet belongs to a *membership*. A commissioner who has not taken a
   // slot has no roster to rank for, so they are not offered one.
   const viewerIsMember = members.some((member) => member.isYou);
+  const viewerIsManager =
+    isCommissioner || members.some((member) => member.isYou && member.canManage);
+  // The mapping queue is app-global and `/players/mapping` gates on
+  // `canManageRosters()`, which anybody who manages *this* league already
+  // satisfies — so this gate cannot dangle a door that would 404, and it costs
+  // no extra query to decide. Everyone else pays nothing for the read.
+  const mappingQueue = viewerIsManager
+    ? await countMappingQueue().catch(() => EMPTY_QUEUE)
+    : EMPTY_QUEUE;
+  const mappingSentence = queueSentence(mappingQueue);
 
   return (
     <>
@@ -119,8 +134,7 @@ export default async function LobbyPage({
                 description="Each team's night, the best night and the deal that moved most."
                 action="Open"
               />
-              {isCommissioner ||
-              members.some((member) => member.isYou && member.canManage) ? (
+              {viewerIsManager ? (
                 <Door
                   href={`/leagues/${league.id}/transactions/new`}
                   testId="record-transaction"
@@ -160,6 +174,23 @@ export default async function LobbyPage({
               </p>
             </div>
           </Bank>
+        ) : null}
+
+        {/* The doorbell on 4.2's queue. Below the league's own act, because a
+            live draft outranks a stale spelling, and above the member list,
+            because further down is where it was already being missed. Renders
+            only when something is genuinely standing — a notice that also
+            appears when there is nothing to do is the one people stop reading. */}
+        {mappingSentence ? (
+          <Correction testId="mapping-queue">
+            {mappingSentence}{" "}
+            <Link
+              href="/players/mapping"
+              className="inline-flex min-h-11 min-w-11 items-center text-ink underline decoration-ink/40 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+            >
+              Open player mapping
+            </Link>
+          </Correction>
         ) : null}
 
         {/* From here down the surface is live. The server render above is what
