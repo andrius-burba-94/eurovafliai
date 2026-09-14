@@ -11,6 +11,8 @@ import {
   Slots,
   TopRail,
 } from "@/components/board";
+import { countMappingQueue } from "@/lib/mapping/queries";
+import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
 import { canManageRosters } from "@/lib/rosters/actions";
 import { getPool } from "@/lib/rosters/queries";
 
@@ -34,6 +36,11 @@ export default async function PlayersPage() {
   // Only shown to people who could use it, so the page does not dangle a door
   // that would only 404 for them.
   const canImport = await canManageRosters();
+  // The same count the lobby rings, from the same filter, so the page that owns
+  // the link and the page that chases it cannot quote different numbers.
+  const mappingWaiting = canImport
+    ? queueTotal(await countMappingQueue().catch(() => EMPTY_QUEUE))
+    : 0;
 
   return (
     <>
@@ -128,14 +135,27 @@ export default async function PlayersPage() {
                 </Slot>
               ) : null}
               {canImport ? (
-                <Slot state="waiting">
+                // Struck as a correction once something is standing: this is
+                // the row the link already lived on, so the doorbell belongs
+                // here rather than in a second notice further up the page.
+                <Slot
+                  state={mappingWaiting > 0 ? "correction" : "waiting"}
+                  testId="mapping-queue-row"
+                >
                   <span className="slot-label">Player mapping</span>
-                  <Link
-                    href="/players/mapping"
-                    className="text-sm text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                  >
-                    Names and codes
-                  </Link>
+                  <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    {mappingWaiting > 0 ? (
+                      <span className="text-sm">
+                        {mappingWaiting} waiting
+                      </span>
+                    ) : null}
+                    <Link
+                      href="/players/mapping"
+                      className="text-sm text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                    >
+                      {mappingWaiting > 0 ? "Answer them" : "Names and codes"}
+                    </Link>
+                  </span>
                 </Slot>
               ) : null}
               {lastImport ? (
