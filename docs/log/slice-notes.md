@@ -22,7 +22,7 @@ axe raised was contrast (`live` on `stock-deep` at 4.49:1): that rule is
 disabled in the suite on purpose and recorded as open debt, because
 `tokens.test.ts` is already the source of truth for every ink/stock pair.
 
-**8.3 has landed in git; copying the file onto the VPS is the human half.** PM2
+**8.3 has landed, and the human half is now closed on the box.** PM2
 writes `eurovafliai-{web,worker}-{out,error}.log` with no size bound. Two doors
 were rejected on purpose: `pm2 install pm2-logrotate` is a daemon-global
 module and would change logging for the eight sibling apps on this box, and
@@ -33,7 +33,14 @@ file. So the slice ships `deploy/logrotate/eurovafliai` for
 with `copytruncate` as the load-bearing line (without it PM2 keeps writing the
 rotated inode and the live log silently stops growing). `deploy.sh` warns when
 the file is missing or drifted; the runbook §9 has the install and dry-run
-steps; a unit test keeps `copytruncate` and the scoped glob honest.
+steps; a unit test keeps `copytruncate` and the scoped glob honest. The file is
+installed at `/etc/logrotate.d/eurovafliai` and byte-identical to git, and it
+is rotating rather than merely present: the live `eurovafliai-*.log` files sit
+at 0 bytes beside a populated `.1` and a `.2.gz`, which is exactly the
+`copytruncate` + `delaycompress` signature. Truncated-live-plus-populated-`.1`
+is the pair worth checking if this is ever revisited — a rotation that had lost
+`copytruncate` would show a growing `.1` and a live log frozen at its old
+size.
 
 **8.2 has landed: a draft-breaking failure reaches the commissioner, not
 chat.** The sweep already refused a hole in the board and a pool with no legal
@@ -51,7 +58,7 @@ again. Two existing sweep assertions that expected `writes === []` on a refusal
 now expect the stuck update, which is honest — the refusal stops being a pure
 no-op.
 
-**8.1 has landed in git; enabling the units on the VPS is the human half.** The
+**8.1 has landed, and the human half is now closed on the box.** The
 timer and oneshot were already committed. What was missing was anything that
 noticed they were not installed, and a restore path that did not need the box.
 `scripts/restore-drill.sh` extracts an archive into a disposable directory,
@@ -65,7 +72,13 @@ the install steps. Two limits stay as debt rather than scope: archives live on
 the same disk as the database, and `backup-pocketbase.mts` goes through
 `parseServerEnv`, which also wants the Google OAuth secrets. The stamp format
 had to change in this slice: PocketBase rejects uppercase letters in backup
-names, so an ISO-shaped `…T…Z.zip` never created an archive at all.
+names, so an ISO-shaped `…T…Z.zip` never created an archive at all. The units
+are installed and `eurovafliai-backup.timer` is `enabled` and `active`: it has
+fired on four consecutive nights, each run leaving a 33 MB
+`eurovafliai-<stamp>.zip`, and the last oneshot exited 0. One of those
+production archives has been through `pb:restore-drill --adopt-superuser`
+(#109), so what is proved is the whole loop — timer to archive to a booted
+restore — and not just that a unit is enabled.
 
 **8.5 has landed, and first-run is the empty slot, not a tour.** PRODUCT forbids
 onboarding hand-holding beyond what the room needs. The aha moment is join or
