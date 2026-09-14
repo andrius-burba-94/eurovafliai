@@ -10,6 +10,7 @@ import {
   Sheet,
   TopRail,
 } from "@/components/board";
+import { THEME_SCRIPT } from "@/lib/theme";
 
 export default function GlobalError({
   error,
@@ -23,7 +24,18 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${archivo.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* This file replaces the root layout entirely, so it needs its own
+            copy of the ground the reader chose. Without it the one page that
+            appears when everything else has failed is the one page that
+            ignores the night board. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col bg-stock text-ink">
         <TopRail />
         <Sheet testId="root-error">

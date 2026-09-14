@@ -217,7 +217,9 @@ dead grey.
 
 Contrast ratios below are **measured**, not estimated: `src/app/tokens.test.ts`
 parses `globals.css`, converts OKLCH to WCAG relative luminance and asserts the
-floors. Sixty-four assertions pass, including both stock materials.
+floors. 122 assertions pass, including both stock materials — and since 9.5
+every ratio among them is asked of **both grounds** (see The night board below),
+so the numbers quoted here are the day board's unless stated.
 
 ### Primary
 
@@ -273,6 +275,40 @@ text floor because the letter inside them has to be readable.
 - **Guard Steel Blue** (`oklch(0.505 0.082 235)`, token `pos-g`, **4.89:1**)
 - **Forward Olive** (`oklch(0.508 0.079 128)`, token `pos-f`, **4.78:1**)
 - **Center Plum** (`oklch(0.505 0.093 305)`, token `pos-c`, **5.17:1**)
+
+### The night board
+
+Since 9.5 there is a second ground and **only** a ground: same tokens, same four
+rule weights, same two marker jobs, same washes, same framed Bank, zero radius
+and zero glow. The day board inverts the physical object for a lit room; the
+night board inverts the inversion back for the room the 21:00 tip-off is
+actually watched in, and it is the same instrument under a different lamp. The
+argument is D21 and [ADR-0005](docs/adr/ADR-0005-night-board.md).
+
+The values are declared once as `--night-*` and pointed at `--color-*` from two
+places — `@media (prefers-color-scheme: dark)` and `:root[data-theme="dark"]` —
+so the system decides until a reader says otherwise, and `tokens.test.ts`
+asserts the two mapping blocks carry the same thirteen tokens.
+
+Every lightness was **solved for the day board's own margin** rather than
+picked, because hierarchy here is carried in ink strength and a dark theme whose
+quiet inks read at 8:1 has no quiet:
+
+| Mark | Night | Day |
+|---|---|---|
+| `ink` on stock | 13.60:1 | 13.92:1 |
+| `ink-soft` | **5.79:1** | 5.77:1 |
+| `ink-faint` | 5.31:1 | 5.05:1 |
+| `live` (marker) | **5.10:1** | 5.06:1 |
+| `rail` | **5.05:1** | 5.05:1 |
+| `rule` | **3.35:1** | 3.36:1 |
+| `rule-strong` | **4.40:1** | 4.40:1 |
+| `pos-*` on their own 10% wash | 5.11–5.13:1 | 4.54–4.64:1 |
+
+Neither ground is pure black or pure white. A pure-black ground is the category
+cliché the day board was drawn against, and white-on-black at full strength is
+the halation that makes a phone in a dark room hard to read — so the night stock
+is L 0.243 and the night ink L 0.938, both still tinted toward the rail's blue.
 
 ### Named Rules
 
@@ -1169,11 +1205,26 @@ rather than deleted, so the decision and the question it settled stay together.
    board. The cost is accepted knowingly: a full twelve-member league scrolls
    sideways on a laptop as well as on a phone. Up to about six members the
    columns simply share the width they have.
-5. **No dark mode.** `color-scheme: light` is declared and the light ground is a
-   deliberate inversion of the physical object, argued from a lit room and
-   daylight phone use. Whether a genuinely dark room during a night draft
-   deserves an answer is open; if it ever does, the inversion argument has to be
-   re-made, not quietly dropped.
+5. ~~**No dark mode.**~~ **Answered in 9.5**, and the price this question set
+   was paid rather than skipped: the inversion argument was re-made, in
+   [ADR-0005](docs/adr/ADR-0005-night-board.md) and D21. It survives and gains a
+   clause — the ground inverts the physical object **for the light it is read
+   in**, so by day the card is the ground and by night the board is. What the
+   direction contract refuses is the near-black surface with one glowing accent,
+   and that is untouched: one design system, two grounds, and every material
+   below is the same on both. Three things make it a ground rather than a theme.
+   The **system preference decides in CSS** (`prefers-color-scheme`), so a
+   reader with JavaScript off lands where their phone asked and an OS switching
+   at tip-off reaches an open page; a ~200-byte script in `<head>` applies an
+   explicit override **before first paint**, because a theme applied from an
+   effect is a white page flashed at somebody in a dark room. Choosing the
+   ground the system already wants **clears** the override. And every night
+   value is solved against the day board's own margins — soft ink at 5.79:1
+   where day is 5.77, the marker at 5.10 against 5.06 — because a dark theme
+   whose quiet inks read at 8:1 has no quiet, it has two shouts, and hierarchy
+   here is carried in ink strength. The palette is declared as `--night-*` and
+   `tokens.test.ts` loops over both grounds; a palette that overrode `--color-*`
+   in place would have been invisible to that file, which reads declarations.
 6. **Input error and disabled states are unstyled.** `Correction` carries every
    failure today. Per-field validation (which a player search or a trade form
    will want) has no visual language yet.

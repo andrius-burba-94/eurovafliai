@@ -3,6 +3,97 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 9.5 — The night board, and the test file that shaped it
+
+D17 refused dark mode by name, so this slice could not start with CSS. DESIGN.md
+open question 5 had already set the price: *"if it ever does, the inversion
+argument has to be re-made, not quietly dropped."* Re-made, it holds — and it
+gains a clause.
+
+The day board is an inversion of the physical object: a real draft board is dark
+card in a dim room, and this app made card stock the ground and the board's
+ruling the ink. That was argued from **the room** — a lit lounge with a TV on,
+and months of daylight phone checks either side of draft night. The room is not
+a constant. Euroleague tips at 20:00 and 21:00 CET, and an L 0.94 ground in a
+dark bedroom is not a design choice, it is a torch. So the ground inverts the
+object *for the light it is read in*: by day the card, by night the board. Read
+D17 and the direction contract together and what they refuse turns out to be
+narrower than the phrase "dark mode" — it is **"the near-black surface with one
+glowing accent"**, a look, and that refusal is untouched here and still
+asserted in a browser. [ADR-0005](../adr/ADR-0005-night-board.md), blueprint
+**D21**.
+
+**The test file decided the implementation.** `tokens.test.ts` parses
+`globals.css` with a regex for `--color-X: oklch(…)` and takes the **first**
+match. A second theme written the obvious way — override `--color-stock` inside
+a media query — would have left that regex reading the day board's value in both
+passes, and dark mode would have shipped **unmeasured**, which is the one thing
+this design system does not do. So the night palette is declared under its own
+`--night-*` names, each mapping block only points `--color-*` at them, and the
+suite is parameterized by ground. 122 assertions, every ratio among them asked
+twice. The helpers that were free functions became a `ground(theme)` factory, so
+each existing assertion body measures the second palette **unchanged** — the
+tests did not get a dark-mode variant, they got a second ground.
+
+That indirection pays for itself twice: the mapping happens in two places (the
+system preference and an explicit choice), and a palette copied into both would
+drift the first time one value moved. A token added to one block and forgotten
+in the other would strand a single day colour on a dark ground — unreadable, and
+invisible to every ratio, which reads declarations rather than mappings. So the
+two blocks are asserted to assign the same thirteen tokens, each to its own.
+
+**The values were solved, not picked.** The first pass was a clean-looking
+palette that was wrong in a way a ratio table hides: its quiet inks measured
+7–8:1. Contrast floors were all cleared and the *hierarchy* was gone, because
+what separates a slot label from a surname here is ink strength. So each
+lightness was solved numerically against the day board's own **margin** —
+`ink-soft` 5.79:1 where day is 5.77, the marker 5.10 against 5.06, the rail 5.05
+against 5.05, the two rules 3.35/4.40 against 3.36/4.40, and the position letter
+on its own 10% wash at 5.11–5.13 (the tightest pairing in the app on either
+ground). Neither end of the ramp is pure: a pure-black ground is the cliché the
+day board was drawn against, and white-on-black at full strength halates on a
+phone in the dark.
+
+**No flash, and no JavaScript required for the common case.** The system
+preference is applied by `@media (prefers-color-scheme: dark)` in CSS, so a
+reader with scripts off lands where their phone asked, and an OS switching at
+tip-off reaches a page that is already open. A ~200-byte script in `<head>`
+applies an **explicit override only**, before the first paint — a theme applied
+from an effect is a white page flashed at somebody in a dark room, which is the
+whole feature failing on the device it exists for. `global-error.tsx` replaces
+the root layout entirely, so it carries its own copy; without it the one page
+that appears when everything else has failed is the one page that ignores the
+choice. The CSP already allows `'unsafe-inline'` for scripts (Next's own
+bootstrap needs it), so this adds no new exposure — checked rather than assumed.
+
+**Choosing what the system already wants clears the override.** `overrideFor`
+returns `null` in that case. Without it every press writes one more pin, and a
+reader who turns their phone to night mode at kickoff still gets the day board
+because of a tap they made in July. The control is the existing `FilterToggle`
+in the rail — DESIGN.md's settled answer for a two-state control, a button with
+`aria-pressed` carrying its state in its own rule — so it reached every surface
+without touching a single page, and a sun/moon icon button would have introduced
+a new idiom and a new material in one step.
+
+Two implementation notes worth keeping. The control reads `localStorage` and
+`matchMedia` through **`useSyncExternalStore`**, not an effect: they *are*
+external stores, the React Compiler's `set-state-in-effect` rule rejects the
+effect version outright, and this way the server has a defined snapshot instead
+of a guess. And `board.tsx`'s position patch needed **no change at all** — it
+mixes into `var(--color-stock)`, a token *reference*, so it follows whichever
+ground is in force; a literal colour there is exactly what would have blocked a
+second theme, which is why `tokens.test.ts` asserts the shape of that mix.
+
+**The E2E spec exists for what arithmetic cannot see:** that the second palette
+is in force at all, that it arrives before the paint rather than after, and that
+the system decides until somebody says otherwise. Two things it taught us. The
+computed value of `--color-stock` comes back as `lab(93.39% …)` — Chromium
+normalizes wide-gamut colours on the way out — so the spec parses a lightness
+rather than comparing a colour syntax we do not control. And the first click on
+`/players` was swallowed: in dev that page ships ~1,000 players and the tap
+landed before hydration, which is worth knowing beyond this spec, because the
+control is the only thing in the rail that needs JavaScript.
+
 ## 9.4 — `injured` was a status nothing had ever written
 
 `players.status` has carried `active | injured | doubtful | left` since 2.1, and
