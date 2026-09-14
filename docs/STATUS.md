@@ -79,14 +79,17 @@ cat deploy/logrotate/eurovafliai
 npm test -- tests/unit/logrotate-config.test.ts
 ```
 
-On the VPS, copy the file and dry-run before enabling:
+The VPS copy is already installed. To re-check it rather than re-install it:
 
 ```bash
-scp deploy/logrotate/eurovafliai hstgr:/etc/logrotate.d/eurovafliai
-ssh hstgr 'logrotate -d /etc/logrotate.d/eurovafliai'
+ssh hstgr 'cd /var/www/eurovafliai && cmp /etc/logrotate.d/eurovafliai deploy/logrotate/eurovafliai && echo matches'
+ssh hstgr 'ls -la /root/.pm2/logs/ | grep eurovafliai'
 ```
 
-The next `deploy.sh` must stop warning about a missing logrotate config.
+`deploy.sh` no longer warns about logrotate; that silence is the check. The
+listing is the stronger one — live `.log` files at 0 bytes next to a populated
+`.1` (and a `.2.gz`) is `copytruncate` working. A live log frozen at its old
+size while `.1` grows is the failure this file exists to prevent.
 
 ## Try it on localhost — 8.2
 
@@ -111,9 +114,20 @@ npm run pb:restore-drill -- pb/pb_data/backups/eurovafliai-<stamp>.zip
 
 The drill extracts into a disposable directory, boots the pinned binary on a
 spare port, runs `pb:verify` against it, and tears everything down. The live
-`pb/pb_data` is never touched. On the VPS, install the units per
-`docs/runbooks/vps-setup.md` §8; the next `deploy.sh` must stop warning that
-`eurovafliai-backup.timer` is disabled.
+`pb/pb_data` is never touched.
+
+The VPS units are already installed and firing. To re-check them:
+
+```bash
+ssh hstgr 'systemctl list-timers eurovafliai-backup.timer --no-pager'
+ssh hstgr 'ls -lah /var/www/eurovafliai/pb/pb_data/backups/'
+```
+
+`deploy.sh` no longer warns that the timer is disabled or that the newest
+archive is stale; that silence is the check. Look at `LAST` in the timer
+listing and at the newest stamp — a timer that is `enabled` but failing is the
+case the 48h warning exists for, and `journalctl -u eurovafliai-backup.service`
+is where it would say why.
 
 ## Try it on localhost — 8.5
 
@@ -588,15 +602,20 @@ season two is on the horizon.
 
 ## Phase 8 — Hardening & ops polish
 
-**Done in code.** 8.0–8.5 are in. Enabling backups and installing logrotate on
-the VPS are the remaining human halves (open-debt rows below).
+**Done, in code and on the box.** 8.0–8.5 are in, and the two human halves —
+enabling the backup timer and installing logrotate — are installed on the VPS.
+A deploy is now the check: `deploy.sh` §6b/§6c warn on a disabled timer, an
+archive older than 48h, and a missing or drifted logrotate file, so the next
+run going quiet is the standing proof. What remains open is not an install but
+a decision: the archives still sit on the same disk as the database (open-debt
+row below).
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **8.0 Deploy script hygiene** | done | — | `deploy.sh` pulls, then `exec`s the fresh copy once, passing `BEFORE_SHA`/`AFTER_SHA` so `changed()` does not restart PocketBase on every deploy. The nginx check compares a canonical vhost (certbot TLS + HTTP stub stripped) to git, so a warning means a real `/pb/` edit. Closes #34; the re-exec proved itself on the deploy after this one, as designed. #35 it did **not** close — the canonical form still compared comments and the `listen` line certbot rewrites, so the box warned on every deploy with a byte-correct `/pb/` block. Its own test fixture appended certbot's lines instead of *replacing* `listen 80;`, so CI could not see it. Fixed after the Phase 8 VPS install |
-| **8.1 Nightly backup + restore drill** | done | — | Timer + oneshot were already committed. This slice adds `scripts/restore-drill.sh` (`npm run pb:restore-drill`), deploy warnings when the timer is off or the newest archive is older than 48h, the runbook install steps, and a unit-file test that keeps the timer name and `Persistent=true` honest. **Human half still open:** install and enable the units on the VPS (open-debt row below) |
+| **8.1 Nightly backup + restore drill** | done | — | Timer + oneshot were already committed. This slice adds `scripts/restore-drill.sh` (`npm run pb:restore-drill`), deploy warnings when the timer is off or the newest archive is older than 48h, the runbook install steps, and a unit-file test that keeps the timer name and `Persistent=true` honest. **Human half now done:** the units are installed and `eurovafliai-backup.timer` is `enabled`/`active`, firing nightly (03:15 + jitter) — four 33 MB archives on the box and the last oneshot exited 0 |
 | **8.2 Draft-breaking failure → commissioner banner** | done | — | `stuck_reason` / `stuck_since` on `drafts`; sweep writes on no-legal / board-hole / three consecutive throws, clears when it can move again; commissioner-only `Correction` in the room. Not chat — `chat_messages` has no per-member visibility. Stats failures stay in the log |
-| **8.3 PM2 log rotation** | done | — | `deploy/logrotate/eurovafliai` → `/etc/logrotate.d/eurovafliai`, glob `/root/.pm2/logs/eurovafliai-*.log` only, `copytruncate` required. `pm2-logrotate` rejected (daemon-global on a shared box); `out_file` rejected (needs delete+start). Deploy warns on missing/drift. **Human half:** copy the file and dry-run on the VPS |
+| **8.3 PM2 log rotation** | done | — | `deploy/logrotate/eurovafliai` → `/etc/logrotate.d/eurovafliai`, glob `/root/.pm2/logs/eurovafliai-*.log` only, `copytruncate` required. `pm2-logrotate` rejected (daemon-global on a shared box); `out_file` rejected (needs delete+start). Deploy warns on missing/drift. **Human half now done:** the file is at `/etc/logrotate.d/eurovafliai`, byte-identical to git, and visibly rotating — truncated live logs beside a `.1` and a `.2.gz`, which is `copytruncate` + `delaycompress` working rather than merely installed |
 | **8.4 Accessibility pass** | done | — | Draft room `h1` (all three band states); disarm restores focus to the armed row (cheat-sheet `focusWanted` idiom); skip link in the root layout → `#main` on `Sheet`; `@axe-core/playwright` over login, home, lobby, draft, standings (serious/critical). Clock live regions already shipped with 3.7 |
 | **8.5 Impeccable harden / onboard / adapt / audit** | done | — | A board-shaped `not-found` (missing and forbidden still look the same), Archivo loaded on `global-error` because that file replaces the root layout, a 44×44 `retry`, and `break-words` / `min-w-0` on every name that can be a long one. Empty Banks name the next act as a sibling `Door` in a `Slots` run, never a nested framed Bank, and their `data-testid` stays on the sentence so the framed-Bank E2E assertions still hold. **No tours** — PRODUCT rules out onboarding hand-holding, so first-run is the empty slot itself. English-only, so i18n and RTL were skipped deliberately and the budget went to overflow and recovery. Audit 17/20 |
 
@@ -607,7 +626,7 @@ the VPS are the remaining human halves (open-debt rows below).
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
 | 7 — AI features (Gemini 2.5 Flash) | todo |
-| 8 — Hardening & ops polish | **done in code** — 8.0–8.5 are in; VPS enable of backups + logrotate remain human |
+| 8 — Hardening & ops polish | **done** — 8.0–8.5 are in, and the backup timer and logrotate are installed on the box |
 
 ---
 
@@ -623,8 +642,10 @@ worker logs, and first-time OAuth verification in CI.
 
 Nightly backup automation is committed as `eurovafliai-backup.timer` and uses
 PocketBase's backup API, retaining 14 archives. The restore drill
-(`npm run pb:restore-drill`) is proved locally. The units still have to be
-installed and enabled on the VPS — until then every deploy warns.
+(`npm run pb:restore-drill`) is proved locally **and against a real production
+archive**. The units are installed and enabled on the VPS, so the deploy
+warnings are silent; a deploy that starts warning again means the timer stopped
+or an archive went stale.
 
 **Try it on localhost:** `npm run lint && npm run typecheck && npm run test`,
 then `npm run dev` and open `http://localhost:3007`. Navigate between the home,
