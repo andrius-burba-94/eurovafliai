@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { lineupWeights } from "@/lib/lineups/lineup";
+
 import { formatSignedTenths } from "./scoring";
 import { impactForMember, type ImpactLine, type ImpactTransaction } from "./impact";
 
@@ -106,6 +108,51 @@ describe("impactForMember", () => {
 
   it("skips a deal that does not name this member", () => {
     expect(impactForMember("m-c", [trade], lines)).toEqual([]);
+  });
+
+  it("weighs a deal by the lineup, so it agrees with the table", () => {
+    const weights = lineupWeights([
+      {
+        memberId: "m-a",
+        round: 2,
+        source: "recorded",
+        slots: {
+          starters: ["p-in"],
+          captain: "p-in",
+          sixth: [],
+          bench: ["p-out"],
+          inactive: [],
+        },
+      },
+    ]);
+    const [deal] = impactForMember("m-a", [trade], lines, weights);
+    // The arrival was captain (7 → 14); the departure would have been benched
+    // (50 → 25), so the deal reads -11 rather than -43.
+    expect(deal).toMatchObject({
+      inTenths: 14,
+      outTenths: 25,
+      deltaTenths: -11,
+    });
+  });
+
+  it("leaves PIR raw, because nobody played half a game", () => {
+    const weights = lineupWeights([
+      {
+        memberId: "m-a",
+        round: 2,
+        source: "recorded",
+        slots: {
+          starters: ["p-in"],
+          captain: "p-in",
+          sixth: [],
+          bench: [],
+          inactive: ["p-out"],
+        },
+      },
+    ]);
+    const [deal] = impactForMember("m-a", [trade], lines, weights);
+    expect(deal?.outTenths).toBe(0);
+    expect(deal?.outPir).toBe(5);
   });
 });
 

@@ -8,8 +8,10 @@
  * trade. Swing math is `impactForMember` for that round only.
  */
 
+import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
 import { coversRound } from "@/lib/memberships/from";
 
+import { scaleTenths } from "./scoring";
 import {
   impactForMember,
   type ImpactLine,
@@ -93,10 +95,17 @@ function ownerThatRound(
   return owners[0] ?? null;
 }
 
+/**
+ * The night that actually counted for its owner: the round's lineup weighs it
+ * (9.3), so a 40 off the bench is a 20 here and a captain's 20 is a 40. The
+ * table says the same thing; a recap that ranked raw box scores would name a
+ * best night that moved nobody's total.
+ */
 function bestNight(
   windows: readonly RecapWindow[],
   lines: readonly ImpactLine[],
   round: number,
+  weights: LineupWeights,
 ): RecapBestNight | null {
   const covering = windows.filter((window) => coversRound(window, round));
   if (covering.length === 0) return null;
@@ -109,7 +118,10 @@ function bestNight(
     seen.add(window.playerId);
     const memberId = ownerThatRound(windows, window.playerId, round);
     if (!memberId) continue;
-    const fantasyTenths = scored.get(window.playerId) ?? 0;
+    const fantasyTenths = scaleTenths(
+      scored.get(window.playerId) ?? 0,
+      weights.multiplierFor(memberId, round, window.playerId),
+    );
     const candidate: RecapBestNight = {
       playerId: window.playerId,
       memberId,
@@ -137,6 +149,7 @@ function biggestSwing(
   transactions: readonly ImpactTransaction[],
   lines: readonly ImpactLine[],
   round: number,
+  weights: LineupWeights,
 ): RecapSwing | null {
   const covering = transactions.filter((tx) => tx.fromRound <= round);
   if (covering.length === 0) return null;
@@ -146,7 +159,7 @@ function biggestSwing(
     const memberIds = membersOf(tx);
     let winner: RecapSwing | null = null;
     for (const memberId of memberIds) {
-      const [deal] = impactForMember(memberId, [tx], lines);
+      const [deal] = impactForMember(memberId, [tx], lines, weights);
       if (!deal) continue;
       const deltaTenths =
         deal.byRound.find((row) => row.round === round)?.deltaTenths ?? 0;
@@ -197,11 +210,12 @@ export function recapForRound(
   windows: readonly RecapWindow[],
   lines: readonly ImpactLine[],
   transactions: readonly ImpactTransaction[],
+  weights: LineupWeights = FULL_WEIGHTS,
 ): Recap {
   return {
     round,
     rows: rankRound(table),
-    bestNight: bestNight(windows, lines, round),
-    biggestSwing: biggestSwing(transactions, lines, round),
+    bestNight: bestNight(windows, lines, round, weights),
+    biggestSwing: biggestSwing(transactions, lines, round, weights),
   };
 }

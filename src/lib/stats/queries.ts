@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
+import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import type { Position } from "@/lib/engine";
 import { type Phase, PHASES } from "./csv";
@@ -170,6 +171,13 @@ export async function readLeagueRecap(
     fantasyTenths: row.fantasy_pts,
     pir: row.pir,
   }));
+  const weights = await readLineupWeights(
+    pb,
+    leagueId,
+    code,
+    [round],
+    [...new Set(memberships.map((row) => row.member))],
+  );
   const recap = recapForRound(
     round,
     snap.table,
@@ -182,6 +190,7 @@ export async function readLeagueRecap(
     })),
     lines,
     asTransactions(txRows),
+    weights,
   );
 
   const nameIds = [

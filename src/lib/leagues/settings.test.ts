@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_LINEUP_TEMPLATE,
   DEFAULT_PICK_SECONDS,
   DEFAULT_ROSTER_TEMPLATE,
   MAX_MEMBERS,
   canAcceptMember,
+  lineupFitsRoster,
   parseLeagueSettings,
   rosterSize,
 } from "./settings";
@@ -84,6 +86,42 @@ describe("rosterSize", () => {
 
   it("follows the template rather than a hardcoded 13", () => {
     expect(rosterSize({ G: 4, F: 4, C: 3 })).toBe(11);
+  });
+});
+
+describe("the lineup template", () => {
+  it("defaults to the official Draft Mode shape", () => {
+    expect(parseLeagueSettings({}).lineup_template).toEqual(
+      DEFAULT_LINEUP_TEMPLATE,
+    );
+  });
+
+  it("has one place per roster slot by default", () => {
+    const settings = parseLeagueSettings({});
+    expect(
+      lineupFitsRoster(settings.lineup_template, settings.roster_template),
+    ).toBe(true);
+  });
+
+  it("keeps the rest of the settings when a league sets a bad lineup shape", () => {
+    // A cross-field refinement on the schema would take the whole object down
+    // to defaults, silently resetting the format and the roster. The mismatch
+    // is a question the lineup action asks instead.
+    const settings = parseLeagueSettings({
+      format: "linear",
+      lineup_template: { starters: 5, sixth: 1, bench: 4, inactive: 9 },
+    });
+    expect(settings.format).toBe("linear");
+    expect(
+      lineupFitsRoster(settings.lineup_template, settings.roster_template),
+    ).toBe(false);
+  });
+
+  it("falls back to the default shape when the stored one is malformed", () => {
+    expect(
+      parseLeagueSettings({ lineup_template: { starters: "five" } })
+        .lineup_template,
+    ).toEqual(DEFAULT_LINEUP_TEMPLATE);
   });
 });
 

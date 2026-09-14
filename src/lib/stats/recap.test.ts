@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { lineupWeights } from "@/lib/lineups/lineup";
+
 import type { ImpactLine, ImpactTransaction } from "./impact";
 import { recapForRound } from "./recap";
 import type { SnapshotRow } from "./standings";
@@ -188,6 +190,62 @@ describe("recapForRound", () => {
     const recap = recapForRound(2, [], [], lines, [trade, drop]);
     expect(recap.biggestSwing?.transactionId).toBe("tx-drop");
     expect(recap.biggestSwing?.deltaTenths).toBe(-50);
+  });
+
+  it("weighs the best night by the lineup that owned it", () => {
+    const weights = lineupWeights([
+      {
+        memberId: "m-b",
+        round: 2,
+        source: "recorded",
+        slots: {
+          starters: ["p-out"],
+          captain: "p-out",
+          sixth: [],
+          bench: [],
+          inactive: [],
+        },
+      },
+    ]);
+    const recap = recapForRound(
+      2,
+      round2Table,
+      windowsAfterTrade,
+      lines,
+      [trade],
+      weights,
+    );
+    expect(recap.bestNight).toEqual({
+      playerId: "p-out",
+      memberId: "m-b",
+      fantasyTenths: 100,
+    });
+  });
+
+  it("does not name a night that scored nothing because they sat", () => {
+    const weights = lineupWeights([
+      {
+        memberId: "m-b",
+        round: 2,
+        source: "recorded",
+        slots: {
+          starters: ["someone-else"],
+          captain: "someone-else",
+          sixth: [],
+          bench: [],
+          inactive: ["p-out"],
+        },
+      },
+    ]);
+    const recap = recapForRound(
+      2,
+      round2Table,
+      windowsAfterTrade,
+      lines,
+      [trade],
+      weights,
+    );
+    expect(recap.bestNight?.playerId).not.toBe("p-out");
   });
 
   it("returns empty rows and null highlights with no input", () => {

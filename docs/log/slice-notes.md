@@ -3,6 +3,71 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 9.3 — The table was thirteen players at 100%, which the official table never is
+
+D4 read the official rulebook's captain, bench and coach mechanics as belonging
+to "their game mode, not a draft league", and cut all three. The Draft Mode page
+settles it in one sentence: Draft Mode "is the same as the Classic Mode, except…
+there is no head coach". So D4 was right about the coach and wrong about the
+other two, and the cost of being wrong was not cosmetic — a league mirroring the
+official site would have read two different totals for the same night and had no
+way to tell which was theirs. Restored as **D19**, an amendment citing the page,
+rather than a quiet edit to D4.
+
+**The load-bearing decision is where the multiplier is applied.**
+`player_game_stats.fantasy_pts` is app-global: one row for one player's night,
+read by every league. Baking a captain into it would be wrong the moment two
+leagues make different players captain, which is the same trap the existing
+"scoring weights are settings nothing reads" debt describes. So it is applied in
+`computeStandings`, which means recording a lineup is a **recompute** and never a
+rescore: the box scores never move, the golden fixture of 168 real E2025 rows is
+untouched, and a league that types a lineup in December fixes October without
+re-fetching anything.
+
+**Rounding is stated once and it is the bench that forces it.** Halving 33
+tenths is 16.5, and the entire tenths scheme exists so that no float ever reaches
+a sum. `scaleTenths` in `scoring.ts` is now the single convention — multiply,
+round half away from zero — and `toTenths` is defined in terms of it, so the
+×1.1 win bonus and the ×0.5 bench round the same way. It is applied **per
+player-round**: aggregate a player's games in a round first, then weigh once,
+because weighing each game and summing would round twice for anybody who played
+a double round.
+
+**The validator refuses transcription errors rather than storing a wrong total.**
+Every id has to sit in that member's membership window *for that round* — so a
+lineup typed in November for round 4 names the thirteen who actually played it,
+not today's roster — no duplicates, and the starting five has to be one of the
+five formations the rulebook prints (2-2-1, 1-2-2, 2-1-2, 1-3-1, 3-1-1 as
+G-F-C). The formation check is the one that turns a mistyped five into a refusal
+instead of a wrong number, and it is spelled out as a list rather than derived
+from "at least one of each, never three centers": a derived rule that admitted a
+sixth shape would be our invention.
+
+**One place the plan was deliberately not followed.** It said counts must match
+the template. They do not, for the sixth man, the bench and the inactive: those
+are capped rather than exact. A 5.2 drop can legally leave a twelve-man roster,
+and "counts must match" would mean such a league could record no lineup at all —
+a rule that refuses every input is worse than a place left empty. The starting
+five stays exact, because the formation rule has no meaning otherwise.
+
+**Two failure modes are answered rather than hidden.** A round nobody typed
+carries the last recorded lineup forward, which is what a league that arranges
+once and leaves it expects. A round *before* any lineup exists cannot be carried,
+so it scores everyone at 100% — and the standings page strikes it as a
+`Correction` naming the rounds, rather than presenting an inherited number as
+final. The same generosity covers a player a carried lineup never heard of: an
+arrival predating the lineup scores at 100%, not at zero, because our bookkeeping
+gap is not their bad night. That `Correction` only counts the teams the table
+actually ranks; a member with no roster has no total a lineup could change, and
+counting them would strike every round of every league forever.
+
+**Consistency was the quiet half of the slice.** `bestNight` scanned every
+covering window and `impactForMember` assumed everyone scored fully, so left
+alone they would have named a best night that moved nobody's total and priced a
+trade the table disagreed with. Both take the same weights now. PIR stays raw in
+both: it is the basketball number, and halving it would describe a night nobody
+played.
+
 ## 9.2 — Two of D13's "working paths" were only reachable by a crafted request
 
 D13 cut the commissioner console in 3.6 with a four-part argument that each item

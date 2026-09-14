@@ -4,6 +4,7 @@ import {
   type BoxScore,
   OFFICIAL_WEIGHTS,
   formatTenths,
+  scaleTenths,
   scoreGame,
   sumTenths,
 } from "./scoring";
@@ -207,5 +208,23 @@ describe("tenths", () => {
   it("sums nothing to nothing rather than to NaN", () => {
     expect(sumTenths([])).toBe(0);
     expect(formatTenths(sumTenths([]))).toBe("0.0");
+  });
+});
+
+describe("scaleTenths", () => {
+  // The lineup multipliers (9.3) are the caller: halving an odd number of
+  // tenths is the case that decides whether a table can be summed.
+  it.each([
+    [200, 2, 400],
+    [33, 0.5, 17],
+    [-33, 0.5, -17],
+    [35, 0.5, 18],
+    [-35, 0.5, -18],
+    [999, 0, 0],
+    [142, 1, 142],
+  ])("scales %i tenths by %s to %i", (tenths, multiplier, expected) => {
+    const scaled = scaleTenths(tenths, multiplier);
+    expect(scaled).toBe(expected);
+    expect(Number.isInteger(scaled)).toBe(true);
   });
 });

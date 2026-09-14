@@ -2,6 +2,7 @@ import type PocketBase from "pocketbase";
 
 import { readPicks } from "@/lib/drafts/pipeline";
 import { isUniqueViolation } from "@/lib/drafts/unique";
+import { readLineupWeights } from "@/lib/lineups/store";
 import { isActiveMembership } from "@/lib/memberships/from";
 import { materializeDraftMemberships } from "@/lib/memberships/store";
 import { type Phase, PHASES } from "./csv";
@@ -37,6 +38,10 @@ import {
  * rematerializes the missing rows — the crash between `advance` and the
  * membership loop. Once any window is closed, rematerializing from picks
  * would reopen a dropped player, so we stop.
+ *
+ * Lineups (9.3) are read per league and applied here, so recording one is a
+ * recompute rather than a rescore: box scores are app-global and never carry
+ * a league's captain.
  */
 
 type DraftRef = {
@@ -166,11 +171,15 @@ async function upsertSnapshot(
 export async function recomputeStandings(
   pb: PocketBase,
   season: string,
+  options?: { readonly leagueId?: string },
 ): Promise<StandingsRecompute> {
   const code = seasonCode(season);
+  const leagueFilter = options?.leagueId
+    ? `status = 'season' && id = '${options.leagueId}'`
+    : "status = 'season'";
   const [leagues, lines] = await Promise.all([
     pb.collection("leagues").getFullList<{ id: string }>({
-      filter: "status = 'season'",
+      filter: leagueFilter,
       fields: "id",
       requestKey: null,
     }),
@@ -234,7 +243,14 @@ export async function recomputeStandings(
     if (windows.length === 0) continue;
 
     scored += 1;
-    const table = computeStandings(windows, standingLines, PHASES);
+    const weights = await readLineupWeights(
+      pb,
+      league.id,
+      code,
+      [...new Set(standingLines.map((line) => line.round))],
+      [...new Set(windows.map((window) => window.memberId))],
+    );
+    const table = computeStandings(windows, standingLines, PHASES, weights);
     const scoredRounds = new Map<number, Phase>();
     const phases = phaseByRound(standingLines);
     for (const row of table) {

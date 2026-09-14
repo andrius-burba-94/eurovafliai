@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { lineupWeights } from "@/lib/lineups/lineup";
+
 import {
   computeStandings,
   phaseByRound,
@@ -128,6 +130,82 @@ describe("computeStandings", () => {
       totalTenths: 40,
       byRound: { 2: 40 },
     });
+  });
+});
+
+describe("computeStandings with a lineup", () => {
+  const weights = lineupWeights([
+    {
+      memberId: "m1",
+      round: 1,
+      source: "recorded",
+      slots: {
+        starters: ["cap", "starter"],
+        captain: "cap",
+        sixth: [],
+        bench: ["bench"],
+        inactive: ["sat"],
+      },
+    },
+  ]);
+  const squad: StandingWindow[] = [
+    { memberId: "m1", playerId: "cap" },
+    { memberId: "m1", playerId: "starter" },
+    { memberId: "m1", playerId: "bench" },
+    { memberId: "m1", playerId: "sat" },
+  ];
+
+  it("doubles the captain, halves the bench and drops the inactive", () => {
+    const table = computeStandings(
+      squad,
+      [
+        line({ playerId: "cap", fantasyTenths: 200 }),
+        line({ playerId: "starter", fantasyTenths: 100 }),
+        line({ playerId: "bench", fantasyTenths: 60 }),
+        line({ playerId: "sat", fantasyTenths: 999 }),
+      ],
+      ["RS"],
+      weights,
+    );
+    expect(table[0]).toMatchObject({
+      memberId: "m1",
+      totalTenths: 400 + 100 + 30,
+    });
+  });
+
+  it("rounds a halved odd number of tenths away from zero, once", () => {
+    const table = computeStandings(
+      squad,
+      [line({ playerId: "bench", fantasyTenths: 33 })],
+      ["RS"],
+      weights,
+    );
+    expect(table[0].byRound[1]).toBe(17);
+  });
+
+  it("halves a negative night away from zero too", () => {
+    const table = computeStandings(
+      squad,
+      [line({ playerId: "bench", fantasyTenths: -33 })],
+      ["RS"],
+      weights,
+    );
+    expect(table[0].byRound[1]).toBe(-17);
+  });
+
+  it("scores a round the lineup does not cover at 100%", () => {
+    const table = computeStandings(
+      squad,
+      [line({ playerId: "sat", round: 2, fantasyTenths: 120 })],
+      ["RS"],
+      weights,
+    );
+    expect(table[0].byRound[2]).toBe(120);
+  });
+
+  it("is the same table as before lineups when none is passed", () => {
+    const lines = [line({ playerId: "cap", fantasyTenths: 200 })];
+    expect(computeStandings(squad, lines, ["RS"])[0].totalTenths).toBe(200);
   });
 });
 

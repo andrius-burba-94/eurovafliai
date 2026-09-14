@@ -8,6 +8,10 @@
  * that round onward, not the standings RS filter.
  */
 
+import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
+
+import { scaleTenths } from "./scoring";
+
 export type ImpactType = "trade" | "add" | "drop";
 
 export type ImpactTransaction = {
@@ -70,35 +74,58 @@ function sumFor(
   ids: readonly string[],
   lines: readonly ImpactLine[],
   fromRound: number,
+  weigh: (round: number, playerId: string) => number,
 ): { tenths: number; pir: number; byRound: Map<number, { tenths: number; pir: number }> } {
   const wanted = new Set(ids);
-  const byRound = new Map<number, { tenths: number; pir: number }>();
-  let tenths = 0;
-  let pir = 0;
+  const raw = new Map<number, Map<string, { tenths: number; pir: number }>>();
   for (const line of lines) {
     if (!wanted.has(line.playerId)) continue;
     if (line.round < fromRound) continue;
-    tenths += line.fantasyTenths;
-    pir += line.pir;
-    const slot = byRound.get(line.round) ?? { tenths: 0, pir: 0 };
+    const round = raw.get(line.round) ?? new Map();
+    const slot = round.get(line.playerId) ?? { tenths: 0, pir: 0 };
     slot.tenths += line.fantasyTenths;
     slot.pir += line.pir;
-    byRound.set(line.round, slot);
+    round.set(line.playerId, slot);
+    raw.set(line.round, round);
+  }
+
+  const byRound = new Map<number, { tenths: number; pir: number }>();
+  let tenths = 0;
+  let pir = 0;
+  for (const [round, players] of raw) {
+    let roundTenths = 0;
+    let roundPir = 0;
+    for (const [playerId, slot] of players) {
+      roundTenths += scaleTenths(slot.tenths, weigh(round, playerId));
+      roundPir += slot.pir;
+    }
+    byRound.set(round, { tenths: roundTenths, pir: roundPir });
+    tenths += roundTenths;
+    pir += roundPir;
   }
   return { tenths, pir, byRound };
 }
 
+/**
+ * `weights` is this member's lineup (9.3), so a deal's fantasy delta matches
+ * the table rather than telling a second story: a player traded in and then
+ * benched was worth half. PIR stays raw — it is the basketball number, not
+ * the fantasy one, and halving it would describe a night nobody played.
+ */
 export function impactForMember(
   memberId: string,
   transactions: readonly ImpactTransaction[],
   lines: readonly ImpactLine[],
+  weights: LineupWeights = FULL_WEIGHTS,
 ): MemberImpact[] {
+  const weigh = (round: number, playerId: string) =>
+    weights.multiplierFor(memberId, round, playerId);
   const out: MemberImpact[] = [];
   for (const tx of transactions) {
     const sides = namesThisMember(tx, memberId);
     if (!sides) continue;
-    const incoming = sumFor(sides.inIds, lines, tx.fromRound);
-    const outgoing = sumFor(sides.outIds, lines, tx.fromRound);
+    const incoming = sumFor(sides.inIds, lines, tx.fromRound, weigh);
+    const outgoing = sumFor(sides.outIds, lines, tx.fromRound, weigh);
     const rounds = new Set([...incoming.byRound.keys(), ...outgoing.byRound.keys()]);
     const byRound = [...rounds]
       .sort((a, b) => a - b)

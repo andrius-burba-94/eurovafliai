@@ -21,7 +21,7 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: Phase 9, slice 9.3 — lineup and captain scoring.** Phase 9 is
+**Next up: Phase 9, slice 9.4 — injury and transfer news.** Phase 9 is
 five gaps measured against the official EuroLeague Fantasy Challenge **Draft
 Mode** rulebook and against comparable fantasy apps; the table below carries
 them. **9.1 has landed**: the draft pool now leads with average PIR rather than
@@ -30,10 +30,12 @@ official stats table, and autodraft ranks on the same figure the row shows.
 **9.2 has landed too**: the room's commissioner controls are a named, framed
 panel with per-member autodraft, a mid-draft pick clock and a real
 "Pick for them" — see D18, which takes three of D13's four cut items back.
+**9.3 has landed**: lineups and the captain, so a table finally means what the
+official game's table means — see D19, which amends D4.
 
-**E2026 tips off on 24 September 2026**, so 9.1 and 9.2 are draft-night
-critical, 9.3 is needed before round-1 standings can be trusted, and 9.4 / 9.5
-follow. Alongside the slices, one thing outstanding is a date rather than a
+**E2026 tips off on 24 September 2026**, so 9.1 and 9.2 were draft-night
+critical, 9.3 had to land before round-1 standings could be trusted, and
+9.4 / 9.5 follow. Alongside the slices, one thing outstanding is a date rather than a
 ticket: the human half of 3.7 / D12 — a real draft night, with friends, on
 their own phones — has to happen before the league drafts into a season already
 in progress. Everything mechanical about that night is proven; whether it
@@ -88,6 +90,26 @@ closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
 it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
+
+## Try it on localhost — slice 9.3
+
+```bash
+npm run dev
+```
+
+In a league whose draft is complete, open **Your lineup** from the lobby.
+Thirteen rows, one role each: captain, starter, sixth man, bench, inactive —
+the multiplier is printed beside every role. The summary line under the list
+names the formation as guards-forwards-centers and refuses an illegal one
+before you submit it (try three centers in the five). Record it, then open
+**Standings**: the totals are recomputed with the captain doubled, the bench
+halved and the inactive three at zero.
+
+Then change the round to one you have not typed. It says the previous round's
+lineup is carried forward. Go back far enough and it says nothing is recorded,
+and the standings page strikes that round as a `Correction` naming it. As
+commissioner, the **Whose team** select opens anybody's lineup; a plain member
+does not see it and cannot reach another team's by URL.
 
 ## Try it on localhost — slice 9.2
 
@@ -728,14 +750,14 @@ the same as the Classic Mode, except… there is no head coach". So **per-player
 scoring is already exactly right** — PIR plus a 10% team-win bonus is what
 `scoreGame` computes and what 168 real E2025 rows are golden-tested against —
 and **blueprint D4 was right to cut coach scoring**. What D4 got wrong is
-**captain 2× and bench 50%**, which Draft Mode keeps; that is slice 9.3.
+**captain 2× and bench 50%**, which Draft Mode keeps; 9.3 put them back.
 
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | **9.1 Previous-season stats and PIR on every pool row** | done | — | **The pool row was showing the wrong number, unlabelled.** It printed `proj_last5_fantasy` in soft ink with no heading — fantasy points, which is PIR × 1.1 on a win — so a drafter reading `14.2` was reading a bonus-inflated figure and would reasonably take it for the PIR the league actually talks in. PIR was stored per game and **averaged nowhere**. Now `projectPlayer` returns `last5Pir` / `seasonPir` beside the fantasy pair, and **average PIR is the single ranking number**: the row headline, the `10+/15+/20+` floors, and autodraft all read it, so the eye, the filters and the worker cannot disagree. `EnginePlayer.projectedPoints` is renamed **`rankPir`** — a field called `projectedPoints` carrying PIR is the kind of name CONTEXT.md says to change rather than document. Resolution is stated once, in `averagePirOf`: **last-5 when the player has current-season games, last season otherwise**, which on draft night is uniformly last season because E2026 has no games. Prominence without breaking the Two Jobs Rule (marker red has two jobs "and no third"): a **leading, fixed-width, right-aligned column in full `text-ink`** under a `slot-label` column head, games played beside it, fantasy demoted and labelled `FP`. Measured cost on a Pixel 7: the name column goes 101px → 87px, and the games count and `FP` return at `sm`. **Last season comes from the official stats table**, a v3 bulk endpoint (`npm run stats:prev`) carrying four traps now written into the research doc — omitting `seasonMode=Single` silently returns all-time career leaders, and `statisticMode=perGame` silently drops 127 of 335 players below a 24-game qualification. Our own E2025 backfill is the cross-check and **220 of 222 matched players agreed exactly**. Bios (`height`, `weight`, `birth_date`, `country_*`) now land from the feed and show on `/players/[id]` above a last-season block. **The one-request roster endpoint was tried and rejected**: `/{season}/people?limit=1000` is a registration *history*, not a roster — see the log |
 | **9.2 Commissioner control panel** | done | — | **Three of D13's four cut items are back** (blueprint **D18**), because two of their "working paths" were claims about the server rather than a surface. The room's controls were a bare unlabelled `<div>` between "Draft for me" and the pool: no heading, no frame, nothing in the accessibility tree. Now a fourth framed `Bank` — "Running the draft" — carrying pause, the clock, autodraft per member, undo and start-over, ordered by what each costs. **Per-member autodraft** has worked server-side since 2.5 (`setAutodraft` takes a `memberId` and lets a manager set it for anybody); `getDraftView` simply never shipped anyone else's flag, so the only way to reach it was a crafted POST. Rows are in draft order, each with its own refusal. **The mid-draft clock** is the item D13 admitted carried a real correctness question, and the answer is stated once in `setPickClock`: the new deadline is **now plus the new clock**, never the pick's original start plus it — so cutting 120s to 30s cannot hand the member on the clock to the sweep. Asserted against a deadline already ten seconds in the past, which is the state that separates the two implementations; the league's own default follows the draft's, so a start-over does not quietly go back to a minute, and the change announces itself in chat because the countdown everybody is watching jumps. **"Pick for them"** existed only as the pool's Bank heading, 600px down the page; it is now a control in the panel that names whose turn it is spending and leaves the focus in the pool's search box — the radar's own reveal idiom, `href` first so it works before JavaScript. **Skip a turn is refused**, not deferred: see the debt row |
-| 9.3 Lineup and captain scoring | next | — | `round_lineups`, `lineup_template` in settings, 5 starters (one captain) + 1 sixth + 4 bench + 3 inactive; captain 2×, bench 0.5×, inactive 0×. Multipliers apply in `computeStandings`, never at ingest — `player_game_stats.fantasy_pts` is app-global and one row serves every league |
-| 9.4 Injury and transfer news | planned | — | `src/lib/news/`, RotoWire, run by the worker on its own guard. Store the fact and link for the prose |
+| **9.3 Lineup and captain scoring** | done | — | **Every total the app had printed was thirteen players at 100%**, which the official game's table never is. Draft Mode is Classic Mode without the head coach, so it keeps **captain ×2 and bench ×50%** — blueprint **D19**, amending D4, which cut all three as Classic-only. New `round_lineups` (unique on league+member+season+round, one JSON `slots` field so a lineup either landed or did not) plus `lineup_template` in settings, defaulting to 5 starters + 1 sixth + 4 bench + 3 inactive. **The multiplier applies in `computeStandings`, never at ingest**: `player_game_stats.fantasy_pts` is app-global — one row serves every league — so baking a per-league captain into it would be wrong the moment two leagues arrange the same player differently, and the golden fixture never moves. Rounding is stated once, in `scaleTenths`: multiply, round half away from zero, **per player-round**, which is where halving an odd 3.3 into 1.7 would otherwise let a float into a season of sums. The pure validator refuses transcription errors rather than storing a wrong total — every id inside that round's membership windows, no duplicates, the five exactly full, and the starting five one of the **five official formations** (2-2-1, 1-2-2, 2-1-2, 1-3-1, 3-1-1 as G-F-C); the sixth/bench/inactive caps are *at most*, because 5.2's drop can legally leave a twelve-man roster and a lineup nobody could record is worse than a place left empty. **Carry-forward is the default** and an unarranged round is not silently final: a round with no lineup of its own inherits the last one recorded before it, and a round before any lineup exists is struck on the standings page as a `Correction` naming it. `bestNight` and `impactForMember` take the same weights, so the recap and a trade's delta cannot tell a different story from the table — PIR stays raw in both, because nobody played half a game. Entry at `/leagues/[id]/lineup` for the owner and, per the league's answer, for the commissioner on anyone's behalf: the league is played on the official site and typed in here afterwards |
+| 9.4 Injury and transfer news | next | — | `src/lib/news/`, RotoWire, run by the worker on its own guard. Store the fact and link for the prose |
 | 9.5 Dark mode | planned | — | Contradicts D17 head-on, so it opens with an ADR re-making the inversion argument. The bulk of the work is theme-parameterizing `tokens.test.ts` |
 
 ## Phases 5–8
@@ -805,6 +827,8 @@ touch should be fixed by that slice rather than deferred again.
 | **Autodraft ranks unsheeted members by last-5** | Closed in 4.4, and **re-pointed in 9.1**: the ranking number is now average PIR rather than a fantasy average, which is the number the pool displays and the league talks in. A member with a sheet is still picked from the sheet first, `isLegalPick` still refuses a pick into a full G/F/C bucket, and a player with no games anywhere still ties on player id | Nothing |
 | **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. Standings now filter by phase; last-5 on the pool still does not. **Mostly defused by 9.1**, which makes the *previous-season* average the draft-night headline and only falls back to last-5 once a player has current-season games — so the late-playoff skew no longer decides a draft. The feed's own season average spans the same phases (`gamesPlayed` reaches 44), so the two agree by construction. What is unfixed is mid-season: from October, last-5 across a phase boundary still mixes RS and playoff form | Nothing; a known skew, now only during the season |
 | **A turn cannot be skipped** | Argued against rather than deferred, in 9.2 (blueprint **D18**), and recorded here because it is the one thing a commissioner may go looking for in the new panel and not find. A skip leaves a hole in the order: `buildPickOrder` builds a contiguous run of slots and `isDraftComplete` counts them, so a permanently empty slot is a draft that can never finish — and the sweep's own board-hole repair would start reporting a draft it cannot move. The two cases a skip is reached for both already have controls beside it: **autodraft** takes the absent member's turns as they come, and **"Pick for them"** enters a pick for whoever is on the clock. What is genuinely missing is only the case where a league wants somebody to draft *fewer than thirteen* players, which nothing in this app supports anyway | Nothing; a hole in the board is worse than a slow turn |
+| **Nothing writes `lineup_template`** | 9.3 reads the lineup shape from league settings — 5 starters, 1 sixth, 4 bench, 3 inactive — and no surface sets it, exactly like `roster_template`, which has been read-from-settings and never written since 2.2. So every league runs the official shape, which is the shape every league wants. The check that matters is enforced where it bites: `recordLineup` refuses when the lineup template and the roster template disagree, rather than a schema refinement that would quietly reset *every* other setting to its default on one bad number | Nothing today; a league that wanted an 11-man roster would need the setting written before its lineups made sense |
+| **A lineup is per round and typed by hand** | 9.3's entry surface takes one round at a time, because that is how the official site is read: somebody looks at a past round and copies what it says. There is no "apply this to every remaining round" and no import. Carry-forward covers the common case — arrange once and it holds until you change it — but a league correcting ten past rounds types ten lineups | Nothing; ten rounds of typing rather than one |
 | **The official 6-players-from-one-club limit is not enforced** | The Draft Mode rulebook caps a roster at six players from any one EuroLeague club, and `isLegalPick` only knows the G/F/C roster template. So the app will happily let somebody draft seven Olympiacos players and the official site would refuse the same squad. Found while reading the rulebook for Phase 9 and deliberately not built into 9.1, which is about what a row *shows* rather than what a pick may be — it belongs with the engine's legality rules and wants `buildPickOrder`-grade tests across formats | Nothing mechanical; a league that mirrors the official site could build a squad the site rejects |
 | **Trades are not confined to commissioner-opened windows** | The official rules only allow trades in windows between rounds; our `transactions` accept any `from_round`. 5.2's "record, do not broker" stance makes this less severe than it sounds — a commissioner is typing in what already happened — but nothing stops a deal being recorded into a round that was already played | Nothing; the commissioner is the window |
 | **A third of the pool has no projection at all on draft night** | Measured on a full E2025 backfill (6,902 game lines, 0 corrections) against the live E2026 pool, and **re-measured unchanged after 9.1 imported last season from the official feed: 222 of 326 active players carry an average PIR, and 104 do not.** 22 of those have no `person_code` yet, so nothing can attach; the other 82 have a code and simply did not play a Euroleague game last season — arrivals from the NBA, from domestic leagues, and young players being promoted. Autodraft treats a missing projection as worse than −2, and the pool's 10+/15+/20+ filters drop them, so **a genuine signing ranks below a fringe player who logged garbage minutes in May**. This is not a bug in 4.4 — it is what ranking a new season on an old one means — but it is the strongest argument for writing a cheat sheet before draft night, because a sheet is read before any projection is | Nothing mechanical; it distorts the *first* draft and nothing after it |

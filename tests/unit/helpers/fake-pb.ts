@@ -58,6 +58,9 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // Partial unique (league, player) while `to_date` is empty — one active
   // roster per player. A closed window (5.2) must not collide.
   roster_memberships: [{ fields: ["league", "player"], whereEmpty: "to_date" }],
+  // `unique(league, member, season, round)` — 9.3's lineup. A resubmit updates
+  // the round's lineup; it never scores the same round twice.
+  round_lineups: [["league", "member", "season", "round"]],
 };
 
 /**

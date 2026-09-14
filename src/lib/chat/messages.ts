@@ -131,6 +131,21 @@ export function announceAdd(input: {
   return `${input.teamName} signed ${nameList(input.players)}, counting from round ${input.fromRound}.`;
 }
 
+/**
+ * A round's lineup was recorded — slice 9.3.
+ *
+ * The captain is named because the captain is the only place in this app where
+ * one person's night counts double, and a table that moves for a reason the
+ * room cannot see is the reason this line exists at all.
+ */
+export function announceLineup(input: {
+  readonly teamName: string;
+  readonly captainName: string;
+  readonly round: number;
+}): string {
+  return `${input.teamName} set a round ${input.round} lineup, with ${input.captainName} as captain.`;
+}
+
 export function announceImpact(input: {
   readonly type: "trade" | "add" | "drop";
   readonly deltaTenths: number;

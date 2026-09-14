@@ -14,6 +14,7 @@ import {
   announceDrop,
   announceAdd,
   announceImpact,
+  announceLineup,
   announceTrade,
   announcePause,
   announcePick,
@@ -191,6 +192,14 @@ describe("a live delta", () => {
   });
 });
 
+describe("a recorded lineup", () => {
+  it("names the team, the round and the captain", () => {
+    expect(
+      announceLineup({ teamName: "Chief FC", captainName: "Nunn", round: 4 }),
+    ).toBe("Chief FC set a round 4 lineup, with Nunn as captain.");
+  });
+});
+
 describe("every system line is a whole sentence", () => {
   // The house rule, asserted rather than trusted. These sit in a run beside
   // people's own messages, and a verbless fragment reads like a broken one —
@@ -222,6 +231,7 @@ describe("every system line is a whole sentence", () => {
     announceAdd({ teamName: "Chief FC", players: ["Nunn"], fromRound: 3 }),
     announceImpact({ type: "trade", deltaTenths: 37 }),
     announceImpact({ type: "drop", deltaTenths: -50 }),
+    announceLineup({ teamName: "Chief FC", captainName: "Nunn", round: 4 }),
   ];
 
   it.each(lines)("ends in a full stop and starts with a capital: %s", (line) => {

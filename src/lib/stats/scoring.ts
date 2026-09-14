@@ -128,14 +128,25 @@ export type GameScore = {
 };
 
 /**
+ * Multiply a tenths figure and stay in tenths.
+ *
+ * The one rounding convention in the app: half **away from zero**, so a -0.5
+ * does not become -0 and a bench player's 3.3 halves to 1.7 rather than to a
+ * float nobody can sum. Lineup multipliers (9.3) are the caller that needs it
+ * most — 50% of an odd number of tenths is never an integer.
+ */
+export function scaleTenths(tenths: number, multiplier: number): number {
+  const scaled = tenths * multiplier;
+  return scaled < 0 ? -Math.round(-scaled) : Math.round(scaled);
+}
+
+/**
  * `base` is an integer for any integer box score and integer weights, so
  * ×10 then round is exact rather than merely close. The rounding is here for
- * the case that is not exact — a league that sets a fractional weight — and
- * it rounds half away from zero so a -0.05 does not become -0.
+ * the case that is not exact — a league that sets a fractional weight.
  */
 function toTenths(value: number): number {
-  const scaled = value * 10;
-  return scaled < 0 ? -Math.round(-scaled) : Math.round(scaled);
+  return scaleTenths(value, 10);
 }
 
 /**

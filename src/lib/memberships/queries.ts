@@ -8,6 +8,7 @@ import {
 } from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
 
@@ -270,6 +271,13 @@ export async function readMemberDeals(
     for (const person of people) names.set(person.id, person.name);
   }
 
+  const weights = await readLineupWeights(
+    pb,
+    leagueId,
+    season,
+    [...new Set(lines.map((line) => line.round))],
+    [memberId],
+  );
   const scored = impactForMember(
     memberId,
     transactions,
@@ -279,6 +287,7 @@ export async function readMemberDeals(
       fantasyTenths: line.fantasy_pts,
       pir: line.pir,
     })),
+    weights,
   );
 
   const label = (id: string) => names.get(id) ?? id;

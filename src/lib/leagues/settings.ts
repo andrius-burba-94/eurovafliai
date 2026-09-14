@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  DEFAULT_LINEUP_TEMPLATE,
+  lineupSize,
+  type LineupTemplate,
+} from "@/lib/lineups/lineup";
+
 /**
  * League settings — the `leagues.settings` JSON column, validated.
  *
@@ -25,6 +31,20 @@ export const rosterTemplateSchema = z.object({
   G: z.number().int().min(0),
   F: z.number().int().min(0),
   C: z.number().int().min(0),
+});
+
+/**
+ * The scoring shape: 5 starters (one captain), 1 sixth man, 4 bench, 3
+ * inactive. Separate from the roster template on purpose — that one is pick
+ * legality, this one is what a night is multiplied by (slice 9.3). Read from
+ * settings and never hardcoded at a call site, for the same reason the roster
+ * template is: a league that shortens rosters must not need a code change.
+ */
+export const lineupTemplateSchema = z.object({
+  starters: z.number().int().min(1),
+  sixth: z.number().int().min(0),
+  bench: z.number().int().min(0),
+  inactive: z.number().int().min(0),
 });
 
 /**
@@ -80,6 +100,7 @@ export const leagueSettingsSchema = z.object({
    * drafts first after the fact.
    */
   roll_seed: z.string().default(""),
+  lineup_template: lineupTemplateSchema.default(DEFAULT_LINEUP_TEMPLATE),
 });
 
 export type RosterTemplate = z.infer<typeof rosterTemplateSchema>;
@@ -98,6 +119,23 @@ export function parseLeagueSettings(input: unknown): LeagueSettings {
 export function rosterSize(template: RosterTemplate): number {
   return template.G + template.F + template.C;
 }
+
+/**
+ * The lineup has exactly one place per roster slot — 5 + 1 + 4 + 3 = 13.
+ *
+ * Checked here rather than as a schema refinement on purpose: a cross-field
+ * refinement that failed would take the *whole* settings object down to
+ * defaults, quietly resetting the roster template and the format as well. The
+ * lineup action asks this question and refuses; nothing else has to care.
+ */
+export function lineupFitsRoster(
+  lineup: LineupTemplate,
+  roster: RosterTemplate,
+): boolean {
+  return lineupSize(lineup) === rosterSize(roster);
+}
+
+export { DEFAULT_LINEUP_TEMPLATE, type LineupTemplate };
 
 /**
  * Whether another member can join. Returns a reason rather than a bare boolean,
