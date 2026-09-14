@@ -197,11 +197,39 @@ export function pendingCodes(
   return [...merged.values()];
 }
 
+/**
+ * The unmatched codes a notice should actually chase: this season's.
+ *
+ * Measured rather than reasoned. A full E2025 backfill leaves **123** unmatched
+ * codes against an E2026 pool, and none of them is work: they are last season's
+ * players, who left the league and have nobody to attach to. A doorbell that
+ * opened on "123 person codes belong to nobody" would be teaching the
+ * commissioner to ignore it within a day — the exact failure this queue's
+ * notice exists to avoid.
+ *
+ * A code from the season being *played* is the opposite: a live player whose
+ * points are landing nowhere, which from the first game of the season is the
+ * thing worth interrupting somebody for.
+ *
+ * `/players/mapping` deliberately still lists every season. It is the working
+ * surface, where history is context; this is the notice, where history is noise.
+ */
+export function codesWorthChasing(
+  codes: readonly PendingCode[],
+  season: string,
+): PendingCode[] {
+  return codes.filter((code) => code.season === season);
+}
+
 /** How much unanswered mapping work is standing. */
 export type MappingQueue = {
   /** Players the feed may have re-registered under a new name. */
   readonly renames: number;
-  /** Person codes from a box score that belong to nobody in the pool. */
+  /**
+   * Person codes from **this season's** box scores that belong to nobody in
+   * the pool. A backfill season's leftovers are not counted — see
+   * `codesWorthChasing`.
+   */
   readonly codes: number;
 };
 
@@ -237,8 +265,8 @@ export function queueSentence(queue: MappingQueue): string | null {
   if (queue.codes > 0) {
     parts.push(
       queue.codes === 1
-        ? "One person code from a box score belongs to nobody in the pool."
-        : `${queue.codes} person codes from box scores belong to nobody in the pool.`,
+        ? "One person code from this season's box scores belongs to nobody in the pool."
+        : `${queue.codes} person codes from this season's box scores belong to nobody in the pool.`,
     );
   }
 

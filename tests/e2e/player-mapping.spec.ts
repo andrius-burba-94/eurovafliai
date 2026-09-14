@@ -35,23 +35,35 @@ import { expectNotFound } from "./helpers/not-found";
 const personCode = () =>
   `8${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 900 + 100)}`;
 
+/**
+ * The season the app is configured for, matching `schema.ts`'s default.
+ *
+ * Load-bearing for the doorbell specs rather than decorative: the notice counts
+ * only the season being *played*, because a backfill season's unmatched codes
+ * are players who left the league and not work anybody can do. A fixture
+ * planted under another season is deliberately invisible to it.
+ */
+const SEASON = process.env.EUROLEAGUE_SEASON ?? "E2026";
+
 /** A `stat_imports` batch with one unmatched code, exactly as 4.3 writes it. */
 async function plantUnmatchedBatch({
   code,
   name,
   club,
   games,
+  season = SEASON,
 }: {
   code: string;
   name: string;
   club: string;
   games: number[];
+  season?: string;
 }) {
   const pb = await superuser();
   const batch = await pb.collection("stat_imports").create(
     {
       source: "api",
-      season: "E2026",
+      season,
       applied: true,
       rows: games.length,
       created_rows: 0,
@@ -576,6 +588,43 @@ test("the lobby rings for a commissioner while the queue holds a question", asyn
     await expect(
       bell.getByRole("link", { name: "Open player mapping" }),
     ).toHaveAttribute("href", "/players/mapping");
+  } finally {
+    await removeBatch(batch);
+  }
+});
+
+test("a backfill season's leftovers do not ring the bell", async ({
+  page,
+  context,
+}) => {
+  const code = personCode();
+  // A full E2025 backfill against an E2026 pool leaves ~123 of these, and none
+  // of them is work: they are last season's players, who left the league. The
+  // notice counting them would have been a hundred things nobody can act on.
+  const batch = await plantUnmatchedBatch({
+    code,
+    name: `Departed ${code}, E2e`,
+    club: TEST_CLUB,
+    games: [303],
+    season: "E2019",
+  });
+
+  const commissioner = await createTestUser("oldseason");
+  const league = await createLeagueFor(commissioner, "Doorbell League");
+  await signIn(context, commissioner);
+
+  try {
+    await page.goto(`/leagues/${league.id}`);
+    await expect(page.getByTestId("lobby")).toBeVisible();
+
+    // It may still ring for something a sibling spec planted — the queue is
+    // app-global — so the claim is about *this* code, which the mapping page
+    // still lists because history is context there and noise only in a notice.
+    const bell = page.getByTestId("mapping-queue");
+    if (await bell.isVisible()) await expect(bell).not.toContainText(code);
+
+    await page.goto("/players/mapping");
+    await expect(page.getByTestId(`code-${code}`)).toBeVisible();
   } finally {
     await removeBatch(batch);
   }
