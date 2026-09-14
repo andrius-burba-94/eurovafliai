@@ -56,6 +56,14 @@ export const serverEnvSchema = z.object({
    * deadlines.
    */
   STATS_FETCH: z.enum(["on", "off"]).default("on"),
+  /**
+   * Whether the worker reads the injury and transfer pages — slice 9.4.
+   *
+   * Same argument as `STATS_FETCH` above, with one addition: this one reads
+   * somebody else's *website* rather than their API, so being able to stop
+   * asking without stopping the worker is a courtesy the source is owed.
+   */
+  NEWS_FETCH: z.enum(["on", "off"]).default("on"),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;

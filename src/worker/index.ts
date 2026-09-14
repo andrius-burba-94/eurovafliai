@@ -32,6 +32,11 @@
  * be able to block each other: a stats pass talks to somebody else's API over
  * the network and can take seconds, and no pick deadline may wait on that.
  * Standings recompute joins it in 4.5.
+ *
+ * **9.4 added the news pass**, hourly, on a third guard for the same reason —
+ * it reads two of somebody else's web pages, which is the slowest and least
+ * predictable thing this process does, and neither a pick deadline nor a box
+ * score may queue behind it.
  */
 import PocketBase from "pocketbase";
 
@@ -39,6 +44,7 @@ import { parseServerEnv, type ServerEnv } from "@/lib/config/schema";
 
 import { describeError } from "@/lib/drafts/pipeline";
 
+import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import { ingestFinishedGames, summariseIngest } from "@/lib/stats/ingest";
 
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
@@ -85,6 +91,17 @@ const STATS_EVERY_MS = 15 * 60_000;
  * second, so it waits for the deploy to settle.
  */
 const STATS_FIRST_AFTER_MS = 60_000;
+/**
+ * An hour between news passes, and ninety seconds after boot.
+ *
+ * Slower than the stats pass on purpose. Both pages carry the latest 25 items
+ * and a publisher does not post twenty-four times a day, so a quarter-hourly
+ * read would be ninety-six requests a day to learn the same thing four times
+ * over. An injury note arriving within the hour is well inside "before anybody
+ * sets a lineup".
+ */
+const NEWS_EVERY_MS = 60 * 60_000;
+const NEWS_FIRST_AFTER_MS = 90_000;
 
 function log(message: string, level: "info" | "warn" | "error" = "info"): void {
   const line = JSON.stringify({
@@ -268,8 +285,67 @@ function main(): void {
     }, STATS_FIRST_AFTER_MS).unref?.();
   }
 
+  /**
+   * The news pass, on a third guard — see the header.
+   *
+   * It writes to `players.status`, which the draft pool renders, so a failure
+   * here is louder than it looks: no news is indistinguishable from no
+   * injuries. Every failed pass is therefore logged, as the stats pass's are.
+   */
+  let newsInFlight: Promise<void> | null = null;
+  let newsFailures = 0;
+
+  async function newsPass(): Promise<void> {
+    try {
+      await ensureAuth(pb, env);
+      const report = await ingestNews({ pb, log });
+      if (
+        report.created > 0 ||
+        report.updated > 0 ||
+        report.flagged > 0 ||
+        report.problems.length > 0
+      ) {
+        log(summariseNews(report));
+        for (const problem of report.problems.slice(0, 10)) {
+          log(`news · ${problem}`, "warn");
+        }
+      }
+      if (newsFailures > 0) {
+        log(`news recovered after ${newsFailures} failed pass(es)`);
+        newsFailures = 0;
+      }
+    } catch (error) {
+      newsFailures += 1;
+      log(
+        `news pass failed (${newsFailures} in a row): ${describeError(error)}`,
+        "error",
+      );
+      pb.authStore.clear();
+    }
+  }
+
+  function scheduleNews(): void {
+    if (env.NEWS_FETCH === "off") {
+      log("news fetch is off (NEWS_FETCH=off) — injuries will not import");
+      return;
+    }
+    log(`news fetch on · every ${NEWS_EVERY_MS / 60_000}min`);
+    const run = () => {
+      if (stopping || newsInFlight) return;
+      newsInFlight = newsPass().finally(() => {
+        newsInFlight = null;
+      });
+    };
+    setTimeout(() => {
+      run();
+      newsTimer = setInterval(run, NEWS_EVERY_MS);
+    }, NEWS_FIRST_AFTER_MS).unref?.();
+  }
+
   let statsTimer: ReturnType<typeof setInterval> | null = null;
+  let newsTimer: ReturnType<typeof setInterval> | null = null;
   scheduleStats();
+  scheduleNews();
 
   const timer = setInterval(() => {
     if (stopping) return;
@@ -314,6 +390,7 @@ function main(): void {
     stopping = true;
     clearInterval(timer);
     if (statsTimer) clearInterval(statsTimer);
+    if (newsTimer) clearInterval(newsTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

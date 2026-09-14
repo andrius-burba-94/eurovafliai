@@ -11,6 +11,7 @@ import {
   TopRail,
 } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
+import { readNewsFor } from "@/lib/news/queries";
 import { formatTenths } from "@/lib/stats/scoring";
 import { readPlayerProfile } from "@/lib/stats/queries";
 
@@ -73,6 +74,7 @@ export default async function PlayerPage({
       : { href: "/players", label: "The pool" };
   const profile = await readPlayerProfile(id);
   if (!profile) notFound();
+  const news = await readNewsFor(id);
 
   const { player, log } = profile;
   const bio = [
@@ -183,6 +185,35 @@ export default async function PlayerPage({
             </p>
           )}
         </Bank>
+
+        {/* Only when there is something, and only ever a headline and a link.
+            A player with no published news gets no empty box explaining that
+            a publisher has not mentioned them — see 9.4's notes. */}
+        {news.length > 0 ? (
+          <Bank label="In the news" aside={`${news.length}`}>
+            <Slots testId="player-news-rows" label={`News about ${player.name}`}>
+              {news.map((item) => (
+                <Slot key={item.id} testId="player-news" state="filled">
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-sm">{item.headline}</span>
+                    <span className="text-xs text-ink-soft">
+                      {item.published || "undated"}
+                      {item.bodyPart ? ` · ${item.bodyPart}` : ""} ·{" "}
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                      >
+                        RotoWire
+                      </a>
+                    </span>
+                  </span>
+                </Slot>
+              ))}
+            </Slots>
+          </Bank>
+        ) : null}
 
         <Bank
           label="Game log"

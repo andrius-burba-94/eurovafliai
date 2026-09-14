@@ -3,6 +3,98 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 9.4 — `injured` was a status nothing had ever written
+
+`players.status` has carried `active | injured | doubtful | left` since 2.1, and
+until this slice **nothing set the middle two**. `normalizeApiRow` says why in a
+comment — the feed's `active` flag is a contract window, not a knee — and
+`diffRosters` has carried a `LOCAL_STATUSES` guard the whole time specifically
+so a nightly sync could not heal a flag a human had set. The guard has spent a
+phase and a half protecting a field nobody filled in.
+
+**The source question was settled by measurement, not preference.** Verified on
+2026-09-14: `/injuries` and `/news` on the Euroleague feed both 404;
+`euroleaguebasketball.net` answers **429** to an unauthenticated fetch; and
+RotoWire's Euroleague RSS is a 200 with an **empty body** (`sport=NBA` returns a
+full feed, so the endpoint works and the Euroleague one is simply not
+published). That left HTML, which D5 forbids — and reading D5 again, it forbade
+scraping **stats**, on the argument that the official API answers that question
+completely so a parsed table would be a second and worse answer. That reasoning
+does not transfer to a question the API does not answer at all. So D5 is
+narrowed in writing rather than quietly stepped over: **D20** in the log,
+[ADR-0004](../adr/ADR-0004-injury-news-source.md) for the whole argument.
+
+**What is stored is the fact; the prose stays on their site.** Player, club as
+published, position, body part, what the item asserts, the date, their headline
+and their URL. `news-update__news` — the paragraph — is matched by no regex in
+`rotowire.ts`, and `rotowire.test.ts` asserts that no stored field contains it,
+so "we do not reprint a subscription publisher's copy" is a test rather than an
+intention. Every surface links back.
+
+**The page's own marking is the only classifier.** An item is an injury item
+because its block carries `is-injured`. The tempting alternative — keywords over
+the headline — was tried against the real page and fails in both directions on
+the same screen: "Jumps to Partizan" is a *transfer* on the injuries view (for a
+player who is hurt), and "Taking part in workouts" is a *recovery* note for a
+player who still is. Neither headline can be read without the page's own flag.
+
+**Two facts about the pages shaped everything else.** Each view returns exactly
+**25 items** — the latest updates, not a census — and the injuries view is a
+filter over the same feed rather than a separate one. So (a) both views are read
+and deduplicated, because the transfer half only appears on the plain one and a
+busy injury week pushes injuries off it; and (b) **a pass may raise a flag and
+may never clear one**. Absence from a list of the 25 newest updates is not
+evidence of recovery. Recovery is a person's statement, and it is a button.
+
+**The cold-start trap, found by running it.** The first real pass read items
+back to 8 June. Flagging a squad in September from a June item asserts something
+the source never said — that item was true when written and says nothing about
+this week. So only items published within **21 days** may move a status
+(`INJURY_WINDOW_DAYS`). Older items are still stored, still shown, still dated;
+they simply do not touch the pool.
+
+**`applied` is what makes a correction stick.** Without it, the hourly pass
+would re-read the same three-week-old item and re-flag a player a commissioner
+had just marked fit — every hour, for three weeks. `markPlayerFit` therefore
+does two writes in the order whose half-finished state is harmless: spend the
+items first, clear the status second. A crash between them leaves a fit player
+still marked injured and the items unable to re-flag him; one more press
+finishes it. The other order clears the flag and leaves the reason to undo it.
+
+**Matching published names to the pool is the whole difficulty, and 4.2 had
+already solved it.** The clubs register **passport** names and the publisher
+writes common ones: the pool holds `Lessort, Mathias Michel`,
+`Bacot Jr., Armando Linwood` and `Hayes, Kevarrius Keshawn` against published
+`Mathias Lessort`, `Armando Bacot` and `Kevarrius Hayes`. Exact normalized
+matching alone left **27 of 48 items unattached** on the live pages — a queue
+that opens with 27 questions nobody needed to be asked is the queue people stop
+reading. Reusing `looksLikeRename`'s token containment, and preferring players
+who have not `left` before falling back to the whole pool, brings it to **11**,
+and all eleven are real questions: nicknames the pool spells differently
+(`Kostas Sloukas` against `Sloukas, Konstantinos`) and players who are not in
+E2026 at all. Those eleven go into 4.2's mapping queue, answered **by slug**, so
+one answer attaches every item about that person including next Tuesday's.
+Attaching a name deliberately does not flag anybody: identity and availability
+are separate claims, and the next pass decides the second one under its own
+rules.
+
+**Where it runs.** A third in-flight guard in the worker's sweep, hourly, two
+requests a pass, sharing the Euroleague importers' `fetchWithRetry` rather than
+growing a second retry policy — one set of statuses worth retrying, one way to
+be a good citizen of somebody else's server. `NEWS_FETCH=off` stops the news
+without stopping pick deadlines. The commissioner's "Read the pages now" is the
+draft-night button: the hour before a draft is the one hour where waiting forty
+minutes for a knee is not acceptable.
+
+**What the E2E suite does and does not drive.** It plants items in exactly the
+shape the pass writes and drives the browser over them: the board and its links,
+the pool carrying the word, the correction that marks a player available again
+(asserting the spend, which is the part that makes it stick), and the mapping
+question an unmatched name raises. It never fetches RotoWire — a spec that did
+would fail on their Tuesday rather than on our bug. The parser is tested against
+saved markup in `src/lib/news/fixtures/`, which is also what a fix is written
+against when the markup changes.
+
 ## 9.3 — The table was thirteen players at 100%, which the official table never is
 
 D4 read the official rulebook's captain, bench and coach mechanics as belonging

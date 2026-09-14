@@ -50,6 +50,7 @@ const created = {
   roster_memberships: [],
   transactions: [],
   round_lineups: [],
+  player_news: [],
 };
 
 const su = new PocketBase(url);
@@ -1312,8 +1313,75 @@ try {
     "a second lineup for the same member and round is refused",
   );
 
+  // --- 9.4 player_news -----------------------------------------------------
+  check(!!byName.player_news, "player_news collection exists");
+  check(
+    byName.player_news.createRule === null &&
+      byName.player_news.updateRule === null &&
+      byName.player_news.deleteRule === null,
+    "player_news writes are superuser-only",
+  );
+  check(
+    byName.player_news.listRule === '@request.auth.id != ""' &&
+      byName.player_news.viewRule === '@request.auth.id != ""',
+    "player_news is readable by anybody signed in, like the pool itself",
+  );
+  check(
+    byName.player_news.indexes.some((i) =>
+      /UNIQUE.*`player_news`.*\(`source`,\s*`source_key`\)/.test(i),
+    ),
+    "unique index on player_news(source, source_key)",
+  );
+
+  const newsItem = {
+    source: "rotowire",
+    source_key: `verify-${stamp}|2026-09-14|verification item`,
+    slug: `verify-${stamp}`,
+    player: playerOne.id,
+    name: "Verify, Player",
+    club_name: "Verification Club",
+    position: "G",
+    body_part: "Knee",
+    headline: "Verification item",
+    url: "https://www.rotowire.com/euro/player/verify",
+    published: "2026-09-14",
+    status: "injured",
+    applied: true,
+  };
+  const news = await su
+    .collection("player_news")
+    .create(newsItem, { requestKey: null });
+  created.player_news.push(news.id);
+
+  check(
+    (await listCount(carolClient, "player_news")) >= 1,
+    "a signed-in member of any league reads the news",
+  );
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("player_news")
+        .create(
+          { ...newsItem, source_key: `verify-${stamp}|2026-09-14|by alice` },
+          { requestKey: null },
+        ),
+    ),
+    "a member cannot write a news item with their own token",
+  );
+  check(
+    await rejects(() =>
+      su.collection("player_news").create(newsItem, { requestKey: null }),
+    ),
+    "the same item read twice is refused rather than stored twice",
+  );
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.player_news)
+    await su
+      .collection("player_news")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.round_lineups)
     await su
       .collection("round_lineups")

@@ -38,6 +38,8 @@ export type Pool = {
     left: number;
     locked: number;
     withoutPersonCode: number;
+    /** Injured or doubtful — in the pool, but not pickable without a thought. */
+    unavailable: number;
   };
   authority: RosterAuthority;
   lastImport: {
@@ -89,11 +91,15 @@ export async function getPool(): Promise<Pool | null> {
   let left = 0;
   let locked = 0;
   let withoutPersonCode = 0;
+  let unavailable = 0;
 
   for (const player of players) {
     byPosition[player.position] += 1;
     bySource[player.source] = (bySource[player.source] ?? 0) + 1;
     if (player.status === "left") left += 1;
+    if (player.status === "injured" || player.status === "doubtful") {
+      unavailable += 1;
+    }
     if (player.manual_lock) locked += 1;
     if (!player.person_code) withoutPersonCode += 1;
 
@@ -116,6 +122,7 @@ export async function getPool(): Promise<Pool | null> {
       left,
       locked,
       withoutPersonCode,
+      unavailable,
     },
     authority: settings[0]?.roster_authority ?? "api",
     lastImport: imports.items[0] ?? null,

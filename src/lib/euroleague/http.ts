@@ -47,25 +47,37 @@ export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * GET one JSON document, retrying the statuses that can pass.
+ * GET one document, retrying the statuses that can pass.
  *
- * Giving up throws, and throwing is the safe direction for both callers: the
- * roster sync throws before any batch is stored, and the stats fetcher throws
- * before a game's rows are planned, so neither leaves an audit record claiming
- * an import that never ran.
+ * Returns the `Response`, so a caller decides what the body is. 9.4's news
+ * scraper reads HTML from a different publisher entirely and shares this
+ * rather than growing a second retry policy — there is one set of statuses
+ * worth retrying and one way to be a good citizen of somebody else's server,
+ * and two copies of it would drift.
+ *
+ * Giving up throws, and throwing is the safe direction for every caller: the
+ * roster sync throws before any batch is stored, the stats fetcher throws
+ * before a game's rows are planned, and the news pass counts the view as a
+ * problem — so none of them leaves an audit record claiming an import that
+ * never ran.
  */
-export async function getFeedJson(
+export async function fetchWithRetry(
   url: string,
-  doFetch: FeedFetch = fetch,
-  onWait?: (message: string) => void,
-): Promise<unknown> {
+  {
+    doFetch = fetch,
+    accept = "application/json",
+    onWait,
+  }: {
+    doFetch?: FeedFetch;
+    accept?: string;
+    onWait?: (message: string) => void;
+  } = {},
+): Promise<Response> {
   let lastStatus = 0;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const response = await doFetch(url, {
-      headers: { accept: "application/json" },
-    });
-    if (response.ok) return response.json();
+    const response = await doFetch(url, { headers: { accept } });
+    if (response.ok) return response;
 
     lastStatus = response.status;
     if (!RETRY_STATUSES.has(response.status) || attempt === MAX_ATTEMPTS) {
@@ -91,4 +103,14 @@ export async function getFeedJson(
   throw new Error(
     `${url} kept answering ${lastStatus} after ${MAX_ATTEMPTS} attempts.`,
   );
+}
+
+/** GET one JSON document, under the retry policy above. */
+export async function getFeedJson(
+  url: string,
+  doFetch: FeedFetch = fetch,
+  onWait?: (message: string) => void,
+): Promise<unknown> {
+  const response = await fetchWithRetry(url, { doFetch, onWait });
+  return response.json();
 }

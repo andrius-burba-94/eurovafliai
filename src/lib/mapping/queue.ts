@@ -221,6 +221,90 @@ export function codesWorthChasing(
   return codes.filter((code) => code.season === season);
 }
 
+/** A stored news item, as this module needs it — 9.4. */
+export type NewsItemRow = {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly club_name?: string;
+  readonly headline: string;
+  readonly published?: string;
+  readonly player?: string;
+  readonly url?: string;
+};
+
+/** A published name nobody in the pool answers to. */
+export type UnmatchedNewsName = {
+  readonly slug: string;
+  readonly name: string;
+  readonly clubName: string;
+  /** Stored items about them, all of which attach when the slug is answered. */
+  readonly items: number;
+  /** The newest item's date, `YYYY-MM-DD`, or empty. */
+  readonly latest: string;
+  readonly latestHeadline: string;
+  readonly url: string;
+};
+
+/**
+ * Published names the pool cannot resolve — 9.4's half of this queue.
+ *
+ * Grouped by the publisher's **slug**, because the slug is what the next item
+ * will arrive under: answering it once attaches every item about that player,
+ * past and future. A slug that any stored row already attaches is not a
+ * question, even when other rows under it are still unattached — that is a
+ * half-applied answer, and `attachSlug` finishes it rather than asking again.
+ */
+export function pendingNewsNames(
+  items: readonly NewsItemRow[],
+): UnmatchedNewsName[] {
+  const answered = new Set(
+    items.filter((item) => item.player).map((item) => item.slug),
+  );
+
+  const open = new Map<string, UnmatchedNewsName>();
+  for (const item of items) {
+    if (item.player || answered.has(item.slug)) continue;
+    const seen = open.get(item.slug);
+    const published = item.published ?? "";
+    const newer = !seen || published > seen.latest;
+    open.set(item.slug, {
+      slug: item.slug,
+      name: newer ? item.name : seen.name,
+      clubName: newer ? (item.club_name ?? "") : seen.clubName,
+      items: (seen?.items ?? 0) + 1,
+      latest: newer ? published : seen.latest,
+      latestHeadline: newer ? item.headline : seen.latestHeadline,
+      url: newer ? (item.url ?? "") : seen.url,
+    });
+  }
+
+  return [...open.values()].sort((a, b) => b.latest.localeCompare(a.latest));
+}
+
+/**
+ * How long an unanswered published name stays worth interrupting somebody for.
+ *
+ * The same argument `codesWorthChasing` makes about a backfill season's codes:
+ * a name from six weeks ago that matched nobody is usually somebody who is not
+ * in this competition — a departed player, or one the publisher covers and the
+ * Euroleague does not register. Ringing about them for ever is how a doorbell
+ * gets ignored. The mapping page still lists all of them; only the count is
+ * filtered, which is the same split the codes half already uses.
+ */
+export const NEWS_CHASE_DAYS = 30;
+
+export function newsWorthChasing(
+  names: readonly UnmatchedNewsName[],
+  now: Date,
+  days = NEWS_CHASE_DAYS,
+): UnmatchedNewsName[] {
+  const cutoff = new Date(now.getTime() - days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return names.filter((name) => name.latest >= cutoff);
+}
+
 /** How much unanswered mapping work is standing. */
 export type MappingQueue = {
   /** Players the feed may have re-registered under a new name. */
@@ -231,12 +315,17 @@ export type MappingQueue = {
    * `codesWorthChasing`.
    */
   readonly codes: number;
+  /**
+   * Names in recent injury or transfer news that match nobody in the pool —
+   * see `newsWorthChasing`.
+   */
+  readonly news: number;
 };
 
-export const EMPTY_QUEUE: MappingQueue = { renames: 0, codes: 0 };
+export const EMPTY_QUEUE: MappingQueue = { renames: 0, codes: 0, news: 0 };
 
 export function queueTotal(queue: MappingQueue): number {
-  return queue.renames + queue.codes;
+  return queue.renames + queue.codes + queue.news;
 }
 
 /**
@@ -249,7 +338,9 @@ export function queueTotal(queue: MappingQueue): number {
  * It always ends on the cost, because the number alone does not say why it
  * matters: an unanswered rename is a player whose box scores cannot attach,
  * and from the first game of the season that is points going missing rather
- * than a stale spelling.
+ * than a stale spelling. 9.4's half costs something different — an injury
+ * nobody is shown — so the closing clause names whichever costs are actually
+ * standing rather than asserting one of them about all three.
  */
 export function queueSentence(queue: MappingQueue): string | null {
   if (queueTotal(queue) === 0) return null;
@@ -269,6 +360,21 @@ export function queueSentence(queue: MappingQueue): string | null {
         : `${queue.codes} person codes from this season's box scores belong to nobody in the pool.`,
     );
   }
+  if (queue.news > 0) {
+    parts.push(
+      queue.news === 1
+        ? "One name in recent injury news matches nobody in the pool."
+        : `${queue.news} names in recent injury news match nobody in the pool.`,
+    );
+  }
 
-  return `${parts.join(" ")} Until somebody answers them, those players' box scores cannot attach.`;
+  const costs: string[] = [];
+  if (queue.renames > 0 || queue.codes > 0) {
+    costs.push("those players' box scores cannot attach");
+  }
+  if (queue.news > 0) {
+    costs.push("their injuries show up nowhere in the app");
+  }
+
+  return `${parts.join(" ")} Until somebody answers them, ${costs.join(" and ")}.`;
 }

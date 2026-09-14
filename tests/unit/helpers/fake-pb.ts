@@ -61,6 +61,9 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // `unique(league, member, season, round)` — 9.3's lineup. A resubmit updates
   // the round's lineup; it never scores the same round twice.
   round_lineups: [["league", "member", "season", "round"]],
+  // `unique(source, source_key)` — 9.4's news. Reading the same page every
+  // hour must update one row, never stack twenty-four copies of one injury.
+  player_news: [["source", "source_key"]],
 };
 
 /**

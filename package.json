@@ -36,6 +36,7 @@
     "stats:sync": "tsx --env-file=.env scripts/sync-stats.mts",
     "stats:project": "tsx --env-file=.env scripts/project-stats.mts",
     "stats:prev": "tsx --env-file=.env scripts/prev-season.mts",
+    "news:sync": "tsx --env-file=.env scripts/sync-news.mts",
     "standings:recompute": "tsx --env-file=.env scripts/standings-recompute.mts",
     "rehearsal": "tsx --env-file=.env scripts/rehearsal.mts"
   },

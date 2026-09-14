@@ -9,6 +9,7 @@ alternatives.
 | [0001](ADR-0001-stack.md) | Next.js 16 + PocketBase on a single VPS | accepted |
 | [0002](ADR-0002-realtime-and-worker.md) | Realtime via PocketBase SSE; enforcement in a separate worker | accepted |
 | [0003](ADR-0003-no-transactions.md) | Living without transactions: the three-layer pick defense | accepted |
+| [0004](ADR-0004-injury-news-source.md) | Reading a publisher's pages for availability (narrows D5) | accepted |
 
 Locked product decisions (scoring formula, stats source, formats in and out of
 scope, participant count) are not ADRs — they live in the decision log,
