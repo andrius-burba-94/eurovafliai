@@ -67,7 +67,12 @@ async function enterDraft(page: Page, leagueId: string) {
   await page.getByTestId("draft-roll").click();
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
-  await expect(page.getByTestId("draft-room")).toBeVisible();
+  // 20s, for the reason `draftPlayer` states: on a dev server under parallel
+  // workers, first render of this route is slower than the default fuse, and
+  // that reads as a broken room rather than a slow one.
+  await expect(page.getByTestId("draft-room")).toBeVisible({
+    timeout: 20_000,
+  });
 }
 
 async function pickBehindTheirBack(leagueId: string, playerId: string) {
@@ -136,6 +141,12 @@ test("a commissioner starts the draft and the room opens", async ({
   ).toBeVisible();
   await expect(page.getByTestId("draft-needs")).toHaveCount(1);
 
+  // The manager's panel carries the frame on the section itself, so it is
+  // asserted directly rather than through `has:`.
+  await expect(page.getByTestId("draft-controls")).toHaveAttribute(
+    "data-framed",
+    "true",
+  );
   for (const testId of ["pick-pool", "roster-radar", "draft-board"]) {
     await expect(
       page.locator('section[data-framed="true"]').filter({

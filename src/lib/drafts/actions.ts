@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth/session";
 import {
+  announceClock,
   announcePause,
   announceRollback,
   announceStartOver,
@@ -18,7 +19,12 @@ import {
   type Position,
 } from "@/lib/engine";
 import { isManager } from "@/lib/leagues/lobby";
-import { parseLeagueSettings, rosterSize } from "@/lib/leagues/settings";
+import {
+  MAX_PICK_SECONDS,
+  MIN_PICK_SECONDS,
+  parseLeagueSettings,
+  rosterSize,
+} from "@/lib/leagues/settings";
 import type { LeagueRecord, MemberRecord } from "@/lib/leagues/types";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
@@ -394,6 +400,94 @@ export async function setDraftPaused(
   // line — see `src/lib/chat/store.ts`.
   await announce(pb, draft.league, announcePause(pause));
 
+  revalidatePath(`/leagues/${leagueId}/draft`);
+  return OK;
+}
+
+/**
+ * Change the pick clock while the draft is running.
+ *
+ * The one item blueprint **D13** admitted carried a real correctness question
+ * rather than mere commissioner comfort, and the question is what happens to a
+ * deadline that is already running. It is answered here, once: the new deadline
+ * is **now plus the new clock**, never the pick's original start plus it.
+ *
+ * That matters in the direction people actually use this. A room that is
+ * dragging shortens the clock — and computed from the current pick's start, a
+ * cut from 120s to 30s would put the deadline 90 seconds in the past and hand
+ * the member on the clock to the sweep on its next tick, which would look
+ * exactly like the commissioner autodrafting somebody for asking to hurry up.
+ * From `now` the change is always a fresh clock, which is also the rule
+ * `setDraftPaused` already follows when it resumes.
+ *
+ * A paused draft keeps its empty deadline: resuming stamps one from the new
+ * number, so there is nothing to recompute and no clock to start behind
+ * everybody's back.
+ *
+ * ## Failure-recovery story
+ *
+ * Two writes, and the order is what makes a crash between them harmless: the
+ * **draft record first**, because that is the field the sweep enforces and the
+ * room displays, then the league settings so a draft started after a
+ * "start over" inherits the same number. A crash between them leaves the live
+ * draft correct and the league's default stale — visible in the setup form,
+ * repaired by pressing this again, and never a wrong deadline.
+ */
+export async function setPickClock(
+  _previous: DraftResult,
+  formData: FormData,
+): Promise<DraftResult> {
+  const leagueId = String(formData.get("leagueId") ?? "");
+  const context = await loadDraftContext(leagueId);
+  if (!context) return { error: "That is not yours to change." };
+  if (!context.canManage) {
+    return {
+      error:
+        "Only the commissioner, or someone they trust with it, can change the clock.",
+    };
+  }
+
+  const { pb, league, settings } = context;
+  const seconds = Number(String(formData.get("pickSeconds") ?? "").trim());
+  if (
+    !Number.isInteger(seconds) ||
+    seconds < MIN_PICK_SECONDS ||
+    seconds > MAX_PICK_SECONDS
+  ) {
+    return {
+      error: `Give each pick between ${MIN_PICK_SECONDS} and ${MAX_PICK_SECONDS} seconds.`,
+    };
+  }
+
+  const draft = await findUnfinishedDraft(pb, leagueId);
+  if (!draft) return { error: "There is no draft running." };
+  if (draft.pick_seconds === seconds) {
+    return { error: `The clock is already ${seconds} seconds.` };
+  }
+
+  await pb.collection("drafts").update(
+    draft.id,
+    {
+      pick_seconds: seconds,
+      deadline:
+        draft.status === "live" ? deadlineFrom(new Date(), seconds) : "",
+    },
+    { requestKey: null },
+  );
+
+  await pb
+    .collection("leagues")
+    .update(
+      league.id,
+      { settings: { ...settings, pick_seconds: seconds } },
+      { requestKey: null },
+    );
+
+  // Said out loud, because it is a rule of the room changing mid-draft and the
+  // only other evidence is a countdown that starts from a different number.
+  await announce(pb, draft.league, announceClock(seconds));
+
+  revalidatePath(`/leagues/${leagueId}`);
   revalidatePath(`/leagues/${leagueId}/draft`);
   return OK;
 }

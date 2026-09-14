@@ -140,11 +140,13 @@ export function Bank({
   children,
   aside,
   framed = false,
+  testId,
 }: {
   label: string;
   children: ReactNode;
   aside?: ReactNode;
   framed?: boolean;
+  testId?: string;
 }) {
   // A section with a heading it is not associated with is an unnamed region:
   // a screen reader lands in it and is told nothing, while the heading it
@@ -154,6 +156,7 @@ export function Bank({
   return (
     <section
       aria-labelledby={headingId}
+      data-testid={testId}
       data-framed={framed ? "true" : undefined}
       className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
     >

@@ -51,6 +51,18 @@ export function announcePause(paused: boolean): string {
 }
 
 /**
+ * The pick clock changed mid-draft — slice 9.2.
+ *
+ * It names the restart as well as the number, because the countdown everybody
+ * is watching jumps when this lands and the honest reading of that jump is
+ * "the clock was changed and restarted", not "the clock glitched". No team
+ * name: only a manager can do this, and the room does not need to know which.
+ */
+export function announceClock(seconds: number): string {
+  return `The pick clock is now ${seconds} seconds. The clock on the current pick restarts from now.`;
+}
+
+/**
  * A rollback — the line this whole slice exists for.
  *
  * It names the count *and* the pick it rewound to, because "the draft was rolled

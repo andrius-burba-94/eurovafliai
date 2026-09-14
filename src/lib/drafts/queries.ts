@@ -16,7 +16,11 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 import type { PoolPlayer } from "@/lib/pool/search";
-import { projectedPointsFromRecord } from "@/lib/stats/project";
+import {
+  averageFantasyOf,
+  averagePirOf,
+  rankPirFromRecord,
+} from "@/lib/stats/project";
 import { tierOfRank } from "@/lib/sheets/ranking";
 import { readSheet } from "@/lib/sheets/store";
 
@@ -56,8 +60,8 @@ export type DraftView = {
    * The viewer's own membership, or null for a commissioner who has no row yet.
    *
    * `autodraftEnabled` is theirs to change from the room — the sweep reads it
-   * one tick later and takes their turn as soon as it comes round. Everyone
-   * else's flag is Phase 3.6's console.
+   * one tick later and takes their turn as soon as it comes round. Everybody
+   * else's flag rides on `members`, for the manager's panel.
    */
   you: { memberId: string; autodraftEnabled: boolean } | null;
   /**
@@ -77,7 +81,17 @@ export type DraftView = {
    * offer it rather than leaving it reachable only by a crafted request.
    */
   canManage: boolean;
-  members: { id: string; name: string; isYou: boolean }[];
+  /**
+   * Every member of the league, with the switch that decides whether the sweep
+   * picks for them.
+   *
+   * The flag is here rather than only on `you` because 9.2 gives the manager's
+   * panel a toggle per member: `setAutodraft` has always accepted a `memberId`
+   * and always let a manager set it for anybody, so the only thing missing was
+   * shipping the flags to the surface that offers it. A phone dying mid-round
+   * is the case that switch exists for.
+   */
+  members: { id: string; name: string; isYou: boolean; autodraftEnabled: boolean }[];
   /**
    * Positions the viewer still has room for — "needs: 1 C, 2 F".
    *
@@ -211,6 +225,11 @@ export async function getDraftView(
       status: string;
       proj_last5_fantasy?: number;
       proj_last5_games?: number;
+      proj_last5_pir?: number;
+      prev_season_games?: number;
+      prev_season_pir?: number;
+      prev_season_fantasy?: number;
+      prev_season_code?: string;
     }>({
       filter: DRAFTABLE_PLAYERS_FILTER,
       sort: "name",
@@ -339,11 +358,11 @@ export async function getDraftView(
   if (placeOf.size > 0) {
     const ranked = rankForMember(
       players.map((player) => {
-        const projectedPoints = projectedPointsFromRecord(player);
+        const rankPir = rankPirFromRecord(player);
         return {
           id: player.id,
           position: player.position,
-          ...(projectedPoints === undefined ? {} : { projectedPoints }),
+          ...(rankPir === undefined ? {} : { rankPir }),
         };
       }),
       ranking,
@@ -400,10 +419,12 @@ export async function getDraftView(
       id: record.id,
       name: nameOf.get(record.id) ?? "Unknown member",
       isYou: record.id === youId,
+      autodraftEnabled: Boolean(record.autodraft_enabled),
     })),
     yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
     pool: players.map((player) => {
       const held = heldBy.get(player.id);
+      const average = averagePirOf(player);
       return {
         id: player.id,
         name: player.name,
@@ -416,7 +437,11 @@ export async function getDraftView(
         status: player.status,
         takenBy: held?.by ?? null,
         takenAt: held?.at ?? null,
-        projectedLast5: projectedPointsFromRecord(player) ?? null,
+        averagePir: average?.tenths ?? null,
+        averageGames: average?.games ?? 0,
+        averageSource: average?.source ?? null,
+        averageSeason: average?.season ?? null,
+        averageFantasy: averageFantasyOf(player) ?? null,
       };
     }),
     availableCount: players.filter((player) => !heldBy.has(player.id)).length,

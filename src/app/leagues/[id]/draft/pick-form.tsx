@@ -117,6 +117,46 @@ const EXPANDED_ROWS = 40;
 const POSITIONS: Position[] = ["G", "F", "C"];
 
 /**
+ * The pool row's two shared measurements, so the column head cannot drift off
+ * the column it names.
+ *
+ * Both are narrower below `sm`, and that is a budget rather than a preference.
+ * Measured on a Pixel 7, the row is 338px and every part of it except the name
+ * is fixed-width, so the name absorbs the whole deficit and is the first thing
+ * to become unreadable. At `w-16` with the games count beside it, names
+ * truncated to three characters.
+ *
+ * With these values the name measures **87px, against 101px before PIR moved
+ * onto the row** — the fantasy average it replaced was a third the width.
+ * Fourteen pixels of a name is the price of the row leading with the number
+ * the draft is decided on, and it is paid only below `sm`: the full-width
+ * name, the games count and the fantasy average all come back at 640px, and
+ * the whole name is in `title` and in the row's spoken label at every size.
+ */
+const PIR_COLUMN = "w-12 sm:w-[4.5rem]";
+const POOL_GAP = "gap-x-2 sm:gap-x-3";
+
+/**
+ * What the PIR cell means, spelled out for a reader and for a hover.
+ *
+ * Two numbers and a season in one sentence, because the cell itself is three
+ * glyphs and a count: which season an average is from decides whether it is
+ * form or a body of work, and a bare `22.1` cannot say.
+ */
+function pirTitle(player: {
+  averagePir: number | null;
+  averageGames: number;
+  averageSource: "last5" | "prev" | null;
+  averageSeason: string | null;
+}): string {
+  if (player.averagePir === null) return "No PIR — has not played";
+  const over = `over ${player.averageGames} game${player.averageGames === 1 ? "" : "s"}`;
+  return player.averageSource === "last5"
+    ? `PIR ${formatTenths(player.averagePir)}, last 5 games`
+    : `PIR ${formatTenths(player.averagePir)}, ${over} in ${player.averageSeason ?? "the previous season"}`;
+}
+
+/**
  * The one control that chooses a player, used by the pool row *and* the pinned
  * shortlist.
  *
@@ -568,6 +608,9 @@ export function PickForm({
             relist();
           }}
           placeholder="Name or club — misspelling is fine"
+          // The destination of the panel's "Pick for them", so that control
+          // works as a plain fragment link before any JavaScript runs.
+          id="pool-search"
           data-testid="pool-search"
           autoComplete="off"
           spellCheck={false}
@@ -650,8 +693,11 @@ export function PickForm({
         ) : null}
       </div>
 
+      {/* Reads `PIR` because the column it narrows reads `PIR`. It said
+          `Last 5` over thresholds applied to fantasy points, which was two
+          numbers away from what the row displayed. */}
       <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-        <span className="slot-label pb-2">Last 5</span>
+        <span className="slot-label pb-2">PIR</span>
         {([100, 150, 200] as const).map((floor) => (
           <FilterToggle
             key={floor}
@@ -737,6 +783,26 @@ export function PickForm({
         {listSaid}
       </p>
 
+      {/* A column head, so the figures are named rather than inferred.
+          
+          `slot-label` because DESIGN.md already assigns column heads to it —
+          this needed no new material. `aria-hidden`, because each cell below
+          carries its own spoken label and a reader announcing "PIR" before
+          every row would be the third way of saying one thing. The paddings
+          mirror `Slot`'s own `px-3` and the row's `gap-x-3`, which is the only
+          way the head can sit over the column it names. */}
+      <div
+        aria-hidden="true"
+        data-testid="pool-columns"
+        className={`flex items-baseline ${POOL_GAP} px-3`}
+      >
+        {hasSheet ? <span className="w-8 shrink-0" /> : null}
+        <span className={`slot-label ${PIR_COLUMN} shrink-0 text-right`}>
+          PIR
+        </span>
+        <span className="slot-label">Player</span>
+      </div>
+
       <Slots testId="pick-pool" label="The player pool">
         {shortlist.map((player, position) => {
           const isHighlighted = position === cursor;
@@ -774,7 +840,9 @@ export function PickForm({
                   : ""
               }
             >
-              <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
+              <span
+                className={`flex min-w-0 flex-1 items-baseline ${POOL_GAP} overflow-hidden`}
+              >
                 {/* Where this player sits on *your* sheet — leading, fixed
                     width, right-aligned, so `#1`…`#8` form a column that can be
                     read down. Trailing the position patch, they landed at eight
@@ -790,6 +858,44 @@ export function PickForm({
                     {player.sheetRank === null ? "" : `#${player.sheetRank}`}
                   </span>
                 ) : null}
+                {/* **The number this room is drafting on, and it leads.**
+                    
+                    It used to trail the club in `slot-label` soft ink with no
+                    label at all — and it was the *fantasy* average, which is
+                    PIR plus a win bonus, so the strongest figure on the row
+                    was a different number from the one everybody says out
+                    loud. Now it is PIR, at the name's own size in full ink, in
+                    a fixed-width right-aligned cell so the figures form a
+                    column that can be read down. That is the same argument the
+                    sheet rank above it makes, and it is the only way to make a
+                    number prominent here: marker red has two jobs and no
+                    third, so weight and position are what is left.
+                    
+                    The games count shares the cell rather than taking its own,
+                    because it qualifies the average rather than standing
+                    beside it — 22.1 from three games is not 22.1 from
+                    thirty-nine — and because a third numeric column does not
+                    fit a 390px row. */}
+                <span
+                  className={`flex ${PIR_COLUMN} shrink-0 items-baseline justify-end gap-1`}
+                  data-testid="pool-pir"
+                  title={pirTitle(player)}
+                >
+                  <span className="text-sm font-semibold tabular-nums">
+                    {player.averagePir === null
+                      ? "—"
+                      : formatTenths(player.averagePir)}
+                  </span>
+                  {player.averageGames > 0 ? (
+                    <span className="slot-label hidden tabular-nums sm:inline">
+                      {player.averageGames}
+                    </span>
+                  ) : null}
+                  {/* Never hidden, at any width: the games count and the season
+                      it is from are what stop a 22.1 from three games reading
+                      like a 22.1 from thirty-nine. */}
+                  <span className="sr-only">{pirTitle(player)}</span>
+                </span>
                 {/* `CardName scale="slot"`, not a bespoke class. The board
                     already made this mistake once — a one-off `text-xs` at
                     *display* tracking — and DESIGN.md records fixing it. */}
@@ -802,12 +908,17 @@ export function PickForm({
                   <CardName scale="slot">{player.name}</CardName>
                 </span>
                 <span className="slot-label">{player.club}</span>
-                {player.projectedLast5 !== null ? (
+                {/* Fantasy points are what the standings actually sum, so they
+                    stay on the row rather than being hidden — named, quiet,
+                    and behind PIR. Held back below `sm` because the row cannot
+                    carry two numeric columns, a name, a club and a patch
+                    inside 390px; the player page prints it at every width. */}
+                {player.averageFantasy !== null ? (
                   <span
-                    className="slot-label shrink-0 tabular-nums text-ink-soft"
+                    className="slot-label hidden shrink-0 tabular-nums sm:inline"
                     data-testid="pool-proj"
                   >
-                    {formatTenths(player.projectedLast5)}
+                    {`FP ${formatTenths(player.averageFantasy)}`}
                   </span>
                 ) : null}
                 <PositionPatch position={player.position} />

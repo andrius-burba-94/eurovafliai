@@ -3,6 +3,197 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 9.2 — Two of D13's "working paths" were only reachable by a crafted request
+
+D13 cut the commissioner console in 3.6 with a four-part argument that each item
+already had a working path. Read again a year of slices later, two of those
+parts were claims about the **server**, not about anything a person can reach.
+
+**Per-member autodraft.** `setAutodraft` has accepted a `memberId` since 2.5 and
+has always permitted a manager to set it for anybody — the docstring says so and
+names the case, a phone dying mid-round. But `getDraftView` never shipped
+anybody else's flag, and its own comment said as much ("Everyone else's flag is
+Phase 3.6's console"). So the working path was: know the member id, and POST.
+That is not a path. The fix was two lines in the query and a row per member in
+the panel, in draft order, each with its own `useActionState` so a refusal lands
+on the row it belongs to rather than at the top of twelve identical ones.
+
+**"Pick for them".** It was real since 2.4 and it was the pool's Bank *heading*
+— which on a phone sits six hundred pixels below the band. A manager whose
+teammate had gone quiet had to scroll, notice a heading had changed wording, and
+infer that the pool in front of them was now somebody else's. It is a control in
+the panel now, and it is deliberately a **walk rather than an act**: it names
+whose turn it is spending and leaves the cursor in the pool's search box. The
+implementation is the radar's own reveal idiom — an `href` that works with no
+JavaScript, a handler that focuses and then measures the sticky band's clearance
+rather than guessing at it. It is hidden on your own turn, because the pool
+below already says "Make your pick" and a second control for one act is how two
+surfaces start disagreeing.
+
+**The clock was the only one of the four carrying a real correctness question,
+and D13 said so.** The question is what happens to a deadline that is already
+running, and the answer is now stated once, in `setPickClock`: the new deadline
+is **now plus the new clock**. The rejected alternative — the pick's original
+start plus the new clock — fails in the exact direction people use this. A room
+that set 120 seconds in the lobby and then spends an hour on round three cuts
+the clock to 30, and computed from the pick's start that puts the deadline
+ninety seconds in the past: the sweep autodrafts the member on the clock on its
+next tick, and it looks like the commissioner punished somebody for asking them
+to hurry up. The E2E test is written to separate the two implementations rather
+than to confirm the one that shipped — it plants a deadline ten seconds in the
+past, which is what a long pick looks like to this action, and asserts the new
+one is in the **future** by roughly the new clock.
+
+Two smaller decisions came with it. The league's `pick_seconds` setting follows
+the draft's, second, so a start-over does not quietly return to a minute — and
+a crash between the two writes leaves the live draft correct and only the
+lobby's default stale, which is visible and repaired by pressing the button
+again. And the change **announces itself in chat**, because the countdown
+everybody in the room is watching jumps when it lands; "the clock was changed
+and restarted" is the honest reading of that jump, and without the line the only
+reading available is "the clock glitched".
+
+**Skip a turn was refused, and the refusal is mechanical rather than a matter of
+taste.** `buildPickOrder` produces a contiguous run of slots and
+`isDraftComplete` counts them, so a permanently empty slot is a draft that can
+never finish; the sweep's own board-hole repair would start reporting a draft it
+cannot move. Autodraft and "Pick for them" cover both cases a skip gets reached
+for. It is in STATUS's debt table as an argument, not a to-do.
+
+**One test-infrastructure finding, worth more than the slice.** The full E2E
+suite failed **149 of 395** against the local dev server, in a way that read
+like a broken draft room: pauses that never landed, rooms that never rendered,
+`page.goto: net::ERR_ABORTED`. Every one of them was route-compile latency —
+two other projects' `next dev` servers were running on the same laptop — and the
+same suite against `next start` over a fresh build passed **405 of 405 in four
+minutes**. The lesson is in STATUS's verification table now: measure this suite
+on a build (`CI=1 E2E_PORT=…`), the way CI does, or the noise is the result. The
+helpers that wait on a server action round trip were given the same generous
+fuse `draftPlayer` already argues for, because a fuse shorter than the work it
+waits on reports a slow thing as a broken one.
+
+## 9.1 — The pool was showing the wrong number, in the wrong ink, unlabelled
+
+The slice started from a defect rather than a feature request. The draft pool's
+row carried a figure in soft ink with no heading, and that figure was
+`proj_last5_fantasy` — fantasy points, which are PIR × 1.1 on a win. So the
+strongest numeric signal in the room was a bonus-inflated number that everyone
+would reasonably read as the PIR they talk in. Worse, **PIR was averaged
+nowhere**: it was stored per game in `player_game_stats.pir` and `projectPlayer`
+returned only the two fantasy averages. The number the league drafts on did not
+exist in the database.
+
+Three decisions followed, and the third is the one worth keeping.
+
+**One number, everywhere.** Average PIR is now the row headline, the
+`10+/15+/20+` floors, and autodraft's ranking. Two of those used to read fantasy
+points while the eye read something else; making them the same figure means the
+pool's top row and the pick the worker would make for you are now the same
+answer to the same question. `EnginePlayer.projectedPoints` became `rankPir` in
+the same change: a field named for one quantity and carrying another is exactly
+what CONTEXT.md says to rename rather than document.
+
+**Which season the average comes from is stated once**, in `averagePirOf`:
+current-season last-5 if the player has any games, last season otherwise. On
+draft night that is uniformly last season, because E2026 has none — but STATUS
+notes the league may one day draft into a season already under way, and then
+the fresher number is the right one. `averageFantasyOf` follows whichever season
+PIR chose, so one row never prints this season's PIR beside last season's
+fantasy points.
+
+**Prominence came from position and ink, because marker red was unavailable.**
+DESIGN.md's Two Jobs Rule gives marker exactly two jobs, "and no third", so the
+usual way to make something shout was closed. What was left is what the sheet
+rank already argued for at `pick-form.tsx`: a leading, fixed-width,
+right-aligned column can be *read down*, whereas the same figure trailing the
+position patch landed at eight different x-positions. PIR is that column, at
+the name's size in full ink, under a `slot-label` column head.
+
+That has a measured cost and it is worth writing down rather than glossing. A
+Pixel 7 pool row is 338px, and every part of it except the name is fixed-width,
+so the name absorbs the entire deficit. The first cut — `w-16` with the games
+count beside it — truncated names to three characters. Narrowing the column and
+holding the games count and the `FP` figure back to `sm` brought the name to
+**87px against the 101px it had before**, measured in a real browser rather than
+estimated. Fourteen pixels of name is the price of the row leading with the
+right number; the full name stays in `title` and in the row's spoken label at
+every width.
+
+### The endpoint that looked like a free win and was a data-corrupting trap
+
+The plan called for replacing the roster sync's 21 club-by-club requests with
+one call to `/{season}/people?limit=1000`, which returns all 837 season people
+with full bios. It parses cleanly, the `type === "J"` filter still works, and
+332 players come back. It shipped, the sync ran, and it marked **66 players as
+having left** and moved others to clubs they had already departed.
+
+`/{season}/people` is a **registration history, not a roster**. It lists every
+spell a person has held this season, expired ones included, so those 332 rows
+cover only 309 people: 23 appear twice, once at the club they left (`active:
+false`, `endDate` in the past) and once at the club they joined. `diffRosters`
+deduplicates by person code and keeps whichever it saw first, which is feed
+order — so Jantunen was stored at Fener rather than Madrid, and a player at the
+wrong club is diffed as a departure and vanishes from the draft pool.
+
+Measured properly afterwards, against the club walk on the same day: the bulk
+endpoint lists **79 `(person, club)` pairs the walk does not and omits 60 that
+it does**. Filtering to `active === true` reconciles neither — still 21 extra
+and 63 missing. It is not a shape trap to work around; it is a different
+question being answered.
+
+So the walk stays the roster authority and the bulk endpoint contributes **bios
+only**, joined by person code, with the club's own row winning every field it
+has. The repair was the doctrine the repo already has: re-running the corrected
+sync restored the pool exactly — 326 draftable, 222 with a previous season and
+104 without, 22 with no person code, which are the same figures 4.4's backfill
+measured. Nothing was deleted at any point, because a player who disappears
+from a source is marked, never removed.
+
+The lesson is narrower than "verify the feed" — the feed *was* verified, and
+every claim about its shape was true. What was not checked was whether it
+answered the same **question** as the endpoint it replaced. A test now asserts
+that a club's roster beats the season-wide list on club membership, and the
+research doc carries the measurement.
+
+### Where last season's numbers come from, and the four ways that endpoint lies
+
+Previous-season averages are imported from the v3 statistics table behind the
+official expanded-stats page (`npm run stats:prev`), because that is the number
+the league will compare against — a draft-night figure that disagrees with the
+official site by a tenth is a figure nobody trusts. Four parameter traps, all
+measured on 2026-09-14 and all in `docs/research/euroleague-api.md`:
+
+- Omitting `seasonMode=Single` makes it ignore `seasonCode` and return
+  **all-time career leaders** — 3,075 rows, `gamesPlayed` up to 78, retired
+  players included, and no error of any kind.
+- `statisticMode=perGame` applies a minimum-games qualification: 208 rows with
+  a 24-game floor, silently dropping **127 of 335 players**, which is precisely
+  the fringe, injured and mid-season arrivals a draft has to price. We take
+  `accumulated` totals and divide ourselves.
+- `team.code` can be `;`-joined for a mid-season move (9 rows in E2025), so it
+  is never matched against a club.
+- The current season answers `total: 0` until tip-off, which is not an error.
+
+It is also the **only v3 resource on this API**, which corrects a claim the
+research file carried since 2.1 — "v3 is rejected outright, do not reach for
+it" was a statement about every path anyone had tried, written as a statement
+about the API.
+
+The cross-check was nearly free and is the part that makes the import
+trustworthy: `applyPreviousSeason` computes each player's E2025 season PIR
+average from our own 6,902-line backfill and compares it to the feed's.
+**220 of 222 matched players agreed exactly**; the other two have no local box
+scores to compare. A disagreement is reported and never reconciled — the same
+rule 4.1 applies to a pasted PIR that does not match its own components, for
+the same reason, which is that we cannot tell which of the two numbers is
+wrong.
+
+One asymmetry worth knowing: `prev_season_fantasy` comes from our backfill and
+not from the feed, and it has to. Fantasy points are PIR plus a win bonus, and
+a season *total* carries no per-game result to apply that to. So a player we
+never backfilled gets a PIR average and no fantasy average, and the player page
+prints nothing rather than a zero.
+
 **8.4 has landed: the draft room is a first-class page for assistive tech.**
 Three defects, one missing measurement. The room was the only surface without
 an `h1` — all three band states titled as a plain `<p>`, while every other page

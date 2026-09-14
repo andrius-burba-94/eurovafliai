@@ -9,6 +9,7 @@ import {
   chatTime,
   chatTotal,
   chatUnread,
+  announceClock,
   announceComplete,
   announceDrop,
   announceAdd,
@@ -93,6 +94,20 @@ describe("a rollback — the line this slice exists for", () => {
     ).toBe(
       "Chief FC rolled the draft back to #3, discarding 1 pick. The draft is paused.",
     );
+  });
+});
+
+describe("the pick clock, changed mid-draft", () => {
+  it("names the number and the restart", () => {
+    // The countdown everybody is watching jumps when this lands, so the line
+    // has to explain the jump as well as the new rule.
+    expect(announceClock(45)).toBe(
+      "The pick clock is now 45 seconds. The clock on the current pick restarts from now.",
+    );
+  });
+
+  it("names no team, because only a manager can do it", () => {
+    expect(announceClock(30)).not.toMatch(/\byou\b/i);
   });
 });
 
@@ -191,6 +206,7 @@ describe("every system line is a whole sentence", () => {
     }),
     announcePause(true),
     announcePause(false),
+    announceClock(45),
     announceRollback({ discarded: 2, toPick: 5, byTeamName: "Chief FC" }),
     announceRoll({ order: ["A", "B"], reshuffle: false }),
     announceStartOver("Chief FC"),

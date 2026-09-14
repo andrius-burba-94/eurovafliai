@@ -254,11 +254,26 @@ export default async function DraftPage({
           </>
         ) : null}
 
+        {/* The manager's panel, a sibling framed Bank. Its member list is in
+            draft order — the order the board reads across and the radar reads
+            down — so the three surfaces name the same league in the same
+            sequence. */}
         <DraftControls
           leagueId={id}
           status={draft.status}
           canManage={view.canManage}
           picksMade={picks.length}
+          pickSeconds={draft.pick_seconds}
+          members={draft.order.map((memberId) => ({
+            id: memberId,
+            name: nameOf.get(memberId)?.name ?? "Unknown member",
+            isYou: Boolean(nameOf.get(memberId)?.isYou),
+            autodraftEnabled: Boolean(
+              nameOf.get(memberId)?.autodraftEnabled,
+            ),
+          }))}
+          onClockMemberId={onClock?.memberId ?? null}
+          onClockMemberName={onClock?.memberName ?? null}
         />
 
         {view.canManage &&
