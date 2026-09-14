@@ -21,10 +21,27 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: Phase 8 is closed, on the box as well as in code.** **8.0–8.5** have
-all landed, and the human halves are now done: the backup timer is enabled and
-has written a real archive, that archive has been through the restore drill,
-and logrotate is installed. R1 already covers the client-load check.
+**Next up: the season, not a slice.** Every phase that is going to ship before
+E2026 has shipped — Phase 8 is closed on the box as well as in code, the
+blueprint's remaining phases are 6 (keepers, explicitly a summer-2027 feature)
+and 7 (AI, not next), and the issue tracker is empty. **E2026 tips off on
+24 September 2026**, so what is actually outstanding is a date rather than a
+ticket: the human half of 3.7 / D12 — a real draft night, with friends, on their
+own phones — has to happen before the league drafts into a season already in
+progress. Everything mechanical about that night is proven; whether it *feels*
+right is the one claim no script can make.
+
+The last piece of pre-season engineering is in: **4.2's quarantine now has a
+doorbell.** A manager's lobby and the pool's own mapping row both name how many
+suspected renames and unattached person codes are standing, and both read the
+same filter the mapping page renders, so the count cannot advertise work the
+page will not show. It matters from 24 September, not before: an unanswered
+rename is a player whose box scores cannot attach.
+
+**8.0–8.5** have all landed, and the human halves are done: the backup timer is
+enabled and has written a real archive, that archive has been through the
+restore drill, and logrotate is installed. R1 already covers the client-load
+check.
 
 A **full three-account draft has now been run on production, across several real
 devices** — thirteen rounds, three real Google accounts, all three rosters legal
@@ -60,6 +77,27 @@ closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
 it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
+
+## Try it on localhost — the mapping doorbell
+
+```bash
+npm run dev
+npm run rosters:sync -- --dry-run   # or open /players/mapping and press Check the feed
+```
+
+A sync stores its held-back renames whether or not anybody looks, so the queue
+is readable without a network. With something standing, open any league lobby
+you run: a `Correction` above the member list says how many players may have
+been re-registered and how many person codes belong to nobody, ends on the cost
+(*their box scores cannot attach*), and links to `/players/mapping`. Answer them
+there and the banner goes on the next load — the count is the page's own filter,
+so it cannot claim work the page does not show.
+
+Two things to check because they are the point: sign in as a **plain member** of
+the same league and the banner is not there (they could not act on it — the page
+404s for them), and with an **empty** queue there is no banner at all rather than
+a cheerful nothing-to-do. `/players` carries the same number on its Player
+mapping row, struck as a correction.
 
 ## Try it on localhost — 8.4
 
@@ -354,7 +392,7 @@ has to rank on. Then:
 
 ```bash
 npm run lint:dead        # knip: unused files, exports, dependencies — now a CI job
-npm run test             # 983 unit tests; memberships, standings join, and the snapshot recompute are covered now
+npm run test             # 1019 unit tests; memberships, standings join, and the snapshot recompute are covered now
 CI=1 npm run test:e2e    # what CI runs: Playwright against `next start` over a fresh build
 ```
 
@@ -366,7 +404,10 @@ In a draft room with picks on the board, open **Undo a pick** and change the
 number: the line under it now says how many picks *that* number would discard,
 before the button.
 
-`npm run test` is **983** unit tests after 8.5.
+`npm run test` is **1019** unit tests after the mapping doorbell. (It read 983
+here through 8.5 while `main` had moved to 1002 — the nginx-canonical and
+logrotate work added tests without correcting this line. Measured, not
+remembered: `npm run test` on the parent commit, then again after.)
 
 ## Try it on localhost — slice 4.2
 
@@ -694,7 +735,7 @@ touch should be fixed by that slice rather than deferred again.
 | **Scoring weights are settings that nothing reads yet** | 4.5 answered the immediate question by summing stored `fantasy_pts` tenths, so the table is honest about the official weights. Custom per-league weights would still be a lie until a later rescore from components: box scores are app-global, weights would be per-league, and the importer still passes `OFFICIAL_WEIGHTS` unconditionally | Nothing yet; a settings screen would still be a lie |
 | **An amended box score is never noticed** | 4.3's pass asks "what is played and **not stored**", and that is what makes it self-healing — but it means a game whose box score the Euroleague later corrects is invisible to the fetcher for ever, because the game is stored. The Euroleague does amend them. The remedy exists and is manual: paste the game into `/stats/import`, which names every field it would change before changing it. The fix would be a second, slower pass that re-fetches recent games and compares — cheap to write, and it wants a decision about how far back "recent" reaches, because re-fetching 380 games nightly to catch one correction is not a trade worth making | Nothing; a correction needs a person to notice it |
 | **A game imported with some rows refused stays "done"** | `readStoredGameCodes` asks whether a game has *anything* stored, not whether it has all 24 lines. So a game where two players were refused — no person code, or a PIR that disagreed with its own components — counts as imported and the fetcher never returns to it. Deliberate: the refusals are named in the batch log, and re-fetching a game whose other 22 rows are already correct would rewrite them to fix nothing. It does mean the *only* record that a line is missing is a `stat_imports` log nobody reads unprompted | Nothing; two players' lines, and a log entry that has to be looked for |
-| **A quarantine needs somebody to notice it** | 4.2 stops a sync splitting a player in two, and the price is that the pair stays unresolved until a person opens `/players/mapping`. Nothing chases them: the sync script prints the held-back pairs and the page lists them, but no chat announcement, no email, nothing on the lobby. Fifteen unanswered renames means fifteen players whose display name is stale and whose box scores cannot attach — which matters from 24 September, not before. The cheapest fix is a count somewhere a commissioner already looks | Nothing yet; a queue with no doorbell |
+| **A quarantine needs somebody to notice it** | **Closed by the mapping doorbell**, and recorded here so the reasoning is not re-derived. A manager's lobby now carries a `Correction` naming how many renames and unattached codes are standing and what they cost, and the pool's own mapping row is struck as a correction with the same number. Both read `countMappingQueue()`, which runs the *same* pure filters the mapping page renders (`src/lib/mapping/queue.ts`) — a doorbell that rang for work the page did not show would teach a commissioner to ignore it, which is the state this debt was. It rings **only** when something is standing, and only for somebody who could act on it. What is still true is that nothing reaches a commissioner who never opens the app: there is no chat announcement and no email, deliberately, because `chat_messages` has no per-member visibility and this is manager-only — the same argument 8.2 made for the stuck banner | Nothing |
 | **A rename is only ever proposed against the *same club*** | `proposeRenames` never pairs across clubs, which is what stops it merging two unrelated players who share a surname. The cost is the case it cannot see: a player who was re-registered under a passport name **and** transferred between two syncs. That is a departure plus an add, as before 4.2, and the duplicate has to be spotted by eye. Rare, and the alternative — fuzzy matching across the whole 330-player pool — is how you merge the wrong Nunn | Nothing; a narrow blind spot, chosen over a wide one |
 | **Backups protect against a delete, not a disk** | Closed on the box: `eurovafliai-backup.timer` is enabled (03:15 + jitter), the oneshot has written a real 33 MB archive, that archive passed `pb:restore-drill --adopt-superuser`, and logrotate is installed and scoped to the four `eurovafliai-*.log` files. What is *not* solved is where the archives live — PocketBase's backup API writes them to `pb/pb_data/backups/`, the **same disk as the database**. A bad delete is survivable; losing the volume is not. Off-box copies are a decision nobody has made yet | Nothing today; one disk is one disk |
 | **Axe defers contrast to the token suite** | 8.4's `@axe-core/playwright` suite disables `color-contrast` on purpose. Axe reports `live` on `stock-deep` at 4.49:1 (needs 4.5:1) on the Google button and faint board numbers — the same near-miss `tokens.test.ts` already measures and the design system has accepted. Running both would mean two sources of truth fighting over a hundredth of a ratio. Landmarks, names and focus order stay in axe; every ink/stock pair stays in the token suite | Nothing; a deliberate split, recorded so nobody "fixes" the disable |
@@ -710,7 +751,7 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **983 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, and the idempotent snapshot recompute |
+| `npm run test` | **1019 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, and the mapping queue's filters and sentence |
 | `npm run build` | pass |
 | `npm run test:e2e` | Roster page + access boundary, standings one-round, and start-over membership cleanup pass on chromium and Pixel 7. Full suite in CI |
 | `npm run pb:verify` | **126 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, and superuser-only writes |

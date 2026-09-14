@@ -597,3 +597,70 @@ P0/P1 findings and a clean detector. A late shared-component review found that
 team-page radar rows had inherited draft-room hash links without owning a
 board. Linking is now an explicit draft-room capability; a roster radar remains
 a readable row.
+## The mapping doorbell — closing 4.2's "queue with no doorbell"
+
+4.2 stops a roster sync splitting one player into a departure plus a duplicate
+by *quarantining* a suspected rename: neither half is written until a person
+answers. The price was recorded at the time and carried as open debt — nothing
+chased the queue. The sync script printed the held-back pairs, `/players/mapping`
+listed them, and that was the whole of it. Fifteen unanswered renames is fifteen
+stale display names before 24 September and fifteen players whose box scores
+cannot attach after it, which is points going missing rather than a spelling.
+
+The fix is a count on two surfaces a manager already opens, and the only
+interesting decision was making the count **unable to lie**.
+
+**One filter, called twice.** The rules that decide whether a stored proposal is
+still a *question* — the player is gone, the player already has a code, the code
+has since been taken — lived inside `readLatestCheck`, and the dedupe that folds
+one unmatched code across twenty passes lived inside `readUnmatchedCodes`. A
+count written beside them would have been a third implementation agreeing by
+inspection. They are now pure functions in `src/lib/mapping/queue.ts`
+(`pendingRenames`, `pendingCodes`, `newestCheckBatch`), and the page and the
+doorbell both call them. A doorbell that rings for work the page then does not
+show is worse than no doorbell: it teaches a commissioner that the notice is
+noise, which is the state this debt already was.
+
+**No network.** The 21-request feed check stays behind `checkTheFeed`. Both
+halves of the queue are already stored — a sync writes its `diff` whether or not
+anybody presses anything, and 4.3 writes every code it could not attach — so
+`countMappingQueue` is three PocketBase reads. It fetches the pool **once** where
+the two page reads fetch it twice, and it never ranks candidates: a count does
+not need to know who the player might be, and `suggest` builds a fuse index per
+code.
+
+**Where it rings.** Below the league's own act and above the member list. A live
+draft outranks a stale spelling, so the notice does not sit above "The draft is
+live"; further down is where the queue was already being missed. It is a
+`Correction` — ink, not marker — which is both the design rule for a notice and
+8.2's precedent for a commissioner-only banner that names what to do. The lobby
+gate is the league's existing manager test rather than a fresh
+`canManageRosters()` call: anybody who manages this league already satisfies the
+app-global one, so the door cannot 404, and nobody else pays for the read.
+
+**It says the cost, not the count.** "15 players may have been re-registered" is
+a number; "until somebody answers them, those players' box scores cannot attach"
+is a reason. `queueSentence` returns `null` on an empty queue and the surfaces
+render nothing — a doorbell that rings to say the door is empty is the one people
+stop hearing.
+
+**The parallelism trap, again.** The queue is app-global, which this repo has now
+learned from `sweepOnce`, the cheat-sheet fixture, the chat fixture and 4.2's own
+specs. `countMappingQueue` picks **one** winning rename batch (the newest
+carrying proposals) but **unions** the code batches, so with `fullyParallel: true`
+a sibling spec planting its own check can displace a planted rename and leave a
+doorbell spec asserting against an empty queue. The presence spec therefore
+plants an unmatched *code*, which can be joined but not displaced, and never
+asserts an exact number. The absence spec — a plain member sees nothing — is
+robust whatever else is in the queue, and it is the one guarding the boundary.
+
+Verified on localhost with a planted rename and code: the lobby read "One player
+in the pool may have been re-registered under a new name. 2 person codes from box
+scores belong to nobody in the pool." and `/players` read "3 waiting" on the same
+load. The two agreeing is the invariant, not a coincidence.
+
+What is deliberately still missing: nothing reaches a commissioner who does not
+open the app. No chat announcement, because `chat_messages` has no per-member
+visibility and this is manager-only — the same argument 8.2 made for the stuck
+banner — and no email, because this repo has kept configuration on the box out of
+itself.
