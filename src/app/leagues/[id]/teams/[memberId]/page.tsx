@@ -4,12 +4,14 @@ import { notFound, redirect } from "next/navigation";
 import {
   BackLink,
   Bank,
+  CardBlock,
+  CardBlocks,
   CardName,
   Door,
   EmptyNotice,
+  FixtureNote,
   PositionPatch,
   Sheet,
-  Slot,
   Slots,
   TopRail,
 } from "@/components/board";
@@ -124,12 +126,21 @@ export default async function TeamPage({
             label="The roster"
             aside={`${roster.length} of ${rosterSize}`}
           >
-            <Slots testId="roster-list" label={`${displayName} roster`}>
+            <CardBlocks
+              testId="roster-list"
+              label={`${displayName} roster`}
+              columns
+            >
               {roster.map((player) => (
-                <Slot key={player.id} testId="roster-player" state="filled">
+                <CardBlock
+                  key={player.id}
+                  testId="roster-player"
+                  state="filled"
+                  position={player.position}
+                >
                   <Link
                     href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
-                    className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+                    className="-mx-3 -my-3 flex min-h-11 min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
                   >
                     <PositionPatch position={player.position} />
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -144,17 +155,18 @@ export default async function TeamPage({
                       </span>
                     ) : null}
                   </Link>
-                </Slot>
+                  <FixtureNote fixture={player.fixture} />
+                </CardBlock>
               ))}
               {Array.from({ length: waiting }, (_, index) => (
-                <Slot key={`waiting-${index}`} state="waiting">
+                <CardBlock key={`waiting-${index}`} state="waiting">
                   <span className="slot-label text-ink-faint">
                     Open roster slot{" "}
                     {String(roster.length + index + 1).padStart(2, "0")}
                   </span>
-                </Slot>
+                </CardBlock>
               ))}
-            </Slots>
+            </CardBlocks>
           </Bank>
         )}
 

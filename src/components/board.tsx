@@ -15,6 +15,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import type { PlayerFixture } from "@/lib/fixtures/types";
+
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
 
 const SLOT_RULE: Record<SlotState, string> = {
@@ -232,15 +234,24 @@ export function CardBlocks({
 export function CardBlock({
   children,
   testId,
-  live = false,
+  state = "filled",
   position,
   landed = false,
   className = "",
 }: {
   children: ReactNode;
   testId?: string;
-  /** This subject is on the clock. Drawn in the marker, at double weight. */
-  live?: boolean;
+  /**
+   * The block's three states, named the way a slot's are and carried the same
+   * way — in the material, never in a badge parked inside it.
+   *
+   * Three rather than `Slot`'s six: a subject is held, on the clock, or not
+   * there yet. `transit`, `standing` and `correction` are things that happen to
+   * a *row* — a sheet entry in your hand, a paused board, a refusal — and
+   * inventing block materials for them would be three declarations nothing
+   * renders.
+   */
+  state?: BlockState;
   /**
    * A 3px edge in the position's hue, so a roster can be scanned by colour.
    *
@@ -258,16 +269,32 @@ export function CardBlock({
   return (
     <li
       data-testid={testId}
-      data-state={live ? "live" : "filled"}
+      data-state={state}
       data-position={position}
-      className={`${live ? "card-block-live" : "card-block"} ${
-        landed ? "card-lands" : ""
-      } ${position && !live ? `border-l-3 ${BLOCK_EDGE[position]}` : ""} ${className} flex min-w-0 flex-col gap-2`}
+      className={`${BLOCK_MATERIAL[state]} ${landed ? "card-lands" : ""} ${
+        position && state === "filled" ? `border-l-3 ${BLOCK_EDGE[position]}` : ""
+      } ${className} flex min-w-0 flex-col gap-2`}
     >
       {children}
     </li>
   );
 }
+
+export type BlockState = "filled" | "live" | "waiting";
+
+/**
+ * One declaration per material, looked up rather than composed.
+ *
+ * The position edge is suppressed for `live` and `waiting` deliberately. On a
+ * live block the marker owns the border — a hue on one edge of it would be a
+ * second thing claiming the same boundary — and on a waiting block there is no
+ * player to have a position.
+ */
+const BLOCK_MATERIAL: Record<BlockState, string> = {
+  filled: "card-block",
+  live: "card-block-live",
+  waiting: "card-block-waiting",
+};
 
 /**
  * The position edge. Full-strength hue, not an alpha: it sits on panel stock
@@ -281,6 +308,37 @@ const BLOCK_EDGE: Record<"G" | "F" | "C", string> = {
   F: "border-l-pos-f",
   C: "border-l-pos-c",
 };
+
+/**
+ * The fixture line inside a roster block, or nothing at all.
+ *
+ * Returning `null` when there is no fixture is the whole point: a "—" or a
+ * "TBD" would be this app claiming it looked and found nothing, when in fact it
+ * has never looked. An empty line is honest and a placeholder is not.
+ *
+ * "Double round" is a word rather than a coloured dot, per the Letter-Always
+ * Rule — and because it is the one signal here that changes who somebody
+ * starts, so it is the last thing that should need a legend to decode.
+ */
+export function FixtureNote({
+  fixture,
+  testId,
+}: {
+  fixture?: PlayerFixture | null;
+  testId?: string;
+}) {
+  if (!fixture) return null;
+  return (
+    <span data-testid={testId} className="flex items-baseline gap-2 text-sm">
+      <span className="text-ink-soft">vs {fixture.nextOpponent}</span>
+      {fixture.doubleRound ? (
+        <span className="slot-label text-live" data-testid="double-round">
+          Double round
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * One slot. `landed` plays the card-landing motion once — reserved for the row
@@ -411,7 +469,7 @@ export function Door({
   // border. A door is never `transit` or `correction`, so those collapse here
   // rather than inventing two more block materials nothing would render.
   return block ? (
-    <CardBlock live={state === "live"}>
+    <CardBlock state={state === "live" ? "live" : "filled"}>
       {body}
     </CardBlock>
   ) : (

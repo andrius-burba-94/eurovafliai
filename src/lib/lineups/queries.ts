@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import type { PlayerFixture } from "@/lib/fixtures/types";
 import { coversRound } from "@/lib/memberships/from";
 import { createUserClient } from "@/lib/pb/server";
 
@@ -52,6 +53,11 @@ export type LineupPlayer = {
   readonly position: Position;
   /** What the round's lineup says today. Null when nobody has said. */
   readonly role: LineupRole | null;
+  /**
+   * The club's next game, once there is a fixtures collection to read it from.
+   * Absent today, and the block renders no fixture line rather than a "TBD".
+   */
+  readonly fixture?: PlayerFixture | null;
 };
 
 export type LineupBoard = {

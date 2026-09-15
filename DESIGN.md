@@ -133,6 +133,16 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.block}"
     padding: "0.75rem"
+  card-block-live:
+    backgroundColor: "{colors.live-sunk}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.block}"
+    padding: "0.6875rem"
+  card-block-waiting:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink-faint}"
+    rounded: "{rounded.block}"
+    padding: "0.75rem"
   slot-waiting:
     backgroundColor: "transparent"
     textColor: "{colors.ink-faint}"
@@ -429,10 +439,12 @@ display, 0.06em on a card name, 0.14em on a slot label. Caps at small sizes are
 only legible when they are opened up.
 
 **The Computed-Family Rule.** `tests/e2e/design.spec.ts` asserts the *computed*
-`font-family` on `body` contains "Archivo" and does not contain "Arial". A
+`font-family` on `body` contains "Space Grotesk" and does not contain "Arial". A
 hardcoded stack on `body` once overrode the token, so the webfont downloaded on
 every cold load while the page rendered in Arial. Assert the computed value, not
-the token.
+the token. Since 10.3 the same spec asks the question the other way round too —
+a `stat` cell must compute to JetBrains Mono while the prose beside it must not —
+because two families can only drift apart if something measures both.
 
 ## Layout
 
@@ -497,6 +509,24 @@ deliberately a *scale with two levels and a stop*, not permission to nest:
 - **There is no level 2.** A card block may sit inside a framed Bank, because
   that is one section holding a run of blocks; neither may sit inside a *card
   block*. The moment something needs a third level, the layout is wrong.
+
+A card block has **three states**, and they are the row's state language spoken
+in a block's materials rather than a second vocabulary: `filled` is panel stock
+inside a 1px rule, `live` is the marker at 2px over `live-sunk`, and `waiting` is
+a 1px **dashed** rule with **no fill at all** — because dashed is already this
+system's word for unsettled, and an empty place given the same stock as a real
+player's block turns nine players and four absences into thirteen blocks. Three
+rather than a slot's six: `transit`, `standing` and `correction` are things that
+happen to a *row*, and block materials for them would be declarations nothing
+renders.
+
+The **position edge** is 10.5's colour coding: a 3px `border-left` in the
+position's own hue, drawn on `filled` blocks only. It is an edge rather than a
+wash because a wash puts every figure in the block on a tinted field and re-opens
+the pairing `tokens.test.ts` measures for slots; an edge changes no contrast at
+all. It is suppressed on `live` (the marker owns that boundary) and on `waiting`
+(there is no player to have a position), and the G/F/C letter is printed anyway,
+because colour never carries position alone.
 
 Depth is otherwise still made of the same three materials it always was:
 
@@ -696,6 +726,51 @@ its empty slots too. A lobby that is a quarter full looks a quarter full; the
 signed-in home continues past your leagues into free slots. A list that just
 stops is not a board.
 
+### Card block run — `CardBlocks` + `CardBlock`
+
+Phase 10's material, and the counterpart of a slot run rather than a variant of
+one. A `CardBlocks` is a `<ul>` laid out as a **grid with a gap**; a `CardBlock`
+is one subject in it. `Slots` and `CardBlocks` are deliberately separate
+components and neither composes out of the other: a slot run is a *ledger*, and
+a ledger's meaning is in the alignment between its rows, which a gap destroys —
+composing one from the other produced a bottom rail underneath a gap, which is
+what a wrong model looks like when it renders.
+
+- **Use a block for a subject; use a slot for an entry.** A player on a roster,
+  a member's night in a recap, a destination you can choose — those are
+  subjects. A pick in an order, a member in a standing, a row in a cheat sheet —
+  those are entries in a ledger, and they stay ruled.
+- **`columns` is off by default.** Two across from `sm` up is available, and the
+  phone is the primary device: thirteen players two-up on a 390px screen gives
+  each block about 170px, which cannot hold a name like Valančiūnas beside a
+  patch and a control.
+- **State and position** are carried by the block's own material — see Elevation
+  & Depth. `data-state` and `data-position` are always in the DOM.
+- **`role="list"` is stated**, for the reason `Slots` states it: Safari and
+  VoiceOver drop list semantics from a `<ul>` that is `list-style: none` and a
+  flex or grid container, and draft night is iPhones.
+
+**The Captain-Is-A-Mark Rule.** An exclusive choice across a run of blocks is a
+**radio group**, not a row of toggles wired to clear one another. The lineup's
+captain is the case: one armband across thirteen players, so the browser clears
+the previous choice, arrow keys move between them, and a screen reader says
+"3 of 13" — all of which a set of thirteen checkboxes would have to
+reimplement, minus the keyboard handling. The mark is separate from the
+**place**, which stays a four-option select: the captaincy is not a sixth role
+on the team sheet, it is a mark on one of the five starters, and `validateLineup`
+refuses a captain who is not among them. Choosing the mark therefore also sets
+the place, and moving the place off `starter` clears the mark — a control that
+can express something the validator must then refuse is a control that exists to
+produce an error message.
+
+**The Fixture-Or-Nothing Rule.** A block renders a fixture line only when there
+is fixture data, and renders *nothing* when there is not. No "TBD", no em dash,
+no skeleton. A placeholder claims the app looked at the schedule and found no
+opponent; the truth today is that ingestion discards every unplayed game and it
+has never looked. `FixtureNote` owns this and has a test for the empty case
+precisely because an affordance waiting for data is one refactor from being
+deleted as dead and one careless edit from growing a placeholder.
+
 ### Door — `Door`
 
 A whole-row route out of the current board, implemented as a `Slot` so its
@@ -705,6 +780,13 @@ Several related doors form one `Slots` run inside one framed Bank; a standalone
 door, such as the cheat sheet, still belongs to a `Slots` run and does not gain
 a floating container. A live draft door remains a `filled` slot and may put its
 one trailing verb in marker; `slot-live` belongs to the on-clock slot only.
+
+Since 10.4 a door may also be drawn as a **card block** (`block`), which is what
+the league page's run of destinations uses: a destination is a subject, so a
+grid of them says "pick one" where a ruled run says "read down". Both renderings
+share one body deliberately — a door that looked different depending on which
+page built it is how the lobby and the season pages drifted apart before this
+component existed.
 
 ### Chat panel — `LeagueChat`
 

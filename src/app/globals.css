@@ -295,6 +295,19 @@ body {
   padding: calc(0.75rem - 1px);
 }
 
+/* A place on the roster that nobody holds yet.
+ *
+ * Dashed and unfilled, because dashed is already this system's word for
+ * *unsettled* — the same argument `slot-waiting`, `slot-standing` and
+ * `slot-transit` each make. No panel fill: an empty place is a gap in the
+ * board, and giving it the same stock as a real player's block would make
+ * thirteen blocks out of nine players and four absences. */
+@utility card-block-waiting {
+  border: 1px dashed var(--color-rule);
+  border-radius: var(--radius-block);
+  padding: 0.75rem;
+}
+
 /* A figure in a column — Phase 10, and the only door to the mono face.
  *
  * It is a utility rather than a bare `font-mono` on each cell for the reason

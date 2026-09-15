@@ -3,6 +3,86 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.5 — The captaincy is a mark, not a role, and a form that cannot say otherwise
+
+The brief asked for "distinct toggles for Captaincy". The obstacle was that
+captain is currently *one option in a five-option select*, validated by a pure
+`validateLineup` against the five formations the rulebook prints — and a binary
+toggle cannot express five roles. The interesting part was that resolving it
+turned out to be a modelling question rather than a widget question.
+
+**The captaincy is not a sixth place on the team sheet.** `validateLineup`
+already said so and had said so since 9.3: it refuses a captain who is not among
+the starters. So the captain is a *mark on a starter*, and the select was
+conflating a place with a mark. Splitting them gives a four-option select —
+starter, sixth man, bench, inactive — plus one exclusive mark across the whole
+roster, and neither control can now express something the validator would have
+to refuse. That is the test for a good control here: **a control that can only
+produce an error message is a control that should not exist.** Marking a captain
+therefore also sets that player to starter, and moving a captain to the bench
+takes the armband with the place.
+
+A radio group, not thirteen toggles. "Exactly one of these" is what a radio
+group *is*: the browser clears the previous choice, arrow keys move between the
+options, and a screen reader says "3 of 13". Thirteen checkboxes wired to clear
+each other is that behaviour reimplemented, minus the keyboard handling — and
+this is a form typed on a phone after a Euroleague night.
+
+### Two doors onto one fact is how a form names two captains
+
+The server change is small and worth stating. `role:<playerId>` no longer
+accepts `captain`, and a posted one is dropped rather than honoured; the
+captaincy arrives in its own field from the radio group. If both doors stayed
+open, a crafted post could name two captains and `slotsFromRoles` would silently
+keep the first — a wrong lineup stored without a refusal. One fact, one field.
+
+`validateLineup`, `FORMATIONS`, `slotsFromRoles` and the `lineup-role` test id
+are all untouched. What is new in the pure module is `assignmentsWithCaptain`,
+which folds the mark back into the roles the validator understands and
+deliberately **ignores a mark that has come loose from its starter**. That is
+not leniency: the form clears a stale mark on the role change, and this is the
+half a future caller cannot forget, because honouring it would produce "the
+captain has to be one of the starters" — a refusal whose cause is invisible in a
+form where no control says "captain" any more.
+
+### An empty place is not a block
+
+The roster and the lineup became runs of card blocks, which needed a third block
+material: `card-block-waiting`, dashed and with **no fill**. Giving an open
+roster place the same panel stock as a real player's block turns nine players and
+four absences into thirteen blocks, which is precisely the reading the
+Board-Shows-Its-Shape Rule wants to avoid — the board should look a quarter
+empty when it is. Dashed and unfilled is the same word `slot-waiting`,
+`slot-standing` and `slot-transit` already use for *unsettled*.
+
+### A slot that renders nothing, on purpose
+
+Next opponent, fixture difficulty and double round were asked for and cannot be
+answered: `fetchSeasonSchedule` reads the whole fixture list and `ingest.ts`
+discards the unplayed half of it at `.filter((game) => game.played)`. So
+`FixtureNote` ships as a seam — the shape in `src/lib/fixtures/types.ts`, the
+surfaces passing it through, and **nothing rendered** until 10.7 fills it.
+
+Not a "TBD", not an em dash, not a skeleton: a placeholder claims the app looked
+at the schedule and found no opponent, when the truth is that it has never
+looked. It has a unit test for the empty case specifically because an affordance
+waiting for data is one refactor from being deleted as dead and one careless edit
+from growing that placeholder. The test renders through
+`renderToStaticMarkup` and builds its element with `createElement`, which keeps
+it a `.test.ts` file — no jsdom, and no widening of the Vitest include glob for
+one component with no behaviour.
+
+### Two things 10.3 had left behind
+
+Both found while updating the docs for this slice, both from the same cause —
+a generated artifact and a prose rule that describe the code rather than being
+compiled from it. `.impeccable/design.json` still named **Archivo** in nineteen
+places, and DESIGN.md's own Computed-Family Rule still said the E2E spec asserts
+"Archivo" when 10.3 had changed it to "Space Grotesk". The spec was right the
+whole time; the two documents that tell the next agent what the spec does were
+wrong. Fixed here, along with adding the card-block run to the component
+inventory so `component-reuse` can find it before somebody builds a second one.
+
 ## 10.4 — A depth scale with no shadow in it, and a guard that reads source
 
 10.1 struck out the Flatness-Is-Not-Negotiable Rule and promised "an explicit

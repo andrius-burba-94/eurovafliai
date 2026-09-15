@@ -8,6 +8,7 @@ import {
 } from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import type { PlayerFixture } from "@/lib/fixtures/types";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
@@ -44,6 +45,11 @@ export type RosterPlayer = {
   readonly clubName: string;
   readonly position: Position;
   readonly overallNo: number | null;
+  /**
+   * The club's next game, once there is a fixtures collection to read it from.
+   * Absent today, and the block renders no fixture line rather than a "TBD".
+   */
+  readonly fixture?: PlayerFixture | null;
 };
 
 export async function readMemberRoster(
