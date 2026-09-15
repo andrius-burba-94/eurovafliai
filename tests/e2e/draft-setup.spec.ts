@@ -34,6 +34,73 @@ test("a member cannot see the draft setup", async ({ page, context }) => {
   await expect(page.getByTestId("draft-format")).toBeHidden();
 });
 
+test("a member reads the order, in order, and cannot change it", async ({
+  page,
+  context,
+  browser,
+}) => {
+  // The gap this closes: blueprint §2.3 asks for a roll "revealed live to all
+  // clients", and 2.3b revealed it — but only onto the member list, which
+  // during setup is in *join* order. So a member saw numbers scattered down
+  // the rows (03, 01, 02) while the readable list lived inside the
+  // commissioner's Bank. Everyone watched the roll; only one person could read
+  // its result.
+  const commissioner = await createTestUser("boss");
+  const league = await createLeagueFor(commissioner, "Shared Order League");
+  const member = await createTestUser("member");
+  await addMemberTo(league.id, member, "Member FC");
+  await addMemberTo(league.id, await createTestUser("third"), "Third FC");
+
+  // The member is watching the lobby before anything is rolled.
+  const memberContext = await browser.newContext();
+  await signIn(memberContext, member);
+  const memberPage = await memberContext.newPage();
+  await memberPage.goto(`/leagues/${league.id}`);
+
+  // Before the roll they are told what is coming, in their own terms rather
+  // than the commissioner's copy about re-applying a stored seed.
+  await expect(memberPage.getByTestId("draft-order-empty")).toContainText(
+    /whoever runs the league rolls the order/i,
+  );
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await expect(page.getByTestId("draft-order")).toBeVisible();
+
+  // It arrives over the subscription, with no reload on the member's side.
+  await expect(memberPage.getByTestId("draft-order")).toBeVisible();
+  await expect(memberPage.getByTestId("member-position")).toHaveCount(3);
+
+  // The same order, read the same way. Byte-identical rather than merely
+  // both-present: two lists disagreeing about who picks first is the one
+  // defect showing this to everybody could introduce.
+  const asMember = await memberPage.getByTestId("draft-order").innerText();
+  const asCommissioner = await page.getByTestId("draft-order").innerText();
+  expect(asMember).toBe(asCommissioner);
+
+  // And it reads 01, 02, 03 downwards — which the member list, in join order,
+  // does not.
+  expect(
+    asMember.match(/\d\d/g),
+  ).toEqual(["01", "02", "03"]);
+
+  // Reading is all they get. Every act stays with the people who may perform
+  // it, and each is re-checked server-side anyway.
+  for (const control of [
+    "draft-roll",
+    "draft-manual",
+    "draft-reshuffle-toggle",
+    "start-draft",
+    "draft-format",
+    "draft-settings-save",
+  ]) {
+    await expect(memberPage.getByTestId(control)).toHaveCount(0);
+  }
+
+  await memberContext.close();
+});
+
 test("the commissioner rolls, and the order is stable when re-applied", async ({
   page,
   context,

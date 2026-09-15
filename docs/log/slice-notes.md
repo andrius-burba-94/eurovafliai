@@ -3,6 +3,67 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## The order is the league's, not the commissioner's
+
+Reported straight after the re-apply fix: *"Only the commissioner sees the draft
+order when shuffling, I think that it should be visible for everyone."*
+
+**Right, and it was a gap against stated intent rather than a missing feature.**
+Blueprint §2.3 asks for the roll to be "revealed live to all clients one slot at
+a time", and 2.3b built exactly that — the reveal runs for everyone off the
+shared seed, and STATUS records it as landing "for everyone at once". What
+nobody had noticed is *where* it landed. `useRollReveal` drives the numbers onto
+the **member list**, and during `setup` that list is deliberately in join order:
+
+```ts
+const displayedMembers = inSetup
+  ? members
+  : [...members].sort((a, b) => (a.draftPosition ?? 99) - (b.draftPosition ?? 99));
+```
+
+The sort applies only *after* setup — which is to say, everywhere except the one
+screen where the roll happens. So a member did see their numbers arrive, as
+`03, 01, 02` scattered down rows in the order people had joined, while the list
+that reads `01, 02, 03` lived inside the commissioner-only Bank. Everyone
+watched the roll; one person could read its result.
+
+**This was measured rather than reasoned.** A throwaway probe signed in as a
+plain member of a three-member league, rolled as the commissioner, and printed
+what each side rendered: the member's lobby had the three position numbers in
+join order and **zero** ordered lists. Worth recording because the code alone
+looked fine — the reveal *is* shared, the positions *are* sent to everyone, and
+the defect only appears when you ask what the rows are sorted by.
+
+`draft-setup.tsx` is now two components with two audiences: `DraftSetup` (format
+and clock, manager-only) and `DraftOrder` (the order itself, for everyone, with
+`canManage` gating the acts). One component serves both readers on purpose — a
+member and a manager rendering different orders is the single defect this split
+could have introduced, so the spec asserts the two `innerText`s are
+**byte-identical** rather than merely both present.
+
+**The reveal had to be respected, which was the non-obvious part.** The
+commissioner's Bank had always printed the full order the instant it was
+written, because it was the only one looking. Shown to the whole lobby, that
+would have spoiled 2.3b outright: the ordered list would print who picks first
+while the member rows were still counting down beside it. So `DraftOrder` takes
+the lobby's own `revealed` predicate as a prop and draws an em dash for a slot
+not yet reached. Passing it in rather than calling `useRollReveal` a second time
+is the point — two independent staged reveals on one screen drift apart within a
+slot.
+
+That also means the *commissioner's* view changed: they now wait out the reveal
+like everybody else. No test noticed, and that is by design rather than luck —
+the E2E suite forces `prefers-reduced-motion: reduce`, and the hook returns the
+finished order immediately under it. Which is the reason the suite forces it.
+
+**What was left alone.** The member list keeps its join order during setup. It
+was tempting to sort it and delete the second list, but the rows would then jump
+on every reshuffle, and the reveal currently fills positions *in place* — the
+motion is numbers appearing, not rows rearranging. One readable ordered list
+beside a stable roster of who is in is the trade; if the two lists ever feel
+redundant, the sorted-list version is the alternative and it is written down
+here rather than lost.
+
 ## The roll re-apply fix — idempotent had to mean quiet, too
 
 Reported from production, in the plainest possible terms: "I don't think the
