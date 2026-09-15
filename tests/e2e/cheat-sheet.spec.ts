@@ -11,6 +11,7 @@ import {
   signIn,
   superuser,
   TEST_CLUB,
+  rollOrder,
 } from "./helpers/session";
 
 /**
@@ -66,7 +67,7 @@ async function saveSheet(page: Page, leagueId: string, text: string) {
 
 async function enterDraft(page: Page, leagueId: string, club = TEST_CLUB) {
   await page.goto(`/leagues/${leagueId}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();
@@ -212,7 +213,7 @@ test("the room draws the pool in the sheet's order and pins the best of it", asy
   // Deliberately *not* `enterDraft`, which selects a club — the resting state
   // is what is under test here, and any filter at all is a narrowing.
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();
@@ -1026,7 +1027,7 @@ test("a reorder reaches the room's pool", async ({ page, context }) => {
   // At rest, so the pool below simply *is* the sheet's order — no filter, since
   // any filter at all is a narrowing.
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();

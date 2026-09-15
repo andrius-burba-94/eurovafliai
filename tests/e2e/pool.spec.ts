@@ -11,6 +11,7 @@ import {
   draftPlayer,
   signIn,
   TEST_CLUB,
+  rollOrder,
 } from "./helpers/session";
 
 /**
@@ -87,7 +88,7 @@ async function poolLeague(leagueName: string) {
  */
 async function enterDraft(page: Page, leagueId: string, club = TEST_CLUB) {
   await page.goto(`/leagues/${leagueId}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();
