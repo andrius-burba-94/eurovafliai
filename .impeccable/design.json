@@ -1,227 +1,227 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-09T14:05:00.000Z",
-  "title": "Design System: Eurovafliai",
+  "generatedAt": "2026-09-15T09:43:17.350Z",
+  "title": "Design System: Eurovafliai (the midnight board)",
   "extensions": {
     "colorMeta": {
       "stock": {
         "role": "neutral",
-        "displayName": "Cool Card Stock",
-        "canonical": "oklch(0.943 0.004 240)",
-        "srgbApprox": "#eaecee",
+        "displayName": "Midnight Board",
+        "canonical": "oklch(0.18 0.032 266.6)",
+        "srgbApprox": "#0b1120",
         "tonalRamp": [
-          "oklch(0.15 0.004 240)",
-          "oklch(0.264 0.004 240)",
-          "oklch(0.379 0.004 240)",
-          "oklch(0.493 0.004 240)",
-          "oklch(0.607 0.004 240)",
-          "oklch(0.721 0.004 240)",
-          "oklch(0.836 0.004 240)",
-          "oklch(0.95 0.004 240)"
+          "oklch(0.15 0.032 266.6)",
+          "oklch(0.264 0.032 266.6)",
+          "oklch(0.379 0.032 266.6)",
+          "oklch(0.493 0.032 266.6)",
+          "oklch(0.607 0.032 266.6)",
+          "oklch(0.721 0.032 266.6)",
+          "oklch(0.836 0.032 266.6)",
+          "oklch(0.95 0.032 266.6)"
         ]
       },
-      "stock-deep": {
+      "stock-panel": {
         "role": "neutral",
-        "displayName": "Deep Card Stock",
-        "canonical": "oklch(0.905 0.005 240)",
-        "srgbApprox": "#dde0e3",
+        "displayName": "Panel Stock",
+        "canonical": "oklch(0.232 0.028 265)",
+        "srgbApprox": "#171d2b",
         "contrastOnStock": "1.12:1",
         "tonalRamp": [
-          "oklch(0.15 0.005 240)",
-          "oklch(0.264 0.005 240)",
-          "oklch(0.379 0.005 240)",
-          "oklch(0.493 0.005 240)",
-          "oklch(0.607 0.005 240)",
-          "oklch(0.721 0.005 240)",
-          "oklch(0.836 0.005 240)",
-          "oklch(0.95 0.005 240)"
+          "oklch(0.15 0.028 265)",
+          "oklch(0.264 0.028 265)",
+          "oklch(0.379 0.028 265)",
+          "oklch(0.493 0.028 265)",
+          "oklch(0.607 0.028 265)",
+          "oklch(0.721 0.028 265)",
+          "oklch(0.836 0.028 265)",
+          "oklch(0.95 0.028 265)"
         ]
       },
       "ink": {
         "role": "neutral",
-        "displayName": "Board Ink",
-        "canonical": "oklch(0.24 0.012 250)",
-        "srgbApprox": "#1b2025",
-        "contrastOnStock": "13.92:1",
+        "displayName": "Chalk",
+        "canonical": "oklch(0.898 0.008 265)",
+        "srgbApprox": "#dbdde3",
+        "contrastOnStock": "13.89:1",
         "tonalRamp": [
-          "oklch(0.15 0.012 250)",
-          "oklch(0.264 0.012 250)",
-          "oklch(0.379 0.012 250)",
-          "oklch(0.493 0.012 250)",
-          "oklch(0.607 0.012 250)",
-          "oklch(0.721 0.012 250)",
-          "oklch(0.836 0.012 250)",
-          "oklch(0.95 0.012 250)"
+          "oklch(0.15 0.008 265)",
+          "oklch(0.264 0.008 265)",
+          "oklch(0.379 0.008 265)",
+          "oklch(0.493 0.008 265)",
+          "oklch(0.607 0.008 265)",
+          "oklch(0.721 0.008 265)",
+          "oklch(0.836 0.008 265)",
+          "oklch(0.95 0.008 265)"
         ]
       },
       "ink-soft": {
         "role": "neutral",
-        "displayName": "Soft Ink",
-        "canonical": "oklch(0.47 0.011 250)",
-        "srgbApprox": "#565b61",
-        "contrastOnStock": "5.77:1",
+        "displayName": "Soft Chalk",
+        "canonical": "oklch(0.668 0.014 265)",
+        "srgbApprox": "#90959e",
+        "contrastOnStock": "6.24:1",
         "tonalRamp": [
-          "oklch(0.15 0.011 250)",
-          "oklch(0.264 0.011 250)",
-          "oklch(0.379 0.011 250)",
-          "oklch(0.493 0.011 250)",
-          "oklch(0.607 0.011 250)",
-          "oklch(0.721 0.011 250)",
-          "oklch(0.836 0.011 250)",
-          "oklch(0.95 0.011 250)"
+          "oklch(0.15 0.014 265)",
+          "oklch(0.264 0.014 265)",
+          "oklch(0.379 0.014 265)",
+          "oklch(0.493 0.014 265)",
+          "oklch(0.607 0.014 265)",
+          "oklch(0.721 0.014 265)",
+          "oklch(0.836 0.014 265)",
+          "oklch(0.95 0.014 265)"
         ]
       },
       "ink-faint": {
         "role": "neutral",
-        "displayName": "Faint Ink",
-        "canonical": "oklch(0.501 0.009 250)",
-        "srgbApprox": "#606469",
-        "contrastOnStock": "5.05:1",
+        "displayName": "Faint Chalk",
+        "canonical": "oklch(0.629 0.014 265)",
+        "srgbApprox": "#858992",
+        "contrastOnStock": "5.36:1",
         "tonalRamp": [
-          "oklch(0.15 0.009 250)",
-          "oklch(0.264 0.009 250)",
-          "oklch(0.379 0.009 250)",
-          "oklch(0.493 0.009 250)",
-          "oklch(0.607 0.009 250)",
-          "oklch(0.721 0.009 250)",
-          "oklch(0.836 0.009 250)",
-          "oklch(0.95 0.009 250)"
+          "oklch(0.15 0.014 265)",
+          "oklch(0.264 0.014 265)",
+          "oklch(0.379 0.014 265)",
+          "oklch(0.493 0.014 265)",
+          "oklch(0.607 0.014 265)",
+          "oklch(0.721 0.014 265)",
+          "oklch(0.836 0.014 265)",
+          "oklch(0.95 0.014 265)"
         ]
       },
       "rule": {
         "role": "neutral",
-        "displayName": "Waiting Rule Grey",
-        "canonical": "oklch(0.598 0.008 240)",
-        "srgbApprox": "#7b8084",
-        "contrastOnStock": "3.36:1",
+        "displayName": "Waiting Rule",
+        "canonical": "oklch(0.527 0.018 262)",
+        "srgbApprox": "#656b76",
+        "contrastOnStock": "3.52:1",
         "tonalRamp": [
-          "oklch(0.15 0.008 240)",
-          "oklch(0.264 0.008 240)",
-          "oklch(0.379 0.008 240)",
-          "oklch(0.493 0.008 240)",
-          "oklch(0.607 0.008 240)",
-          "oklch(0.721 0.008 240)",
-          "oklch(0.836 0.008 240)",
-          "oklch(0.95 0.008 240)"
+          "oklch(0.15 0.018 262)",
+          "oklch(0.264 0.018 262)",
+          "oklch(0.379 0.018 262)",
+          "oklch(0.493 0.018 262)",
+          "oklch(0.607 0.018 262)",
+          "oklch(0.721 0.018 262)",
+          "oklch(0.836 0.018 262)",
+          "oklch(0.95 0.018 262)"
         ]
       },
       "rule-strong": {
         "role": "neutral",
-        "displayName": "Heavy Rule Grey",
-        "canonical": "oklch(0.533 0.01 240)",
-        "srgbApprox": "#686e72",
-        "contrastOnStock": "4.40:1",
+        "displayName": "Heavy Rule",
+        "canonical": "oklch(0.601 0.02 262)",
+        "srgbApprox": "#7a818d",
+        "contrastOnStock": "4.79:1",
         "tonalRamp": [
-          "oklch(0.15 0.01 240)",
-          "oklch(0.264 0.01 240)",
-          "oklch(0.379 0.01 240)",
-          "oklch(0.493 0.01 240)",
-          "oklch(0.607 0.01 240)",
-          "oklch(0.721 0.01 240)",
-          "oklch(0.836 0.01 240)",
-          "oklch(0.95 0.01 240)"
+          "oklch(0.15 0.02 262)",
+          "oklch(0.264 0.02 262)",
+          "oklch(0.379 0.02 262)",
+          "oklch(0.493 0.02 262)",
+          "oklch(0.607 0.02 262)",
+          "oklch(0.721 0.02 262)",
+          "oklch(0.836 0.02 262)",
+          "oklch(0.95 0.02 262)"
         ]
       },
       "rail": {
         "role": "neutral",
-        "displayName": "Rail Slate Blue",
-        "canonical": "oklch(0.5 0.042 245)",
-        "srgbApprox": "#4f667a",
-        "contrastOnStock": "5.05:1",
+        "displayName": "Rail Blue",
+        "canonical": "oklch(0.64 0.05 258)",
+        "srgbApprox": "#7a8eab",
+        "contrastOnStock": "5.60:1",
         "tonalRamp": [
-          "oklch(0.15 0.042 245)",
-          "oklch(0.264 0.042 245)",
-          "oklch(0.379 0.042 245)",
-          "oklch(0.493 0.042 245)",
-          "oklch(0.607 0.042 245)",
-          "oklch(0.721 0.042 245)",
-          "oklch(0.836 0.042 245)",
-          "oklch(0.95 0.042 245)"
+          "oklch(0.15 0.05 258)",
+          "oklch(0.264 0.05 258)",
+          "oklch(0.379 0.05 258)",
+          "oklch(0.493 0.05 258)",
+          "oklch(0.607 0.05 258)",
+          "oklch(0.721 0.05 258)",
+          "oklch(0.836 0.05 258)",
+          "oklch(0.95 0.05 258)"
         ]
       },
       "live": {
         "role": "primary",
-        "displayName": "Commissioner's Marker Red",
-        "canonical": "oklch(0.525 0.198 27)",
-        "srgbApprox": "#c31e20",
-        "contrastOnStock": "5.06:1",
+        "displayName": "Euroleague Orange",
+        "canonical": "oklch(0.6759 0.2175 38.8)",
+        "srgbApprox": "#ff5500",
+        "contrastOnStock": "5.88:1",
         "tonalRamp": [
-          "oklch(0.15 0.198 27)",
-          "oklch(0.264 0.198 27)",
-          "oklch(0.379 0.198 27)",
-          "oklch(0.493 0.198 27)",
-          "oklch(0.607 0.198 27)",
-          "oklch(0.721 0.198 27)",
-          "oklch(0.836 0.198 27)",
-          "oklch(0.95 0.198 27)"
+          "oklch(0.15 0.2175 38.8)",
+          "oklch(0.264 0.2175 38.8)",
+          "oklch(0.379 0.2175 38.8)",
+          "oklch(0.493 0.2175 38.8)",
+          "oklch(0.607 0.2175 38.8)",
+          "oklch(0.721 0.2175 38.8)",
+          "oklch(0.836 0.2175 38.8)",
+          "oklch(0.95 0.2175 38.8)"
         ]
       },
       "live-sunk": {
         "role": "primary",
-        "displayName": "Live Field Blush",
-        "canonical": "oklch(0.925 0.055 27)",
-        "srgbApprox": "#ffd9d3",
-        "contrastOnStock": "1.10:1",
+        "displayName": "Live Field Bay",
+        "canonical": "oklch(0.254 0.075 38.8)",
+        "srgbApprox": "#3f1203",
+        "contrastOnStock": "1.16:1",
         "tonalRamp": [
-          "oklch(0.15 0.055 27)",
-          "oklch(0.264 0.055 27)",
-          "oklch(0.379 0.055 27)",
-          "oklch(0.493 0.055 27)",
-          "oklch(0.607 0.055 27)",
-          "oklch(0.721 0.055 27)",
-          "oklch(0.836 0.055 27)",
-          "oklch(0.95 0.055 27)"
+          "oklch(0.15 0.075 38.8)",
+          "oklch(0.264 0.075 38.8)",
+          "oklch(0.379 0.075 38.8)",
+          "oklch(0.493 0.075 38.8)",
+          "oklch(0.607 0.075 38.8)",
+          "oklch(0.721 0.075 38.8)",
+          "oklch(0.836 0.075 38.8)",
+          "oklch(0.95 0.075 38.8)"
         ]
       },
       "pos-g": {
         "role": "tertiary",
-        "displayName": "Guard Steel Blue",
-        "canonical": "oklch(0.49 0.082 235)",
-        "srgbApprox": "#296788",
-        "contrastOnStock": "5.20:1",
+        "displayName": "Guard Cyan",
+        "canonical": "oklch(0.78 0.13 205)",
+        "srgbApprox": "#1acfdf",
+        "contrastOnStock": "9.86:1",
         "tonalRamp": [
-          "oklch(0.15 0.082 235)",
-          "oklch(0.264 0.082 235)",
-          "oklch(0.379 0.082 235)",
-          "oklch(0.493 0.082 235)",
-          "oklch(0.607 0.082 235)",
-          "oklch(0.721 0.082 235)",
-          "oklch(0.836 0.082 235)",
-          "oklch(0.95 0.082 235)"
+          "oklch(0.15 0.13 205)",
+          "oklch(0.264 0.13 205)",
+          "oklch(0.379 0.13 205)",
+          "oklch(0.493 0.13 205)",
+          "oklch(0.607 0.13 205)",
+          "oklch(0.721 0.13 205)",
+          "oklch(0.836 0.13 205)",
+          "oklch(0.95 0.13 205)"
         ]
       },
       "pos-f": {
         "role": "tertiary",
-        "displayName": "Forward Olive",
-        "canonical": "oklch(0.49 0.079 128)",
-        "srgbApprox": "#536936",
-        "contrastOnStock": "5.16:1",
+        "displayName": "Forward Emerald",
+        "canonical": "oklch(0.79 0.15 155)",
+        "srgbApprox": "#5dd68f",
+        "contrastOnStock": "10.34:1",
         "tonalRamp": [
-          "oklch(0.15 0.079 128)",
-          "oklch(0.264 0.079 128)",
-          "oklch(0.379 0.079 128)",
-          "oklch(0.493 0.079 128)",
-          "oklch(0.607 0.079 128)",
-          "oklch(0.721 0.079 128)",
-          "oklch(0.836 0.079 128)",
-          "oklch(0.95 0.079 128)"
+          "oklch(0.15 0.15 155)",
+          "oklch(0.264 0.15 155)",
+          "oklch(0.379 0.15 155)",
+          "oklch(0.493 0.15 155)",
+          "oklch(0.607 0.15 155)",
+          "oklch(0.721 0.15 155)",
+          "oklch(0.836 0.15 155)",
+          "oklch(0.95 0.15 155)"
         ]
       },
       "pos-c": {
         "role": "tertiary",
-        "displayName": "Center Plum",
-        "canonical": "oklch(0.5 0.093 305)",
-        "srgbApprox": "#70558e",
-        "contrastOnStock": "5.28:1",
+        "displayName": "Center Amber",
+        "canonical": "oklch(0.82 0.15 80)",
+        "srgbApprox": "#f7b83d",
+        "contrastOnStock": "10.63:1",
         "tonalRamp": [
-          "oklch(0.15 0.093 305)",
-          "oklch(0.264 0.093 305)",
-          "oklch(0.379 0.093 305)",
-          "oklch(0.493 0.093 305)",
-          "oklch(0.607 0.093 305)",
-          "oklch(0.721 0.093 305)",
-          "oklch(0.836 0.093 305)",
-          "oklch(0.95 0.093 305)"
+          "oklch(0.15 0.15 80)",
+          "oklch(0.264 0.15 80)",
+          "oklch(0.379 0.15 80)",
+          "oklch(0.493 0.15 80)",
+          "oklch(0.607 0.15 80)",
+          "oklch(0.721 0.15 80)",
+          "oklch(0.836 0.15 80)",
+          "oklch(0.95 0.15 80)"
         ]
       }
     },
@@ -261,6 +261,10 @@
       "action-label": {
         "displayName": "Action Label",
         "purpose": "Button text."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Figures that live in a column — the PIR column, a standings run, the clock, a box score. JetBrains Mono at 500, tabular, slightly tightened. Never prose, and never a name."
       }
     },
     "shadows": [],
@@ -279,6 +283,11 @@
         "name": "transition-colors",
         "value": "150ms (Tailwind default)",
         "purpose": "Hover and focus colour changes on interactive elements. Not animation; permitted everywhere interactive."
+      },
+      {
+        "name": "pick-springs",
+        "value": "pick-springs 320ms on the system's own curve",
+        "purpose": "Phase 10's third and final animation event: a draft selection springing into place on the row that was just committed. prefers-reduced-motion is guarded inside the utility, never at the call site."
       }
     ],
     "breakpoints": [
@@ -296,33 +305,38 @@
     ],
     "contrastFloors": [
       {
-        "scope": "text and position-patch colours on stock",
+        "scope": "text and position colours on the ground (stock)",
         "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "meaningful non-text boundaries (rule, rail) on stock",
+        "scope": "meaningful non-text boundaries (rule, rail) on the ground",
         "floor": "3:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "text and position-patch colours on stock-deep",
+        "scope": "text and position colours on stock-panel",
         "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "rule and rule-strong on stock-deep",
-        "floor": "3:1",
+        "scope": "rule and rule-strong on stock-panel",
+        "floor": "3:1 (measured 3.15:1 — the panel is LIGHTER than the ground, so it is the binding surface, not the ground)",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
         "scope": "rule-strong versus rule",
-        "floor": "> 1.3x the contrast of rule (measured 1.31x)",
+        "floor": "> 1.3x the contrast of rule (measured 1.36x)",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "ink on the live field (live-sunk)",
-        "floor": "4.5:1 (measured 12.62:1)",
+        "scope": "chalk on the live field (live-sunk)",
+        "floor": "4.5:1 (measured 11.93:1)",
+        "enforcedBy": "src/app/tokens.test.ts"
+      },
+      {
+        "scope": "faint chalk on the live field",
+        "floor": "4.5:1 (measured 4.61:1) — this pairing is what FIXES live-sunk's lightness; a lighter bay puts a muted pool row under the floor",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
@@ -436,15 +450,16 @@
     }
   ],
   "narrative": {
-    "northStar": "The Draft Board Wall",
+    "northStar": "\"The Board, Lit for a Night Game\"",
     "overview": "The world is the physical draft board seen up close: card stock slotted into ruled slots, names written in marker, the slot on the clock struck in red. The value relationship of the real object is inverted on purpose — the card stock is the ground and the board's ruling is the ink. Draft night is a lit room with a TV on, followed by months of daylight phone checks; and a near-black surface with one glowing accent is the first thing this category reaches for, so it is the first thing this board refuses.\n\nThe personality is an instrument, not an entertainment product: cool, dry, dense where density is honest and quiet everywhere else. Nothing floats, nothing glows, nothing is rounded. Depth comes from rule weight and one deeper stock used inside framed Banks. Colour is restrained to tinted neutrals plus one marker red, and the red is load-bearing — it marks who is on the clock and what just landed, and it is never decoration.\n\nThe direction contract permits one level of programme-like task grouping: a framed Bank cut from deeper stock. It never nests, rounds or floats, so no cards-inside-cards stack can form.",
     "keyCharacteristics": [
-      "Card stock as the ground, the board's ruling as the ink; light, not dark.",
-      "One accent — the commissioner's marker red — with two jobs and no third.",
+      "The midnight board as the ground, chalk as the ink; one ground, not a theme.",
+      "One accent — Euroleague orange (#FF5500) — with two jobs and no third.",
       "State is carried by a row's own material (border weight and style), never by a pill parked beside an otherwise normal row.",
-      "Zero corner radius, zero shadows, zero gradients, anywhere.",
-      "One type family (Archivo), caps for names and labels, tabular figures for every number in the app.",
-      "Exactly two animations are implemented, on exactly two state-change events.",
+      "Vibrant position coding (cyan guards, emerald forwards, amber centers), always accompanied by its G / F / C letter.",
+      "One radius step and one panel material; zero glow, zero gradients.",
+      "Two type families: Space Grotesk for words, JetBrains Mono for figures.",
+      "Exactly three animations are implemented, on exactly three state-change events.",
       "Mobile-first with a single breakpoint; the phone gets the complete rail."
     ],
     "rules": [

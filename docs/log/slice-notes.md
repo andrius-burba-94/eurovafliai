@@ -3,6 +3,106 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.1 — Reversing a thesis, and solving a palette instead of picking one
+
+The instruction was to make the app a dark, data-dense interface on `#0B1120`
+with `#FF5500` accents. The awkward part is that this app has refused exactly
+that, in writing, in the emitted HTML of every page, since Phase 1.4: *"It
+refuses the near-black surface with one glowing accent."* And eight days ago
+9.5 shipped a dark ground while going out of its way to keep that refusal
+intact — ADR-0005 says so in as many words.
+
+So the first job was not CSS. It was deciding whether this is an amendment or a
+reversal, and saying which. It is a reversal, and pretending otherwise would
+have left three documents quietly contradicting a stylesheet.
+
+**What the old refusal was actually protecting turned out to be separable from
+its conclusion.** Read D17 and the direction contract together and the refusal
+bundles two failure modes: a dark ground doing the work structure should do, and
+a saturated accent glowing to make up for it. Both are still worth refusing, and
+ADR-0006 refuses them. What is given up is only the *inference* that a light
+ground is the sole defence. The structure was the load-bearing part — four rule
+weights carrying state, a marker with two jobs, measured contrast on every pair,
+no colour without a redundant non-colour signal — and all of it survives.
+
+### One ground rather than three, and the reason is a measurement
+
+The conservative option was a third ground beside day and night, which would
+have kept `prefers-color-scheme` working. It does not survive contact with the
+brief's own accent: **`#FF5500` measures 2.76:1 against the old card stock.**
+That fails the 4.5:1 text floor and also the 3:1 boundary floor, so the orange
+could not even be a primary action's border on a light ground. Keeping paper
+therefore means a second, darker orange — and a design system whose one accent
+is two different colours depending on the lamp has two accents. One ground.
+
+### Three constraints moved values, and none of them was aesthetic
+
+Every non-anchor token was solved with the same conversion and compositing code
+`tokens.test.ts` uses, so the numbers below are the numbers CI will compute.
+
+**A panel is lighter than the ground, which flips which surface binds.** On a
+near-black board "deeper stock" is unavailable: depth on a dark ground *is*
+lightness. So `stock-panel` sits above the ground, and a mid-grey rule now has
+less contrast on the panel than on the ground — the reverse of the paper board.
+`rule` is therefore solved for 3:1 against the **panel** (3.15:1) and clears
+3.52:1 on the ground as a by-product. Solved the old way round it came out at
+2.46:1 on the panel: a rule you cannot see, on the surface the board is drawn
+inside, which is a state language with no states.
+
+**The live bay is derived downward from faint ink.** A warm field lifted well
+off a near-black ground looks better and pushes `ink-faint` under the floor —
+and faint ink is what a muted pool row is written in, which is a row that can be
+*the armed one*. So `live-sunk` is the lightest bay on which faint ink still
+clears 4.5:1, which lands it at `oklch(0.254 0.075 38.8)`, 4.61:1, and only
+1.16:1 against the ground. Subtle on purpose, and the 2px marker rule above it
+is still what carries the state.
+
+**Soft ink is solved against its worst pairing, not against the ground.** Taking
+ADR-0005's 5.79:1 as the target failed twice over: 4.3:1 written on a position
+wash that sits on a panel, and — by 0.03 — the Ink-on-Blush Rule, which requires
+soft ink to stay *stronger* than the marker on the live field. Solved against
+both it is 6.24:1, and the marker sits at 5.05:1 beneath it.
+
+**Chalk deliberately stops short.** Pure white on this ground is 18.8:1. Ink
+lands at 13.89:1, near the night board's 13.60:1, because 9.5's halation
+argument is the part of it that outlived the decision: a ramp whose top shouts
+gives the quiet inks nothing to be quiet against, and a phone at full white in a
+dark room is harder to read, not easier.
+
+### The marker needs four decimal places
+
+`oklch(0.676 0.217 38.8)` round-trips to `#ff5502`. Invisible, and still not the
+colour the brief named, so the token carries `oklch(0.6759 0.2175 38.8)` and
+renders `#ff5500` exactly. Worth knowing before somebody tidies the decimals.
+
+### What got dropped, and why it is not an oversight
+
+**The purple head coach.** The brief asks for it across every view and the mock
+draws an HC slot in the roster. Draft Mode "is the same as the Classic Mode,
+except… there is no head coach" — D19, from last week, the slice that restored
+captain and bench *and deliberately left the coach cut*. The roster ingest
+filters coaches out by an inclusion rule on `type === "J"`. A fourth position
+colour would badge an entity the game does not have, so purple leaves the
+palette and amber takes the warm slot.
+
+**The persistent countdown and the PIR columns**, because both already exist —
+the clock has been sticky and server-offset since 3.7, and average PIR has been
+the pool's leading column since 9.1. Re-announcing shipped work as new work is
+how a status file starts lying.
+
+### The cost, recorded where it will be read
+
+`prefers-color-scheme` is no longer honoured at all, because there is nothing
+left to honour it with: a reader who asks their phone for a light interface gets
+the midnight board anyway. That is the single best argument for reversing
+ADR-0006 later, and it is written into the record rather than left for somebody
+to discover as a bug. Two more went into Open debt: the depth scale's two-level
+and one-radius rules are prose that nothing enforces, and the vibrant position
+hues have never been re-simulated under colour-vision deficiency — 3.2's
+deuteranopia measurement was of the *muted* washes, and if the new ones separate
+no better, the letter is doing all the work and the colour is decoration with a
+job title.
+
 ## The league that could not be deleted
 
 Reported from production: the commissioner pressed delete and got the route

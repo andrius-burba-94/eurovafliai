@@ -1,78 +1,86 @@
 ---
 name: Eurovafliai
-description: A physical draft board rendered as an interface — card stock, ruled slots, one marker red.
+description: A draft board lit for a night game — midnight ground, ruled slots, one Euroleague orange.
 colors:
-  stock: "oklch(0.943 0.004 240)"
-  stock-deep: "oklch(0.905 0.005 240)"
-  ink: "oklch(0.24 0.012 250)"
-  ink-soft: "oklch(0.47 0.011 250)"
-  ink-faint: "oklch(0.501 0.009 250)"
-  rule: "oklch(0.598 0.008 240)"
-  rule-strong: "oklch(0.533 0.01 240)"
-  rail: "oklch(0.5 0.042 245)"
-  live: "oklch(0.525 0.198 27)"
-  live-sunk: "oklch(0.925 0.055 27)"
-  pos-g: "oklch(0.49 0.082 235)"
-  pos-f: "oklch(0.49 0.079 128)"
-  pos-c: "oklch(0.5 0.093 305)"
+  stock: "oklch(0.18 0.032 266.6)"
+  stock-panel: "oklch(0.232 0.028 265)"
+  ink: "oklch(0.898 0.008 265)"
+  ink-soft: "oklch(0.668 0.014 265)"
+  ink-faint: "oklch(0.629 0.014 265)"
+  rule: "oklch(0.527 0.018 262)"
+  rule-strong: "oklch(0.601 0.02 262)"
+  rail: "oklch(0.64 0.05 258)"
+  live: "oklch(0.6759 0.2175 38.8)"
+  live-sunk: "oklch(0.254 0.075 38.8)"
+  pos-g: "oklch(0.78 0.13 205)"
+  pos-f: "oklch(0.79 0.15 155)"
+  pos-c: "oklch(0.82 0.15 80)"
 typography:
   display:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.875rem"
     fontWeight: 600
     lineHeight: "2.25rem"
     letterSpacing: "0.04em"
   code:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.875rem"
     fontWeight: 600
     lineHeight: "2.25rem"
     letterSpacing: "0.36em"
   wordmark:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 600
     lineHeight: "1.5rem"
     letterSpacing: "0.16em"
   card-name:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 600
     lineHeight: "1.5rem"
     letterSpacing: "0.06em"
   body:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: "1.5rem"
     letterSpacing: "normal"
     fontFeature: "tabular-nums"
+  stat:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, monospace"
+    fontSize: "0.875rem"
+    fontWeight: 500
+    lineHeight: "1.25rem"
+    letterSpacing: "-0.01em"
+    fontFeature: "tabular-nums"
   body-small:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: "1.25rem"
     letterSpacing: "normal"
   slot-label:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.6875rem"
     fontWeight: 500
     lineHeight: "1rem"
     letterSpacing: "0.14em"
   field-label:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.6875rem"
     fontWeight: 400
     lineHeight: "1rem"
     letterSpacing: "0.06em"
   action-label:
-    fontFamily: "Archivo, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.6875rem"
     fontWeight: 600
     lineHeight: "1rem"
     letterSpacing: "0.14em"
 rounded:
   none: "0px"
+  block: "0.375rem"
 spacing:
   "1": "0.25rem"
   "1.5": "0.375rem"
@@ -116,10 +124,15 @@ components:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
   bank-framed:
-    backgroundColor: "{colors.stock-deep}"
+    backgroundColor: "{colors.stock-panel}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.block}"
     padding: "1rem"
+  card-block:
+    backgroundColor: "{colors.stock-panel}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.block}"
+    padding: "0.75rem"
   slot-waiting:
     backgroundColor: "transparent"
     textColor: "{colors.ink-faint}"
@@ -141,17 +154,17 @@ components:
     rounded: "{rounded.none}"
     padding: "0.75rem 0.75rem"
   patch-g:
-    backgroundColor: "color-mix(in oklab, {colors.pos-g} 10%, transparent)"
+    backgroundColor: "color-mix(in oklab, {colors.pos-g} 10%, {colors.stock})"
     textColor: "{colors.pos-g}"
     rounded: "{rounded.none}"
     padding: "0.25rem 0.5rem"
   patch-f:
-    backgroundColor: "color-mix(in oklab, {colors.pos-f} 10%, transparent)"
+    backgroundColor: "color-mix(in oklab, {colors.pos-f} 10%, {colors.stock})"
     textColor: "{colors.pos-f}"
     rounded: "{rounded.none}"
     padding: "0.25rem 0.5rem"
   patch-c:
-    backgroundColor: "color-mix(in oklab, {colors.pos-c} 10%, transparent)"
+    backgroundColor: "color-mix(in oklab, {colors.pos-c} 10%, {colors.stock})"
     textColor: "{colors.pos-c}"
     rounded: "{rounded.none}"
     padding: "0.25rem 0.5rem"
@@ -159,10 +172,12 @@ components:
 
 # Design System: Eurovafliai
 
-Written from the code as built, at the end of Phase 1.4. `src/app/globals.css` is
-the source of truth for every value; this file is the prose record and the
-rulebook. Where the two ever disagree, the stylesheet wins and this file is
-stale.
+Written from the code as built at the end of Phase 1.4, and **re-grounded in
+Phase 10** ([ADR-0006](docs/adr/ADR-0006-midnight-board.md), blueprint D22):
+the card-stock board is gone and the midnight board replaced it.
+`src/app/globals.css` is the source of truth for every value; this file is the
+prose record and the rulebook. Where the two ever disagree, the stylesheet wins
+and this file is stale.
 
 Three surfaces exist today: sign-in (`src/app/login/page.tsx`), your leagues
 (`src/app/page.tsx`) and the league lobby
@@ -171,144 +186,144 @@ Three surfaces exist today: sign-in (`src/app/login/page.tsx`), your leagues
 
 ## Overview
 
-**Creative North Star: "The Draft Board Wall"**
+**Creative North Star: "The Board, Lit for a Night Game"**
 
-The world is the physical draft board seen up close: card stock slotted into
-ruled slots, names written in marker, the slot on the clock struck in red. The
-value relationship of the real object is **inverted on purpose** — the card
-stock is the ground and the board's ruling is the ink. Two reasons, both
-recorded in the stylesheet's own header. Draft night is a lit room with a TV on,
-followed by months of daylight phone checks; and a near-black surface with one
-glowing accent is the first thing this category reaches for, so it is the first
-thing this board refuses.
+The world is still the physical draft board, and it is still an instrument
+rather than an entertainment product. What changed in Phase 10 is the lamp: the
+ground is the board itself — deep midnight navy — and the marks are chalk on it,
+with one Euroleague orange for the two things that are live. Euroleague tips at
+20:00 and 21:00 CET, and this app is read on a phone in a dim lounge; the board
+is now drawn for that room rather than inverted out of it.
 
-The personality is an instrument, not an entertainment product: cool, dry,
-dense where density is honest and quiet everywhere else. Nothing floats,
-nothing glows, nothing is rounded. Depth is made entirely of how heavily a line
-is ruled. Colour is restrained to tinted neutrals plus one marker red, and the
-red is load-bearing — it marks who is on the clock and what just landed, and it
-is never decoration. The surface is legible from across a room because the state
-language is drawn in border weight, not in badge colour.
+This reverses the thesis this document opened with, and the reversal is argued
+rather than assumed — see [ADR-0006](docs/adr/ADR-0006-midnight-board.md) and
+blueprint **D22**. The old direction refused "the near-black surface with one
+glowing accent", and what that refusal was protecting is kept: a dark ground
+must not do the work structure should do, and one saturated accent must not glow
+decoratively. The structure is what was load-bearing, and it survives unaltered
+— four rule weights that carry state, a marker with exactly two jobs, every
+colour pair measured, and no colour without a redundant non-colour signal.
 
-The direction contract shipped in the emitted HTML of every page
-(`src/app/layout.tsx`) states the refusals literally: no near-black surface with
-one glowing accent, no metric-tile hero, **no cards inside cards**. The board may
-group one level of content into framed Banks, cut from deeper stock; it never
-stacks floating cards.
+What is new is that **colour now codes position** rather than merely
+reinforcing it. Cyan guards, emerald forwards, amber centers, at full strength,
+scannable down a 323-row pool. That makes the Letter-Always Rule the *actual*
+carrier rather than a belt-and-braces redundancy, and it is kept without
+exception.
+
+The personality is dense where density is honest and quiet everywhere else.
+Depth exists now, as one explicit two-level scale, but it is structural: no
+glow, no gradient ground, no atmosphere standing in for hierarchy.
 
 **Key Characteristics:**
 
-- Card stock as the ground, the board's ruling as the ink; light, not dark.
-- One accent — the commissioner's marker red — with two jobs and no third.
+- The midnight board as the ground, chalk as the ink; one ground, not a theme.
+- One accent — Euroleague orange — with two jobs and no third.
 - State is carried by a row's own material (border weight and style), never by a
   pill parked beside an otherwise normal row.
-- Zero corner radius, zero shadows, zero gradients, anywhere.
-- One type family (Archivo), caps for names and labels, tabular figures for
-  every number in the app.
-- Exactly two animations are implemented, on exactly two state-change events.
+- Vibrant position coding, always accompanied by its G / F / C letter.
+- One radius step and one panel material; zero glow, zero gradients.
+- Two type families: Space Grotesk for words, JetBrains Mono for figures.
+- Exactly three animations, on exactly three state-change events.
 - Mobile-first with a single breakpoint; the phone gets the complete rail.
 
 ## Colors
 
-Tinted, desaturated neutrals — office supply, not parchment — with one saturated
-marker red. Everything is OKLCH; neither end of the neutral ramp is pure black
-or pure white, and every neutral leans toward the rail's blue so nothing is a
-dead grey.
+One midnight ground, a chalk ramp tinted into it, and one Euroleague orange.
+Everything is OKLCH; neither end of the ramp is pure black or pure white, and
+every neutral leans toward the ground's own blue so nothing is a dead grey.
 
 Contrast ratios below are **measured**, not estimated: `src/app/tokens.test.ts`
 parses `globals.css`, converts OKLCH to WCAG relative luminance and asserts the
-floors. 122 assertions pass, including both stock materials — and since 9.5
-every ratio among them is asked of **both grounds** (see The night board below),
-so the numbers quoted here are the day board's unless stated.
+floors. Since Phase 10 there is **one ground**, so every ratio is asked once, of
+the palette that actually ships.
+
+The two anchors are given by the brief and **converted** rather than
+approximated: `#0B1120` is `oklch(0.18 0.032 266.6)` and `#FF5500` is
+`oklch(0.6759 0.2175 38.8)`. Every other value is then *solved* against a floor.
+The marker carries **four** decimal places for a reason worth not rediscovering:
+at three it round-trips to `#ff5502`, which is invisible and still not the
+colour the brief named.
 
 ### Primary
 
-- **Commissioner's Marker Red** (`oklch(0.525 0.198 27)`, token `live`,
-  **5.06:1** on stock): the one accent. Kept cooler and more saturated than a
-  terracotta specifically so the surface cannot drift into the cream-and-clay
-  cluster every generated interface lands in. It is the 2px rule over the slot on
-  the clock, the caret, the selection background, the focus ring, the border and
-  text of the single primary action on a surface, and the invite code the
-  commissioner reads out loud. Nothing else.
-- **Live Field Blush** (`oklch(0.925 0.055 27)`, token `live-sunk`, 1.10:1 on
-  stock): the tint that fills a live slot. It **locates** the row; the 2px marker
-  rule above it is what carries the state. It is deliberately not asserted for
-  contrast — it is a background against a background, and pushing it to a
-  text-grade ratio would make it a pink block fighting the rule sitting on it.
+- **Euroleague Orange** (`oklch(0.6759 0.2175 38.8)`, token `live`, **5.88:1** on
+  the ground): the one accent, and `#FF5500` exactly. It is the 2px rule over the
+  slot on the clock, the caret, the selection background, the focus ring, the
+  border and text of the single primary action on a surface, and the invite code
+  the commissioner reads out loud. Nothing else.
+- **Live Field Bay** (`oklch(0.254 0.075 38.8)`, token `live-sunk`, 1.16:1 on the
+  ground): the warm field that fills a live slot. It **locates** the row; the 2px
+  marker rule above it is what carries the state. Its lightness is not a taste
+  decision — it is the **lightest** warm bay on which `ink-faint` still clears
+  4.5:1 (it lands at 4.61:1), because faint ink is what a muted pool row is
+  written in and that row can be the armed one. Lift the bay further and the
+  quietest row in the pool goes under the floor.
 
 ### Neutral
 
-- **Cool Card Stock** (`oklch(0.943 0.004 240)`, token `stock`): the ground.
-  Set on `body` and on the root element.
-- **Deep Card Stock** (`oklch(0.905 0.005 240)`, token `stock-deep`, **1.12:1**
-  against stock): the one panel material. It fills a framed `Bank`; it never
-  becomes a page ground, striped row or nested panel.
-- **Board Ink** (`oklch(0.24 0.012 250)`, token `ink`, **13.92:1** on stock):
-  all primary text, and the 2px stroke of a correction.
-- **Soft Ink** (`oklch(0.47 0.011 250)`, token `ink-soft`, **5.77:1**): slot
+- **Midnight Board** (`oklch(0.18 0.032 266.6)`, token `stock`): the ground. Set
+  on `body` and on the root element.
+- **Panel Stock** (`oklch(0.232 0.028 265)`, token `stock-panel`, **1.12:1**
+  against the ground): the one panel material, and it is **lighter** than the
+  ground, not deeper. That inversion is forced rather than chosen: on a
+  near-black board "deeper stock" is not available, because depth on a dark
+  ground is lightness. It fills a framed `Bank` and a card block; it never
+  becomes a page ground or a striped row.
+- **Chalk** (`oklch(0.898 0.008 265)`, token `ink`, **13.89:1**): all primary
+  text, and the 2px stroke of a correction. It stops well short of the 18.8:1
+  that pure white would reach on this ground, deliberately — halation is what
+  makes a phone hard to read in a dark room, and a ramp whose top shouts leaves
+  the quiet inks nothing to be quiet against.
+- **Soft Chalk** (`oklch(0.668 0.014 265)`, token `ink-soft`, **6.24:1**): slot
   labels, field labels, secondary sentences under a heading, a member's real name
-  beside their team name.
-- **Faint Ink** (`oklch(0.501 0.009 250)`, token `ink-faint`, **5.05:1**): input
-  placeholders, the "Slot 07" numbering on an unfilled slot, the round numbers
-  down the left of the board plan. It was once 2.96:1 and carried form labels —
-  the text that tells somebody what to type. That was solved by measurement, not
-  by eye.
-- **Waiting Rule Grey** (`oklch(0.598 0.008 240)`, token `rule`, **3.36:1**): the
-  thin dashed rule of an empty slot, and every interior line of the board plan.
-  It was once 1.36:1, which is not a boundary, it is a rounding error — and since
-  the rule *is* the state language, a rule you cannot see means a surface with no
-  states.
-- **Heavy Rule Grey** (`oklch(0.533 0.01 240)`, token `rule-strong`, **4.40:1**):
-  the solid rule of a filled slot, and the frame that closes a run of slots. It
-  is 1.31× the contrast of `rule` — the major/minor hierarchy a real board has,
+  beside their team name. It is solved against its **worst** pairing rather than
+  against the ground: it is written on a position wash that itself sits on a
+  panel (4.57:1 there), and the Ink-on-Blush Rule needs it stronger than the
+  marker on the live bay (5.36:1 against the marker's 5.05:1). Solved against the
+  ground alone it failed both.
+- **Faint Chalk** (`oklch(0.629 0.014 265)`, token `ink-faint`, **5.36:1**):
+  input placeholders, the "Slot 07" numbering on an unfilled slot, the round
+  numbers down the left of the board plan. 4.79:1 on a panel and 4.61:1 on the
+  live bay, which is the pairing that fixes the bay's lightness.
+- **Waiting Rule** (`oklch(0.527 0.018 262)`, token `rule`, **3.52:1** on the
+  ground): the thin dashed rule of an empty slot. It is solved against the
+  **panel** (3.15:1), not the ground, because the panel is the lighter of the two
+  surfaces and therefore the harder one for a mid-grey rule to sit on — the
+  reverse of which surface was binding on the card-stock board. Since the rule
+  *is* the state language, a rule you cannot see means a surface with no states.
+- **Heavy Rule** (`oklch(0.601 0.02 262)`, token `rule-strong`, **4.79:1**): the
+  solid rule of a filled slot, and the frame that closes a run of slots. It is
+  1.36× the contrast of `rule` — the major/minor hierarchy a real board has,
   asserted as a ratio between the two rather than as a fixed number.
-- **Rail Slate Blue** (`oklch(0.5 0.042 245)`, token `rail`, **5.05:1**): used
-  only for the top rail's bottom border, at 40% opacity. The one neutral with
+- **Rail Blue** (`oklch(0.64 0.05 258)`, token `rail`, **5.60:1**): the top
+  rail's bottom border, and the app's own voice in chat. The one neutral with
   visible chroma; the rest of the ramp is tinted toward it.
 
-### Tertiary — position patches
+### Tertiary — position coding
 
-Three hue families for Guards, Forwards and Centers, muted enough to sit beside
-twenty club colours and dark enough to carry text on stock. All three clear the
-text floor because the letter inside them has to be readable.
+Three hue families for Guards, Forwards and Centers, at full strength, because
+since Phase 10 colour is **meant to be scanned** down a 323-row pool rather than
+merely to reinforce a form distinction. All three clear the text floor several
+times over, because the letter inside them has to be readable.
 
-- **Guard Steel Blue** (`oklch(0.505 0.082 235)`, token `pos-g`, **4.89:1**)
-- **Forward Olive** (`oklch(0.508 0.079 128)`, token `pos-f`, **4.78:1**)
-- **Center Plum** (`oklch(0.505 0.093 305)`, token `pos-c`, **5.17:1**)
+- **Guard Cyan** (`oklch(0.78 0.13 205)`, token `pos-g`, **9.86:1**)
+- **Forward Emerald** (`oklch(0.79 0.15 155)`, token `pos-f`, **10.34:1**)
+- **Center Amber** (`oklch(0.82 0.15 80)`, token `pos-c`, **10.63:1**)
 
-### The night board
+Each letter clears **8.36–8.99:1** on its own 10% wash, and each patch border at
+`/80` clears **5.61–5.98:1** against the wash it encloses.
 
-Since 9.5 there is a second ground and **only** a ground: same tokens, same four
-rule weights, same two marker jobs, same washes, same framed Bank, zero radius
-and zero glow. The day board inverts the physical object for a lit room; the
-night board inverts the inversion back for the room the 21:00 tip-off is
-actually watched in, and it is the same instrument under a different lamp. The
-argument is D21 and [ADR-0005](docs/adr/ADR-0005-night-board.md).
+**There is no fourth position colour.** The brief asked for purple head coaches;
+Draft Mode is Classic Mode without the head coach (blueprint **D19**), the pool
+filters coaches out at ingest, and a badge for an entity the game does not have
+is a badge that can never be correct. Amber takes the warm slot; purple leaves
+the palette.
 
-The values are declared once as `--night-*` and pointed at `--color-*` from two
-places — `@media (prefers-color-scheme: dark)` and `:root[data-theme="dark"]` —
-so the system decides until a reader says otherwise, and `tokens.test.ts`
-asserts the two mapping blocks carry the same thirteen tokens.
-
-Every lightness was **solved for the day board's own margin** rather than
-picked, because hierarchy here is carried in ink strength and a dark theme whose
-quiet inks read at 8:1 has no quiet:
-
-| Mark | Night | Day |
-|---|---|---|
-| `ink` on stock | 13.60:1 | 13.92:1 |
-| `ink-soft` | **5.79:1** | 5.77:1 |
-| `ink-faint` | 5.31:1 | 5.05:1 |
-| `live` (marker) | **5.10:1** | 5.06:1 |
-| `rail` | **5.05:1** | 5.05:1 |
-| `rule` | **3.35:1** | 3.36:1 |
-| `rule-strong` | **4.40:1** | 4.40:1 |
-| `pos-*` on their own 10% wash | 5.11–5.13:1 | 4.54–4.64:1 |
-
-Neither ground is pure black or pure white. A pure-black ground is the category
-cliché the day board was drawn against, and white-on-black at full strength is
-the halation that makes a phone in a dark room hard to read — so the night stock
-is L 0.243 and the night ink L 0.938, both still tinted toward the rail's blue.
+**Brighter hues raise the accessibility stakes rather than lowering them.**
+3.2's critique measured the guard and center washes as *pixel-identical* under a
+severity-1.0 deuteranopia simulation, and saturation does not fix that — it
+makes the colour look more informative while staying unavailable to the same
+readers. See the Letter-Always Rule below, which is now the actual carrier.
 
 ### Named Rules
 
@@ -328,23 +343,39 @@ in marker), but the code's own slot stays `slot-filled` — ruled, not struck.
 (`slot-correction`), never in marker. An earlier version borrowed the marker for
 failures, which made an error and an invite code render identically.
 
-**The Ink-on-Blush Rule.** Text on a live field is ink (**12.62:1** on
-`live-sunk`). Marker red now clears the floor there, but ink remains the label:
-the marker's two jobs are semantic, not merely a contrast workaround.
+**The Ink-on-Blush Rule.** Text on a live field is chalk (**11.93:1** on
+`live-sunk`). The marker clears the floor there too (5.05:1), but chalk remains
+the label: the marker's two jobs are semantic, not merely a contrast workaround.
+Soft chalk is held above the marker on that field (5.36:1 against 5.05:1) for
+the same reason, and that pairing is one of the two constraints that fixed soft
+chalk's lightness.
 
 **The Letter-Always Rule.** Colour never carries position on its own. A
 `PositionPatch` always renders its G / F / C letter, for colour-blind readers and
-for a photocopied sheet (PRODUCT.md, Accessibility & Inclusion).
+for a photocopied sheet (PRODUCT.md, Accessibility & Inclusion). **Phase 10
+promoted this from a redundancy to the actual carrier**: the position hues are
+now vibrant and invite being read as the signal, and they are the same
+indistinguishable pair under deuteranopia that they always were.
 
 ## Typography
 
-**One family: Archivo** — loaded via `next/font/google` in `src/app/layout.tsx`
-with `subsets: ["latin", "latin-ext"]` and `display: "swap"`, exposed as
-`--font-archivo` and consumed through `--font-sans`.
+**Two families, with one job each.** Both load via `next/font/google` in
+`src/app/font.ts` with `subsets: ["latin", "latin-ext"]` and `display: "swap"`.
 
-**Character:** one family, the way a kit room has one label maker. Archivo's
-grotesque caps at wide tracking are the honest translation of marker lettering on
-card stock; its figures are unfussy and its diacritics are complete.
+- **Space Grotesk** — every word: display, names, labels, body. Exposed as
+  `--font-space-grotesk`, consumed through `--font-sans`. Its geometric skeleton
+  and sharp terminals are what "a night game's graphics package" reads like, and
+  its caps at wide tracking still do the job Archivo's did.
+- **JetBrains Mono** — every figure in a *column*. Exposed as
+  `--font-jetbrains-mono`, consumed through `--font-mono` and reached through the
+  `stat` utility. It exists because this app is now data-dense: a PIR column, a
+  per-round standings run and a sparkline's own label are read *down*, and a mono
+  face with unmistakable figures is easier to scan than a proportional one even
+  with tabular figures switched on.
+
+**Character:** two families, each with a boundary you can state in one sentence
+— words in one, columns of numbers in the other. A third family, or mono used
+for prose, is a change to this document.
 
 `font-variant-numeric: tabular-nums` is set on `body`. Every figure in this app
 is tabular, because a number that changes width as it counts down makes a clock
@@ -375,13 +406,23 @@ jitter and a draft has a clock on it.
 
 ### Named Rules
 
-**The One Label Maker Rule.** One family, no exceptions. There is no display
-face, no serif, no mono. Numbers are already tabular, so a mono face has no job
-here.
+**The Two Jobs, Two Families Rule.** Space Grotesk sets words; JetBrains Mono
+sets figures that live in a column. Nothing else. There is no serif and no
+display face, a name is never mono, and a sentence is never mono — the mono
+face's own legibility argument is about scanning a column, and it does not
+transfer to prose. This replaces the One Label Maker Rule ("one family, no
+exceptions… no mono"), which Phase 10 retired on the grounds that the app it was
+written for had four numbers on screen and this one has four hundred.
 
-**The latin-ext Rule.** The `latin-ext` subset is not optional. This league reads
-names like Valančiūnas and Motiejūnas; a font that falls back mid-word for the
-diacritics makes the board look broken. Any future family must ship latin-ext.
+**A single figure in a sentence stays in Space Grotesk.** "3 of 13 filled" is
+prose. The mono face is for the PIR column, the standings run, the clock and the
+box score — places where figures stack vertically and the eye compares them.
+
+**The latin-ext Rule.** The `latin-ext` subset is not optional, and it now has
+to hold for **both** families. This league reads names like Valančiūnas and
+Motiejūnas; a font that falls back mid-word for the diacritics makes the board
+look broken. Both families were checked against Next's own font metadata before
+being chosen, not assumed.
 
 **The Tracking-Inverts-Size Rule.** Tracking rises as size falls: 0.04em at
 display, 0.06em on a card name, 0.14em on a slot label. Caps at small sizes are
@@ -442,45 +483,61 @@ Tailwind's 0.25rem step. Do not introduce a third spacing system.
 
 ## Elevation & Depth
 
-**There are no shadows.** Not one `box-shadow`, `drop-shadow`, `blur`,
-`backdrop-filter` or gradient exists in the codebase. There is also no second
-surface colour: every page is card stock all the way down.
+**There are no gradients and no glows.** Not one gradient, `blur`,
+`backdrop-filter` or coloured halo exists in the codebase, and none may.
 
-Depth is made of exactly three materials:
+Phase 10 introduced a **depth scale**, because the brief needs a roster
+segmented into one block per player and the old answer — one framed panel, never
+nested — could not express a run of sibling blocks inside a section. It is
+deliberately a *scale with two levels and a stop*, not permission to nest:
 
-1. **Rule weight.** 1px dashed (light) → 1px solid at heavy rule grey → 2px
-   solid marker. Heavier reads nearer and more settled; dashed reads unfinished.
+- **Level 0 — the ground.** `stock`. The page, and every ordinary slot row.
+- **Level 1 — a panel.** `stock-panel` inside a 1px `rule-strong` frame at the
+  one radius step. A framed `Bank` and a card block are both level 1.
+- **There is no level 2.** A card block may sit inside a framed Bank, because
+  that is one section holding a run of blocks; neither may sit inside a *card
+  block*. The moment something needs a third level, the layout is wrong.
+
+Depth is otherwise still made of the same three materials it always was:
+
+1. **Rule weight.** 1px dashed (waiting) → 1px solid heavy (filled) → 2px solid
+   marker (live). Heavier reads nearer and more settled; dashed reads unfinished.
    A run of slots is closed at the bottom by a heavy 1px rule, the way a board
    has a bottom rail.
 2. **A single tint.** `live-sunk` fills the live slot. It is the only fill in the
-   state system besides the 10% position-patch washes.
-3. **Deep stock.** `stock-deep` fills a framed `Bank`, bounded by one 1px
-   `rule-strong` frame. It groups a whole task without lifting it off the board.
+   state system besides the 10% position washes.
+3. **Panel stock.** `stock-panel`, lighter than the ground rather than deeper,
+   for the reason given under Colors: depth on a dark ground is lightness.
 
 ### Named Rules
 
-**The Panel Rule.** A `Bank` may be `framed`: deep stock, one 1px strong rule,
-zero radius and zero shadow. A framed Bank is one level of task grouping and
-never sits inside another framed Bank. Rows and controls inside it keep their
-own material; they do not become cards.
+**The Two Levels Rule.** Replaces the Panel Rule. A surface is the ground or it
+is a panel, and there is nothing below a panel. A framed `Bank` groups a task; a
+card block groups one *subject* (a player, a member's night). Rows and controls
+inside either keep their own material and do not become further cards.
 
-**The Flatness-Is-Not-Negotiable Rule.** A shadow, a gradient, a glow or a
-rounded corner arriving anywhere in this system is a regression, not a variant.
-The board is a physical object photographed head-on in flat light.
+**The No-Atmosphere Rule.** Replaces the Flatness-Is-Not-Negotiable Rule, and
+keeps most of it. Depth is structural: a border, a panel fill, one radius step,
+and — where the depth scale defines it — one shadow. What is still a regression
+rather than a variant: a **gradient**, a **glow**, a coloured halo, a blurred
+backdrop, or a shadow used to float something for emphasis. The board is lit; it
+does not shine.
 
 ## Shapes
 
-**Zero radius, everywhere.** No `rounded-*` utility appears in any source file.
-Buttons, inputs, patches, slots and the board plan are all right-angled
-rectangles. This is the strongest single carrier of the "physical board, not an
-app chrome" read, and it is not adjustable per component.
+**One radius step, and one place it is allowed.** `--radius-block` (0.375rem) is
+the *only* radius in the system, and it belongs to level 1 of the depth scale: a
+framed `Bank` and a card block. Buttons, inputs, patches, slot rows, the board
+plan and the board's own cells stay right-angled, because a ruled slot with a
+rounded corner is not a ruled slot. Phase 10 replaced "zero radius, everywhere"
+with this; what it did not do is make radius a per-component choice.
 
 **Borders are the whole form language.** Almost every border in the system is on
 one side: `border-top` on a slot (that is the ruling), `border-bottom` on the
 sheet's slot run and under an input, `border-bottom` on the top rail. The only
-four-sided borders in the system are controls, position patches and a framed
-Bank. The Bank's 1px strong frame groups a task; it never rounds, lifts or
-nests.
+four-sided borders in the system are controls, position patches, a framed Bank
+and a card block. A panel's 1px strong frame groups; it never glows and never
+reaches a third level.
 
 **The only filled shapes** are the position patch (a 10% wash of its own hue) and
 the live slot (`live-sunk`). Hover and active states use 5–10% ink washes.
@@ -490,15 +547,17 @@ the live slot (`live-sunk`). Hover and active states use 5–10% ink washes.
 `aria-hidden="true"`. There is no icon library in this project. New icons follow
 the same recipe — a single stroke, no fill, no icon font, no package.
 
-`SunIcon` and `MoonIcon` are the other two, and the only ones that carry a
-whole label's meaning rather than decorating one. They are drawn on 16 units
-and rendered at 18px, a size chosen twice: the arrow's 12x8 box is too small to
-read a crescent in, and at 18px the stroke lands a shade over 1px, which is
-what sits the mark with the 500-weight caps beside it on the rail instead of
-under them. The pair is sized against *each other*, not to a shared box — the
-sun is a small disc whose rays make it read wide, the moon is one thin arc, so
-the crescent is drawn nearer the edge of its box than the rays are. Matched
-geometrically they look like two different sizes on the same rail.
+`SunIcon` and `MoonIcon` were the other two and were **deleted in Phase 10**
+with the ground switch they belonged to. What they established is kept as the
+recipe for any icon that carries a whole label's meaning rather than decorating
+one: draw on 16 units and render at 18px, where the stroke lands a shade over
+1px and the mark sits *with* the 500-weight caps beside it rather than under
+them; and size a set against *each other* rather than to a shared box, because
+matched geometrically two marks look like two different sizes on one rail.
+
+Phase 10's own drawn graphic is the **sparkline**, and it follows the same rule:
+inline `<svg>`, one stroke, `currentColor`, no fill, no package. It is
+`aria-hidden` with a sentence beside it — see Marks are a picture.
 
 ## Components
 
@@ -737,23 +796,21 @@ component for exactly one reason: `useFormStatus`.
 **The Pending-Label Rule.** Every `SubmitButton` gets a `pendingLabel` written in
 the domain's words. "Loading" is not one of the domain's words.
 
-### Ground switch — `ThemeControl`
+### Ground switch — removed in Phase 10
 
-Which ground the board is drawn on, and it rides in the rail so every surface
-has it without any page knowing. An `aria-pressed` button on a 44px target, the
-same contract `FilterToggle` carries — and the one control in this system whose
-**state is the picture, not a rule**. A sun means the day board and a moon means
-the night board, so the dashed/solid underline a filter uses would be the same
-fact stated twice. It rests at `ink-soft`, which is the slot label's own colour,
-and goes to full ink on hover: the resting weight of the nav items it now sits
-beside.
+There was one, for eight days: a sun/moon `aria-pressed` mark in the rail,
+switching between the day and night boards (9.5, 9.5a, ADR-0005). Phase 10
+retired it along with the second ground — there is one ground now, so there is
+nothing to switch. `src/lib/theme.ts`, the `<head>` override script, the
+`prefers-color-scheme` mapping and `theme.spec.ts` went with it.
 
-The accessible name stays the fixed string "Night board" rather than swapping
-with the picture, so a screen reader hears one control changing position instead
-of two controls trading places. `aria-pressed` is what says which way it is.
-Icon-only is legal here for the same reason `RosterRadar`'s marks are: the
-*state* is never colour alone, and pressing it changes the whole surface, which
-is the loudest confirmation a control can have.
+Recorded rather than deleted because the cost is real and somebody will
+eventually ask for it back: **the app no longer honours
+`prefers-color-scheme`**, so a reader who has asked their phone for a light
+interface does not get one. That is the strongest argument for reversing
+[ADR-0006](docs/adr/ADR-0006-midnight-board.md), and it is written down there
+too. The two icons (`SunIcon`, `MoonIcon`) were deleted with the control; the
+drawn-icon recipe under Shapes survives them.
 
 ### Filter toggle — `FilterToggle`
 
@@ -1070,8 +1127,9 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 
 ### Don't:
 
-- **Don't** add a corner radius, a shadow, a gradient, a blur or any surface
-  colour beyond stock and stock-deep. A framed Bank never nests inside another.
+- **Don't** add a gradient, a glow, a blur or a surface colour beyond `stock` and
+  `stock-panel`. Radius is one token at one level of the depth scale, and there
+  is no level below a panel.
 - **Don't** compose a utility name from a variable. Tailwind reads source text,
   so `` `slot-${state}` `` emits nothing, the rule does not exist, and the
   surface looks plausible with its whole state language missing. Write the map
@@ -1112,7 +1170,8 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
   always present.
 - **Don't** hide the season from the top rail on small screens. If the rail must
   contract, drop the user's name.
-- **Don't** introduce a second font family, an icon package or an icon font.
+- **Don't** introduce a *third* font family, an icon package or an icon font, and
+  don't set prose in the mono face.
 - **Don't** write `border-b-solid`. It is **not a Tailwind v4 utility** and
   compiles to nothing — the border silently stays dashed and the screenshot looks
   plausible. Use an arbitrary property.
@@ -1167,8 +1226,19 @@ still. That is also why the room's board has no "just landed" animation on the
 pick itself — one event per state change, and the state change here is the clock
 moving.
 
-**The Two Events Rule.** Nothing else animates. Both events now exist, so the
-budget is spent: a third animation is a change to this document, not a variant.
+**The Three Events Rule.** Phase 10 raised the budget from two to three, and
+spent the third: **a draft selection springs into place**. That is one event —
+the pick you just committed — on the one surface where a committed act deserves
+to be felt rather than merely seen. The budget is spent again: a fourth
+animation is a change to this document, not a variant.
+
+The guard did not move, and it is the part that matters:
+`prefers-reduced-motion` is handled **inside** the animation utility, never at a
+call site, so a new caller cannot forget it. The spring is CSS — keyframes on
+the system's own curve — because a physics library would put a third easing
+vocabulary in a system that has one.
+
+Nothing else animates. Both of the original two events stand unchanged below.
 The board's auto-scroll is not one of them — following the clock is scrolling,
 not animation, and it uses `behavior: "auto"` under reduced motion. Colour transitions on hover
 (`transition-colors`) are not animation and are permitted on interactive
@@ -1242,7 +1312,18 @@ rather than deleted, so the decision and the question it settled stay together.
    board. The cost is accepted knowingly: a full twelve-member league scrolls
    sideways on a laptop as well as on a phone. Up to about six members the
    columns simply share the width they have.
-5. ~~**No dark mode.**~~ **Answered in 9.5**, and the price this question set
+5. ~~**No dark mode.**~~ ~~**Answered in 9.5**~~ — and then **overtaken in Phase
+   10**, which is worth stating before the paragraph below is read, because the
+   paragraph is now history rather than law. There is **one** ground and it is
+   the midnight board; the day board, the night board and the switch between
+   them are all gone. The reasoning below is preserved because two parts of it
+   outlived the decision: the halation argument (which is why chalk stops at
+   13.89:1 rather than the 18.8:1 the ground allows), and the method of solving
+   every value against a floor instead of picking it. What did *not* survive is
+   the conclusion, and the cost is that `prefers-color-scheme` is no longer
+   honoured at all. See [ADR-0006](docs/adr/ADR-0006-midnight-board.md).
+   The 9.5 record, as written:
+   **Answered in 9.5**, and the price this question set
    was paid rather than skipped: the inversion argument was re-made, in
    [ADR-0005](docs/adr/ADR-0005-night-board.md) and D21. It survives and gains a
    clause — the ground inverts the physical object **for the light it is read
@@ -1284,3 +1365,19 @@ rather than deleted, so the decision and the question it settled stay together.
    place needs them, promote them to `@theme`. (A third one-off, a 1.0625rem
    card-name step, was removed rather than promoted: at 6% it was never a step,
    and weight plus caps already separate a card name from body text.)
+9. **The depth scale has two levels and one radius, and nothing enforces
+   either.** `tokens.test.ts` can assert that a token exists and what it
+   measures; it cannot assert that nobody wrote `rounded-lg` on a button or
+   nested a card block inside a card block. The Two Levels Rule and the
+   one-radius rule are currently prose plus code review, which is exactly the
+   position the alpha modifiers were in before open question 7 was answered by
+   measurement. A lint rule over `src/**/*.tsx` for `rounded-` outside the one
+   token is the obvious fix and is not written.
+10. **Position colour is now the primary scanning signal, and the letter is the
+    only fallback.** That is a deliberate trade (D22) rather than an oversight,
+    but it has not been tested with anybody who needs the fallback. 3.2's
+    deuteranopia measurement was of the *old*, muted washes; the vibrant hues
+    have not been re-simulated, and the honest version of this question is
+    whether cyan/emerald/amber separate any better under CVD than steel/olive/
+    plum did. They may well not, in which case the letter is doing all the work
+    and the colour is decoration with a job title.
