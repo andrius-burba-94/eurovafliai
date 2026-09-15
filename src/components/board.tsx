@@ -65,7 +65,21 @@ const SLOT_RULE: Record<SlotState, string> = {
  */
 const MEASURE = {
   column: "max-w-3xl",
-  room: "max-w-3xl lg:max-w-7xl",
+  /**
+   * 48rem up to `lg`, then 80rem. Blueprint **D24**, widened to a second
+   * surface by **D26**.
+   *
+   * It was `room` — the draft room's private exception — and the key was
+   * renamed when the season dashboard earned the same measure by the same
+   * argument: a surface that is *four surfaces at once*. The room is pool,
+   * board, radar and console; the dashboard is standings, chat, roster and
+   * news. A key named after one of its two callers would have been a lie a
+   * reviewer had to read the map to catch.
+   *
+   * There are still exactly two measures, and a third needs the argument D24
+   * made for this one.
+   */
+  wide: "max-w-3xl lg:max-w-7xl",
 } as const;
 
 export type Measure = keyof typeof MEASURE;
@@ -95,8 +109,17 @@ export function TopRail({
       <div
         className={`mx-auto flex w-full ${MEASURE[measure]} items-baseline justify-between gap-3 px-5 py-4 sm:px-8`}
       >
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
-          <span className="whitespace-nowrap text-base font-semibold uppercase tracking-[0.16em]">
+        {/* The wordmark is the way home, which is what a masthead is for. One
+            link over both clauses rather than two: "Eurovafliai" and the
+            season are one identity, and a rail with two adjacent links to the
+            same place gives a screen-reader rotor the destination twice. The
+            44px floor is the rail's own padding, so the target is the height
+            of the rail rather than of the text. */}
+        <Link
+          href="/"
+          className="-mx-2 flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-3 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+        >
+          <span className="whitespace-nowrap text-base font-semibold tracking-[0.16em] uppercase">
             Eurovafliai
           </span>
           {/* The season stays on the phone. It is the first clause of the
@@ -105,7 +128,7 @@ export function TopRail({
           <span className="slot-label whitespace-nowrap">
             Euroleague 2026&ndash;27
           </span>
-        </div>
+        </Link>
         <div className="flex shrink-0 items-baseline gap-1">{action}</div>
       </div>
     </header>
@@ -113,8 +136,8 @@ export function TopRail({
 }
 
 /**
- * The page's own column. One measure, so every surface lines up with the next —
- * and one exception, `room`, which is the draft room and nothing else.
+ * The page's own column, at one of the two named measures — `column` for almost
+ * everything, `wide` for the two surfaces that are four surfaces at once.
  */
 export function Sheet({
   children,

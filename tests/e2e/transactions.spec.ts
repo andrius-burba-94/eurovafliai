@@ -143,15 +143,23 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  const doors = page.getByRole("region", { name: "League doors" });
-  await expect(doors).toHaveAttribute("data-framed", "true");
-  await expect(doors.getByTestId("enter-standings")).toBeVisible();
-  await expect(doors.getByTestId("enter-recap")).toBeVisible();
+  // The single "League doors" region is gone (blueprint **D26**): the season
+  // lobby is the dashboard now, and each door lives inside the panel it
+  // belongs to rather than in one grid of promises. What this spec actually
+  // cares about is unchanged — the three ways out are on the page, and the
+  // panels carrying them are framed.
+  await expect(
+    page.getByRole("region", { name: "League standings" }),
+  ).toHaveAttribute("data-framed", "true");
+  await expect(
+    page.getByRole("region", { name: "Transactions" }),
+  ).toHaveAttribute("data-framed", "true");
+  await expect(page.getByTestId("enter-standings")).toBeVisible();
+  await expect(page.getByTestId("enter-recap")).toBeVisible();
   await expect(page.getByTestId("record-transaction")).toBeVisible();
-  await expect(page.getByTestId("record-transaction").locator("..")).toHaveAttribute(
-    "data-state",
-    "filled",
-  );
+  await expect(
+    page.getByTestId("record-transaction").locator(".."),
+  ).toHaveAttribute("data-state", "filled");
   await page.getByTestId("record-transaction").click();
   await expect(page.getByTestId("transaction-builder")).toBeVisible();
   await expect(
@@ -190,7 +198,10 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
 
   await expect(page.getByTestId("lobby")).toBeVisible();
 
-  await page.getByTestId("enter-roster").filter({ hasText: "Chief FC" }).click();
+  await page
+    .getByTestId("enter-roster")
+    .filter({ hasText: "Chief FC" })
+    .click();
   await expect(page.getByTestId("roster-player")).toContainText(role.name);
   await expect(page.getByTestId("roster-player")).not.toContainText(star.name);
   await page.goto(`/leagues/${league.id}/teams/${chief.id}?season=E2099`);
@@ -201,7 +212,10 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(page.getByTestId("impact-deal")).toContainText("R2 -4.3");
 
   await page.getByRole("link", { name: "The lobby" }).click();
-  await page.getByTestId("enter-roster").filter({ hasText: "Other FC" }).click();
+  await page
+    .getByTestId("enter-roster")
+    .filter({ hasText: "Other FC" })
+    .click();
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
   await expect(page.getByTestId("roster-player")).not.toContainText(role.name);
 
@@ -214,7 +228,9 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
     hasText: "Other FC",
   });
   const roundCell = (row: Locator, round: number) =>
-    row.getByTestId("standings-round").and(page.locator(`[data-round="${round}"]`));
+    row
+      .getByTestId("standings-round")
+      .and(page.locator(`[data-round="${round}"]`));
   await expect(roundCell(chiefRow, 1)).toHaveText("14.2");
   await expect(roundCell(chiefRow, 2)).toHaveText("0.7");
   await expect(chiefRow.getByTestId("standings-total")).toHaveText("14.9");
