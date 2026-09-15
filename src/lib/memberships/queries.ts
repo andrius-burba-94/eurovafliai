@@ -8,6 +8,7 @@ import {
 } from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import { readNextFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
@@ -54,8 +55,9 @@ export type RosterPlayer = {
    */
   readonly last5Pirs: readonly number[];
   /**
-   * The club's next game, once there is a fixtures collection to read it from.
-   * Absent today, and the block renders no fixture line rather than a "TBD".
+   * The club's next unplayed game, or null when the schedule has nothing to say
+   * — before the season's first ingest pass, and for a club whose season is
+   * over. The block renders no fixture line rather than a "TBD".
    */
   readonly fixture?: PlayerFixture | null;
 };
@@ -63,6 +65,7 @@ export type RosterPlayer = {
 export async function readMemberRoster(
   leagueId: string,
   memberId: string,
+  season: string,
 ): Promise<RosterPlayer[]> {
   const session = await getSession();
   if (!session) return [];
@@ -77,6 +80,8 @@ export async function readMemberRoster(
       requestKey: null,
     }),
   ]);
+
+  const fixtures = await readNextFixtures(season, session.token);
 
   const mine = memberships.filter((row) => row.member === memberId);
   const draftId = drafts[0]?.id;
@@ -103,6 +108,7 @@ export async function readMemberRoster(
         position: player.position,
         overallNo: overallByPlayer.get(player.id) ?? null,
         last5Pirs: last5SeriesOf(player),
+        fixture: fixtures.get(player.club_code) ?? null,
       },
     ];
   });

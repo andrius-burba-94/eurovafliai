@@ -3,6 +3,90 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.7 — The half of the schedule we were throwing away, and the indicator the Euroleague cannot produce
+
+`fetchSeasonSchedule` has read the whole season since 4.3 — about four hundred
+games, both club codes, the round, the kickoff, the scores — and `ingest.ts`
+dropped everything unplayed at `.filter((game) => game.played)`. So the app
+could say what had happened and never what was about to, and
+`player_game_stats` could not stand in: it stores the opponent's *score* and
+never the opponent's identity. The `fixtures` collection is that discarded half,
+kept.
+
+The failure-recovery story is the box-score import's, one level up. The pass is
+an upsert keyed on `unique(season, game_code)`, and the plan is **recomputed
+every pass** rather than queued: it is "what does the feed say that the database
+does not", so a pass that dies after two hundred rows has stored two hundred and
+the next pass, fifteen minutes later, plans exactly the remainder. A create that
+comes back `validation_not_unique` is a concurrent pass winning a race, which is
+an expected outcome and not a failure — the row is read back and corrected if it
+is stale. Nothing is ever deleted, so a fixture the feed renumbers leaves a
+stale row rather than taking a real one with it.
+
+Fixtures are written **before** the twelve box-score requests, because they are
+the cheap half of the pass: one request already in hand, four hundred local
+writes, and a pass that dies in somebody else's API should still have moved the
+schedule forward.
+
+### The double round does not exist, and the measurement is the reason
+
+The brief asked for a double-round indicator and 10.5 shipped the seam. Before
+filling it in, the schedule was counted:
+
+| Season | Games | Rounds | Club-rounds | Games in a club-round |
+|---|---|---|---|---|
+| E2025 | 402 | 47 | 804 | 1, all of them |
+| E2026 | 380 | 38 | 760 | 1, all of them |
+
+Twenty clubs and ten games make a round. A Euroleague round is one game per club
+**by construction**, so the flag would have read `false` for all 760 fixtures of
+this season and every season after it. The other reading — two games in one
+calendar week — is the competition's ordinary rhythm: the median gap between a
+club's consecutive fixtures is five days, and 32% of consecutive pairs fall
+within four days of each other.
+
+So the field is gone from `PlayerFixture` rather than left in as a constant
+`false`, and the reason is written in three places a future reader will actually
+be standing in: the type, the pure module, and the research doc with the `curl`
+that reproduces it. That redundancy is deliberate. A field that always reads
+`false` is the kind of thing somebody *fixes*, and the obvious fix — wire it to
+the four-day reading — badges a third of the season as exceptional. This is the
+second item from the brief killed by a number rather than by taste; the first
+was purple head-coach badging.
+
+### Home court is measured, and that is what makes the word honest
+
+Difficulty is the opponent's average margin, flipped, plus or minus the league's
+home advantage. The margin and the advantage both come from the schedule's own
+scores, which means the advantage could be **measured instead of assumed**: over
+all 402 played E2025 games the home side averages **+3.46** points, +3.34 across
+the 380 regular-season games alone, winning 63.7% of the time. Two slices of the
+same season agreeing to a tenth is also the check that `homeEdge` reads the table
+the way it thinks it does.
+
+The four-point threshold is chosen rather than derived, and says so where it is
+defined: the schedule cannot tell us where "even" ends. What it can tell us is
+the scale, and four points is "further from even than home court is worth".
+
+Two honesty guards sit under the word. It is absent until the **opponent** has
+played three games, because a club's record over two is a coin toss reported as
+a fact — and there is deliberately no fallback to last season, unlike 9.1's
+projections: a player's PIR follows the same person across a summer, where a
+club's margin follows a squad that has been rebuilt. And it reads the
+*opponent's* record, not the club's own, which is what the test asks from both
+ends of one fixture — hard for the visitor, kind for the home side. A function
+reading its own club's form would have said the same word twice.
+
+### Two questions, two functions
+
+The lineup page and the team page are not asking the same thing. A lineup is
+arranged **for a named round** and belongs against that round's opponent, even
+when earlier rounds are still unplayed; a current roster wants the next unplayed
+game by kickoff. Hence `fixtureForRound` and `nextFixture`, and `played` rather
+than the clock deciding what is behind us — a game that finished an hour ago is
+still today by any date comparison, and pointing a roster at a result somebody
+has already watched is the one wrong answer worth designing against.
+
 ## 10.6 — Five marks, a sentence, and the five numbers nobody had stored
 
 The brief asked for "rolling 5-game PIR averages with sparkline charts". Half of

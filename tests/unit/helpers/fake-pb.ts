@@ -64,6 +64,9 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // `unique(source, source_key)` — 9.4's news. Reading the same page every
   // hour must update one row, never stack twenty-four copies of one injury.
   player_news: [["source", "source_key"]],
+  // `unique(season, game_code)` — 10.7's schedule. A pass runs every fifteen
+  // minutes over four hundred rows and must not copy a single one of them.
+  fixtures: [["season", "game_code"]],
 };
 
 /**

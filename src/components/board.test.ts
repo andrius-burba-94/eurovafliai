@@ -7,14 +7,13 @@ import { formatTenths } from "@/lib/stats/scoring";
 import { FixtureNote, Sparkline } from "./board";
 
 /**
- * The fixture line, which today renders nothing.
+ * The fixture line — and the case where it renders nothing.
  *
- * Worth a test precisely *because* it renders nothing: an affordance that is
- * waiting for data is one refactor away from being deleted as dead, and one
- * careless edit away from shipping a "TBD" placeholder — which would be this
- * app claiming it looked at the schedule and found no opponent, when the truth
- * is that `ingest.ts` throws every unplayed game away and it has never looked.
- * These three cases are the contract PR 7 has to satisfy.
+ * That case survived 10.7 filling the collection in, and is still the first
+ * assertion here: a club knocked out has no next game, no club plays in every
+ * playoff round, and a season before its first ingest pass has no schedule at
+ * all. A "TBD" in any of those is the app claiming it looked and found no
+ * opponent, when the truth is that there is nothing to find.
  *
  * Rendered through `renderToStaticMarkup` rather than a DOM testing library:
  * there is no jsdom in this suite and no reason to add one for a component with
@@ -31,26 +30,26 @@ describe("FixtureNote", () => {
     expect(render({ fixture: null })).toBe("");
   });
 
-  it("names the opponent when there is one", () => {
-    const html = render({
-      fixture: { nextOpponent: "Žalgiris", doubleRound: false },
-    });
-    expect(html).toContain("Žalgiris");
-    expect(html).not.toContain("Double round");
+  it("says who, and which side of it the club is on", () => {
+    expect(render({ fixture: { nextOpponent: "ZAL", atHome: true } })).toContain(
+      "vs ZAL",
+    );
+    expect(render({ fixture: { nextOpponent: "ZAL", atHome: false } })).toContain(
+      "at ZAL",
+    );
   });
 
-  it("says double round in words, not in a colour", () => {
-    // The Letter-Always Rule, and the one signal here that changes who somebody
-    // starts — so it is the last thing that should need a legend to decode.
-    const html = render({
-      fixture: { nextOpponent: "Baskonia", doubleRound: true },
-    });
-    expect(html).toContain("Double round");
+  it("says nothing about the draw when the schedule cannot", () => {
+    // An opponent with two games played has a record too thin to describe, and
+    // `difficultyOf` returns null for it. The line then names the fixture and
+    // stops, rather than calling an unknown draw "even".
+    const html = render({ fixture: { nextOpponent: "BAS", atHome: true } });
+    expect(html).not.toContain("draw");
   });
 
-  it("says the difficulty as a word too", () => {
+  it("says the difficulty as a word", () => {
     const html = render({
-      fixture: { nextOpponent: "Olympiacos", doubleRound: false, difficulty: "hard" },
+      fixture: { nextOpponent: "OLY", atHome: false, difficulty: "hard" },
     });
     expect(html).toContain("Hard draw");
     // Never the marker: it has two jobs already, and a third meaning on a

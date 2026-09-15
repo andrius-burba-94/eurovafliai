@@ -268,6 +268,57 @@ own `player_game_stats` backfill and compares it to the feed's. On 2026-09-14,
 box scores to compare. Same discipline as 4.1's PIR check: a disagreement is
 reported, never reconciled.
 
+## The schedule — and the double round that does not exist
+
+Verified by request on **2026-09-15**, while building slice 10.7. Same endpoint
+4.3 already uses to find outstanding games, asked a different question:
+
+```
+https://api-live.euroleague.net/v2/competitions/E/seasons/E2025/games?limit=500
+https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/games?limit=500
+```
+
+### A club plays exactly once per round. Every club, every round.
+
+| Season | Games | Rounds | Clubs | Club-rounds | Games in a club-round |
+|---|---|---|---|---|---|
+| E2025 (complete, with the Final Four) | 402 | 47 | 20 | 804 | **1**, all 804 |
+| E2026 (scheduled) | 380 | 38 | 20 | 760 | **1**, all 760 |
+
+This is the measurement that killed the double-round indicator the brief asked
+for and slice 10.5 shipped the seam for. Twenty clubs and ten games make a
+round; a Euroleague round is one game per club **by construction**, so "two game
+codes for one club in one round" describes something the competition cannot
+produce. A flag derived that way would be `false` for all 760 fixtures of this
+season and every season after it.
+
+The other available reading — two games in one calendar week — is not a signal
+either. Sorting each club's fixtures by kickoff and measuring the gaps: the
+median is **5 days**, the 10th percentile is 2 and the 90th is 8, and **32% of
+consecutive pairs in E2026 (36% in E2025) fall within four days of each other.**
+Two games in a week is the competition's normal rhythm, so badging it would
+badge a third of the season as exceptional. The indicator is dropped rather than
+deferred, and the reasoning lives in `src/lib/fixtures/schedule.ts` beside the
+code that would otherwise have grown it back.
+
+### Home advantage, measured, because the difficulty word rests on it
+
+Over **all 402 played E2025 games the home side averages +3.46 points** (+3.34
+across the 380 regular-season games alone) and wins **63.7%** of the time. The
+median winning margin is 9.
+
+That is what `homeEdge` computes from the schedule's own scores, and the two
+numbers agreeing to a tenth across two different slices of the season is the
+check that the function reads the table the way it thinks it does. It is also
+the scale behind `DRAW_MARGIN`: a four-point expected margin is "further from
+even than home court is worth".
+
+Reproduce either figure with the `curl` above and:
+
+```
+jq '[.data[] | select(.played == true)] | (map(.local.score - .road.score) | add) / length'
+```
+
 ## The season-wide people list — a registration history, NOT a roster
 
 ```

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   addMemberTo,
   cleanupTestData,
+  createFixture,
   createLeagueFor,
   createPlayer,
   createTestUser,
@@ -39,6 +40,7 @@ test("a member opens a roster from the season lobby", async ({
   if (!chief) throw new Error("membership missing");
 
   const star = await createPlayer("Rostered");
+  await createFixture();
   const draft = await pb.collection("drafts").create(
     {
       league: league.id,
@@ -92,6 +94,9 @@ test("a member opens a roster from the season lobby", async ({
   ).toHaveAttribute("data-framed", "true");
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
   await expect(page.getByTestId("roster-player")).toContainText("#1");
+  // The fixture line is read with the viewer's own token, so this is also the
+  // only place the `fixtures` read rule is exercised the way a member does it.
+  await expect(page.getByTestId("roster-player")).toContainText("vs ZAL");
   await expect(page.getByTestId("roster-radar")).toBeVisible();
   await expect(
     page.getByTestId("roster-radar").getByRole("link"),

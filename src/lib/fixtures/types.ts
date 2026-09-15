@@ -1,21 +1,25 @@
 /**
- * What a club has coming — the shape, ahead of the data.
+ * What a club has coming.
  *
- * Nothing populates this yet. `fetchSeasonSchedule` reads the whole fixture
- * list, and `ingest.ts` throws the unplayed half of it away at
- * `.filter((game) => game.played)`, so today there is no honest answer to "who
- * is next". The roster surfaces already pass this through and render nothing
- * when it is absent, so landing the fixtures collection is a query change
- * rather than a second pass over the roster UI.
+ * Shipped as a shape ahead of the data in 10.5 and filled in by 10.7, which is
+ * also where it lost a field: `doubleRound` is gone, because the Euroleague
+ * cannot produce one. Every club plays exactly once in every round — measured
+ * across E2025 and E2026, 1,564 club-rounds, no exceptions — so a flag that
+ * would always read `false` was a promise about somebody else's competition.
+ * The argument is in `schedule.ts` and the measurement in
+ * docs/research/euroleague-api.md.
+ *
+ * What replaced it is the one thing the schedule knows that changes how a
+ * fixture reads: whether it is at home.
  *
  * It is a type-only module deliberately: a server query, a client component and
  * a page all need to agree on the shape, and a type in `src/components/` that
  * the server imports is a client module the server has taken a dependency on.
  */
 export type PlayerFixture = {
+  /** The opponent's club code, as the feed and `players.club_code` spell it. */
   readonly nextOpponent: string;
-  /** Two games in one round — the reason anybody starts a marginal player. */
-  readonly doubleRound: boolean;
+  readonly atHome: boolean;
   /**
    * How hard the next game looks, as a word rather than a number or a colour.
    *
@@ -25,7 +29,7 @@ export type PlayerFixture = {
    * a green-amber-red dot is undecodable to 8% of the men in this league without
    * a legend, and the Letter-Always Rule already settled that argument.
    *
-   * Absent until 10.7 derives it, like the rest of this type.
+   * Absent until the opponent has played three games — see `MIN_RECORD`.
    */
   readonly difficulty?: "easy" | "even" | "hard" | null;
 };

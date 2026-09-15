@@ -122,6 +122,28 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — slice 10.7
+
+```bash
+npm run dev
+npm run stats:sync          # one pass: fills fixtures from the schedule
+```
+
+Open a team page (`/leagues/<id>/teams/<memberId>`). Each block now carries a
+fixture line: **vs ZAL** at home, **at ZAL** away. Then open
+`/leagues/<id>/lineup` and switch rounds — the line follows the round you are
+arranging, because a lineup is arranged against that round's opponent and not
+against whatever happens to be next.
+
+The one thing to look at: in September the line says who and stops. "Hard draw"
+only appears once the *opponent* has three played games, because a club's record
+over two games is a coin toss reported as a fact.
+
+You will not see "Double round" anywhere, and that is now a finding rather than
+missing work: every club plays exactly once in every Euroleague round — 1,564
+club-rounds measured across two seasons, no exceptions — so the indicator was
+dropped. The numbers are in `docs/research/euroleague-api.md`.
+
 ## Try it on localhost — slice 10.6
 
 ```bash
@@ -165,9 +187,10 @@ the rule, not a trim — the captaincy is a mark on one of the five starters, an
 `validateLineup` refuses a captain who is not among them, so a control that
 could name a bench captain would exist only to produce an error message.
 
-You will not see a fixture or a "Double round" anywhere, and that is correct:
-ingestion still discards every unplayed game, so there is nothing to say. The
-line appears on its own once 10.7 lands.
+You will not see a fixture anywhere, and at 10.5 that was correct: ingestion
+still discarded every unplayed game, so there was nothing to say. 10.7 fills the
+line in — and drops the "Double round" half of it, for the reason recorded
+there.
 
 ## Try it on localhost — slice 10.4
 
@@ -979,7 +1002,7 @@ the *sparkline*, which needs per-game values the pool never queried.
 | **10.4 The card-block material** | done | One radius token (`--radius-block`), the `card-block` / `card-block-live` materials, and `CardBlock` / `CardBlocks` in `board.tsx`. **There is no shadow token**, and that is argued rather than skipped: a shadow darkens what is beneath it, and at L 0.18 there is nothing left to darken, so the version that reads as elevation is a glow — the thing ADR-0006 kept refusing. Depth is a lighter fill, a rule and a corner. `Door` gained a `block` variant sharing one body, and the league page's four doors are the port: they are *destinations*, so a grid saying "pick one" is more honest than a ruled run saying "list". The position edge is a full-strength `border-l-3`, not an alpha, so it cannot take its colour from whichever surface the block sits on — and it is an edge rather than a wash precisely so it changes no text contrast. **The scale is enforced**, closing the debt 10.1 opened: see `depth-scale.test.ts` |
 | **10.5 Roster blocks and the captain** | done | The roster and the lineup are runs of card blocks with the position edge; `card-block-waiting` (dashed, **unfilled**) draws an open roster place, because giving an absence the same stock as a player turns nine players and four gaps into thirteen blocks. The captain became a **radio group**, which is what "exactly one of these" already is in a browser — thirteen toggles clearing each other is that, reimplemented without the keyboard handling. The rule it encodes: the captaincy is a *mark on a starter*, not a sixth role, so marking also places, moving off `starter` clears the mark, and the select drops to four options. `validateLineup`, the five formations and the `lineup-role` test id are untouched, and the server takes the captain only from its own field — two doors onto one fact is how a form names two captains. The fixture line is a **seam**: `FixtureNote` renders nothing until 10.7 has data, and is tested for that, because a "TBD" would claim we looked |
 | **10.6 The data grid and sparklines** | done | Five PIR marks as one hand-drawn polyline on `currentColor` — no chart package, because the whole component is nine lines of SVG and `sparklinePoints` is the only arithmetic in it. Two rules it follows and one it refuses: the picture is `aria-hidden` with an **`sr-only` sentence** beside it, because five marks are otherwise five announcements of nothing; the sentence takes the caller's **formatter**, since the standings hold tenths and a reader would otherwise hear "120" where the row reads "12.0"; and it draws **nothing below two games**, because a single point is a dot claiming a trend. The series needed a new `proj_last5_pirs` JSON field — the five numbers, not the average 9.1 already stores — written where the other projection fields are materialized, and `sameProjection` compares it so a re-ingest is still a no-op write. The sparkline is `sm`-and-up in the pool and standings **rows** and unconditional on the player page and the roster block, which is the same width budget the fantasy column already lives under. Also closes a flake the gate kept excusing: the pool's filters are client state, so a club selected before hydration narrowed nothing — `useHydrated` now surfaces that fact on `pool-ready`, one hook shared with the sheet, which had already paid for this once |
-| **10.7 Fixtures** | todo | The schedule is already fetched and thrown away (`ingest.ts` filters to `played`), and the opponent's *identity* is never stored — so double round, next opponent and fixture difficulty need a collection before they can be rendered |
+| **10.7 Fixtures** | done | The `fixtures` collection, filled from the schedule request 4.3 was already making and discarding half of, keyed `unique(season, game_code)` — an upsert whose plan is recomputed every pass, so a pass that dies after two hundred rows is finished by the next one fifteen minutes later without being told. **The double-round indicator is dropped, not deferred**, and this is the second brief item killed by a measurement rather than by taste: across E2025 and E2026 all **1,564 club-rounds hold exactly one game**, because twenty clubs and ten games make a round. A flag derived that way is `false` forever; the two-games-in-a-week reading covers a third of the season. **Difficulty is derived and home court is measured**: the home side averages **+3.46** points across 402 played E2025 games (+3.34 in the regular season alone, 63.7% home wins), which is both the number `homeEdge` computes and the scale behind the four-point threshold. Absent until the opponent has played three games, with no fallback to last season — a player's PIR follows the same person across a summer, a club's margin follows a rebuilt squad. The lineup page asks about **its own round** and the team page about the next unplayed game, which is two different questions and two functions |
 | **10.8 Motion and the band** | todo | The third and last animation event; the countdown band restyled |
 | **10.9 Screen differentiation** | todo | Dashboard, dense room, tabular standings; whether `max-w-3xl` still holds; axe and the full E2E run |
 

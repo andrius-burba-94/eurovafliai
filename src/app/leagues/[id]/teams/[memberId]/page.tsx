@@ -63,7 +63,7 @@ export default async function TeamPage({
     ]),
   );
   const [roster, deals] = await Promise.all([
-    readMemberRoster(id, memberId),
+    readMemberRoster(id, memberId, season),
     readMemberDeals(id, memberId, season, teamNames),
   ]);
   const template = data.settings.roster_template;

@@ -397,11 +397,14 @@ export function Sparkline({
  *
  * Returning `null` when there is no fixture is the whole point: a "—" or a
  * "TBD" would be this app claiming it looked and found nothing, when in fact it
- * has never looked. An empty line is honest and a placeholder is not.
+ * has never looked. An empty line is honest and a placeholder is not. That case
+ * is real all season, not only before 10.7 landed: a club knocked out has no
+ * next game, and no club plays in every round of the playoffs.
  *
- * "Double round" is a word rather than a coloured dot, per the Letter-Always
- * Rule — and because it is the one signal here that changes who somebody
- * starts, so it is the last thing that should need a legend to decode.
+ * The draw is a word rather than a coloured dot, per the Letter-Always Rule, and
+ * `difficulty` is separately allowed to be absent — an opponent who has played
+ * two games has a record too thin to describe, and the line then names the
+ * fixture and stops.
  */
 export function FixtureNote({
   fixture,
@@ -413,15 +416,14 @@ export function FixtureNote({
   if (!fixture) return null;
   return (
     <span data-testid={testId} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-      <span className="text-ink-soft">vs {fixture.nextOpponent}</span>
+      {/* "vs" at home and "at" away, which is the shorter of the two ways to
+          say it and the one the league says out loud. */}
+      <span className="text-ink-soft">
+        {fixture.atHome ? "vs" : "at"} {fixture.nextOpponent}
+      </span>
       {fixture.difficulty ? (
         <span className="slot-label" data-testid="fixture-difficulty">
           {DIFFICULTY_WORD[fixture.difficulty]}
-        </span>
-      ) : null}
-      {fixture.doubleRound ? (
-        <span className="slot-label text-live" data-testid="double-round">
-          Double round
         </span>
       ) : null}
     </span>
