@@ -3,6 +3,57 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## "The commissioner always gets 1st" — measured, and the answer was #119
+
+Reported from production: *"it seems that the commissioner always gets better
+pick (nearly all the time 1st). Are there any hidden better odds?"*
+
+**There is no bias, and that is a measurement rather than a defence.** 200,000
+rolls per league size through the real `rollOrder`, seeded with real
+`crypto.randomUUID()` values, with the commissioner passed as index 0 of the
+input the way `loadSetupContext` reads them (`sort: "created"`):
+
+| League | Commissioner's slot spread | χ² (who goes first) | Critical at p=.05 |
+|---|---|---|---|
+| 2 | 50.06% / 49.94% | 0.33 (df 1) | 3.84 |
+| 4 | 24.92–25.05% | 4.77 (df 3) | 7.81 |
+| 8 | 12.44–12.66% | 11.88 (df 7) | 14.07 |
+| 12 | 8.25–8.44% (expect 8.33%) | 12.00 (df 11) | 19.68 |
+
+The algorithm is a correct Fisher-Yates over a **lexicographically sorted** id
+list, driven by mulberry32 over an FNV-1a hash of the seed. Two details make a
+commissioner edge structurally impossible rather than merely unobserved: the
+input is sorted before shuffling, so join order cannot leak into the outcome
+(that sort exists so a commissioner cannot re-roll by kicking and re-inviting
+somebody); and PocketBase ids are random rather than time-ordered, so the
+commissioner's position in the sorted array is itself arbitrary.
+
+**What the report actually was: #119, seen from the outside.** The production
+chat had ~52 identical `The draft order was rolled: 1. Andrius · 2. Virtuozas.`
+lines — one roll, re-applied fifty-two times, announcing itself as a fresh draw
+each time. Andrius is the commissioner. So the league was told, fifty-two
+times, that the commissioner had drawn first. Of course it looked rigged.
+
+The recorded **reshuffles** — the ten that genuinely redrew — put the
+commissioner first **4 times out of 10**, and the live order at the time of
+asking had the commissioner **second**. Both point the other way.
+
+This is worth keeping because it is the second time #119's replay produced a
+false belief about the product, and the first one ("rolling doesn't work") was
+the easier of the two to diagnose. A button that reports a fresh result while
+replaying an old one does not merely confuse — it manufactures evidence.
+
+**What it left behind.** Two tests named after the suspicion, in
+`roll.test.ts`: one asserting the first-created member has no positional edge
+across 12,000 rolls, and one asserting the first-slot distribution for seeds
+shaped like the real ones. The existing distribution test used `s0`, `s1`,
+`s2` — short counters, which a string hash can spread well while clumping on
+36-character UUIDs with fixed hyphens and 16 symbols, so the real seed shape is
+now asserted rather than assumed. Both were mutation-checked: a one-character
+change making the shuffle unable to move slot 1 — the reported symptom exactly
+— fails four tests. Deterministic UUID-shaped seeds, because a fairness test
+that can flake is one people learn to re-run.
+
 ## The roll ceremony — the one page in this app built to be watched
 
 The ask, precisely specified: on the first roll take everyone to a page, count
