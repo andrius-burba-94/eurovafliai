@@ -30,7 +30,7 @@ import {
 import type { LeagueSettings } from "@/lib/leagues/settings";
 import type { Member, MemberRecord } from "@/lib/leagues/types";
 
-import { DraftSetup } from "./draft-setup";
+import { DraftOrder, DraftSetup } from "./draft-setup";
 import { useRollReveal } from "./use-reveal";
 
 /**
@@ -215,10 +215,27 @@ export function LiveLobby({
         </p>
       ) : null}
 
-      {/* Slice 2.3a. Only the commissioner sees it, and `updateDraftSettings`
-          checks that again server-side rather than trusting this render. */}
+      {/* Slice 2.3a. Only the commissioner sees the *settings*, and
+          `updateDraftSettings` checks that again server-side rather than
+          trusting this render. */}
       {(isCommissioner || viewerCanManage) && inSetup ? (
         <DraftSetup leagueId={leagueId} settings={settings} members={members} />
+      ) : null}
+
+      {/* The order itself is the league's, not the commissioner's. Blueprint
+          §2.3 wants the roll "revealed live to all clients"; 2.3b revealed it
+          onto the member list, which during setup is in join order — so a
+          member saw scattered numbers and the readable list was inside the
+          commissioner's Bank. Same component for both, `revealed` shared with
+          the rows above so the two lists count down together. */}
+      {inSetup ? (
+        <DraftOrder
+          leagueId={leagueId}
+          settings={settings}
+          members={members}
+          canManage={isCommissioner || viewerCanManage}
+          revealed={revealed}
+        />
       ) : null}
     </>
   );
