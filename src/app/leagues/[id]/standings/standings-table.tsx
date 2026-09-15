@@ -92,10 +92,10 @@ export function StandingsTable({
                 >
                   <span className="flex min-w-0 flex-col gap-1">
                     <span className="flex flex-wrap items-baseline gap-x-3">
-                      <span className="slot-label tabular-nums">#{index + 1}</span>
+                      <span className="stat slot-label">#{index + 1}</span>
                       <CardName>{names[row.memberId] ?? row.memberId}</CardName>
                     </span>
-                    <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums text-ink-soft">
+                    <span className="stat flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-soft">
                       {rounds.map((round) => (
                         <span key={round}>
                           R{round} {formatTenths(row.byRound[round] ?? 0)}
@@ -104,7 +104,7 @@ export function StandingsTable({
                     </span>
                   </span>
                   <span
-                    className="text-sm tabular-nums"
+                    className="stat text-sm"
                     data-testid="standings-total"
                   >
                     {formatTenths(row.totalTenths)}

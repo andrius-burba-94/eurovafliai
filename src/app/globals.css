@@ -101,10 +101,17 @@
   --color-pos-c: oklch(0.82 0.15 80);
 
   /* --- Type -------------------------------------------------------------
-   * One family here still; 10.3 splits words from figures. Numbers are already
-   * tabular, so a column of them is a column and a clock does not jitter.
+   * Two families with one job each: words in Space Grotesk, figures that live
+   * in a column in JetBrains Mono. Figures are tabular in both, so a column of
+   * them is a column and a clock does not jitter as it counts down.
+   *
+   * The boundary is stateable in one sentence, which is the point: a figure in
+   * a sentence ("3 of 13 filled") is prose and stays sans. See the `stat`
+   * utility below, which is the only door to the mono face.
    */
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular,
+    monospace;
 
   --text-slot: 0.6875rem;
   --text-slot--line-height: 1rem;
@@ -237,6 +244,35 @@ body {
   border: 1px solid var(--color-rule-strong);
   background-color: var(--color-stock-panel);
   padding: 1rem;
+}
+
+/* A figure in a column — Phase 10, and the only door to the mono face.
+ *
+ * It is a utility rather than a bare `font-mono` on each cell for the reason
+ * every named material here is one: the rule "figures in a column, never prose"
+ * has to live somewhere a reviewer can find and grep. A cell reaching for
+ * `font-mono` directly is how a second family leaks into a sentence.
+ *
+ * ## It deliberately sets two properties and not four
+ *
+ * The obvious version also sets `font-weight: 500` and a tighter
+ * `letter-spacing`, and that version is a bug waiting for a caller. This
+ * utility composes with `slot-label` (which sets weight 500 and 0.14em
+ * tracking) and with `font-semibold` on the surfaces that lead with a figure —
+ * and Tailwind v4 emits `@utility` blocks **alphabetically**, not in source
+ * order, splitting them across chunks in dev. `slot-label` sorts before `stat`,
+ * so a tracking declaration here would silently win over the caps tracking of
+ * every label it is combined with, and `font-semibold` would lose its weight on
+ * some builds and not others. That is precisely the composition failure
+ * `slot-transit` already paid for, where the browser rendered a 1px dashed
+ * border that existed in neither rule.
+ *
+ * So: family and figure style only. Weight and tracking stay with the caller.
+ * `tabular-nums` is restated even though `body` sets it, because this utility
+ * is what *guarantees* it for a figure rather than inheriting it by luck. */
+@utility stat {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Slot labels: the board's own small caps, used for every column head, status

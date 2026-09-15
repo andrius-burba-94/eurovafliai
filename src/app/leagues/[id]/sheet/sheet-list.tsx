@@ -727,7 +727,7 @@ export function SheetList({
                       >
                         {/* `#N`, right-aligned in a fixed column — one rank
                             format in the app, not three. */}
-                        <span className="slot-label w-8 shrink-0 text-right tabular-nums text-ink-soft">
+                        <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
                           #{row.rank}
                         </span>
                         {/* `flex-1` on the name, `shrink-0` on what follows:

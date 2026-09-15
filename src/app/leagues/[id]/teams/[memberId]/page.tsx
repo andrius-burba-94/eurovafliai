@@ -139,7 +139,7 @@ export default async function TeamPage({
                       </span>
                     </span>
                     {player.overallNo ? (
-                      <span className="slot-label tabular-nums">
+                      <span className="stat slot-label">
                         #{player.overallNo}
                       </span>
                     ) : null}

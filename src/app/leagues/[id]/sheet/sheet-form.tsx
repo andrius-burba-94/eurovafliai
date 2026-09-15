@@ -387,7 +387,7 @@ export function SheetForm({
                 {resolved.slice(0, SAMPLE).map((row) => (
                   <Slot key={row.lineNo} nowrap>
                     <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
-                      <span className="slot-label w-8 shrink-0 text-right tabular-nums text-ink-soft">
+                      <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
                         #{row.rank}
                       </span>
                       <span

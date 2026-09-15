@@ -211,7 +211,7 @@ export function DraftBoard({
                   you are looking at stays labelled while the columns move. */}
               <span
                 role="rowheader"
-                className="sticky left-0 z-10 border-r border-rule-strong bg-stock-panel pt-1 pr-1.5 text-right text-slot tabular-nums text-ink-faint"
+                className="stat sticky left-0 z-10 border-r border-rule-strong bg-stock-panel pt-1 pr-1.5 text-right text-slot text-ink-faint"
               >
                 {row[0]?.round ?? index + 1}
               </span>
@@ -258,7 +258,7 @@ export function DraftBoard({
                     } ${isLastRound ? "border-b border-b-rule-strong" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-1">
-                      <span className="text-slot tabular-nums text-ink-soft">
+                      <span className="stat text-slot text-ink-soft">
                         {String(place.overallNo).padStart(2, "0")}
                         {/* CONTEXT.md's own word, and the same word the ticker
                             uses. It was "· A", which is a single letter in a

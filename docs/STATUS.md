@@ -122,6 +122,25 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — slice 10.3
+
+```bash
+npm run dev
+npx playwright test tests/e2e/design.spec.ts --project=chromium
+```
+
+Open `/players` and look down the **PIR column**. The figures are JetBrains
+Mono; the surnames beside them are Space Grotesk. That contrast is the whole
+slice.
+
+The one thing to look at: the sentence under a heading, and the chat's unread
+count, are **still** sans. A figure inside a sentence is prose. If you find a
+mono sentence anywhere, the `stat` utility has been used as decoration and the
+rule has already started leaking.
+
+Then open a draft room: the clock counts down in mono without the digits
+shifting, and chat timestamps line up as a column down the transcript.
+
 ## Try it on localhost — slice 10.2
 
 ```bash
@@ -887,7 +906,7 @@ the *sparkline*, which needs per-game values the pool never queried.
 |---|---|---|
 | **10.1 The decision, the rulebook and the palette** | done | ADR-0006, D22, DESIGN.md re-grounded, `.impeccable/design.json` regenerated. **The palette is solved, not picked**, and three constraints moved real values: a panel is *lighter* than the ground (depth on a dark ground is lightness), so `rule` is solved for 3:1 on the **panel** (3.15) and clears 3.52 on the ground as a by-product — the reverse of which surface was binding on paper. `live-sunk` is the *lightest* warm bay on which `ink-faint` still clears 4.5:1 (4.61), because faint ink is what a muted pool row is written in and that row can be the armed one. `ink-soft` is solved against its **worst** pairing — a position wash on a panel (4.57) and staying above the marker on the bay (5.36 vs 5.05) — where ADR-0005's 5.79:1 failed both. Chalk stops at **13.89:1** rather than the 18.8:1 the ground now allows, because halation is real: that argument is the one part of 9.5 that outlived it. The marker carries **four** decimal places (`oklch(0.6759 0.2175 38.8)`) because three round-trips to `#ff5502` |
 | **10.2 The palette in code** | done | `globals.css` rewritten; the `--night-*` indirection, `theme.ts`, the `<head>` script, `ThemeControl`, the sun/moon icons and `theme.spec.ts` all removed; `stock-deep` renamed **`stock-panel`**, because on this ground "deep" says the opposite of what it does. `tokens.test.ts` collapsed from two grounds to one — **74 assertions, every pair re-measured**, plus four that are new and deliberate: the two anchors asserted as sRGB *bytes* (`#0b1120`, `#ff5500`) rather than as OKLCH nobody can read; a **ceiling** on chalk so "improving" contrast toward white stops being a one-character change; `rule` asserted to be *harder on the panel than on the ground*, which is the inversion easiest to undo by accident; and a guard that every token is declared **exactly once**, because 9.5's `--night-*` naming was what stopped a second palette shipping unmeasured and deleting it removed that protection. `global-error.tsx` also carried a copy of the theme script — it renders when the layout has failed, so it had to be found by grep rather than by CI |
-| **10.3 Two type families** | todo | Space Grotesk for words, JetBrains Mono for figures in a column. Both verified against Next's own font metadata to ship `latin-ext` **before** being chosen — this league reads Valančiūnas |
+| **10.3 Two type families** | done | Space Grotesk for words, JetBrains Mono for figures in a column, both verified against Next's own `font-data.json` to ship `latin-ext` **before** being chosen — this league reads Valančiūnas, and a face that falls back mid-word makes the board look broken. The mono face is reached only through a named `stat` utility, which **deliberately sets two properties and not four**: adding `font-weight` and `letter-spacing` to it would have been a real bug, because it composes with `slot-label` (weight 500, 0.14em tracking) and with `font-semibold`, and Tailwind v4 emits `@utility` blocks **alphabetically** — `slot-label` sorts before `stat`, so a tracking declaration here would silently beat the caps tracking of every label it joined. That is the same composition failure `slot-transit` already paid for. Applied to ~30 columnar figures (pool PIR, standings, recap, impact, team and player pages, board and sheet numbering, the clock, chat timestamps); **not** applied to the chat unread badge or a figure inside a sentence, which is the boundary the rule states. `design.spec.ts` now asserts both halves in a browser: a `stat` cell computes to JetBrains Mono and prose does not |
 | **10.4 The card-block material** | todo | One radius step and a two-level depth scale, in `board.tsx`, replacing "zero radius, never nested" |
 | **10.5 Roster blocks and the captain** | todo | Segmented per-player blocks; an exclusive captain control that keeps the five-role select, `validateLineup` and the five official formations |
 | **10.6 The data grid and sparklines** | todo | Hand-drawn inline SVG, `aria-hidden` with a sentence beside it; needs `proj_last5_pirs` on `players` and its migration |

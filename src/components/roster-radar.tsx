@@ -337,7 +337,7 @@ export function RosterRadar({
                         left the moment a count reached two digits. */}
                     <span
                       data-testid="radar-need"
-                      className={`ml-0.5 w-2.5 shrink-0 text-right text-slot tabular-nums ${
+                      className={`stat ml-0.5 w-2.5 shrink-0 text-right text-slot ${
                         group.need > 0 ? "text-ink" : "text-ink-faint"
                       }`}
                     >

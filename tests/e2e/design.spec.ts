@@ -61,6 +61,31 @@ test("the board's own font is the one actually rendering", async ({ page }) => {
   const family = await page
     .locator("body")
     .evaluate((el) => getComputedStyle(el).fontFamily);
-  expect(family).toContain("Archivo");
+  expect(family).toContain("Space Grotesk");
   expect(family).not.toContain("Arial");
+});
+
+test("a figure in a column renders in the mono face, and prose does not", async ({
+  page,
+}) => {
+  // 10.3's whole boundary in one assertion, in the browser, because the failure
+  // is invisible in review either way round: a `stat` cell that silently fell
+  // back to the sans face looks fine, and a sentence that picked up the mono
+  // face looks like a bug nobody can name.
+  await page.goto("/login");
+
+  const both = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.innerHTML = `<span class="stat" id="p-stat">22.1</span><span id="p-prose">prose</span>`;
+    document.body.append(probe);
+    const read = (id: string) =>
+      getComputedStyle(document.getElementById(id)!).fontFamily;
+    const result = { stat: read("p-stat"), prose: read("p-prose") };
+    probe.remove();
+    return result;
+  });
+
+  expect(both.stat).toContain("JetBrains Mono");
+  expect(both.prose).toContain("Space Grotesk");
+  expect(both.prose).not.toContain("JetBrains Mono");
 });

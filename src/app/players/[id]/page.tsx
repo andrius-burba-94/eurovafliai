@@ -36,7 +36,7 @@ function Stat({
     <div className="flex flex-col gap-0.5">
       <dt className="slot-label">{label}</dt>
       <dd
-        className={`tabular-nums ${lead ? "text-2xl font-semibold" : "text-sm"} ${
+        className={`stat ${lead ? "text-2xl font-semibold" : "text-sm"} ${
           value === null ? "text-ink-faint" : ""
         }`}
       >
@@ -239,7 +239,7 @@ export default async function PlayerPage({
                     <span className="slot-label">{line.phase}</span>
                     <span className="slot-label">{line.clubCode}</span>
                   </span>
-                  <span className="flex flex-wrap items-baseline gap-x-3 text-sm tabular-nums">
+                  <span className="stat flex flex-wrap items-baseline gap-x-3 text-sm">
                     <span>PIR {line.pir}</span>
                     <span>{formatTenths(line.fantasyTenths)}</span>
                   </span>

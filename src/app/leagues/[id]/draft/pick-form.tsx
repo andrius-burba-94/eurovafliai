@@ -570,7 +570,7 @@ export function PickForm({
                   nowrap
                 >
                   <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
-                    <span className="slot-label w-8 shrink-0 text-right tabular-nums text-ink-soft">
+                    <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
                       #{player.rank}
                     </span>
                     <span className="min-w-0 truncate" title={player.name}>
@@ -852,7 +852,7 @@ export function PickForm({
                     Only drawn at all when the viewer has a sheet. */}
                 {hasSheet ? (
                   <span
-                    className="slot-label w-8 shrink-0 text-right tabular-nums text-ink-soft"
+                    className="stat slot-label w-8 shrink-0 text-right text-ink-soft"
                     data-testid="pool-sheet-rank"
                   >
                     {player.sheetRank === null ? "" : `#${player.sheetRank}`}
@@ -881,13 +881,13 @@ export function PickForm({
                   data-testid="pool-pir"
                   title={pirTitle(player)}
                 >
-                  <span className="text-sm font-semibold tabular-nums">
+                  <span className="stat text-sm font-semibold">
                     {player.averagePir === null
                       ? "—"
                       : formatTenths(player.averagePir)}
                   </span>
                   {player.averageGames > 0 ? (
-                    <span className="slot-label hidden tabular-nums sm:inline">
+                    <span className="stat slot-label hidden sm:inline">
                       {player.averageGames}
                     </span>
                   ) : null}
@@ -915,7 +915,7 @@ export function PickForm({
                     inside 390px; the player page prints it at every width. */}
                 {player.averageFantasy !== null ? (
                   <span
-                    className="slot-label hidden shrink-0 tabular-nums sm:inline"
+                    className="stat slot-label hidden shrink-0 sm:inline"
                     data-testid="pool-proj"
                   >
                     {`FP ${formatTenths(player.averageFantasy)}`}

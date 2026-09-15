@@ -125,7 +125,7 @@ export function PickClock({
       className={`${className} flex items-baseline gap-2`}
     >
       <span className="slot-label">{expired ? "Time's up" : "Time left"}</span>
-      <span className="text-2xl font-semibold tabular-nums">
+      <span className="stat text-2xl font-semibold">
         {/* Nothing on the first paint: the server has no business rendering a
             countdown, and a value it computed would be a hydration mismatch a
             quarter of a second before the real one arrived. */}

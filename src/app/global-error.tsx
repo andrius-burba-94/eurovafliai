@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { archivo } from "@/app/font";
+import { jetbrainsMono, spaceGrotesk } from "@/app/font";
 import "./globals.css";
 import {
   Correction,
@@ -27,7 +27,10 @@ export default function GlobalError({
     // copy of the ground the reader chose. Phase 10 left one ground, declared
     // in CSS, so the page that appears when everything else has failed gets it
     // for free — which is the right direction for this particular page.
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col bg-stock text-ink">
         <TopRail />
         <Sheet testId="root-error">

@@ -578,7 +578,7 @@ export function BoardPlan({
       <div className="flex flex-col border-t border-rule-strong">
         {Array.from({ length: rounds }, (_, round) => (
           <div key={round} className="flex items-stretch gap-2">
-            <span className="w-6 shrink-0 pt-0.5 text-right text-slot tabular-nums text-ink-faint">
+            <span className="stat w-6 shrink-0 pt-0.5 text-right text-slot text-ink-faint">
               {round + 1}
             </span>
             <div

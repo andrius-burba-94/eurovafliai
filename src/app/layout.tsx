@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { archivo } from "@/app/font";
+import { jetbrainsMono, spaceGrotesk } from "@/app/font";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -75,7 +75,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // Both existed for the ground switch: the script wrote `data-theme` before
     // first paint so a dark reader never saw a white flash. There is one ground
     // now, declared in CSS, so the server's markup and the browser's agree.
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col bg-stock text-ink">
         <div hidden dangerouslySetInnerHTML={{ __html: DIRECTION_CONTRACT }} />
         {/* First focusable control in the document. Off-screen until focused,

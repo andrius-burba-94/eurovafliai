@@ -164,20 +164,20 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
           <Slots testId="import-plan">
             <Slot>
               <span className="slot-label">New players</span>
-              <span className="text-sm tabular-nums">{plan.adds}</span>
+              <span className="stat text-sm">{plan.adds}</span>
             </Slot>
             <Slot>
               <span className="slot-label">Changed</span>
-              <span className="text-sm tabular-nums">{plan.changes}</span>
+              <span className="stat text-sm">{plan.changes}</span>
             </Slot>
             <Slot state={plan.leaving > 0 ? "live" : "filled"}>
               <span className="slot-label">Marked as left</span>
-              <span className="text-sm tabular-nums">{plan.leaving}</span>
+              <span className="stat text-sm">{plan.leaving}</span>
             </Slot>
             {plan.blocked > 0 ? (
               <Slot>
                 <span className="slot-label">Locked, so untouched</span>
-                <span className="text-sm tabular-nums">{plan.blocked}</span>
+                <span className="stat text-sm">{plan.blocked}</span>
               </Slot>
             ) : null}
           </Slots>
