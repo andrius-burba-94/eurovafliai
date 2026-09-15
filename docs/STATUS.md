@@ -138,6 +138,54 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — the roll ceremony
+
+```bash
+npm run dev
+```
+
+Open one league in two browser profiles — commissioner in one, an ordinary
+member in the other, both sitting in the lobby. Press **Roll the order**.
+**Both windows leave for `/leagues/[id]/order`.** Ten seconds of clock, then one
+slot every three seconds, from the **last** pick upward to the first; the name
+being drawn is the biggest thing on screen and the order fills in below. The
+member is not clicking anything.
+
+The two things worth checking specifically:
+
+```bash
+# Land in the middle of a draw, on purpose. Backdate the instant and reload:
+# the page joins the draw in progress instead of restarting at ten.
+npx playwright test tests/e2e/roll.spec.ts -g "opens late"
+npx playwright test tests/e2e/roll.spec.ts
+```
+
+Then press **Reshuffle** — it redraws the order *without* summoning anyone, in
+the lobby, where 2.3b's staged reveal still plays. The ceremony belongs to the
+first draw only.
+
+**The phase is derived, never broadcast and never timed on a client**
+([ADR-0007](adr/ADR-0007-the-roll-ceremony.md), blueprint **D25**). The first
+roll stores `settings.rolled_at` and every device computes its own phase from
+that one instant, correcting its clock against `/api/time` the way the pick
+clock does. A reload restarts nothing, a phone that opens thirty seconds late
+joins in progress, somebody arriving an hour later reads a finished order, and
+the whole ceremony is testable by backdating one field rather than waiting
+forty-six seconds.
+
+**The motion budget is now four** and the fourth is spent: `slot-drawn`, 900ms,
+rising. DESIGN.md's Three Events Rule said a fourth is a change to that document
+rather than a variant, so it is argued in ADR-0007 and written into DESIGN.md's
+Motion section as Event four. One type step came with it (`--text-roll`, 5rem
+mono). Under `prefers-reduced-motion` the pacing still runs — it is a clock, not
+an animation — and only the rise is dropped.
+
+One consequence worth knowing before writing a test: **rolling now navigates**,
+so every spec that rolls goes through the `rollOrder` helper in
+`tests/e2e/helpers/session.ts` rather than clicking `draft-roll` directly. The
+exceptions are the three places where the roll itself is the subject — a
+re-apply, and the two refused rolls.
+
 ## Try it on localhost — the order everyone can read
 
 ```bash

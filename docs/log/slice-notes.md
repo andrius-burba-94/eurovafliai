@@ -3,6 +3,112 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## The roll ceremony — the one page in this app built to be watched
+
+The ask, precisely specified: on the first roll take everyone to a page, count
+down from ten, then reveal the order one slot at a time from last to first at
+three seconds each, slowly, in the app's own style, and make it memorable.
+
+**It was a gap against §2.3 rather than a new idea**, which is worth saying
+because the blueprint had asked for exactly this from the start: a roll
+"revealed live to all clients one slot at a time as an animated event". 2.3b
+built the staging and pointed it at the lobby's member list — and that list is
+in *join* order during setup, so what a member saw was numbers landing in
+scattered rows beside an invite code. PR #120 made the ordered list readable to
+everyone; this slice gives the draw a place to happen.
+
+### The decision the whole thing rests on
+
+The phase is **derived from a stored instant**, not broadcast and not timed on a
+client. The first roll writes `settings.rolled_at`; every device computes where
+it is from that one number.
+
+The alternative is the obvious implementation and it is why this is recorded: a
+`setTimeout` chain started "when the roll arrived" would give every phone a
+private ceremony. Two friends on one sofa would watch different slots land,
+which fails PRODUCT.md principle 3 — draft night is one shared moment — on the
+one surface built entirely around it. Deriving instead buys four things that all
+fall out of the same choice: a phone opening thirty seconds late **joins the
+draw in progress**, a reload restarts nothing, somebody arriving an hour later
+reads a finished order rather than a countdown, and the ceremony is **testable
+by backdating one field** instead of waiting forty-six seconds. That last one is
+not a testing trick — it is the same mechanism as the late-joining phone.
+
+The browser corrects its clock against `/api/time`, reusing the pick clock's own
+method (ask once, halve the round trip) for invariant §4's reason: a phone two
+minutes fast must not run a two-minute-wrong ceremony.
+
+### Two things the implementation had to be told twice
+
+**The purity lint caught a real boundary, not a technicality.** The first cut
+read `Date.now()` inside the server component to seed the first paint, and
+`react-hooks/purity` refused it. There is no `eslint-disable` anywhere in
+`src/`, so the fix had to be architectural: `serverRollCeremony` in
+`src/lib/roll/snapshot.ts`, which calls `connection()` to declare the render
+per-request and then reads the clock. The rule was right — a prerendered
+timestamp would have frozen the ceremony at build time for everybody.
+
+**The reveal had to be respected by the thing that shows the order.** The
+commissioner's Bank had always printed the full order the instant it was
+written, because it was the only one looking. Shown to a whole lobby that would
+have spoiled the draw outright: the ordered list would print who picks first
+while the rows beside it were still counting down. Hence `DraftOrder` taking the
+lobby's `revealed` predicate as a prop rather than calling `useRollReveal`
+again — two independent staged reveals on one screen drift apart within a slot.
+
+### The design, and the one thing a render caught that reasoning did not
+
+The surface spends nothing new: no colour, gradient, glow, shadow, second
+radius, icon or sound. The drama is scale, composition and pacing inside
+ADR-0006's world — one focal figure in marker, the order filling *upward* as
+ruled slots, every empty place drawn with its number already on it because the
+numbers were never the secret.
+
+Then the first render was looked at, and the hierarchy was **exactly inverted**:
+"THE ROLL" at display size was the loudest thing on the page and "KROSAS" — the
+answer to the entire ceremony — was 16px underneath it. Reasoning about the
+markup would not have found that; a screenshot found it in a second. So the
+page's own title is deliberately demoted to small caps (still an `h1`: heading
+level is document structure, not a type size) and display size went to the name
+being drawn. The finish drops the giant numeral altogether, which is a phase
+*difference* rather than an omission — the numeral's jobs were counting and
+locating, and at the end there is nothing left to count.
+
+The budget changes are argued in [ADR-0007](../adr/ADR-0007-the-roll-ceremony.md)
+and blueprint **D25** rather than slipped in, because DESIGN.md's Three Events
+Rule says a fourth animation is a change to that document. `slot-drawn` is
+900ms and **rises**, where `card-lands` is 260ms and drops: wrong duration for a
+brief that asks for slow, and wrong direction for a board that fills upward.
+One type step came with it on the invite code's argument.
+
+### What it cost elsewhere, which is the honest part
+
+**Rolling now navigates, so 41 clicks across nine spec files broke.** They all
+went through one `rollOrder` helper, which is the right shape — "rolling opens
+the ceremony" is now stated in one place — but it is a wide mechanical diff and
+it is the real price of making a button leave the page.
+
+Three specs needed *reframing* rather than replacing, and one is a genuine
+narrowing worth recording: `draft-setup.spec.ts`'s "the reveal plays when the
+order lands" now triggers on a **reshuffle**, because the first draw belongs to
+the ceremony and the lobby's staged reveal is what a redraw plays. 2.3b's motion
+did not die; its territory shrank. And #120's own spec had to send the member
+*back* to the lobby after the draw, which is the two features stated together:
+the ceremony owns the moment, the lobby owns the record.
+
+### Left alone, deliberately
+
+The ceremony fires on the **first roll only** — the maintainer's call, and the
+right one: a redraw is a correction, not the event. A re-apply must not restart
+a ceremony the room has watched (the same reasoning as #119's silent replay),
+and a hand-set order clears the instant because an order agreed at the bar was
+never drawn.
+
+The one automatic trip is **once per device per roll**, held in
+`sessionStorage`. Without that bound, "bring everyone in while the draw is live"
+plus a door back to the lobby is an infinite loop — the draw is still live when
+they arrive. There is a spec named after the trap.
+
 ## The order is the league's, not the commissioner's
 
 Reported straight after the re-apply fix: *"Only the commissioner sees the draft
