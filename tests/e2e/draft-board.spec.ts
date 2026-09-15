@@ -129,13 +129,20 @@ async function slotOrder(page: Page): Promise<string[]> {
 }
 
 /**
- * Watch for the second motion event actually starting.
+ * Watch for the board's motion events actually starting.
  *
- * `data-advanced` is taken off again on `animationend`, so with motion allowed
- * it exists for 260ms and asserting on it is a race. The honest subject is the
- * animation: this records every one that starts on a board slot, with the
- * computed origin of the overlay painting it. Installed before the pick, and it
- * survives `router.refresh()` because that is a soft navigation.
+ * `data-advanced` and `data-landed` are both taken off again on `animationend`,
+ * so with motion allowed they exist for a few hundred milliseconds and asserting
+ * on them is a race. The honest subject is the animation: this records every one
+ * that starts on a board slot, with the computed origin of the overlay painting
+ * it. Installed before the pick, and it survives `router.refresh()` because that
+ * is a soft navigation.
+ *
+ * Two events land on this board now and they start in the same frame — the rule
+ * leaving the slot that was on the clock, and that slot springing shut on the
+ * pick it just took. Every assertion below therefore selects by `name`, never by
+ * arrival order: which of two simultaneous animations fires its event first is
+ * DOM order, which is not a promise this app makes.
  */
 async function recordAdvances(page: Page) {
   await page.evaluate(() => {
@@ -150,6 +157,10 @@ async function recordAdvances(page: Page) {
         seen.push({
           testId: target.getAttribute("data-testid"),
           name: (event as AnimationEvent).animationName,
+          // The rule is painted by `::after` and the spring moves the slot
+          // itself, so this says which of the two a record is about without
+          // trusting its name.
+          pseudo: (event as AnimationEvent).pseudoElement,
           origin: after.transformOrigin,
           width: target.clientWidth,
           height: after.height,
@@ -163,6 +174,7 @@ async function recordAdvances(page: Page) {
 type Advance = {
   testId: string;
   name: string;
+  pseudo: string;
   origin: string;
   width: number;
   height: string;
@@ -342,6 +354,19 @@ test("the marker rule is painted, and reduced motion drops the travel and not th
   // travel. `animation: none` leaves the overlay at its resting scale.
   expect(rule.height).toBe("2px");
   expect(rule.background).not.toBe("rgba(0, 0, 0, 0)");
+
+  // And the third event is inert on the same terms: the pick is *there* —
+  // named, washed and lettered on the first frame — it simply does not spring.
+  // The guard is inside the rule in `globals.css`, so this is what proves the
+  // rule was written with it rather than beside it.
+  const landed = page.getByTestId("board-slot-1");
+  await expect(landed).toHaveAttribute("data-state", "filled");
+  expect(
+    await landed.evaluate((node) =>
+      window.getComputedStyle(node).animationName,
+    ),
+  ).toBe("none");
+  await expect(landed).not.toBeEmpty();
 });
 
 test.describe("with motion allowed", () => {
@@ -362,16 +387,91 @@ test.describe("with motion allowed", () => {
     );
 
     await expect
-      .poll(async () => (await advancesOn(page)).length)
-      .toBeGreaterThan(0);
-    const [advance] = await advancesOn(page);
+      .poll(async () =>
+        (await advancesOn(page)).filter((one) => one.name === "rule-advances"),
+      )
+      .not.toHaveLength(0);
+    const [advance] = (await advancesOn(page)).filter(
+      (one) => one.name === "rule-advances",
+    );
     expect(advance!.testId).toBe("board-slot-2");
-    expect(advance!.name).toBe("rule-advances");
+    expect(advance!.pseudo).toBe("::after");
     expect(advance!.height).toBe("2px");
 
     // And the overlay hands the rule back to the real border when it is done,
     // rather than standing in for it until the clock moves again.
     await expect(page.locator("[data-advanced]")).toHaveCount(0);
+  });
+
+  test("the pick that just landed springs into its slot, and only that one", async ({
+    page,
+    context,
+  }) => {
+    // The third motion event, and the last one the budget has (D22). It is the
+    // other half of the advance above: the rule leaves slot 1, and slot 1 —
+    // which now holds a player it did not hold a moment ago — springs shut.
+    const { commissioner, league, players } = await boardLeague("Spring On");
+    await signIn(context, commissioner);
+    await enterDraft(page, league.id);
+    await recordAdvances(page);
+
+    await pickBehindTheirBack(league.id, players[0]!.id);
+    await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
+      "data-state",
+      "filled",
+    );
+
+    await expect
+      .poll(async () =>
+        (await advancesOn(page)).filter((one) => one.name === "pick-springs"),
+      )
+      .not.toHaveLength(0);
+    const springs = (await advancesOn(page)).filter(
+      (one) => one.name === "pick-springs",
+    );
+    // The slot that filled, not the one that is now on the clock — and exactly
+    // one of them, because a board where every filled slot springs on every
+    // re-render is the decoration DESIGN.md refuses.
+    expect(springs.map((one) => one.testId)).toEqual(["board-slot-1"]);
+    // The slot itself moves, not an overlay: the pick is what arrives.
+    expect(springs[0]!.pseudo).toBe("");
+
+    // And the attribute is handed back, so a slot is not left marked as having
+    // just arrived for the rest of the night.
+    await expect(page.locator("[data-landed]")).toHaveCount(0);
+  });
+
+  test("a rollback does not spring the slot it empties", async ({
+    page,
+    context,
+  }) => {
+    // The marker moves backwards too, and the slot it moves off is emptied
+    // rather than filled. Springing there would announce a pick that had just
+    // been taken away — the same argument that keeps the rule from travelling
+    // onto a rolled-back slot.
+    const { commissioner, league, players } = await boardLeague("Rollback Spring");
+    await signIn(context, commissioner);
+    await enterDraft(page, league.id);
+    await pickBehindTheirBack(league.id, players[0]!.id);
+    await expect(page.getByTestId("board-slot-2")).toHaveAttribute(
+      "data-state",
+      "live",
+    );
+
+    await recordAdvances(page);
+    await page.getByTestId("draft-undo-toggle").click();
+    await page.getByTestId("draft-undo-target").fill("1");
+    await page.getByTestId("draft-undo").click();
+
+    // The marker has moved backwards onto slot 1, which is now empty and where
+    // a paused draft stands.
+    await expect(page.getByTestId("board-slot-1")).toHaveAttribute(
+      "data-state",
+      "standing",
+    );
+    expect(
+      (await advancesOn(page)).filter((one) => one.name === "pick-springs"),
+    ).toHaveLength(0);
   });
 });
 
@@ -454,10 +554,13 @@ test.describe("the rule travels the way the round is drafted", () => {
       "true",
     );
 
-    await expect
-      .poll(async () => (await advancesOn(page)).length)
-      .toBeGreaterThanOrEqual(2);
-    const advances = await advancesOn(page);
+    // By name, not by count: the board also springs the slot each pick fills,
+    // so counting every animation on it would let this through before the
+    // second *rule* had started — which is exactly how it first failed.
+    const rules = async () =>
+      (await advancesOn(page)).filter((one) => one.name === "rule-advances");
+    await expect.poll(async () => (await rules()).length).toBeGreaterThanOrEqual(2);
+    const advances = await rules();
     const forward = advances.find((one) => one.testId === "board-slot-2");
     const back = advances.find((one) => one.testId === "board-slot-3");
 

@@ -458,3 +458,67 @@ body {
 [data-board-slot][data-state="live"][data-advanced="true"][data-reversed]::after {
   transform-origin: right;
 }
+
+/* Event three, and the budget is spent: a pick springs into its slot.
+ *
+ * Phase 10 raised the motion budget from two to three (blueprint D22) and this
+ * is the third. It is the same event the rule advance is keyed on, seen from
+ * the other side: when the clock moves, the slot it moved *off* is holding a
+ * player it did not hold a moment ago. The rule leaves; the card lands. Both
+ * play together on adjacent slots, which is what the board does physically.
+ *
+ * ## Why a spring, when this system has one curve
+ *
+ * The overshoot is in the KEYFRAMES, not in a second easing vocabulary: the
+ * timing function between them is `cubic-bezier(0.22, 1, 0.36, 1)`, the same
+ * curve `card-lands` and `rule-advances` use. So there is still one curve in
+ * this app, and a spring is a shape drawn with it rather than a physics engine
+ * imported to compete with it. `linear()` would have been the other way to get
+ * a damped bounce and it buys nothing here: four stops say it, and a reviewer
+ * can read four stops.
+ *
+ * The overshoot is deliberately small (4%). A slot is ~92px wide and its
+ * neighbours' rules are 1px, so a large one would visibly eat the board's own
+ * ruling for a third of a second — and the ruling IS the state language.
+ *
+ * ## Why it is keyed on an attribute
+ *
+ * Same reason as `rule-advances`, and it is not a preference: the server knows
+ * which slot filled but not whether THIS viewer was watching it fill. Rendered
+ * from server state it would replay on every load and every refresh, which is
+ * decoration. `board-scroll.tsx` sets `data-landed` only when it saw the
+ * marker move while mounted, and takes it off again on `animationend`.
+ */
+@keyframes pick-springs {
+  0% {
+    transform: scale(0.86);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  78% {
+    transform: scale(0.99);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+[data-board-slot][data-state="filled"][data-landed="true"] {
+  /* So the overshoot is not clipped by the neighbour that paints after it — a
+   * live slot carries an opaque field and would cut the corner off. Below the
+   * sticky round gutter's z-10 on purpose: a slot springing at the left edge
+   * should pass *under* the gutter, exactly as it does when scrolled. */
+  position: relative;
+  z-index: 1;
+  animation: pick-springs 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  /* Guarded inside the rule, never at the call site. The pick still arrives —
+   * the name, the wash and the position letter are all there on the first
+   * frame; only the travel is dropped. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}

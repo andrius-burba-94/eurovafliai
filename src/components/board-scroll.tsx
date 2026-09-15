@@ -15,8 +15,11 @@ import { useEffect, useRef, type ReactNode } from "react";
  *    than a second container width). Somebody arriving mid-draft should be
  *    looking at the pick on the clock.
  * 2. **Whether this viewer was watching when the marker moved.** That is the
- *    signal the second motion event needs; see the note on `rule-advances` in
- *    `globals.css`. A page load is not an advance.
+ *    signal the second and third motion events need; see the notes on
+ *    `rule-advances` and `pick-springs` in `globals.css`. A page load is not an
+ *    advance. The two are one event seen from both ends: the rule leaves the
+ *    slot that was on the clock, and that slot springs shut on the pick it has
+ *    just taken.
  *
  * It holds no draft state. `markedOverallNo` is a number it compares with the
  * last number it saw and then forgets; it never decides anything from it.
@@ -61,7 +64,32 @@ export function BoardScroll({
     // Null on the first run, so a fresh page is still: the room is correct on
     // arrival, and animating it would be decoration rather than news.
     const advanced = seen.current !== null && seen.current !== markedOverallNo;
+    const left = seen.current;
     seen.current = markedOverallNo;
+
+    // The third motion event: the slot the marker just left, if a pick is what
+    // it left behind. One slot, not every slot that has filled since — under an
+    // autodraft burst the marker can jump three places, and three cards landing
+    // at once is a board flickering rather than a pick arriving.
+    for (const stale of container.querySelectorAll("[data-landed]")) {
+      stale.removeAttribute("data-landed");
+    }
+    if (advanced && left !== null) {
+      const filled = container.querySelector<HTMLElement>(
+        `[data-board-slot][data-overall="${left}"]`,
+      );
+      // `filled` on purpose, and it is the whole guard: a rollback also moves
+      // the marker, backwards, onto a slot it empties. Springing then would
+      // announce a pick that had just been taken away.
+      if (filled?.dataset.state === "filled") {
+        filled.setAttribute("data-landed", "true");
+        filled.addEventListener(
+          "animationend",
+          () => filled.removeAttribute("data-landed"),
+          { once: true },
+        );
+      }
+    }
 
     const marked = container.querySelector<HTMLElement>(
       '[data-board-slot][data-live="true"]',
@@ -77,6 +105,10 @@ export function BoardScroll({
 
     // A finished draft has no marked slot, so there is nothing to follow and
     // nothing to strike. The board stays where the viewer left it.
+    //
+    // After the spring above, not before: the pick that *completes* a draft
+    // lands on a board with no marker left to advance, and it is the one pick
+    // of the night most worth seeing arrive.
     if (!marked) return;
 
     // Only an advance through a *live* draft is struck. A rollback lands the

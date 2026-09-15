@@ -233,6 +233,13 @@ export function DraftBoard({
                     // `data-state="live"` is what the second motion event is
                     // keyed on — the same DOM contract `Slot` publishes.
                     data-board-slot=""
+                    // Which pick this slot is, so the scrollport can find the
+                    // slot the marker has just *left* — the one that filled,
+                    // and the third motion event's subject. Read from the DOM
+                    // rather than held in React state for the same reason
+                    // `data-advanced` is: the board is server-rendered and the
+                    // browser owns only the question of what it witnessed.
+                    data-overall={place.overallNo}
                     data-state={state}
                     // The marked slot, whichever of the two things it means, so
                     // the scrollport has one thing to follow.

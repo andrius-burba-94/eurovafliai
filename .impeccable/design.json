@@ -285,9 +285,14 @@
         "purpose": "Hover and focus colour changes on interactive elements. Not animation; permitted everywhere interactive."
       },
       {
+        "name": "rule-advances",
+        "value": "rule-advances 260ms cubic-bezier(0.22, 1, 0.36, 1) both, on ::after",
+        "purpose": "The marker rule leaving the slot that was on the clock and drawing itself across the next one. Painted by a pseudo-element because a border cannot be scaled from one end, and from the right on a slot carrying data-reversed, because every even round of a snake draft is drafted right to left. Keyed on data-advanced, set by board-scroll.tsx only when this viewer was watching."
+      },
+      {
         "name": "pick-springs",
-        "value": "pick-springs 320ms on the system's own curve",
-        "purpose": "Phase 10's third and final animation event: a draft selection springing into place on the row that was just committed. prefers-reduced-motion is guarded inside the utility, never at the call site."
+        "value": "pick-springs 320ms cubic-bezier(0.22, 1, 0.36, 1) both — scale 0.86 → 1.04 → 0.99 → 1",
+        "purpose": "Phase 10's third and final animation event: the slot the marker just left, springing shut on the pick it has taken. The same state change as rule-advances seen from the other end, which is why it is not a fourth event. The overshoot is in the keyframes so the app keeps one curve; it is 4% because the board's 1px ruling IS the state language. Only a slot that FILLED (a rollback empties one), only one slot (an autodraft burst moves the marker three places), never on a first paint. Keyed on data-landed, guarded inside the rule."
       }
     ],
     "breakpoints": [
@@ -467,7 +472,7 @@
       "Vibrant position coding (cyan guards, emerald forwards, amber centers), always accompanied by its G / F / C letter.",
       "One radius step and one panel material; zero glow, zero gradients.",
       "Two type families: Space Grotesk for words, JetBrains Mono for figures.",
-      "Exactly three animations are implemented, on exactly three state-change events.",
+      "Exactly three animations, on exactly three state-change events, and all three are implemented.",
       "Mobile-first with a single breakpoint; the phone gets the complete rail."
     ],
     "rules": [
@@ -552,8 +557,8 @@
         "section": "components"
       },
       {
-        "name": "The Two Events Rule",
-        "body": "Nothing else animates. Colour transitions on hover (transition-colors) are not animation and are permitted on interactive elements. A spinner, a skeleton, a page transition, a parallax or an entrance animation on a static element is out of scope for this world.",
+        "name": "The Three Events Rule",
+        "body": "Three animations on three state changes, and the budget is spent: a card landing in its slot, the live rule advancing, and the slot the rule just left springing shut on its pick. A fourth is a change to DESIGN.md, not a variant. Nothing else animates. Colour transitions on hover (transition-colors) are not animation and are permitted on interactive elements. A transform driven directly by a pointer is not animation either. A spinner, a skeleton, a page transition, a parallax or an entrance animation on a static element is out of scope for this world.",
         "section": "motion"
       }
     ],
@@ -577,10 +582,10 @@
       "Don't introduce a third font family, an icon package or an icon font, and don't set prose in the mono face.",
       "Don't write border-b-solid. It is not a Tailwind v4 utility and compiles to nothing — the border silently stays dashed and the screenshot looks plausible. Use an arbitrary property.",
       "Don't ship a system-level comment as JSX ({/* … */}). A JSX comment is a JavaScript comment: it reaches a sourcemap and nothing else, so it is a contract nobody can audit. React has no comment node, so the direction contract in layout.tsx is emitted through dangerouslySetInnerHTML and guarded by tests/e2e/design.spec.ts.",
-      "Don't animate anything new. Both events in the motion budget are built."
+      "Don't animate anything new. All three events in the motion budget are built."
     ],
     "openQuestions": [
-      "No dark mode. color-scheme: light is declared and the light ground is a deliberate inversion argued from a lit room and daylight phone use.",
+      "No light mode and no switch. color-scheme: dark is declared and the one ground is deliberate: #FF5500 measures 2.76:1 on the card stock this replaced, so a second palette is not a theme flag but a second solve. Recorded as debt in STATUS.md, not as a setting.",
       "Input error and disabled states are unstyled; Correction carries every failure today.",
       "A few type values are one-offs, not tokens: sm:text-[1.0625rem], tracking-[0.32em], tracking-[0.36em]."
     ]

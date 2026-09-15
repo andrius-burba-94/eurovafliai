@@ -17,6 +17,9 @@ test("the direction contract survives into the emitted markup", async ({
   const html = await page.content();
   expect(html).toContain("DIRECTION CONTRACT");
   expect(html).toContain("seed 32792572");
+  // The motion budget is a number somebody will want to raise by one, and the
+  // contract is where it is spent. 10.8 spent the third and last.
+  expect(html).toContain("budget of THREE animations");
   expect(html).toContain("FINISH: unreviewed and undocumented is unfinished");
 });
 

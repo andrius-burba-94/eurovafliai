@@ -125,7 +125,20 @@ export function PickClock({
       className={`${className} flex items-baseline gap-2`}
     >
       <span className="slot-label">{expired ? "Time's up" : "Time left"}</span>
-      <span className="stat text-2xl font-semibold">
+      {/* The largest figure in the room — Phase 10's restyle of this band.
+          
+          It was `text-2xl`, one step under the headline above it, and the
+          headline is the same sentence for the whole two minutes while this is
+          the only thing on the band that changes. A clock that has to be read
+          at arm's length across a lounge, on a phone lying on a table, is the
+          thing the band is for.
+          
+          Size is the whole change: the figure was already `ink`, the top of the
+          chalk ramp at 13.89:1 on stock and higher still on this bay. There is
+          no colour to reach for — the marker's two jobs are taken, and a number
+          in marker on a marker-tinted band is the Ink-on-Blush Rule broken on
+          the one surface everybody is looking at. */}
+      <span className="stat text-4xl font-semibold sm:text-5xl">
         {/* Nothing on the first paint: the server has no business rendering a
             countdown, and a value it computed would be a hydration mismatch a
             quarter of a second before the real one arrived. */}

@@ -161,7 +161,19 @@ export default async function DraftPage({
               <p className="slot-label">
                 Pick {onClock.overallNo} &middot; round {onClock.round}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
+              {/* One step down from the other two headlines, and only this one.
+                  
+                  A paused draft and a finished one have nothing else to say, so
+                  their headline is the band. A live one has a clock, and the
+                  clock is what changes: this sentence is identical for the
+                  whole of somebody's two minutes. Ranking them the same way
+                  made the constant fact the loudest one. It stays `h1` — this
+                  is still the room's heading — and the step it gives up is
+                  most of what the countdown takes: measured on the real band,
+                  the whole thing grows 4px on a Pixel 7 and 12px at 1440,
+                  which is the budget a band that never leaves the viewport
+                  gets to spend. */}
+              <h1 className="mt-1 text-xl font-semibold uppercase tracking-[0.04em] sm:text-2xl">
                 {isYourTurn
                   ? "You are on the clock"
                   : `${onClock.memberName} is on the clock`}

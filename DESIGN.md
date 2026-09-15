@@ -233,7 +233,7 @@ glow, no gradient ground, no atmosphere standing in for hierarchy.
 - Vibrant position coding, always accompanied by its G / F / C letter.
 - One radius step and one panel material; zero glow, zero gradients.
 - Two type families: Space Grotesk for words, JetBrains Mono for figures.
-- Exactly three animations, on exactly three state-change events.
+- Exactly three animations, on exactly three state-change events, all built.
 - Mobile-first with a single breakpoint; the phone gets the complete rail.
 
 ## Colors
@@ -1281,8 +1281,10 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
 ## Motion
 
 Motion exists for **meaningful state changes only** — PRODUCT.md's brand
-commitment, and the direction contract's promise: "Only two things in this app
-animate: a card landing, and the live rule advancing."
+commitment, and the direction contract's promise: "a budget of THREE animations:
+[a card landing in its slot], the live rule advancing across the board, and a
+draft selection springing into place. The budget is spent; a fourth is a change
+to DESIGN.md."
 
 **Implemented today: both.** The `card-lands` utility — 260ms,
 `cubic-bezier(0.22, 1, 0.36, 1)`, `both`, from `opacity: 0` /
@@ -1317,9 +1319,7 @@ the server like every other utility here. The reason is the same one that makes
 `card-lands` wait for `?arrived=1`: the server knows which slot is live but not
 whether *this viewer* was watching when it changed, and motion rendered from
 server state would replay on every load and every refresh. A first paint is
-still. That is also why the room's board has no "just landed" animation on the
-pick itself — one event per state change, and the state change here is the clock
-moving.
+still.
 
 **The Three Events Rule.** Phase 10 raised the budget from two to three, and
 spent the third: **a draft selection springs into place**. That is one event —
@@ -1327,11 +1327,38 @@ the pick you just committed — on the one surface where a committed act deserve
 to be felt rather than merely seen. The budget is spent again: a fourth
 animation is a change to this document, not a variant.
 
+The third event is the second one **seen from the other end**, and that is why
+it is not a fourth: one state change, the clock moving, and two things it does
+to the board. The rule leaves the slot that was on the clock; that slot, now
+holding a player it did not hold a moment ago, springs shut on it. `pick-springs`
+— 320ms, scale `0.86 → 1.04 → 0.99 → 1`, keyed on `data-landed` and set by the
+same effect in `board-scroll.tsx` for the same "was this viewer watching"
+reason. The attribute comes off on `animationend`, like `data-advanced`.
+
+Three guards decide when it does *not* play, and each is a rule rather than a
+detail:
+
+- **Only a slot that FILLED.** A rollback also moves the marker, backwards,
+  onto a slot it empties — springing there would announce a pick that had just
+  been taken away.
+- **One slot, never a burst.** An autodraft sweep can move the marker three
+  places at once; three cards landing together is a board flickering, not a
+  pick arriving. The slot the marker left is the one that springs.
+- **Never on a first paint**, which is the `data-advanced` argument unchanged.
+
+The overshoot lives in the **keyframes**, not in a second easing vocabulary: the
+timing function between the stops is `cubic-bezier(0.22, 1, 0.36, 1)`, the same
+curve the other two events use. So this app still has one curve, and a spring is
+a shape drawn with it. It is deliberately small — 4% — because a slot is ~92px
+wide and its neighbours' rules are 1px, and the ruling *is* the state language
+here; an overshoot big enough to eat it would be motion undoing the design it
+sits in.
+
 The guard did not move, and it is the part that matters:
-`prefers-reduced-motion` is handled **inside** the animation utility, never at a
-call site, so a new caller cannot forget it. The spring is CSS — keyframes on
-the system's own curve — because a physics library would put a third easing
-vocabulary in a system that has one.
+`prefers-reduced-motion` is handled **inside** the animation rule, never at a
+call site, so a new caller cannot forget it. Under it the pick is simply there —
+name, wash and position letter on the first frame — and `draft-board.spec.ts`
+asserts exactly that rather than trusting the media query.
 
 Nothing else animates. Both of the original two events stand unchanged below.
 The board's auto-scroll is not one of them — following the clock is scrolling,
@@ -1368,8 +1395,13 @@ confirmation.** A landed pick is a row leaving the pool, a slot on the board
 going `filled`, the live rule advancing to the next team and a sentence in the
 transcript naming the player and the team that took them. Four surfaces move,
 three of them permanent. A fifth, temporary mark that says "yes, that worked"
-would be a second telling of something already told, and — under The Two Events
-Rule above — a third animation.
+would be a second telling of something already told, and — under The Three
+Events Rule above — a fourth animation.
+
+Phase 10's spring does not reopen this. It marks the **state change**, on the
+slot that changed: the pick is in a place it was not in, and the motion is that
+place closing on it. A success mark is a fifth surface saying "yes, that
+worked" after the four that already said it.
 
 Raised as a finding by both 3.3's and 3.7's critiques, which is why it is
 written down here rather than left to be re-discovered a third time. Toasts were
@@ -1386,8 +1418,10 @@ unresolved, not omissions from this document. Answered ones are struck through
 rather than deleted, so the decision and the question it settled stay together.
 
 1. ~~**The second motion event does not exist yet.**~~ **Answered in 3.1:** the
-   live rule advancing, keyed on `data-advanced`. See Motion above. The
-   two-event budget is now spent.
+   live rule advancing, keyed on `data-advanced`. See Motion above. **Reopened
+   and re-closed in 10.8:** D22 raised the budget to three and the third is
+   built — `pick-springs`, the slot the rule just left. The budget is spent
+   again.
 2. ~~**There is no real draft board.**~~ **Answered in 3.1:** `DraftBoard`, above.
    `BoardPlan` **stays** where it is, unchanged — the login page and the lobby
    have no draft to draw, and an authored depiction of an empty board is still

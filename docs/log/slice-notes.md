@@ -3,6 +3,77 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.8 — One state change, two ends of it
+
+The brief asked for "smooth motion design for draft selections (spring
+animations)" and a "persistent, high-contrast countdown timer". The second of
+those already existed — `pick-clock.tsx` has been in a `sticky top-0 z-20` band
+since 3.7, corrected against a server clock offset — so this slice restyles it
+and spends the motion budget D22 raised from two to three.
+
+**The third event had to earn not being a fourth.** DESIGN.md had already
+argued, back in 3.1, that the room's board gets *one* event per state change and
+that the state change when a pick lands is the clock moving. A spring on the
+pick looked like a second animation for the same fact. What makes it one:
+the rule leaves the slot that was on the clock, and that slot — which now holds
+a player it did not hold a moment ago — springs shut on it. One event, two ends,
+two adjacent slots moving at once. That is what a physical board does, and it is
+why the spring is keyed on the same signal the rule advance is: `board-scroll.tsx`
+knows the marker moved *while this viewer was mounted*, which is the one thing
+the server cannot know.
+
+That signal needed the board to say which pick each slot is, so `data-overall`
+joined `data-board-slot` and `data-state` in the DOM contract. The slot the
+marker *left* is then one `querySelector` away, and the guards fall out of it:
+
+- **It must have filled.** A rollback also moves the marker — backwards, onto a
+  slot it empties. Springing there would announce a pick that had just been
+  taken away. So the condition is `data-state === "filled"`, not "the marker
+  moved", and there is an E2E test that rolls back and asserts no spring.
+- **One slot, not a burst.** An autodraft sweep can move the marker three
+  places between renders. Three cards landing together is a board flickering
+  rather than a pick arriving, so the slot the marker left is the one that
+  springs and the two behind it simply fill.
+- **Never on a first paint**, unchanged since 3.1.
+
+**The spring is four keyframes, and the curve is the one this app already has.**
+`scale 0.86 → 1.04 → 0.99 → 1` over 320ms, with
+`cubic-bezier(0.22, 1, 0.36, 1)` between the stops — the same curve `card-lands`
+and `rule-advances` use. A physics library, or a bespoke `linear()` ramp, would
+have put a second easing vocabulary into a system with one; the overshoot is a
+*shape* here rather than a new grammar. It is 4% on purpose: a slot is about
+92px wide, its neighbours' rules are 1px, and on this board the ruling **is** the
+state language, so an overshoot large enough to swallow it would be motion
+undoing the design it plays inside. The springing slot takes `z-index: 1` for
+the duration so a neighbour's opaque field cannot clip the overshoot — below the
+round gutter's `z-10`, because a slot springing at the left edge should still
+pass *under* the gutter.
+
+**The band: restyled, and the restyle is an argument about which fact changes.**
+The headline and the countdown were both `text-2xl`, with the headline on top.
+But "Gintaras Ballers is on the clock" is the same sentence for the whole of
+somebody's two minutes, and the number under it is the only thing on the band
+that moves. So the countdown went to `text-4xl`/`text-5xl` and the headline down
+one step — measured on the real band at **+4px on a Pixel 7 and +12px at 1440**,
+which is the budget a band that never leaves the top of the viewport gets to
+spend. The comment in `page.tsx` quotes those two numbers rather than claiming
+the height is unchanged, because the first draft of it claimed exactly that and
+the screenshots said otherwise.
+
+No colour was reached for. The figure was already `ink`, the top of the chalk
+ramp at 13.89:1, and the two jobs of the marker are taken — a countdown in
+marker, on a band that is already marker-tinted because somebody is on the
+clock, is the Ink-on-Blush Rule broken on the one surface the whole league is
+looking at. "High-contrast" here is size.
+
+**One test was passing by luck and now is not.** `draft-board.spec.ts` recorded
+every `animationstart` on a board slot and asserted on `advances[0]`. With two
+animations starting in the same frame that index is DOM order, which is not a
+promise this app makes — and the reversed-origin test, which polled for "at
+least two animations", started passing before the second *rule* had begun. Both
+now select by `animationName`, and the recorder also captures `pseudoElement`
+so a record says which of the two it is without trusting its name.
+
 ## 10.7 — The half of the schedule we were throwing away, and the indicator the Euroleague cannot produce
 
 `fetchSeasonSchedule` has read the whole season since 4.3 — about four hundred
