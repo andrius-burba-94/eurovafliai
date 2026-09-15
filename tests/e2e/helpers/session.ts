@@ -462,3 +462,26 @@ export async function submitPick(page: Page, playerId: string): Promise<void> {
   await expect(page.getByTestId("confirm-pick-go")).toBeVisible();
   await page.getByTestId("confirm-pick-go").click();
 }
+
+/**
+ * Roll the draft order, and come back to the lobby.
+ *
+ * Since ADR-0007 the roll opens a **ceremony**: the first draw takes the whole
+ * league to `/leagues/[id]/order` and plays a countdown before the order
+ * appears. That is the feature, and `roll.spec.ts` is where it is asserted.
+ *
+ * Every other spec that rolls is not interested in the draw — it wants an order
+ * so it can get on with starting a draft, filling a board, or testing the pool.
+ * This is that: press the button, let the one automatic trip happen, and
+ * return. Coming back is safe because the trip is once per device per roll, so
+ * the lobby does not send us straight out again.
+ *
+ * Use it instead of clicking `draft-roll` directly, unless the roll itself is
+ * the subject of the test.
+ */
+export async function rollOrder(page: Page, leagueId: string): Promise<void> {
+  await page.getByTestId("draft-roll").click();
+  await page.waitForURL(/\/order$/);
+  await page.goto(`/leagues/${leagueId}`);
+  await expect(page.getByTestId("member-list")).toBeVisible();
+}

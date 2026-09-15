@@ -6,6 +6,7 @@ import {
   createLeagueFor,
   createTestUser,
   signIn,
+  rollOrder,
 } from "./helpers/session";
 
 /**
@@ -65,10 +66,16 @@ test("a member reads the order, in order, and cannot change it", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await expect(page.getByTestId("draft-order")).toBeVisible();
 
-  // It arrives over the subscription, with no reload on the member's side.
+  // The member is taken to the draw itself, which is ADR-0007's whole point.
+  await memberPage.waitForURL(/\/order$/, { timeout: 15_000 });
+
+  // And the lobby is still where the order is *read* afterwards, which is what
+  // this spec is about: the ceremony owns the moment, the lobby owns the
+  // record. A member who comes back must not need the commissioner's Bank.
+  await memberPage.goto(`/leagues/${league.id}`);
   await expect(memberPage.getByTestId("draft-order")).toBeVisible();
   await expect(memberPage.getByTestId("member-position")).toHaveCount(3);
 
@@ -119,7 +126,7 @@ test("the commissioner rolls, and the order is stable when re-applied", async ({
   await expect(page.getByTestId("draft-roll")).not.toHaveClass(/\btext-live\b/);
   await expect(page.getByTestId("draft-manual")).toHaveCount(0);
 
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
 
   // Four members, four slots, each exactly once.
   const positions = page.getByTestId("member-position");
@@ -215,7 +222,7 @@ test("reshuffling needs a deliberate tick, then draws a different order", async 
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await expect(page.getByTestId("member-position")).toHaveCount(6);
 
   const before = await page
@@ -282,7 +289,16 @@ test.describe("the reveal", () => {
 
     await signIn(context, commissioner);
     await page.goto(`/leagues/${league.id}`);
-    await page.getByTestId("draft-roll").click();
+
+    // The **first** draw is the ceremony's now (ADR-0007): it takes the league
+    // to `/leagues/[id]/order` and plays there. So what this spec guards has
+    // narrowed to the case the ceremony deliberately leaves behind — a
+    // reshuffle, which redraws the order without summoning anybody, and whose
+    // reveal is therefore still the lobby's own.
+    await rollOrder(page, league.id);
+    await page.getByTestId("draft-reshuffle-toggle").click();
+    await page.getByTestId("draft-reshuffle-confirm").check();
+    await page.getByTestId("draft-reshuffle").click();
 
     // The order arrives one slot at a time, so the whole set is not there at once.
     await expect(page.getByTestId("reveal-running")).toBeVisible();
@@ -311,7 +327,7 @@ test("with reduced motion the order simply appears", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
 
   await expect(page.getByTestId("member-position")).toHaveCount(2);
   await expect(page.getByTestId("reveal-running")).toBeHidden();

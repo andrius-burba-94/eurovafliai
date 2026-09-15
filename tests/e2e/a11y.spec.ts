@@ -9,6 +9,7 @@ import {
   createTestUser,
   signIn,
   superuser,
+  rollOrder,
 } from "./helpers/session";
 
 /**
@@ -80,7 +81,7 @@ test("draft room has no serious axe findings", async ({ page, context }) => {
   await createPlayer("Bravo", { position: "F" });
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("draft-room")).toBeVisible();

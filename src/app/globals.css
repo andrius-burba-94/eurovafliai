@@ -110,12 +110,24 @@
    * utility below, which is the only door to the mono face.
    */
   --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular,
-    monospace;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 
   --text-slot: 0.6875rem;
   --text-slot--line-height: 1rem;
   --text-slot--letter-spacing: 0.14em;
+
+  /* The roll's clock — the one figure in this app read from across a room.
+   *
+   * A new size step, and therefore a change to DESIGN.md rather than a local
+   * override (ADR-0007). The argument is the invite code's: a number the league
+   * counts down *out loud together* has to be legible from the far end of a
+   * sofa, on a phone lying on a table, and the display step (2.25rem) is a
+   * heading size. Negative tracking because at this size the mono face's
+   * default spacing opens two digits into two separate objects. */
+  --text-roll: 5rem;
+  --text-roll--line-height: 1;
+  --text-roll--letter-spacing: -0.03em;
 
   /* --- The depth scale --------------------------------------------------
    * Phase 10, replacing "zero radius, everywhere". ONE radius, and it belongs
@@ -518,6 +530,66 @@ body {
   /* Guarded inside the rule, never at the call site. The pick still arrives —
    * the name, the wash and the position letter are all there on the first
    * frame; only the travel is dropped. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* The roll's clock. Mono, because DESIGN.md puts every clock in the mono face,
+ * and this is the only clock the whole league watches at once. */
+@utility roll-clock {
+  font-family: var(--font-mono);
+  font-size: var(--text-roll);
+  line-height: var(--text-roll--line-height);
+  letter-spacing: var(--text-roll--letter-spacing);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Event four, and the budget is raised to spend it: a slot is drawn.
+ *
+ * ADR-0007 and blueprint D25. The Three Events Rule said a fourth animation is
+ * a change to DESIGN.md rather than a variant, so this is that change, argued
+ * rather than slipped in. The event is the roll ceremony: the draft order drawn
+ * in front of the league, one slot every three seconds, last slot first.
+ *
+ * ## Why it is not `card-lands` wearing a longer duration
+ *
+ * `card-lands` is 260ms and drops *down* into place — a row arriving in a list
+ * that was already there. This is the opposite motion for the opposite reason.
+ * The ceremony's board fills **upward**, because the reveal walks from the last
+ * slot to the first, so a slot rises into its place from below and the empty
+ * places above it are what the room is still waiting for. At 260ms that rise is
+ * a flinch; the brief asks for a slot to appear *slowly*, and 900ms is long
+ * enough to follow with your eyes and say a name over.
+ *
+ * It is also the one animation in this app with nothing else to do: the other
+ * three all annotate a board that is being worked on, and have to stay out of
+ * the way. This one *is* the surface. That is the whole argument for a fourth,
+ * and it is why the fifth is still a change to DESIGN.md.
+ *
+ * One curve, still: `cubic-bezier(0.22, 1, 0.36, 1)`, the same one the other
+ * three use. A slower event is a longer duration on this system's curve, never
+ * a second easing vocabulary. */
+@keyframes slot-drawn {
+  from {
+    opacity: 0;
+    transform: translateY(0.875rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility slot-drawn {
+  animation: slot-drawn 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  /* Guarded inside the utility, like the other three, so a new caller cannot
+   * forget it. The slot still arrives on its own three-second beat — the
+   * *pacing* is the ceremony and is not motion — and only the travel is
+   * dropped. Someone who has asked their phone for no motion still watches the
+   * order being drawn; they simply are not moved through it. */
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }

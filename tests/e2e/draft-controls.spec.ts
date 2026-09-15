@@ -12,6 +12,7 @@ import {
   signIn,
   superuser,
   TEST_CLUB,
+  rollOrder,
 } from "./helpers/session";
 
 /**
@@ -47,7 +48,7 @@ async function readyLeague(name: string) {
 
 async function enterDraft(page: Page, leagueId: string) {
   await page.goto(`/leagues/${leagueId}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   // 20s, for the reason `draftPlayer` states: on a dev server under parallel

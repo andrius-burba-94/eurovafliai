@@ -100,6 +100,21 @@ export const leagueSettingsSchema = z.object({
    * drafts first after the fact.
    */
   roll_seed: z.string().default(""),
+  /**
+   * When the order was **first** rolled, ISO 8601. Empty until it is.
+   *
+   * The ceremony's clock, and the reason it is stored rather than started: every
+   * device derives its own phase from this one instant, so a dozen phones watch
+   * the same slot land at the same second and a member who opens the page late
+   * joins in progress instead of running a private countdown. See
+   * `src/lib/roll/ceremony.ts`.
+   *
+   * Written once, by the first roll. A re-apply must not move it — that would
+   * restart a ceremony the room has already watched — and a **reshuffle does
+   * not either**: a redraw updates the order in the lobby, where 2.3b's staged
+   * reveal still plays, rather than pulling everyone back to the ceremony.
+   */
+  rolled_at: z.string().default(""),
   lineup_template: lineupTemplateSchema.default(DEFAULT_LINEUP_TEMPLATE),
 });
 

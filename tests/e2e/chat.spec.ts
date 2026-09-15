@@ -10,6 +10,7 @@ import {
   signIn,
   superuser,
   TEST_CLUB,
+  rollOrder,
 } from "./helpers/session";
 
 /**
@@ -156,7 +157,7 @@ test("a rollback announces itself, and is readable without opening the panel", a
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await expect(page.getByTestId("enter-draft").locator("..")).toHaveAttribute(
     "data-state",
@@ -205,7 +206,7 @@ test("a pick announces itself, in the app's own voice", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await page.getByTestId("filter-club").selectOption(TEST_CLUB);
@@ -346,7 +347,7 @@ test("the room lost its ticker and kept everything else", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
 
@@ -375,7 +376,7 @@ test("the roll announces itself in the lobby, where it happens", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
 
   await expect(messages(page).last()).toContainText(
     /the draft order was rolled/i,
@@ -399,7 +400,7 @@ test("re-applying the roll announces nothing, and says so on the page", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await page.getByTestId("draft-roll").click();
+  await rollOrder(page, league.id);
   await expect(messages(page).last()).toContainText(
     /the draft order was rolled/i,
   );

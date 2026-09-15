@@ -335,12 +335,25 @@ export async function rollDraftOrder(
   // which is what makes a roll replayable (see src/lib/engine/roll.ts).
   const seed = settings.roll_seed || crypto.randomUUID();
 
+  // The first roll also starts the ceremony's clock, in the same write as the
+  // seed: both are "this order now exists", and a second write could half-fail
+  // into a rolled league with no instant to derive a ceremony from.
+  //
+  // Only the first. A re-apply must not move it — restarting a ceremony the
+  // room has already watched is exactly the kind of accident 2.3a's seed reuse
+  // exists to prevent — and `reshuffleDraftOrder` deliberately leaves it alone.
   if (!settings.roll_seed) {
     await pb
       .collection("leagues")
       .update(
         league.id,
-        { settings: { ...settings, roll_seed: seed } },
+        {
+          settings: {
+            ...settings,
+            roll_seed: seed,
+            rolled_at: new Date().toISOString(),
+          },
+        },
         { requestKey: null },
       );
   }
@@ -428,13 +441,14 @@ export async function setManualOrder(
   }
 
   // A hand-set order is not a roll: clear the seed so the lobby cannot claim the
-  // order came from one.
-  if (settings.roll_seed) {
+  // order came from one, and clear the ceremony's instant with it. An order
+  // agreed at the bar was never drawn, so there is no draw to replay.
+  if (settings.roll_seed || settings.rolled_at) {
     await pb
       .collection("leagues")
       .update(
         league.id,
-        { settings: { ...settings, roll_seed: "" } },
+        { settings: { ...settings, roll_seed: "", rolled_at: "" } },
         { requestKey: null },
       );
   }

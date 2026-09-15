@@ -138,6 +138,54 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — the roll ceremony
+
+```bash
+npm run dev
+```
+
+Open one league in two browser profiles — commissioner in one, an ordinary
+member in the other, both sitting in the lobby. Press **Roll the order**.
+**Both windows leave for `/leagues/[id]/order`.** Ten seconds of clock, then one
+slot every three seconds, from the **last** pick upward to the first; the name
+being drawn is the biggest thing on screen and the order fills in below. The
+member is not clicking anything.
+
+The two things worth checking specifically:
+
+```bash
+# Land in the middle of a draw, on purpose. Backdate the instant and reload:
+# the page joins the draw in progress instead of restarting at ten.
+npx playwright test tests/e2e/roll.spec.ts -g "opens late"
+npx playwright test tests/e2e/roll.spec.ts
+```
+
+Then press **Reshuffle** — it redraws the order *without* summoning anyone, in
+the lobby, where 2.3b's staged reveal still plays. The ceremony belongs to the
+first draw only.
+
+**The phase is derived, never broadcast and never timed on a client**
+([ADR-0007](adr/ADR-0007-the-roll-ceremony.md), blueprint **D25**). The first
+roll stores `settings.rolled_at` and every device computes its own phase from
+that one instant, correcting its clock against `/api/time` the way the pick
+clock does. A reload restarts nothing, a phone that opens thirty seconds late
+joins in progress, somebody arriving an hour later reads a finished order, and
+the whole ceremony is testable by backdating one field rather than waiting
+forty-six seconds.
+
+**The motion budget is now four** and the fourth is spent: `slot-drawn`, 900ms,
+rising. DESIGN.md's Three Events Rule said a fourth is a change to that document
+rather than a variant, so it is argued in ADR-0007 and written into DESIGN.md's
+Motion section as Event four. One type step came with it (`--text-roll`, 5rem
+mono). Under `prefers-reduced-motion` the pacing still runs — it is a clock, not
+an animation — and only the rise is dropped.
+
+One consequence worth knowing before writing a test: **rolling now navigates**,
+so every spec that rolls goes through the `rollOrder` helper in
+`tests/e2e/helpers/session.ts` rather than clicking `draft-roll` directly. The
+exceptions are the three places where the roll itself is the subject — a
+re-apply, and the two refused rolls.
+
 ## Try it on localhost — the order everyone can read
 
 ```bash
@@ -1238,7 +1286,7 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run typecheck` | pass |
 | `npm run test` | **1198 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season / PIR projection arithmetic and the previous-season import, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, the mapping queue's filters and sentence, the pure lineup validator and the weights standings apply, and the news parser, plan, store and pass — the parser against saved markup rather than the live site. Since 10.2 there is **one ground**: the token suite is 74 assertions against it, the theme's resolve/override tests are gone with the theme, and the count fell accordingly. 10.4 adds nine **depth-scale** assertions that read source text rather than rendered values, because Tailwind emits an unknown utility as nothing and a stray `rounded-lg` therefore renders cleanly and wrong; 10.5 adds the captain-as-a-mark arithmetic and three cases for a fixture line that currently renders nothing; 10.6 adds the sparkline's points and its spoken sentence — including the two-game floor, the flat series that draws down the middle rather than along the floor, and the tenths formatter that stops a reader hearing "120" where the row says 12.0. **1225 at 10.8**: 10.7 adds the pure schedule reading (the measured home edge, the difficulty threshold, next-versus-round fixture) and the fixtures upsert driven through the strict fake, which enforces the real `(season, game_code)` index |
 | `npm run build` | pass |
-| `npm run test:e2e` | **426 passed, 1 skipped, 9 flaky** on chromium and Pixel 7 at 10.9 — the whole suite, run locally the way CI runs it (`CI=1`, against `next start` over a fresh build). Nothing failed; every flake passed on its first retry, eight of them the `pool.spec.ts` count flake in the debt row below and the ninth a `mapping-done` correction that did not arrive inside 5s under five workers. **10.8's clean run was the outlier, not this one** — that suite was 425 and this flake is not rare enough for 425 to prove anything, which is exactly what the row below said. `pool.spec.ts` alone, twice over, is clean. Run it **on the port `NEXT_PUBLIC_APP_URL` names**, which is the default 3007: `E2E_PORT=3011` fails the two `/auth/callback` specs outright, because that route redirects to the absolute configured origin and there is nothing listening on 3007 — see the debt row. The flakes it used to carry were all in `pool.spec.ts`; see the debt row below, which 10.6 narrowed by closing the pre-hydration variant. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
+| `npm run test:e2e` | **447 passed, 1 skipped, 10 flaky** on chromium and Pixel 7 at the roll ceremony — nothing failed, and all ten flakes are the `pool.spec.ts` count flake in the debt row below, so the 9 → 10 move is that same debt rather than a new one. **Measured the hard way this time, and the method is the finding**: the first run of this slice was made *without* `CI=1`, which means `next dev` and `retries: 0`, and it reported **26 failures** — every one of which passed in isolation. The row below already said measure on a build; it is repeated here because the noise is convincing. Worse, that run was piped through `tail`, so the shell reported `tail`'s exit code and the suite looked like it had passed. **Write the exit code into the log** (`echo "EXIT=$?"`) rather than reading a summary line. The CI-faithful run then found a genuine defect the noisy one had buried — a start-over inside the ceremony's own window summoning a fresh tab to a dead draw — which is the argument for running it properly rather than for running it twice. Earlier, at 10.9, it was **426 passed, 1 skipped, 9 flaky** — the whole suite, run locally the way CI runs it (`CI=1`, against `next start` over a fresh build). Nothing failed; every flake passed on its first retry, eight of them the `pool.spec.ts` count flake in the debt row below and the ninth a `mapping-done` correction that did not arrive inside 5s under five workers. **10.8's clean run was the outlier, not this one** — that suite was 425 and this flake is not rare enough for 425 to prove anything, which is exactly what the row below said. `pool.spec.ts` alone, twice over, is clean. Run it **on the port `NEXT_PUBLIC_APP_URL` names**, which is the default 3007: `E2E_PORT=3011` fails the two `/auth/callback` specs outright, because that route redirects to the absolute configured origin and there is nothing listening on 3007 — see the debt row. The flakes it used to carry were all in `pool.spec.ts`; see the debt row below, which 10.6 narrowed by closing the pre-hydration variant. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
 | `npm run pb:verify` | **159 checks pass** — including unique `(season, game_code)` on fixtures, unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, unique `(league, member, season, round)` on lineups, unique `(source, source_key)` on news items, and superuser-only writes |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs at the last run. The feed moves; do not treat the count as a constant |

@@ -217,9 +217,25 @@ export async function startDraft(
   }
 
   if (league.status !== "drafting") {
+    // The same write that says "the draft has begun" says "the draw is over".
+    //
+    // The roll ceremony (ADR-0007) summons the league while `rolled_at` is
+    // still inside its window, and starting the draft ends that window
+    // regardless of the clock — the draw is not a plan any more, it is history,
+    // which is the same line `reshuffleDraftOrder` draws. Without this, a
+    // commissioner who rolls and starts within the ~22 seconds of a four-team
+    // ceremony can strand a member's fresh tab on a draw for a draft that is
+    // already running, or one that a start-over has since thrown away.
+    //
+    // Cleared here rather than in a second write, so there is no intermediate
+    // state where the league drafts and the ceremony still calls.
     await pb
       .collection("leagues")
-      .update(leagueId, { status: "drafting" }, { requestKey: null });
+      .update(
+        leagueId,
+        { status: "drafting", settings: { ...settings, rolled_at: "" } },
+        { requestKey: null },
+      );
   }
 
   revalidatePath(`/leagues/${leagueId}`);

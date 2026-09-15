@@ -28,6 +28,13 @@ typography:
     fontWeight: 600
     lineHeight: "2.25rem"
     letterSpacing: "0.36em"
+  roll-clock:
+    fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, monospace"
+    fontSize: "5rem"
+    fontWeight: 500
+    lineHeight: "1"
+    letterSpacing: "-0.03em"
+    fontFeature: "tabular-nums"
   wordmark:
     fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1rem"
@@ -193,6 +200,14 @@ Three surfaces exist today: sign-in (`src/app/login/page.tsx`), your leagues
 (`src/app/page.tsx`) and the league lobby
 (`src/app/leagues/[id]/page.tsx`). Everything they are made of lives in
 `src/components/board.tsx` and `src/components/submit-button.tsx`.
+
+**One surface is deliberately unlike the rest**: the roll ceremony
+(`src/app/leagues/[id]/order/`). Everywhere else this app is an instrument that
+stays out of the way; that page is the league's one shared theatrical moment and
+is composed to be watched rather than worked in. It is built from the same
+components, palette and materials — the difference is scale, pacing and what it
+gives display size to. See [ADR-0007](docs/adr/ADR-0007-the-roll-ceremony.md)
+and Motion's Event four.
 
 ## Overview
 
@@ -398,6 +413,14 @@ jitter and a draft has a clock on it.
 - **Code** (600, 1.875rem → 2.25rem at `sm`, caps, 0.36em, marker red): the
   invite code, and only the invite code. Tracking this wide exists so six
   characters can be read aloud across a room without being mis-heard.
+- **Roll clock** (500, 5rem, mono, −0.03em, tabular): the roll ceremony's
+  countdown and the slot being drawn, and nothing else
+  ([ADR-0007](docs/adr/ADR-0007-the-roll-ceremony.md)). The same argument the
+  invite code makes, for the same room: a number the league counts down *out
+  loud together* has to be legible on a phone lying on a table, and display is
+  a heading size. Negative tracking because at 5rem the mono face's default
+  spacing opens two digits into two separate objects. Reached through
+  `roll-clock`; it is a **figure**, so it is mono, and it never sets a word.
 - **Wordmark** (600, 1rem, caps, 0.16em): "Eurovafliai" in the top rail.
 - **Card name** (600, 1rem, caps, 0.06em): the name written
   on a card — a member, a team, later a player. Rendered by `CardName`.
@@ -423,6 +446,15 @@ face's own legibility argument is about scanning a column, and it does not
 transfer to prose. This replaces the One Label Maker Rule ("one family, no
 exceptions… no mono"), which Phase 10 retired on the grounds that the app it was
 written for had four numbers on screen and this one has four hundred.
+
+**The one-display-per-surface reading, stated because the ceremony tests it.**
+Display is a surface's loudest *word*, and there is one. On the roll ceremony
+that one belongs to the **name being drawn**, so the page's own title is
+rendered as small caps — an `h1` at slot-label size, because a heading level is
+document structure and not a type size. The first cut had it inverted, with "THE
+ROLL" at display size over a 16px answer, which is the loudest element on the
+page being its least interesting text. A big figure beside it is not a second
+headline: one is a word and one is a clock.
 
 **A single figure in a sentence stays in Space Grotesk.** "3 of 13 filled" is
 prose. The mono face is for the PIR column, the standings run, the clock and the
@@ -1351,6 +1383,15 @@ commitment, and the direction contract's promise: "a budget of THREE animations:
 draft selection springing into place. The budget is spent; a fourth is a change
 to DESIGN.md."
 
+**The budget is now four, and this is that change**
+([ADR-0007](docs/adr/ADR-0007-the-roll-ceremony.md), blueprint **D25**). The
+fourth event is **a slot being drawn** in the roll ceremony, and it was raised
+by argument rather than by a variant, which is what the rule asked for. The
+argument in one sentence: the other three animations annotate a board somebody
+is working on and must stay out of the way, whereas the ceremony *is* the
+surface — it is the app's one theatrical page, and the thing being animated is
+the only content on it. A fifth is still a change to this document.
+
 **Implemented today: both.** The `card-lands` utility — 260ms,
 `cubic-bezier(0.22, 1, 0.36, 1)`, `both`, from `opacity: 0` /
 `translateY(-0.375rem)` to rest. It plays on the single row that genuinely just
@@ -1386,8 +1427,11 @@ whether *this viewer* was watching when it changed, and motion rendered from
 server state would replay on every load and every refresh. A first paint is
 still.
 
-**The Three Events Rule.** Phase 10 raised the budget from two to three, and
-spent the third: **a draft selection springs into place**. That is one event —
+**The Four Events Rule.** Phase 10 raised the budget from two to three, and
+spent the third: **a draft selection springs into place**. The roll ceremony
+raised it to four and spent that one too — see "Event four" below. The rule's
+shape is unchanged and is the point of it: the budget rises only in a numbered
+decision, never in a diff. That is one event —
 the pick you just committed — on the one surface where a committed act deserves
 to be felt rather than merely seen. The budget is spent again: a fourth
 animation is a change to this document, not a variant.
@@ -1424,6 +1468,37 @@ The guard did not move, and it is the part that matters:
 call site, so a new caller cannot forget it. Under it the pick is simply there —
 name, wash and position letter on the first frame — and `draft-board.spec.ts`
 asserts exactly that rather than trusting the media query.
+
+### Event four — a slot is drawn
+
+The roll ceremony (`/leagues/[id]/order`), and the only animation in this app
+whose surface has nothing else on it. `slot-drawn` — **900ms**,
+`cubic-bezier(0.22, 1, 0.36, 1)`, `both`, from `opacity: 0` /
+`translateY(0.875rem)` to rest, so the slot **rises** into its place.
+
+Two details are decisions rather than settings:
+
+- **It rises, where `card-lands` drops.** The ceremony's board fills *upward*,
+  because the draw walks from the last slot to the first, so the empty places
+  are always the ones above and a slot arrives from below. Reusing `card-lands`
+  would have made one utility mean two directions.
+- **900ms, where every other event is 260–320ms.** The brief asked for a slot to
+  appear *slowly*, and it is right to: a slot lands every three seconds with a
+  name being read out over it. At 260ms that is a flinch. A slower event is a
+  **longer duration on the one curve** — this system still has exactly one
+  easing vocabulary.
+
+The pacing around it — ten seconds of clock, then one slot every three seconds —
+is **not** animation and is not counted against the budget: it is a clock, and
+under `prefers-reduced-motion` it still runs. What reduced motion drops is the
+rise, guarded inside the utility like the other three, so somebody who asked
+their phone for no motion still watches the order being drawn and is simply not
+moved through it.
+
+It also brings **one new type step**, `--text-roll` (5rem, mono, `-0.03em`),
+reached through the `roll-clock` utility: the countdown is the only figure in
+this app read from across a room, and it is the invite code's argument rather
+than a new one. Mono because this document already puts every clock there.
 
 Nothing else animates. Both of the original two events stand unchanged below.
 The board's auto-scroll is not one of them — following the clock is scrolling,
