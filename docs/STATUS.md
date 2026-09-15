@@ -138,6 +138,56 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — four reports from a real draft night
+
+```bash
+npm run dev
+npm run worker:dev   # the second one. It is not optional.
+```
+
+Four things were reported after a full local draft. **Two were the app telling
+the truth and one was a missing process** — recorded here because the
+diagnosis is worth more than the fixes:
+
+| Reported | What it actually was |
+|---|---|
+| "The commissioner always gets 1st" | **No bias.** 200,000 rolls per league size, every slot within noise; see the fairness tests in `roll.test.ts`. The cause was #119's replay announcing one roll fifty-two times |
+| "The draft order seemed weird" | **Correct.** All 39 stored picks replay identically through `buildPickOrder`; snake alternates every round, 13 picks each. It reads oddly because at every turn one member picks *twice in a row*, which is what a snake is — and because all three teams were named "Andrius Burba" |
+| "Autodraft does not work" | **The worker was not running.** 39 picks, **0 autodrafted**, with `autodraft_enabled` set on all three members. `npm run dev` does not start it. `selectAutoPick` needs no cheat sheet — it ranks, then takes the first legal player |
+| "No legal picks with one C left" | **Correct.** All four Olympiacos centers were already drafted, and the club filter was still set to Olympiacos from an earlier search |
+
+Two of those were fixed as code, and one gap was closed that none of them asked
+for:
+
+**The club filter reads as clubs.** It listed bare three-letter codes in code
+order, which put `OLY` between `MIL` and `PAN`. It now carries `club_name`,
+sorted and labelled by name; the option's value is still the code, so the
+filter itself is unchanged. A row still shows the code — three characters
+beside a name is what a code is for.
+
+**An empty pool says what emptied it.** "Nobody left matching that" described
+the result without naming the cause, on the surface where a manager has sixty
+seconds. It now reads back the filters: *"Filtered to C · Olympiacos Piraeus ·
+legal for me."*
+
+**The room admits when nothing took an expired pick.** This is the gap: every
+`stuck_reason` 8.2 renders is written **by the worker**, so the one failure the
+banner can never report is the worker's own absence — no process, no write, no
+banner, and the room still promising "the engine picks the moment your turn
+comes". It is now detected client-side from the deadline the server wrote,
+precisely because it cannot depend on the worker being alive, and it waits out
+the room's existing pulls first so a healthy expiry says nothing. It names a
+symptom and the two ways out, never a cause: a slow box, a paused worker and a
+crashed worker are indistinguishable from a browser.
+
+**A note on local data.** A full e2e run leaves players behind whose club is a
+generated `Z???` code, and a killed run leaves them for good because `afterEach`
+never runs. That had reached **900 test players against 327 real ones and 213
+test leagues**, which is why the club dropdown had 195 entries. Local PocketBase
+after a cleanup should read 327 players and exactly 20 clubs; `npm run pb:backup`
+first, delete leagues before players (PocketBase refuses to delete a player a
+pick points at).
+
 ## Try it on localhost — the season dashboard
 
 ```bash
