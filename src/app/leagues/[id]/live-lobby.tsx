@@ -2,7 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useActionState, useCallback, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type PocketBase from "pocketbase";
 
 import {
@@ -15,6 +21,7 @@ import {
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { useLiveSubscription } from "@/lib/pb/use-live";
+import { rollCeremony } from "@/lib/roll/ceremony";
 import {
   kickMember,
   renameTeam,
@@ -131,8 +138,21 @@ export function LiveLobby({
           // Single quotes: PocketBase rejects double-quoted filter values.
           filter: `league = '${leagueId}'`,
         }),
+      // The league record itself, for one fact the member list cannot carry:
+      // that the order has been *drawn*. The roll writes `rolled_at` to
+      // `leagues.settings`, and without this a member's lobby would learn the
+      // positions and never learn there was a ceremony to watch.
+      //
+      // It asks the server for the page rather than parsing settings here. The
+      // settings schema, its defaults and the ceremony's own arithmetic all
+      // live on the server side of this surface already; re-deriving them in
+      // the browser would be a second implementation of the same truth, and
+      // the effect below fires off the refreshed props either way.
+      await pb
+        .collection("leagues")
+        .subscribe(leagueId, () => router.refresh()),
     ],
-    [leagueId, refresh],
+    [leagueId, refresh, router],
   );
   // Every connect re-reads, first or not: the list is cheap, the roll reveal
   // reads off it, and after a drop the gap was never delivered to anyone.
@@ -141,7 +161,54 @@ export function LiveLobby({
     [refresh],
   );
 
-  const { connected } = useLiveSubscription({ authToken, subscribe, onConnect });
+  const { connected } = useLiveSubscription({
+    authToken,
+    subscribe,
+    onConnect,
+  });
+
+  /**
+   * The one place this app takes somebody to a page they did not ask for.
+   *
+   * The draw is the league's shared moment, so when it goes live every lobby in
+   * the league leaves for it — that is the feature. What stops it from being a
+   * trap is that it happens **once per device per roll**: the ceremony page has
+   * a door back to the lobby, and a member who walks through it must not be
+   * dragged straight back out.
+   *
+   * `sessionStorage` rather than state, because the trip is a *navigation* —
+   * this component unmounts on the way — and it is keyed on the instant, so a
+   * league that is later re-rolled from scratch draws its own crowd again.
+   *
+   * Only while `live`. A member opening the lobby the next morning is not sent
+   * to watch a countdown for something that finished, which is the same
+   * decision `rollCeremony` records as `live` rather than "has a rolled_at".
+   */
+  const departed = useRef(false);
+  useEffect(() => {
+    if (departed.current || !settings.rolled_at) return;
+    const rolledAt = Date.parse(settings.rolled_at);
+    if (Number.isNaN(rolledAt)) return;
+
+    const ceremony = rollCeremony({
+      rolledAt,
+      now: Date.now(),
+      slots: members.length,
+    });
+    if (!ceremony.live) return;
+
+    const key = `roll-watched:${leagueId}:${settings.rolled_at}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // A browser refusing storage (private mode, a locked-down phone) gets the
+      // ceremony once per mount instead of once per roll. Better than a member
+      // who never sees the draw at all.
+    }
+    departed.current = true;
+    router.push(`/leagues/${leagueId}/order`);
+  }, [settings.rolled_at, members.length, leagueId, router]);
 
   const you = members.find((member) => member.isYou);
   const readyCount = members.filter((member) => member.isReady).length;
@@ -331,11 +398,7 @@ function MemberSlot({
     // is the sort of thing the league should be able to see.
     !member.isCommissioner && member.canManage ? "helps run it" : null,
     member.isYou ? "you" : null,
-    leagueStatus === "setup"
-      ? member.isReady
-        ? "ready"
-        : "not ready"
-      : null,
+    leagueStatus === "setup" ? (member.isReady ? "ready" : "not ready") : null,
   ].filter(Boolean);
 
   const name = member.teamName || member.name;
