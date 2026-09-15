@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Position } from "@/lib/engine";
 
 import {
+  assignmentsWithCaptain,
   DEFAULT_LINEUP_TEMPLATE,
   FORMATIONS,
   formationName,
@@ -12,6 +13,7 @@ import {
   type LineupSlots,
   type LineupSquadPlayer,
   multipliersOf,
+  PLACEMENT_ROLES,
   resolveLineups,
   rolesFromSlots,
   ROLE_MULTIPLIERS,
@@ -232,6 +234,84 @@ describe("roles and slots", () => {
       { playerId: "g1", role: "captain" },
     ]);
     expect(slots.starters).toEqual(["g1", "g2"]);
+  });
+});
+
+describe("the captain as a mark on a starter", () => {
+  it("offers four places, and captain is not one of them", () => {
+    // The form's select is built from this list. If `captain` ever rejoins it
+    // there are two controls that can set the captaincy and they can disagree.
+    expect(PLACEMENT_ROLES).not.toContain("captain");
+    expect([...PLACEMENT_ROLES].sort()).toEqual([
+      "bench",
+      "inactive",
+      "sixth",
+      "starter",
+    ]);
+  });
+
+  it("promotes the marked starter and leaves everyone else alone", () => {
+    const out = assignmentsWithCaptain(
+      [
+        { playerId: "g1", role: "starter" },
+        { playerId: "g2", role: "starter" },
+        { playerId: "c1", role: "bench" },
+      ],
+      "g1",
+    );
+    expect(out).toEqual([
+      { playerId: "g1", role: "captain" },
+      { playerId: "g2", role: "starter" },
+      { playerId: "c1", role: "bench" },
+    ]);
+  });
+
+  it("ignores a mark that has come loose from its starter", () => {
+    // The stale-captain case: marked while a starter, then moved to the bench.
+    // Honouring it would post a captain who is not among the starters and earn
+    // a refusal naming a role the form no longer displays anywhere.
+    const out = assignmentsWithCaptain(
+      [{ playerId: "g1", role: "bench" }],
+      "g1",
+    );
+    expect(out).toEqual([{ playerId: "g1", role: "bench" }]);
+  });
+
+  it("marks nobody when no captain has been chosen", () => {
+    const placements = [{ playerId: "g1", role: "starter" as const }];
+    expect(assignmentsWithCaptain(placements, "")).toEqual(placements);
+  });
+
+  it("produces slots the validator accepts", () => {
+    // The join that matters: four-option select plus an exclusive mark has to
+    // land on exactly the shape `validateLineup` was written against.
+    const slots = slotsFromRoles(
+      assignmentsWithCaptain(
+        [
+          { playerId: "g1", role: "starter" },
+          { playerId: "g2", role: "starter" },
+          { playerId: "f1", role: "starter" },
+          { playerId: "f2", role: "starter" },
+          { playerId: "c1", role: "starter" },
+          { playerId: "g3", role: "sixth" },
+          { playerId: "g4", role: "bench" },
+          { playerId: "g5", role: "bench" },
+          { playerId: "f3", role: "bench" },
+          { playerId: "f4", role: "bench" },
+          { playerId: "f5", role: "inactive" },
+          { playerId: "c2", role: "inactive" },
+          { playerId: "c3", role: "inactive" },
+        ],
+        "f1",
+      ),
+    );
+    expect(slots.captain).toBe("f1");
+    const verdict = validateLineup({
+      slots,
+      template: DEFAULT_LINEUP_TEMPLATE,
+      squad: SQUAD,
+    });
+    expect(verdict.ok).toBe(true);
   });
 });
 

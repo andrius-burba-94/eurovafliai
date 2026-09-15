@@ -70,6 +70,12 @@ async function enterDraft(page: Page, leagueId: string, club = TEST_CLUB) {
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();
+  // Same race this file already waits out on the sheet: a club selected before
+  // the pool's filters hydrate narrows nothing. See `pool-ready` in pick-form.
+  await expect(page.getByTestId("pool-ready")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   await page.getByTestId("filter-club").selectOption(club);
 }
 

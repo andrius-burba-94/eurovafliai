@@ -109,6 +109,26 @@ async function score(
   );
 }
 
+/**
+ * Type one lineup the way a person does — slice 10.5.
+ *
+ * `captain` is no longer a role in the select: it is a mark on a starter, made
+ * with an exclusive radio, because the captaincy is not a sixth place on the
+ * team sheet. So this helper reads "captain" as *starter, and marked*, which is
+ * what the rulebook means by it.
+ */
+async function assign(
+  page: Page,
+  player: { name: string },
+  role: string,
+): Promise<void> {
+  if (role === "captain") {
+    await page.getByLabel(`${player.name} captain`).check();
+    return;
+  }
+  await page.getByLabel(`${player.name} role`).selectOption(role);
+}
+
 /** The official 2-2-1, with the first guard as captain. */
 async function arrange(
   page: Page,
@@ -125,9 +145,7 @@ async function arrange(
     "inactive",
   ];
   for (const [index, role] of roles.entries()) {
-    await page
-      .getByLabel(`${players[index]!.name} role`)
-      .selectOption(role);
+    await assign(page, players[index]!, role);
   }
 }
 
@@ -224,9 +242,7 @@ test("an illegal formation is refused before it is submitted, and after", async 
     "inactive",
   ];
   for (const [index, role] of illegal.entries()) {
-    await page
-      .getByLabel(`${planted.players[index]!.name} role`)
-      .selectOption(role);
+    await assign(page, planted.players[index]!, role);
   }
   await expect(page.getByTestId("lineup-refusal")).toContainText(
     "not one of the five legal formations",
@@ -242,6 +258,56 @@ test("an illegal formation is refused before it is submitted, and after", async 
   await expect(page.getByTestId("lineup-refusal")).toHaveCount(0);
   await page.getByTestId("record-lineup-submit").click();
   await expect(page.getByTestId("lineup-saved")).toBeVisible({ timeout: 20_000 });
+});
+
+test("there is only ever one captain, and moving them off the five clears it", async ({
+  page,
+  context,
+}) => {
+  const owner = await createTestUser("captainowner");
+  const mate = await createTestUser("captainmate");
+  const planted = await plantSeason(owner, mate, "One Armband");
+
+  await signIn(context, owner);
+  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+
+  const captainOf = (index: number) =>
+    page.getByLabel(`${planted.players[index]!.name} captain`);
+
+  // Marking a captain places them too: the captaincy is a mark on a starter,
+  // so a control that could name a captain the validator would then refuse is a
+  // control that exists to produce an error message.
+  await captainOf(0).check();
+  await expect(captainOf(0)).toBeChecked();
+  await expect(page.getByLabel(`${planted.players[0]!.name} role`)).toHaveValue(
+    "starter",
+  );
+
+  // The exclusivity, which is the browser's own and not ours to reimplement.
+  await captainOf(3).check();
+  await expect(captainOf(3)).toBeChecked();
+  await expect(captainOf(0)).not.toBeChecked();
+  await expect(page.getByTestId("lineup-summary")).toContainText("1 captain");
+
+  // Benching the captain gives up the armband with the place. Without this the
+  // form would post a captain who is not among the starters and earn a refusal
+  // naming a role no control on the page displays any more.
+  await page.getByLabel(`${planted.players[3]!.name} role`).selectOption("bench");
+  await expect(captainOf(3)).not.toBeChecked();
+  await expect(page.getByTestId("lineup-summary")).toContainText("0 captain");
+
+  // And the whole thing still records, through the same validator.
+  await arrange(page, planted.players);
+  await expect(page.getByTestId("lineup-refusal")).toHaveCount(0);
+  await page.getByTestId("record-lineup-submit").click();
+  await expect(page.getByTestId("lineup-saved")).toBeVisible({ timeout: 20_000 });
+
+  // Re-opening splits the stored captain back into a place plus a mark.
+  await page.reload();
+  await expect(captainOf(0)).toBeChecked();
+  await expect(page.getByLabel(`${planted.players[0]!.name} role`)).toHaveValue(
+    "starter",
+  );
 });
 
 test("the commissioner sets anyone's lineup and a plain member sets only their own", async ({

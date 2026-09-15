@@ -12,9 +12,9 @@ import { getSuperuserClient } from "@/lib/pb/superuser";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import {
-  LINEUP_ROLES,
-  type LineupAssignment,
-  type LineupRole,
+  assignmentsWithCaptain,
+  type PlacementRole,
+  PLACEMENT_ROLES,
   slotsFromRoles,
   validateLineup,
 } from "./lineup";
@@ -43,21 +43,28 @@ import { readSquadWithPositions, writeLineup } from "./store";
 
 export type LineupResult = { error: string | null; saved: boolean };
 
-function isRole(value: string): value is LineupRole {
-  return (LINEUP_ROLES as readonly string[]).includes(value);
+function isPlacementRole(value: string): value is PlacementRole {
+  return (PLACEMENT_ROLES as readonly string[]).includes(value);
 }
 
 /**
  * The form posts one `role:<playerId>` per player, so the assignments arrive in
  * the order the roster was rendered and the starting five keeps that order.
+ *
+ * `captain` is **not** accepted here, and a posted one is dropped rather than
+ * honoured: the captaincy arrives in its own field, from the radio group that
+ * makes it exclusive. Two doors onto one fact is how a form ends up naming two
+ * captains, and `slotsFromRoles` would silently keep the first of them.
  */
-function assignmentsFrom(formData: FormData): LineupAssignment[] {
-  const out: LineupAssignment[] = [];
+function placementsFrom(
+  formData: FormData,
+): { playerId: string; role: PlacementRole }[] {
+  const out: { playerId: string; role: PlacementRole }[] = [];
   for (const [key, value] of formData.entries()) {
     if (!key.startsWith("role:")) continue;
     const playerId = key.slice("role:".length);
     const role = String(value);
-    if (!playerId || !isRole(role)) continue;
+    if (!playerId || !isPlacementRole(role)) continue;
     out.push({ playerId, role });
   }
   return out;
@@ -137,7 +144,12 @@ export async function recordLineup(
 
   const squad = await readSquadWithPositions(pb, leagueId, memberId, round);
   const verdict = validateLineup({
-    slots: slotsFromRoles(assignmentsFrom(formData)),
+    slots: slotsFromRoles(
+      assignmentsWithCaptain(
+        placementsFrom(formData),
+        String(formData.get("captain") ?? ""),
+      ),
+    ),
     template: settings.lineup_template,
     squad,
   });

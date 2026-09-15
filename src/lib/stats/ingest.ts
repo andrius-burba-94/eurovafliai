@@ -2,6 +2,8 @@ import type PocketBase from "pocketbase";
 
 import type { FeedFetch } from "@/lib/euroleague/http";
 
+import { upsertFixtures } from "@/lib/fixtures/store";
+
 import {
   fetchGameBoxScores,
   fetchSeasonSchedule,
@@ -78,6 +80,9 @@ export type IngestReport = {
   /** Everything that went wrong, each naming its game. */
   readonly problems: string[];
   readonly batchId: string | null;
+  /** Fixtures written from the same schedule request — 10.7. */
+  readonly fixturesCreated: number;
+  readonly fixturesUpdated: number;
 };
 
 const EMPTY = (season: string): IngestReport => ({
@@ -92,6 +97,8 @@ const EMPTY = (season: string): IngestReport => ({
   checkedAgainstPir: 0,
   problems: [],
   batchId: null,
+  fixturesCreated: 0,
+  fixturesUpdated: 0,
 });
 
 /** A one-line summary for the worker log. Silent passes say nothing. */
@@ -103,6 +110,11 @@ export function summariseIngest(report: IngestReport): string {
   if (report.updated) parts.push(`${report.updated} corrected`);
   if (report.unchanged) parts.push(`${report.unchanged} already stored`);
   if (report.unmatched) parts.push(`${report.unmatched} unmatched code(s)`);
+  if (report.fixturesCreated || report.fixturesUpdated) {
+    parts.push(
+      `fixtures ${report.fixturesCreated} new, ${report.fixturesUpdated} changed`,
+    );
+  }
   if (report.problems.length) parts.push(`${report.problems.length} problem(s)`);
   return `stats · ${report.season} · ${parts.join(", ")} · ${report.outstanding} outstanding`;
 }
@@ -137,6 +149,16 @@ export async function ingestFinishedGames({
     doFetch,
     onProgress: log,
   });
+  // The whole schedule, before it is narrowed to what has been played. This is
+  // the request 4.3 already made and threw half of away; 10.7 keeps the other
+  // half, which is the only place "who is next" can come from. It is stored
+  // *before* the box scores are fetched, because it is the cheap half of the
+  // pass and a pass that dies in the twelve HTTP requests below should still
+  // have moved the fixtures forward.
+  // What this wrote is reported through `summariseIngest` rather than logged
+  // here, so a pass says each thing once.
+  const fixtures = await upsertFixtures(pb, season, schedule);
+
   const played = schedule.filter((game) => game.played);
 
   const forced = onlyGames ? new Set(onlyGames) : null;
@@ -145,7 +167,12 @@ export async function ingestFinishedGames({
     forced ? forced.has(game.gameCode) : !stored.has(game.gameCode),
   );
 
-  const report = EMPTY(season);
+  const report: IngestReport = {
+    ...EMPTY(season),
+    fixturesCreated: fixtures.created,
+    fixturesUpdated: fixtures.updated,
+    problems: fixtures.failures,
+  };
   if (outstanding.length === 0) {
     return { ...report, played: played.length };
   }
@@ -164,7 +191,11 @@ export async function ingestFinishedGames({
   });
 
   const rows = fetched.flatMap((game) => game.rows);
-  const problems = [...failed, ...fetched.flatMap((game) => game.problems)];
+  const problems = [
+    ...fixtures.failures,
+    ...failed,
+    ...fetched.flatMap((game) => game.problems),
+  ];
   const checkedAgainstPir = fetched.reduce(
     (total, game) => total + game.checkedAgainstPir,
     0,

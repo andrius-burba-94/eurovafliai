@@ -168,19 +168,19 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
           <Slots testId="stat-plan">
             <Slot state={plan.creates > 0 ? "live" : "filled"}>
               <span className="slot-label">New game lines</span>
-              <span className="text-sm tabular-nums">{plan.creates}</span>
+              <span className="stat text-sm">{plan.creates}</span>
             </Slot>
             <Slot state={plan.updates > 0 ? "live" : "filled"}>
               <span className="slot-label">Corrections</span>
-              <span className="text-sm tabular-nums">{plan.updates}</span>
+              <span className="stat text-sm">{plan.updates}</span>
             </Slot>
             <Slot>
               <span className="slot-label">Already stored</span>
-              <span className="text-sm tabular-nums">{plan.unchanged}</span>
+              <span className="stat text-sm">{plan.unchanged}</span>
             </Slot>
             <Slot state={plan.checkedAgainstPir > 0 ? "filled" : "waiting"}>
               <span className="slot-label">Checked against official PIR</span>
-              <span className="text-sm tabular-nums">
+              <span className="stat text-sm">
                 {plan.checkedAgainstPir}
               </span>
             </Slot>

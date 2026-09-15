@@ -21,8 +21,41 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: nothing mechanical — Phase 9 is closed.** What is outstanding is a
-date rather than a ticket (the real draft night, below). Phase 9 was
+**Phase 10 — the midnight board — has landed.** A full visual direction change,
+and a **reversal** of what this app looked like from 1.4 to 10.1: the card-stock ground
+and the night board are both retired in favour of one dark ground (`#0B1120`)
+with one Euroleague orange accent (`#FF5500`), vibrant position colour-coding,
+a two-level depth scale, a second type family for figures, and a third
+animation. It is recorded as [ADR-0006](adr/ADR-0006-midnight-board.md) and
+blueprint **D22**, which supersede D17, D21 and ADR-0005 — the eight-day-old
+night board is undone, and the reason is written down rather than implied.
+Read D22 before touching a colour.
+
+**Phase 10 is closed: all nine slices have landed.** The decision and the
+palette (10.1–10.2), two type families (10.3), the card-block material and its
+enforced depth scale (10.4), roster blocks and the captain as a mark (10.5), the
+data grid and the last-five sparkline (10.6), the `fixtures` collection (10.7),
+the third motion event and the band (10.8), and the three differentiated
+screens (10.9). Two of the brief's asks were **dropped on measurements rather
+than deferred** — purple head-coach badging (D19/D22) and the double-round
+indicator (**D23**) — and one of this system's own named refusals was reversed
+with its own row: the draft room gets a second measure (**D24**), which is the
+app's only surface wider than 48rem.
+
+**Next up is not a slice: it is the human half of 3.7 / D12** — a real draft
+night, with friends, on their own phones, before the league drafts into a season
+already in progress. Everything mechanical about that night is proven. The rest
+of the open work is the debt table below, where the `pool.spec.ts` count flake
+is the one worth picking up first.
+
+**This landed before draft night, which was a deliberate risk**, stated here
+because the next agent should not have to infer it: the interface the league
+will draft on has changed underneath a rehearsal that was run on the old one.
+Nothing mechanical moved — the engine, the pipeline and the sweep are untouched
+and unstyled — but "does it read in a loud room" was answered for a surface that
+no longer exists.
+
+Phase 9 was
 five gaps measured against the official EuroLeague Fantasy Challenge **Draft
 Mode** rulebook and against comparable fantasy apps; the table below carries
 them. **9.1 has landed**: the draft pool now leads with average PIR rather than
@@ -105,7 +138,189 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
-## Try it on localhost — slice 9.5
+## Try it on localhost — slice 10.9
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3007` on a laptop and make the window wide (1200px or
+more). Three surfaces, three shapes:
+
+- `/` — your leagues are a **grid** of card blocks, two across, and the run no
+  longer trails off into empty "Slot 04" placeholders.
+- A **draft room** — past 1024px the room opens to 80rem and splits in two: the
+  pool on the left, the radar, board, console and chat on the right, with the
+  countdown band full width above both.
+- `/leagues/<id>/standings` — one grid. Rank, team and total stay put while the
+  rounds scroll under them.
+
+The one thing to look at: **narrow the window back to a phone width** with the
+room open. The two columns collapse into the single column the league will
+actually draft on, in the same order as before — nothing about the phone layout
+changed, and that is the point.
+
+## Try it on localhost — slice 10.8
+
+```bash
+npm run dev
+npm run worker:dev          # so a pick can also land without you
+```
+
+Open a draft room on two devices, or two windows side by side. Pick on one and
+watch the **other**: the marker rule leaves the slot that was on the clock and
+travels across the next one, and the slot it left springs shut on the name that
+just appeared in it. Two animations, one event, adjacent slots.
+
+The one thing to look at: reload the watching window. Nothing moves. A page load
+is not news, and a board that replayed the last pick on every refresh would be
+decoration — which is the same argument the rule advance has made since 3.1.
+
+Then turn on reduce motion (macOS: System Settings → Accessibility → Display).
+Pick again: the name, the position wash and the letter are all there on the
+first frame, and neither the rule nor the slot travels. The guard is inside the
+CSS rule rather than at the call site, so nothing new can forget it.
+
+The band above it is the same band, restyled: the countdown is now the largest
+figure in the room and the sentence over it is a step smaller.
+
+## Try it on localhost — slice 10.7
+
+```bash
+npm run dev
+npm run stats:sync          # one pass: fills fixtures from the schedule
+```
+
+Open a team page (`/leagues/<id>/teams/<memberId>`). Each block now carries a
+fixture line: **vs ZAL** at home, **at ZAL** away. Then open
+`/leagues/<id>/lineup` and switch rounds — the line follows the round you are
+arranging, because a lineup is arranged against that round's opponent and not
+against whatever happens to be next.
+
+The one thing to look at: in September the line says who and stops. "Hard draw"
+only appears once the *opponent* has three played games, because a club's record
+over two games is a coin toss reported as a fact.
+
+You will not see "Double round" anywhere, and that is now a finding rather than
+missing work: every club plays exactly once in every Euroleague round — 1,564
+club-rounds measured across two seasons, no exceptions — so the indicator was
+dropped. The numbers are in `docs/research/euroleague-api.md`.
+
+## Try it on localhost — slice 10.6
+
+```bash
+npm run dev
+npm run test -- sparkline
+```
+
+Open a player who has played this season (`/players/<id>`). Under the season
+figures there is a **Last 5** line: the five PIRs as a single stroke, and the
+numbers beside it. Then open the draft room — on a laptop the same stroke sits
+in each pool row; narrow the window and it leaves, because a 390px row has no
+column to spare.
+
+The one thing to look at: a player with one game has **no** stroke, only the
+number. Two points make a trend and one makes a dot, so the line is not drawn
+at all rather than drawn flat.
+
+If you use a screen reader, the picture says nothing and the sentence beside it
+does: "Last 5 games, oldest first: 12, 9, 15 PIR — trending up." On standings
+that sentence reads in points **to the tenth**, matching the row it sits in,
+because the stored figures there are integer tenths.
+
+## Try it on localhost — slice 10.5
+
+```bash
+npm run dev
+npx playwright test tests/e2e/lineup.spec.ts
+```
+
+Open a team page (`/leagues/<id>/teams/<memberId>`). The roster is a grid of
+blocks, each with a coloured left edge — cyan guard, emerald forward, amber
+center — and the open places are dashed and empty rather than filled.
+
+Then open `/leagues/<id>/lineup` and put the armband on somebody. Move it to a
+second player: the first clears itself, because it is a radio group and that is
+the browser's job, not ours. Now take the captain and change their role to
+**Bench** — the armband goes with the place.
+
+The one thing to look at: the role select no longer offers "Captain". That is
+the rule, not a trim — the captaincy is a mark on one of the five starters, and
+`validateLineup` refuses a captain who is not among them, so a control that
+could name a bench captain would exist only to produce an error message.
+
+You will not see a fixture anywhere, and at 10.5 that was correct: ingestion
+still discarded every unplayed game, so there was nothing to say. 10.7 fills the
+line in — and drops the "Double round" half of it, for the reason recorded
+there.
+
+## Try it on localhost — slice 10.4
+
+```bash
+npm run dev
+npm run test -- depth-scale
+```
+
+Open a league page: the **four doors** are now card blocks in a grid rather than
+a ruled run — a panel a shade lighter than the ground, one soft corner, and the
+draft-room door outlined in orange when the draft is live.
+
+The one thing to look at: put your eye level with the screen and note there is
+**no shadow under a block**. Depth here is a lighter fill and a rule, nothing
+else — on a ground this dark a shadow has nothing to darken, so every version
+that reads as elevation is a glow, which is the thing ADR-0006 exists to refuse.
+
+Then try to break it. Add `rounded-lg` or `shadow-md` to any component under
+`src/`, or spell `card-block` outside `board.tsx`, and re-run the test above: it
+fails by name and points at the file. That guard is the point of the slice —
+Tailwind emits an unknown utility as *nothing*, so the mistake it catches is one
+that renders cleanly and silently wrong.
+
+## Try it on localhost — slice 10.3
+
+```bash
+npm run dev
+npx playwright test tests/e2e/design.spec.ts --project=chromium
+```
+
+Open `/players` and look down the **PIR column**. The figures are JetBrains
+Mono; the surnames beside them are Space Grotesk. That contrast is the whole
+slice.
+
+The one thing to look at: the sentence under a heading, and the chat's unread
+count, are **still** sans. A figure inside a sentence is prose. If you find a
+mono sentence anywhere, the `stat` utility has been used as decoration and the
+rule has already started leaking.
+
+Then open a draft room: the clock counts down in mono without the digits
+shifting, and chat timestamps line up as a column down the transcript.
+
+## Try it on localhost — slice 10.2
+
+```bash
+npm run dev
+npm run test -- src/app/tokens.test.ts
+```
+
+Open any page. The ground is **`#0B1120`** and there is **no sun in the top
+rail** — that is the whole of 10.2 visible in one glance, because the switch and
+the second ground went together.
+
+The one thing to look at: put your OS in **Light** mode and reload. The app is
+still the midnight board. That is not a bug, it is
+[ADR-0006](adr/ADR-0006-midnight-board.md)'s accepted cost, and it is in Open
+debt so nobody has to rediscover it.
+
+Then `/leagues/<id>/draft` with a board on it. The slots are still ruled the
+same four ways, the marker is now orange on the slot on the clock, and the
+G/F/C patches are cyan/emerald/amber with their letters still printed. Type is
+deliberately unchanged — Archivo until 10.3.
+
+## Try it on localhost — slice 9.5 (superseded by 10.2)
+
+The sun/moon switch this describes **no longer exists**; kept because the
+"does it arrive without JavaScript" check below is the one the midnight board
+inherited, and `design.spec.ts` now asserts it.
 
 ```bash
 npm run dev
@@ -824,6 +1039,37 @@ and **blueprint D4 was right to cut coach scoring**. What D4 got wrong is
 | **9.5 The night board** | done | — | **A second ground, and only a ground.** It contradicts D17's dark-mode clause head-on, so it opens by paying the price DESIGN.md's open question 5 set — the inversion argument is **re-made** rather than quietly dropped: the day board inverts the physical object *for the light it is read in*, and Euroleague tips at 20:00 and 21:00 CET, so by day the card is the ground and by night the board is. What the direction contract actually refuses — the near-black surface with one glowing accent — is untouched and still asserted. Blueprint **D21** and [ADR-0005](adr/ADR-0005-night-board.md). **The system preference decides in CSS**, so a reader with JavaScript off lands where their phone asked and an OS that switches at tip-off reaches a page already open; a ~200-byte script in `<head>` applies an explicit override **before first paint**, because a theme applied from an effect is a white page flashed at somebody in a dark room. Choosing what the system already wants **clears** the override, or "follow my phone" becomes something you get back by clearing site data. The control rides in the top rail, so it reached every surface without editing a page — it shipped as the existing `FilterToggle` labelled "Night" and is now a drawn sun/moon mark (**9.5a**). **The test file was the design constraint**: `tokens.test.ts` reads the *first* `--color-X` declaration in `globals.css`, so a palette that overrode those names in place would have measured the day board twice and dark mode would have shipped unmeasured. The night values are therefore declared as `--night-*`, pointed at `--color-*` from two blocks whose token lists are asserted identical, and the suite is parameterized by ground: **122 assertions, every ratio asked twice**. Each value was solved against the day board's own **margin** rather than picked — soft ink 5.79:1 where day is 5.77, marker 5.10 against 5.06, rail 5.05 against 5.05, the rules 3.35/4.40 against 3.36/4.40 — because a dark theme whose quiet inks read at 8:1 has no quiet, it has two shouts, and hierarchy here is carried in ink strength. `board.tsx`'s patch field needed no change: it mixes into `var(--color-stock)`, a *token reference*, so it follows the ground without the component knowing there is a second one |
 | **9.5a The ground switch becomes a mark** | done | — | **A one-control slice, and the alignment was the whole of it.** 9.5's switch was a `FilterToggle` reading "Night"; it is now a drawn sun/moon on a 44px `aria-pressed` button — the one control in this system whose **state is the picture, not a rule**, which is why it takes no underline. The label would have been the safer choice and the icon is the asked-for one, so the price is paid where DESIGN.md can see it: a new **Ground switch** entry states the exception, and the Shapes section carries the recipe. **What actually made it look wrong was the alignment context, not the drawing.** `TopRail`'s right group is baseline-aligned, and on `/` the action is not one line but a stack — a name over its own nav — so an icon centred against it sat *between* the two lines, level with nothing, reading as a stray mark. The rail now has **one line of controls and everything that is a control sits in it**: `self-end` at `gap-1`, which lands the mark in the nav's own 44px band and is the same result on the single-line surfaces. The pair is sized against each other rather than to a shared box — the sun a small disc whose rays read wide, the moon one thin arc drawn nearer its edge — because matched geometrically they look like two different sizes on the same rail; 16 units rendered at 18px, so the stroke comes out a shade over 1px and sits *with* the 500-weight caps beside it. `theme.spec.ts` needed no edit: the `aria-pressed` contract and the test id are what it asserts, and neither moved |
 
+## Phase 10 — The midnight board
+
+**Closed.** One visual direction change, sequenced as nine slices so the app was
+shippable after each, and all nine have landed. The decision is
+[ADR-0006](adr/ADR-0006-midnight-board.md) / blueprint **D22**; it supersedes
+D17, D21 and ADR-0005. Two of the brief's asks were **dropped on measurements**
+(**D19/D22** head coaches, **D23** the double round) and one named refusal was
+**reversed with its own row** (**D24**, the room's measure).
+
+Three items from the brief were **dropped with a reason** rather than deferred,
+and all three are worth knowing before anybody re-reads the brief and thinks
+something was missed. **Purple head-coach badging**: Draft Mode has no head
+coach (D19) and the pool filters coaches out at ingest, so a fourth position
+colour would badge an entity the game does not have. **A persistent countdown**:
+it already exists, sticky since 3.7, corrected against a server clock offset —
+10.8 restyles it rather than building it. **PIR and the rolling five-game
+average**: landed in 9.1 and already the pool's leading column; what is new is
+the *sparkline*, which needs per-game values the pool never queried.
+
+| Slice | State | Notes |
+|---|---|---|
+| **10.1 The decision, the rulebook and the palette** | done | ADR-0006, D22, DESIGN.md re-grounded, `.impeccable/design.json` regenerated. **The palette is solved, not picked**, and three constraints moved real values: a panel is *lighter* than the ground (depth on a dark ground is lightness), so `rule` is solved for 3:1 on the **panel** (3.15) and clears 3.52 on the ground as a by-product — the reverse of which surface was binding on paper. `live-sunk` is the *lightest* warm bay on which `ink-faint` still clears 4.5:1 (4.61), because faint ink is what a muted pool row is written in and that row can be the armed one. `ink-soft` is solved against its **worst** pairing — a position wash on a panel (4.57) and staying above the marker on the bay (5.36 vs 5.05) — where ADR-0005's 5.79:1 failed both. Chalk stops at **13.89:1** rather than the 18.8:1 the ground now allows, because halation is real: that argument is the one part of 9.5 that outlived it. The marker carries **four** decimal places (`oklch(0.6759 0.2175 38.8)`) because three round-trips to `#ff5502` |
+| **10.2 The palette in code** | done | `globals.css` rewritten; the `--night-*` indirection, `theme.ts`, the `<head>` script, `ThemeControl`, the sun/moon icons and `theme.spec.ts` all removed; `stock-deep` renamed **`stock-panel`**, because on this ground "deep" says the opposite of what it does. `tokens.test.ts` collapsed from two grounds to one — **74 assertions, every pair re-measured**, plus four that are new and deliberate: the two anchors asserted as sRGB *bytes* (`#0b1120`, `#ff5500`) rather than as OKLCH nobody can read; a **ceiling** on chalk so "improving" contrast toward white stops being a one-character change; `rule` asserted to be *harder on the panel than on the ground*, which is the inversion easiest to undo by accident; and a guard that every token is declared **exactly once**, because 9.5's `--night-*` naming was what stopped a second palette shipping unmeasured and deleting it removed that protection. `global-error.tsx` also carried a copy of the theme script — it renders when the layout has failed, so it had to be found by grep rather than by CI |
+| **10.3 Two type families** | done | Space Grotesk for words, JetBrains Mono for figures in a column, both verified against Next's own `font-data.json` to ship `latin-ext` **before** being chosen — this league reads Valančiūnas, and a face that falls back mid-word makes the board look broken. The mono face is reached only through a named `stat` utility, which **deliberately sets two properties and not four**: adding `font-weight` and `letter-spacing` to it would have been a real bug, because it composes with `slot-label` (weight 500, 0.14em tracking) and with `font-semibold`, and Tailwind v4 emits `@utility` blocks **alphabetically** — `slot-label` sorts before `stat`, so a tracking declaration here would silently beat the caps tracking of every label it joined. That is the same composition failure `slot-transit` already paid for. Applied to ~30 columnar figures (pool PIR, standings, recap, impact, team and player pages, board and sheet numbering, the clock, chat timestamps); **not** applied to the chat unread badge or a figure inside a sentence, which is the boundary the rule states. `design.spec.ts` now asserts both halves in a browser: a `stat` cell computes to JetBrains Mono and prose does not |
+| **10.4 The card-block material** | done | One radius token (`--radius-block`), the `card-block` / `card-block-live` materials, and `CardBlock` / `CardBlocks` in `board.tsx`. **There is no shadow token**, and that is argued rather than skipped: a shadow darkens what is beneath it, and at L 0.18 there is nothing left to darken, so the version that reads as elevation is a glow — the thing ADR-0006 kept refusing. Depth is a lighter fill, a rule and a corner. `Door` gained a `block` variant sharing one body, and the league page's four doors are the port: they are *destinations*, so a grid saying "pick one" is more honest than a ruled run saying "list". The position edge is a full-strength `border-l-3`, not an alpha, so it cannot take its colour from whichever surface the block sits on — and it is an edge rather than a wash precisely so it changes no text contrast. **The scale is enforced**, closing the debt 10.1 opened: see `depth-scale.test.ts` |
+| **10.5 Roster blocks and the captain** | done | The roster and the lineup are runs of card blocks with the position edge; `card-block-waiting` (dashed, **unfilled**) draws an open roster place, because giving an absence the same stock as a player turns nine players and four gaps into thirteen blocks. The captain became a **radio group**, which is what "exactly one of these" already is in a browser — thirteen toggles clearing each other is that, reimplemented without the keyboard handling. The rule it encodes: the captaincy is a *mark on a starter*, not a sixth role, so marking also places, moving off `starter` clears the mark, and the select drops to four options. `validateLineup`, the five formations and the `lineup-role` test id are untouched, and the server takes the captain only from its own field — two doors onto one fact is how a form names two captains. The fixture line is a **seam**: `FixtureNote` renders nothing until 10.7 has data, and is tested for that, because a "TBD" would claim we looked |
+| **10.6 The data grid and sparklines** | done | Five PIR marks as one hand-drawn polyline on `currentColor` — no chart package, because the whole component is nine lines of SVG and `sparklinePoints` is the only arithmetic in it. Two rules it follows and one it refuses: the picture is `aria-hidden` with an **`sr-only` sentence** beside it, because five marks are otherwise five announcements of nothing; the sentence takes the caller's **formatter**, since the standings hold tenths and a reader would otherwise hear "120" where the row reads "12.0"; and it draws **nothing below two games**, because a single point is a dot claiming a trend. The series needed a new `proj_last5_pirs` JSON field — the five numbers, not the average 9.1 already stores — written where the other projection fields are materialized, and `sameProjection` compares it so a re-ingest is still a no-op write. The sparkline is `sm`-and-up in the pool and standings **rows** and unconditional on the player page and the roster block, which is the same width budget the fantasy column already lives under. Also closes a flake the gate kept excusing: the pool's filters are client state, so a club selected before hydration narrowed nothing — `useHydrated` now surfaces that fact on `pool-ready`, one hook shared with the sheet, which had already paid for this once |
+| **10.7 Fixtures** | done | The `fixtures` collection, filled from the schedule request 4.3 was already making and discarding half of, keyed `unique(season, game_code)` — an upsert whose plan is recomputed every pass, so a pass that dies after two hundred rows is finished by the next one fifteen minutes later without being told. **The double-round indicator is dropped, not deferred**, and this is the second brief item killed by a measurement rather than by taste: across E2025 and E2026 all **1,564 club-rounds hold exactly one game**, because twenty clubs and ten games make a round. A flag derived that way is `false` forever; the two-games-in-a-week reading covers a third of the season. **Difficulty is derived and home court is measured**: the home side averages **+3.46** points across 402 played E2025 games (+3.34 in the regular season alone, 63.7% home wins), which is both the number `homeEdge` computes and the scale behind the four-point threshold. Absent until the opponent has played three games, with no fallback to last season — a player's PIR follows the same person across a summer, a club's margin follows a rebuilt squad. The lineup page asks about **its own round** and the team page about the next unplayed game, which is two different questions and two functions |
+| **10.8 Motion and the band** | done | The third animation event is **the second one seen from the other end**, which is the argument that keeps it from being a fourth: one state change — the clock moving — and two things it does to the board. The rule leaves the slot that was on the clock; that slot springs shut on the pick it has just taken. `pick-springs`, 320ms, scale `0.86 → 1.04 → 0.99 → 1`, keyed on `data-landed` from the same effect that decides whether this viewer was *watching*. **The overshoot is in the keyframes, not in a second easing vocabulary** — the timing function between the stops is the system's one curve, so a spring here is a shape drawn with it rather than a physics library arguing with it; and it is 4% because a slot is ~92px wide, its neighbours' rules are 1px, and the ruling *is* the state language. Three guards, each a rule: only a slot that **filled** (a rollback moves the marker backwards onto one it empties), only **one** slot (an autodraft sweep can move the marker three places, and three cards landing together is a board flickering), and never on a first paint. The band was **restyled, not rebuilt**: the countdown went `text-2xl → text-4xl/5xl` and the headline down one step, because the headline is the same sentence for the whole of somebody's two minutes and the clock is the only thing on the band that changes — measured at +4px on a Pixel 7 and +12px at 1440, which is what a band that never leaves the viewport gets to spend. No colour was reached for: the figure was already the top of the chalk ramp, and a number in marker on a marker-tinted band breaks the Ink-on-Blush Rule on the surface everybody is looking at |
+| **10.9 Screen differentiation** | done | **Three surfaces, three shapes, one design system** — and the slice is layout, not skin. `max-w-3xl` **stops holding on exactly one surface**: `Sheet` and `TopRail` take a `measure` prop with two values, `column` (48rem) and `room` (80rem from `lg`), and the room splits *acting* (the pool) from *watching* (radar, board, console, chat) with the band full width above both. That reopens DESIGN.md's open question 4, so the reversal is argued where the refusal lives, in the ADR-shaped place: blueprint **D24**. The argument is not "laptops are wide" — it is that 3.1 answered for the *board*, which still overflows rather than widening the app, and by Phase 9 the *room* had become five surfaces in one 48rem column, five screens tall on a 1440px laptop. **Below `lg` the room is byte-for-byte the phone layout**, which is the half that matters: draft night is phones on a couch. The other two changed shape without changing measure. The **dashboard** is a grid of card blocks, because a league is a subject rather than an entry in a ledger — nothing on `/` is ordered and nothing is compared down a column — and its three `Slot 04` placeholders went with the port: they drew a board's shape for something that is not a board, which narrows the Board-Shows-Its-Shape Rule to things that genuinely occupy slots. The **standings** became one scrolling grid in the **draft board's own scrollport** (`BoardScroll` therefore takes a `label` now): members down, rounds across, rank/team/total `sticky left-0`, the sparkline closing the row. The run of `R12 14.0 R13 9.5 …` tokens it replaced could not answer the table's own question — "who won Thursday" is a lookup down a column and was 38 wrapped tokens a row. Axe now reads a **populated** dashboard and a **populated** table, because both of the surfaces this slice rebuilt had only ever been swept empty, where there is no list, no link inside a block and no sticky row header to get wrong. One real regression came out of the sweep: a radar jump landed the far board column 0.19px past the scrollport's own edge once the board sat in a fractional grid track, so that assertion asks "visible" within a pixel rather than exactly |
+
 ## Phases 5–8
 
 | Phase | State |
@@ -882,6 +1128,7 @@ touch should be fixed by that slice rather than deferred again.
 |---|---|---|
 | **A failed league delete has already destroyed the board** | Found in production, and the fix below is only half of it. `deleteLeague` is four writes with no transaction, and the *destructive* ones come first: roster windows, then drafts (taking their picks), then the league. So a step-3 failure leaves a league whose board is gone — which is exactly what happened on the box, twice, before the blocker was understood. It is now idempotent (every step deletes by league filter, so the same click finishes the job) and `pb:verify` fails CI on a new blocker rather than letting production find it — but **ordering cannot be fixed into atomicity**: PocketBase has no transactions, and the cascade is the only thing that removes members, chat and sheets, so the league record has to go last. A pre-flight that proves the delete will succeed before anything is destroyed is the real fix and is not written | Nothing today; a delete that fails for a *new* reason still takes the board with it |
 | **The route error boundary promises more than it knows** | "Something on this page broke. The board itself is unchanged" is true of the read paths it was written for and false of a partial multi-step write — the league delete above said it while the draft was already gone. Copy on every surface, so it is recorded rather than changed on the way past: either the sentence drops its second clause, or the actions that can half-fail say so themselves | Nothing mechanical; a reassurance that can be wrong |
+| **`E2E_PORT` and `NEXT_PUBLIC_APP_URL` can disagree, and the failure is a *false pass*** | Found in 10.4 while running the gate. `/auth/callback` redirects to the **absolute** configured origin (`NEXT_PUBLIC_APP_URL`, `http://localhost:3007`), so running the suite on another port sends the browser somewhere the suite is not. With 3007 empty this is loud: `ERR_CONNECTION_REFUSED`, four failures. With a dev server on 3007 it is silent and worse — the two callback specs assert a **path** regex, which the *other* server satisfies, so they go green while testing a different build. The run STATUS previously recorded used `E2E_PORT=3011`, so those two results should be treated as unproven before 10.4. Two real fixes exist: derive the redirect from the request origin, or have the config refuse a port mismatch. Neither is written; for now the suite runs on the default port | Nothing today, but two security specs are only as trustworthy as the port they ran on |
 | **Local PocketBase drifts from `main`** | A dev database only applies migrations on boot, so a checkout that has been running across a schema change silently tests the old shape. It cost a confusing run of lobby-spec failures. `npm run dev` after pulling is the whole fix; the symptom is `pb:verify` disagreeing with CI | Nothing; a time sink |
 | **Two-device confirmation** | Closed, and recorded here so the thread is not re-opened. Phase 1's DoD wanted real devices rather than two browsers on one machine, because the realtime gap that opened Phase 3 could only have been *seen* by two sessions watching one board. The three-account production draft ran on several real devices and every one of them drew the board as picks landed — which is also how the commissioner legality defect was spotted. What it is **not** is the human half of 3.7 / D12: one person drove all the devices, so "does draft night feel right with friends in one room" is still unanswered and still needs other people | Nothing; Phase 1 is complete |
 | **No `manual_lock` button** | A locked player is untouchable by both sources and the pool page shows the badge, but setting the lock still means editing the database. The rest of 2.1b shipped without it | Nothing; a commissioner-comfort gap |
@@ -895,9 +1142,12 @@ touch should be fixed by that slice rather than deferred again.
 | **A turn cannot be skipped** | Argued against rather than deferred, in 9.2 (blueprint **D18**), and recorded here because it is the one thing a commissioner may go looking for in the new panel and not find. A skip leaves a hole in the order: `buildPickOrder` builds a contiguous run of slots and `isDraftComplete` counts them, so a permanently empty slot is a draft that can never finish — and the sweep's own board-hole repair would start reporting a draft it cannot move. The two cases a skip is reached for both already have controls beside it: **autodraft** takes the absent member's turns as they come, and **"Pick for them"** enters a pick for whoever is on the clock. What is genuinely missing is only the case where a league wants somebody to draft *fewer than thirteen* players, which nothing in this app supports anyway | Nothing; a hole in the board is worse than a slow turn |
 | **An injury flag never expires on its own** | 9.4 may raise a flag and may never clear one, because both RotoWire views carry the latest 25 *updates* rather than a census of who is hurt — a player disappearing from them is not evidence of anything. So a player who quietly recovers stays marked until somebody presses **Available again** on `/players/news`. Two candidate fixes, neither chosen: an age-out (a flag older than N days stops warning), which invents a recovery date the source never gave; or a second source that publishes a *current* injury list, which is a new ADR and a new parser. The commissioner button is the honest version and it is one press | Nothing mechanical; a stale "injured" beside a fit player until somebody says otherwise |
 | **The news parser breaks when somebody else's markup does** | `rotowire.ts` reads class hooks (`news-update`, `news-update__playerhead`, `is-injured`) from pages we do not control. A rename makes a pass parse **zero** items, which is why zero is reported as a problem rather than logged as a quiet success — it shows in the worker log, in `npm run news:sync -- --dry` and in the commissioner's "Read the pages now". The saved markup in `src/lib/news/fixtures/` is what a fix is written against. What is *not* detectable is a subtler change — a body part moving to another element — which would show up as items losing a field rather than as an error | Nothing else; the news stops, and the app does not |
-| **`pool.spec.ts` flakes on counts, and passes on retry** | Eight of the suite's 430 tests, all in one file, all green on the first retry — measured on a fresh build, so it is not the dev server's route compilation. The shape is always the same: a filter that should leave one row resolves three. The pool is **app-global** and these specs scope themselves with `TEST_CLUB`, a club code randomised once per *worker process* and therefore shared by every test that worker runs; `cleanupTestData` runs `afterEach` and deletes what it recorded. So a player the cleanup could not delete — or a run that aborted mid-draft — is still in that worker's club when the next test filters it, and the count is off by exactly the leftovers. Not caused by 9.5, and visible since 9.4's specs joined the file's neighbourhood. The fix is a club **per test** rather than per worker, which touches every helper in `pool.spec.ts`; recorded rather than done because CI's one retry hides it and a rushed change here breaks the file that catches real pool regressions | Nothing in the app; a retry in CI, and a count assertion that cannot be trusted on a first run |
+| **`pool.spec.ts` flakes on counts, and passes on retry** | Eight of the suite's 430 tests, all in one file, all green on the first retry — measured on a fresh build, so it is not the dev server's route compilation. The shape is always the same: a filter that should leave one row resolves three. The pool is **app-global** and these specs scope themselves with `TEST_CLUB`, a club code randomised once per *worker process* and therefore shared by every test that worker runs; `cleanupTestData` runs `afterEach` and deletes what it recorded. So a player the cleanup could not delete — or a run that aborted mid-draft — is still in that worker's club when the next test filters it, and the count is off by exactly the leftovers. Not caused by 9.5, and visible since 9.4's specs joined the file's neighbourhood. The fix is a club **per test** rather than per worker, which touches every helper in `pool.spec.ts`; recorded rather than done because CI's one retry hides it and a rushed change here breaks the file that catches real pool regressions. **10.6 found and closed a second, unrelated cause** rather than this one: the pool's filters are client state, so a club selected before hydration narrowed nothing, and `enterDraft` selected it the moment `pick-pool` became visible — see the `pool-ready` note on 10.6. Measured after: `pool.spec.ts` plus `cheat-sheet.spec.ts` run twice through, 190 test runs, **one** flake, and that one a pick button that never arrived rather than a lost filter. The full suite still shows eight, which is what keeps this row open — the shape there is a *position* toggle leaving three rows where one was expected, and three is exactly "the right answer plus two leftovers". **Re-measured at 10.9 and unchanged: eight, in the same file, on a fresh build, all green on retry** — and 10.8's zero-flake run, read against this row rather than as news, is what a 1-in-190 defect looks like on a 425-test sample. `pool.spec.ts` on its own passes 22 of 22, twice over, which is the other half of the evidence: the leftovers come from *other* specs sharing the worker's club, not from this file | Nothing in the app; a retry in CI, and a count assertion that cannot be trusted on a first run |
 | **The night switch corrects itself after hydration** | The *page* never flashes — 9.5's script sets `data-theme` in `<head>` before the first paint. The control's own `aria-pressed` is another matter: it is rendered from the server's snapshot, which has no `localStorage` and no media query, so on a night phone it is drawn unpressed and flips when React arrives. Rendering nothing until mount was the alternative, and it moves the rail as every page loads, which is worse on the surface that is on every page. A cookie read in the root layout would fix it properly and makes every route dynamic for one attribute | Nothing mechanical; the toggle's label can be wrong for one frame while the ground it reports is already right |
-| **Every new colour now has to clear two grounds** | Not a defect and not deferrable — the standing cost of 9.5, written down so the next person meets it before CI does. `tokens.test.ts` loops over `day` and `night`, so a token added to one palette fails the other's ratio assertions *and* the block that asserts both mapping lists are identical. The same applies to anything visual done by eye: a screenshot is now two screenshots | Nothing; a doubled check on every colour change |
+| ~~**Every new colour now has to clear two grounds**~~ | **Closed by 10.1**, and not by fixing anything: there is one ground again, so `tokens.test.ts` asks every ratio once and a screenshot is one screenshot. Recorded rather than deleted because the cost it describes was real for eight days and the *reason* it is gone is a reversal, not a simplification | Nothing |
+| **`prefers-color-scheme` is no longer honoured** | The accepted cost of 10.1 / [ADR-0006](adr/ADR-0006-midnight-board.md). There is one ground and it is dark, so a reader who has asked their phone for a light interface gets the midnight board anyway — and unlike 9.5's arrangement there is no control to change it, because there is nothing to change it to. This is named in the ADR as the strongest argument for reversing that record later. The fix is not "add the switch back": it is a second palette, which is the thing the `#FF5500`-on-card-stock measurement (2.76:1) rules out | Nothing mechanical; a preference the app now ignores |
+| ~~**The depth scale is prose, and nothing enforces it**~~ | **Closed by 10.4.** `src/app/depth-scale.test.ts` reads every `.ts`/`.tsx` under `src/` and fails on a radius that is not the one token, on any shadow/gradient/blur class, and on a card-block material spelled out anywhere but `board.tsx` — which is what reduces "is a block nested in a block?" to one file. It reads source rather than measuring values because **Tailwind emits an unknown utility as nothing at all**, so a stray `rounded-lg` renders a rounded button and a hand-rolled `card-block-2` renders an unstyled `<li>`. Proven by injecting a violation and watching three assertions fail, not by watching the suite go green. **Still open**, and narrower: the recursive nest is closed, but two *different* callers composing one block into another is left to code review | A residual review dependency for the cross-component nest |
+| **The vibrant position hues have never been simulated under CVD** | 3.2's critique measured the *muted* guard and center washes as pixel-identical under severity-1.0 deuteranopia (ΔE76 = 0.00). 10.1 made the hues vibrant and colour into a scanning signal, which raises the stakes rather than lowering them, and the new values have not been re-simulated. The Letter-Always Rule is kept without exception and is now the actual carrier, so nothing is *unreadable* — but if cyan/emerald/amber separate no better than steel/olive/plum did, then the colour is decoration with a job title and the design's own claim about scannability is only true for some readers | Nothing; an untested claim, with the fallback still in place |
 | **Nothing writes `lineup_template`** | 9.3 reads the lineup shape from league settings — 5 starters, 1 sixth, 4 bench, 3 inactive — and no surface sets it, exactly like `roster_template`, which has been read-from-settings and never written since 2.2. So every league runs the official shape, which is the shape every league wants. The check that matters is enforced where it bites: `recordLineup` refuses when the lineup template and the roster template disagree, rather than a schema refinement that would quietly reset *every* other setting to its default on one bad number | Nothing today; a league that wanted an 11-man roster would need the setting written before its lineups made sense |
 | **A lineup is per round and typed by hand** | 9.3's entry surface takes one round at a time, because that is how the official site is read: somebody looks at a past round and copies what it says. There is no "apply this to every remaining round" and no import. Carry-forward covers the common case — arrange once and it holds until you change it — but a league correcting ten past rounds types ten lineups | Nothing; ten rounds of typing rather than one |
 | **The official 6-players-from-one-club limit is not enforced** | The Draft Mode rulebook caps a roster at six players from any one EuroLeague club, and `isLegalPick` only knows the G/F/C roster template. So the app will happily let somebody draft seven Olympiacos players and the official site would refuse the same squad. Found while reading the rulebook for Phase 9 and deliberately not built into 9.1, which is about what a row *shows* rather than what a pick may be — it belongs with the engine's legality rules and wants `buildPickOrder`-grade tests across formats | Nothing mechanical; a league that mirrors the official site could build a squad the site rejects |
@@ -928,10 +1178,10 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **1219 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season / PIR projection arithmetic and the previous-season import, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, the mapping queue's filters and sentence, the pure lineup validator and the weights standings apply, and the news parser, plan, store and pass — the parser against saved markup rather than the live site. Since 9.5 the 122 design-token assertions are asked of **both grounds**, and the theme's own resolve/override rules are unit-tested including the `<head>` script's behaviour |
+| `npm run test` | **1198 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season / PIR projection arithmetic and the previous-season import, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, the mapping queue's filters and sentence, the pure lineup validator and the weights standings apply, and the news parser, plan, store and pass — the parser against saved markup rather than the live site. Since 10.2 there is **one ground**: the token suite is 74 assertions against it, the theme's resolve/override tests are gone with the theme, and the count fell accordingly. 10.4 adds nine **depth-scale** assertions that read source text rather than rendered values, because Tailwind emits an unknown utility as nothing and a stray `rounded-lg` therefore renders cleanly and wrong; 10.5 adds the captain-as-a-mark arithmetic and three cases for a fixture line that currently renders nothing; 10.6 adds the sparkline's points and its spoken sentence — including the two-game floor, the flat series that draws down the middle rather than along the floor, and the tenths formatter that stops a reader hearing "120" where the row says 12.0. **1225 at 10.8**: 10.7 adds the pure schedule reading (the measured home edge, the difficulty threshold, next-versus-round fixture) and the fixtures upsert driven through the strict fake, which enforces the real `(season, game_code)` index |
 | `npm run build` | pass |
-| `npm run test:e2e` | **421 passed, 1 skipped, 8 flaky** on chromium and Pixel 7 — the whole suite, run locally the way CI runs it (`CI=1 E2E_PORT=3011`, against `next start` over a fresh build). Every flake is in `pool.spec.ts` and every one passed on retry; see the debt row below for what is actually leaking. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
-| `npm run pb:verify` | **148 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, unique `(league, member, season, round)` on lineups, unique `(source, source_key)` on news items, and superuser-only writes |
+| `npm run test:e2e` | **426 passed, 1 skipped, 9 flaky** on chromium and Pixel 7 at 10.9 — the whole suite, run locally the way CI runs it (`CI=1`, against `next start` over a fresh build). Nothing failed; every flake passed on its first retry, eight of them the `pool.spec.ts` count flake in the debt row below and the ninth a `mapping-done` correction that did not arrive inside 5s under five workers. **10.8's clean run was the outlier, not this one** — that suite was 425 and this flake is not rare enough for 425 to prove anything, which is exactly what the row below said. `pool.spec.ts` alone, twice over, is clean. Run it **on the port `NEXT_PUBLIC_APP_URL` names**, which is the default 3007: `E2E_PORT=3011` fails the two `/auth/callback` specs outright, because that route redirects to the absolute configured origin and there is nothing listening on 3007 — see the debt row. The flakes it used to carry were all in `pool.spec.ts`; see the debt row below, which 10.6 narrowed by closing the pre-hydration variant. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
+| `npm run pb:verify` | **159 checks pass** — including unique `(season, game_code)` on fixtures, unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, unique `(league, member, season, round)` on lineups, unique `(source, source_key)` on news items, and superuser-only writes |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs at the last run. The feed moves; do not treat the count as a constant |
 

@@ -162,6 +162,46 @@ export function isOfficialFormation(
   );
 }
 
+/**
+ * A place in the lineup, without the captaincy.
+ *
+ * The rulebook has five roles, and the captain is not a sixth place on the
+ * team sheet — it is a mark on one of the five starters, which is why
+ * `validateLineup` refuses a captain who is not among them. Splitting the mark
+ * off the place is what lets the form offer an exclusive captain control beside
+ * a four-option select without either one being able to express something the
+ * validator would then have to refuse.
+ */
+export type PlacementRole = Exclude<LineupRole, "captain">;
+
+export const PLACEMENT_ROLES: readonly PlacementRole[] = [
+  "starter",
+  "sixth",
+  "bench",
+  "inactive",
+];
+
+/**
+ * Fold the captain's mark back into the roles the validator understands.
+ *
+ * The mark is ignored unless it lands on a starter. That is not leniency: it
+ * keeps a stale captain — one marked before their role was changed to bench —
+ * from producing "the captain has to be one of the starters", a refusal whose
+ * cause is invisible in a form where nothing says "captain" any more. The form
+ * clears the mark on that change too; this is the half that cannot be forgotten
+ * by a future caller.
+ */
+export function assignmentsWithCaptain(
+  placements: readonly { readonly playerId: string; readonly role: PlacementRole }[],
+  captainId: string,
+): LineupAssignment[] {
+  return placements.map((entry) =>
+    entry.role === "starter" && entry.playerId === captainId
+      ? { playerId: entry.playerId, role: "captain" as const }
+      : entry,
+  );
+}
+
 /** The role → slots translation the entry form posts through. */
 export function slotsFromRoles(
   assignments: readonly LineupAssignment[],

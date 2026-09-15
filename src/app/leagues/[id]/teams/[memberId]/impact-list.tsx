@@ -58,7 +58,7 @@ export function ImpactList({
               <span className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <CardName>{deal.impactSentence}</CardName>
                 <span
-                  className="text-sm tabular-nums"
+                  className="stat text-sm"
                   data-testid="impact-delta"
                 >
                   {formatSignedTenths(deal.deltaTenths)}
@@ -69,7 +69,7 @@ export function ImpactList({
               </p>
               <p className="slot-label">PIR {signedPir(deal.deltaPir)}</p>
               {deal.byRound.length > 0 ? (
-                <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums text-ink-soft">
+                <p className="stat flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-soft">
                   {deal.byRound.map((row) => (
                     <span key={row.round}>
                       R{row.round} {formatSignedTenths(row.deltaTenths)}

@@ -174,7 +174,7 @@ export function DraftBoard({
           <span
             role="columnheader"
             aria-label="Draft round"
-            className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock-deep"
+            className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock-panel"
           />
           {columns.map((column, index) => (
             <span
@@ -211,7 +211,7 @@ export function DraftBoard({
                   you are looking at stays labelled while the columns move. */}
               <span
                 role="rowheader"
-                className="sticky left-0 z-10 border-r border-rule-strong bg-stock-deep pt-1 pr-1.5 text-right text-slot tabular-nums text-ink-faint"
+                className="stat sticky left-0 z-10 border-r border-rule-strong bg-stock-panel pt-1 pr-1.5 text-right text-slot text-ink-faint"
               >
                 {row[0]?.round ?? index + 1}
               </span>
@@ -233,6 +233,13 @@ export function DraftBoard({
                     // `data-state="live"` is what the second motion event is
                     // keyed on — the same DOM contract `Slot` publishes.
                     data-board-slot=""
+                    // Which pick this slot is, so the scrollport can find the
+                    // slot the marker has just *left* — the one that filled,
+                    // and the third motion event's subject. Read from the DOM
+                    // rather than held in React state for the same reason
+                    // `data-advanced` is: the board is server-rendered and the
+                    // browser owns only the question of what it witnessed.
+                    data-overall={place.overallNo}
                     data-state={state}
                     // The marked slot, whichever of the two things it means, so
                     // the scrollport has one thing to follow.
@@ -258,7 +265,7 @@ export function DraftBoard({
                     } ${isLastRound ? "border-b border-b-rule-strong" : ""}`}
                   >
                     <span className="flex items-baseline justify-between gap-1">
-                      <span className="text-slot tabular-nums text-ink-soft">
+                      <span className="stat text-slot text-ink-soft">
                         {String(place.overallNo).padStart(2, "0")}
                         {/* CONTEXT.md's own word, and the same word the ticker
                             uses. It was "· A", which is a single letter in a

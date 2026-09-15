@@ -48,6 +48,18 @@ export type PlayerProjection = {
   readonly last5Fantasy: number;
   readonly last5Games: number;
   readonly last5Pir: number;
+  /**
+   * The same five games as `last5Pir`, unaveraged and oldest first — 10.6.
+   *
+   * Whole numbers, because a stored `pir` is whole; the *average* is tenths
+   * precisely because an average of whole numbers is not one, and that argument
+   * does not apply to the values themselves. Storing tenths here would multiply
+   * every one of them by ten for no reader.
+   *
+   * Its length is always `last5Games`, which is the invariant that keeps a
+   * series honest: the sparkline never draws a mark the average did not count.
+   */
+  readonly last5Pirs: readonly number[];
   readonly seasonFantasy: number;
   readonly seasonGames: number;
   readonly seasonPir: number;
@@ -57,6 +69,7 @@ const EMPTY: PlayerProjection = {
   last5Fantasy: 0,
   last5Games: 0,
   last5Pir: 0,
+  last5Pirs: [],
   seasonFantasy: 0,
   seasonGames: 0,
   seasonPir: 0,
@@ -93,6 +106,7 @@ export function projectPlayer(
     last5Fantasy: meanTenths(last5.map((line) => line.fantasyTenths)),
     last5Games: last5.length,
     last5Pir: meanAsTenths(last5.map((line) => line.pir)),
+    last5Pirs: last5.map((line) => line.pir),
     seasonFantasy: meanTenths(played.map((line) => line.fantasyTenths)),
     seasonGames: played.length,
     seasonPir: meanAsTenths(played.map((line) => line.pir)),
@@ -107,11 +121,38 @@ export type ProjectionFields = {
   readonly proj_last5_fantasy?: number;
   readonly proj_last5_games?: number;
   readonly proj_last5_pir?: number;
+  /** The unaveraged five, as stored. `unknown` because a json column is. */
+  readonly proj_last5_pirs?: unknown;
   readonly prev_season_games?: number;
   readonly prev_season_pir?: number;
   readonly prev_season_fantasy?: number;
   readonly prev_season_code?: string;
 };
+
+/**
+ * The stored series, or an empty array — 10.6.
+ *
+ * Defensive about its input because a PocketBase json column is genuinely
+ * `unknown`: unset it comes back as `null` on one version and `""` on another,
+ * and a row written before this field existed has neither. Every branch that is
+ * not an array of finite numbers collapses to "no series", which the callers
+ * already render as nothing.
+ *
+ * **It is only ever this season's form.** A player with no games this season
+ * falls back to last season's *average* in `averagePirOf`, and there is no
+ * corresponding series: `prev_season_*` is imported from the official stats
+ * table as per-game averages, never as per-game lines. So on draft night, before
+ * a ball has been thrown, every player has an average and nobody has a
+ * sparkline. That is the honest state and not a bug to be filled with zeros.
+ */
+export function last5SeriesOf(record: ProjectionFields): number[] {
+  const raw = record.proj_last5_pirs;
+  if (!Array.isArray(raw)) return [];
+  const out = raw.filter(
+    (value): value is number => typeof value === "number" && Number.isFinite(value),
+  );
+  return out.length === raw.length ? out : [];
+}
 
 /**
  * Which season an average is speaking about.

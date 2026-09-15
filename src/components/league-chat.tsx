@@ -563,7 +563,7 @@ export function LeagueChat({
                       <time
                         dateTime={message.created}
                         suppressHydrationWarning
-                        className="slot-label shrink-0 tabular-nums text-ink-faint"
+                        className="stat slot-label shrink-0 text-ink-faint"
                       >
                         {chatTime(message.created)}
                       </time>
@@ -693,7 +693,7 @@ export function LeagueChat({
                   is noise; one that appears near the cap is a warning. */}
               {chatRemaining(draft.length) ? (
                 <p
-                  className="slot-label shrink-0 tabular-nums"
+                  className="stat slot-label shrink-0"
                   data-testid="chat-remaining"
                 >
                   {chatRemaining(draft.length)}

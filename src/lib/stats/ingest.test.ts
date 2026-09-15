@@ -220,6 +220,38 @@ describe("ingestFinishedGames", () => {
     expect(report.played).toBe(6);
     expect(asked.some((url) => url.includes("/games/1/stats"))).toBe(false);
     expect(db.player_game_stats!.some((row) => row.game_code === 1)).toBe(false);
+
+    // It is skipped as a *box score* and kept as a *fixture* — 10.7's whole
+    // change. This is the only place the app can learn who plays next, and
+    // until this slice the same schedule request answered it and was discarded.
+    const unplayed = db.fixtures!.find((row) => row.game_code === 1);
+    expect(unplayed).toMatchObject({
+      played: false,
+      local_club: "IST",
+      road_club: "TEL",
+    });
+  });
+
+  it("stores the whole schedule, and the pass that follows writes nothing", async () => {
+    const { client, db } = fakePb({ data: { players: poolFor(allCodes) } });
+    const { doFetch } = feed();
+
+    const first = await ingestFinishedGames({
+      pb: client,
+      season: "E2025",
+      doFetch,
+    });
+    expect(first.fixturesCreated).toBe(7);
+    expect(db.fixtures).toHaveLength(7);
+
+    const second = await ingestFinishedGames({
+      pb: client,
+      season: "E2025",
+      doFetch,
+    });
+    expect(second.fixturesCreated).toBe(0);
+    expect(second.fixturesUpdated).toBe(0);
+    expect(db.fixtures).toHaveLength(7);
   });
 
   it("reports an unmatched person code and stores every other line", async () => {
@@ -315,8 +347,10 @@ describe("summariseIngest", () => {
       season: "E2025",
       doFetch,
     });
+    // The fixture clause is part of the same line on purpose: the pass makes
+    // one schedule request and this is the one sentence it gets to say about it.
     expect(summariseIngest(report)).toBe(
-      "stats · E2025 · 1 game(s), 24 new · 1 outstanding",
+      "stats · E2025 · 1 game(s), 24 new, fixtures 1 new, 0 changed · 1 outstanding",
     );
   });
 });

@@ -1,6 +1,6 @@
 # ADR-0005 — The night board: a second ground, not a second design system
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0006](ADR-0006-midnight-board.md) (2026-09-15)
 - **Date:** 2026-09-14
 - **Context source:** blueprint D17 ("we explicitly refused … dark mode"),
   DESIGN.md open question 5, slice 9.5

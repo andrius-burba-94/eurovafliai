@@ -62,6 +62,12 @@ export type PoolPlayer = {
   readonly averageGames: number;
   /** `last5` for this season's form, `prev` for last season's whole body. */
   readonly averageSource: "last5" | "prev" | null;
+  /**
+   * The five games behind a `last5` average, oldest first — what the sparkline
+   * draws. Empty whenever the average is a previous season's, because that one
+   * is imported as a per-game *average* and has no lines to draw.
+   */
+  readonly last5Pirs: readonly number[];
   /** The season code, when the average is a past season's. */
   readonly averageSeason: string | null;
   /**

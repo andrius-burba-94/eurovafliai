@@ -8,6 +8,7 @@ import {
   createPlayer,
   createTestUser,
   signIn,
+  superuser,
 } from "./helpers/session";
 
 /**
@@ -25,10 +26,14 @@ test.afterEach(async () => {
 
 async function assertNoSerious(page: Page, label: string) {
   // Contrast is owned by `src/app/tokens.test.ts` — the design system already
-  // measures every ink/stock pair, and axe's runtime sample of the same tokens
-  // (live on stock-deep at 4.49:1 vs 4.5:1) is a known near-miss recorded in
-  // open debt rather than a second, fighting source of truth. This suite is
-  // for landmarks, names, and focus order that tokens cannot see.
+  // measures every ink/stock pair, and a second, fighting source of truth is
+  // worse than one. This suite is for landmarks, names, and focus order that
+  // tokens cannot see.
+  //
+  // The near-miss this comment used to record (the marker on panel stock at
+  // 4.49:1 against a 4.5 floor) is gone with the card-stock board: it is
+  // 5.25:1 on the midnight board. The rule stays disabled because the division
+  // of labour is the point, not because anything is being hidden.
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .disableRules(["color-contrast"])
@@ -47,9 +52,14 @@ test("login has no serious axe findings", async ({ page }) => {
 
 test("home has no serious axe findings", async ({ page, context }) => {
   const user = await createTestUser("homeaxe");
+  // With a league on it, because 10.9 made the dashboard a grid of card
+  // blocks: the empty surface has no list, no link inside a block and no
+  // position patches, which is most of what axe has to read here.
+  await createLeagueFor(user, "Axe Dashboard");
   await signIn(context, user);
   await page.goto("/");
   await expect(page.getByTestId("app-shell")).toBeVisible();
+  await expect(page.getByTestId("leagues-list")).toContainText("Axe Dashboard");
   await assertNoSerious(page, "home");
 });
 
@@ -86,6 +96,46 @@ test("standings has no serious axe findings", async ({ page, context }) => {
   await page.goto(`/leagues/${league.id}/standings`);
   await expect(page.getByTestId("standings")).toBeVisible();
   await assertNoSerious(page, "standings");
+});
+
+test("the standings table has no serious axe findings", async ({
+  page,
+  context,
+}) => {
+  // The *table*, not the empty state above it. 10.9 made it a grid with a
+  // sticky row header and a scrollport, which is exactly the shape axe has
+  // something to say about — and the empty surface this suite was checking
+  // has none of it.
+  const user = await createTestUser("gridaxe");
+  const league = await createLeagueFor(user, "Axe Table");
+  const pb = await superuser();
+  const members = await pb.collection("league_members").getFullList<{
+    id: string;
+  }>({ filter: `league = '${league.id}'`, requestKey: null });
+  await pb
+    .collection("leagues")
+    .update(league.id, { status: "season" }, { requestKey: null });
+  for (const round of [1, 2, 3]) {
+    await pb.collection("standings_snapshots").create(
+      {
+        league: league.id,
+        season: "E2099",
+        round,
+        phase: "RS",
+        table: members.map((member) => ({
+          memberId: member.id,
+          roundTenths: 90 + round,
+          totalTenths: (90 + round) * round,
+        })),
+      },
+      { requestKey: null },
+    );
+  }
+
+  await signIn(context, user);
+  await page.goto(`/leagues/${league.id}/standings?season=E2099`);
+  await expect(page.getByTestId("standings-row")).toHaveCount(members.length);
+  await assertNoSerious(page, "standings table");
 });
 
 test("the skip link reaches main content", async ({ page }) => {

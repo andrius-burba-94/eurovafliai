@@ -1,205 +1,159 @@
 @import "tailwindcss";
 
 /*
- * The Draft Board Wall — design tokens.
+ * The Midnight Board — design tokens.
  *
- * The world is the physical draft board seen up close: card stock slotted into
- * ruled bays, names in marker, the live bay struck in red. The value
- * relationship of the real object is inverted on purpose — the card stock is
- * the ground and the board's ruling is the ink — because draft night is a lit
- * room with a TV on and months of daylight phone checks after it, and because a
- * near-black surface with one glowing accent is the first thing this category
- * reaches for.
+ * The world is the physical draft board, lit for a night game: the board itself
+ * is the ground, the marks on it are chalk, and one Euroleague orange marks the
+ * two things that are live. Euroleague tips at 20:00 and 21:00 CET and this app
+ * is read on a phone in a dim lounge, so the board is drawn for that room.
  *
- * Written by Phase 1.4. DESIGN.md is the prose record; this file is the source
- * of truth for values.
+ * Phase 10 (ADR-0006, blueprint D22) and a REVERSAL of what stood here since
+ * 1.4 — card stock as the ground, argued from a lit room — and of 9.5's night
+ * board, which was a second ground beside it. What the old direction refused,
+ * and what is still refused, is a dark ground doing the work structure should do
+ * and one accent glowing decoratively. The structure is unchanged: four rule
+ * weights carry state, the marker has two jobs, every pair is measured.
+ *
+ * Every value below the two anchors is SOLVED against a floor in
+ * `tokens.test.ts`, not picked. Three of them are worth reading before editing
+ * any of them — see the comments on `stock-panel`, `rule` and `live-sunk`.
+ *
+ * DESIGN.md is the prose record; this file is the source of truth for values.
  */
 
 @theme {
   /* --- Ground and ink -----------------------------------------------------
-   * Card stock, cool and desaturated: office supply, not parchment. Neutrals
-   * are tinted toward the rail's blue so nothing is a dead grey, and neither
-   * end of the ramp is pure black or white.
+   * `#0B1120` exactly, as the brief named it. Neutrals are tinted toward the
+   * ground's own blue so nothing is a dead grey, and neither end of the ramp is
+   * pure black or white.
    */
-  --color-stock: oklch(0.943 0.004 240);
-  --color-stock-deep: oklch(0.905 0.005 240);
-  --color-ink: oklch(0.24 0.012 250);
-  --color-ink-soft: oklch(0.47 0.011 250);
-  /* 4.50:1 on stock-deep. It was 2.96:1 and carried form labels, which is the
-   * text that tells somebody what to type. Solved, not eyeballed. */
-  --color-ink-faint: oklch(0.501 0.009 250);
+  --color-stock: oklch(0.18 0.032 266.6);
+  /* A panel is LIGHTER than the ground, not deeper — and that is forced rather
+   * than chosen. On a near-black board "deeper stock" is unavailable, because
+   * depth on a dark ground is lightness. It is why this token is no longer
+   * called `stock-deep`: the name would say the opposite of what it does.
+   * 1.12:1 against the ground, and the surface every framed Bank is drawn on. */
+  --color-stock-panel: oklch(0.232 0.028 265);
+  /* Chalk stops well short of the 18.8:1 that pure white would reach here.
+   * 9.5's halation argument is the part of it that outlived the night board: a
+   * ramp whose top shouts leaves the quiet inks nothing to be quiet against,
+   * and full white in a dark room is harder to read, not easier. 13.89:1. */
+  --color-ink: oklch(0.898 0.008 265);
+  /* Solved against its WORST pairing rather than against the ground: soft chalk
+   * is written on a position wash that itself sits on a panel (4.57:1), and the
+   * Ink-on-Blush Rule needs it stronger than the marker on the live bay (5.36:1
+   * against 5.05:1). Taking 9.5's 5.79:1 target instead failed both. 6.24:1. */
+  --color-ink-soft: oklch(0.668 0.014 265);
+  /* 5.36:1, and the token that fixes `live-sunk` below — a muted pool row is
+   * written in this, and that row can be the armed one. */
+  --color-ink-faint: oklch(0.629 0.014 265);
 
   /* --- The board's structure ---------------------------------------------
    * The ruling IS the state language — dashed means waiting, solid means
-   * filled — so it has to be seen from across a lit room. `rule` was 1.36:1,
-   * which is not a boundary, it is a rounding error. Now 3.15:1, with a second
-   * heavier value so the board has the major/minor hierarchy a real one has:
-   * an empty slot is ruled, a filled slot is ruled harder.
+   * filled — so it has to be seen from across a dim room, with the major/minor
+   * hierarchy a real board has: an empty slot is ruled, a filled slot harder.
+   *
+   * `rule` is solved against the PANEL (3.15:1), not the ground, and that is
+   * the reverse of the card-stock board. The panel is the lighter of the two
+   * surfaces here, so it is the harder one for a mid-grey rule to sit on;
+   * solved the old way round this came out at 2.46:1 on the surface the board
+   * is actually drawn inside. It clears 3.52:1 on the ground as a by-product.
    */
-  --color-rule: oklch(0.598 0.008 240);
-  --color-rule-strong: oklch(0.533 0.01 240);
-  --color-rail: oklch(0.5 0.042 245);
+  --color-rule: oklch(0.527 0.018 262);
+  --color-rule-strong: oklch(0.601 0.02 262);
+  --color-rail: oklch(0.64 0.05 258);
 
   /* --- The one accent ----------------------------------------------------
-   * The commissioner's marker. It marks exactly two things — who is on the
-   * clock, and a pick that just landed — and is never decoration. Kept cooler
-   * and more saturated than a terracotta so the surface cannot drift into the
-   * cream-and-clay cluster every generated interface lands in.
-   */
-  --color-live: oklch(0.525 0.198 27);
-  /* The live field locates the slot; the 2px marker rule above it is what
-   * actually carries the state. A light tint cannot reach a text-grade ratio
-   * without becoming a pink block that fights the rule sitting on it. */
-  --color-live-sunk: oklch(0.925 0.055 27);
-
-  /* --- Position patches --------------------------------------------------
-   * Guards, Forwards, Centers. Three hue families, muted enough to sit beside
-   * twenty club colours, dark enough to carry text on stock. Colour NEVER
-   * carries position alone: the letter is always present (PRODUCT.md).
+   * Euroleague orange, `#FF5500` exactly. It marks exactly two things — who is
+   * on the clock, and the one act on a surface — and is never decoration.
    *
-   * Darkened in 3.3 from L 0.505/0.508/0.505, and the reason is a measurement
-   * rather than a preference. `PositionPatch` sets its letter in these colours
-   * on a 10% wash of the same hue, and composited the way a browser actually
-   * composites — in gamma-encoded sRGB, not in linear light — that letter
-   * measured 4.30:1 (G) and 4.22:1 (F) against a 4.5 floor. It is the
-   * colour-blind fallback for position, so it is an accessibility floor twice
-   * over, and 3.3's pool renders about thirty of them per screen. Now 4.56:1 on
-   * its own wash and 5.2:1 on stock. `tokens.test.ts` asserts both.
+   * FOUR decimal places on purpose: at three it round-trips to `#ff5502`, which
+   * is invisible and still not the colour the brief named. 5.88:1.
    */
-  --color-pos-g: oklch(0.49 0.082 235);
-  --color-pos-f: oklch(0.49 0.079 128);
-  --color-pos-c: oklch(0.5 0.093 305);
+  --color-live: oklch(0.6759 0.2175 38.8);
+  /* The live field locates the slot; the 2px marker rule above it is what
+   * carries the state. Its lightness is DERIVED, not chosen: it is the lightest
+   * warm bay on which `ink-faint` still clears 4.5:1 (it lands at 4.61:1).
+   * Lift it for looks and the quietest row in the pool goes under the floor on
+   * the one surface where that row is the armed one. 1.16:1 on the ground. */
+  --color-live-sunk: oklch(0.254 0.075 38.8);
+
+  /* --- Position coding --------------------------------------------------
+   * Guards cyan, Forwards emerald, Centers amber — at full strength, because
+   * since Phase 10 colour is MEANT to be scanned down a 323-row pool rather
+   * than to reinforce a form distinction. 9.86 / 10.34 / 10.63:1 on the ground,
+   * and each letter clears 8.36–8.99:1 on its own 10% wash.
+   *
+   * Colour NEVER carries position alone, and that matters MORE here than it did
+   * with the muted twill it replaces: 3.2's critique measured the old guard and
+   * center washes as pixel-identical under severity-1.0 deuteranopia, and
+   * saturation does not fix that — it makes the colour look more informative
+   * while staying unavailable to the same readers. The letter is always present
+   * (PRODUCT.md), and it is now the actual carrier rather than a redundancy.
+   *
+   * There is no fourth hue. The brief asked for purple head coaches; Draft Mode
+   * is Classic Mode without the head coach (D19) and the roster sync filters
+   * coaches out at ingest, so it would badge an entity the game does not have.
+   */
+  --color-pos-g: oklch(0.78 0.13 205);
+  --color-pos-f: oklch(0.79 0.15 155);
+  --color-pos-c: oklch(0.82 0.15 80);
 
   /* --- Type -------------------------------------------------------------
-   * One family, Archivo, the way a kit room has one label maker. Numbers are
-   * always tabular so a column of them is a column, and names set in caps are
-   * the honest translation of marker lettering on card stock.
+   * Two families with one job each: words in Space Grotesk, figures that live
+   * in a column in JetBrains Mono. Figures are tabular in both, so a column of
+   * them is a column and a clock does not jitter as it counts down.
+   *
+   * The boundary is stateable in one sentence, which is the point: a figure in
+   * a sentence ("3 of 13 filled") is prose and stays sans. See the `stat`
+   * utility below, which is the only door to the mono face.
    */
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular,
+    monospace;
 
   --text-slot: 0.6875rem;
   --text-slot--line-height: 1rem;
   --text-slot--letter-spacing: 0.14em;
 
+  /* --- The depth scale --------------------------------------------------
+   * Phase 10, replacing "zero radius, everywhere". ONE radius, and it belongs
+   * to level 1 of the scale — a framed Bank and a card block. A ruled slot, a
+   * button, an input and a position patch stay right-angled, because a ruled
+   * slot with a rounded corner is not a ruled slot.
+   *
+   * There is no shadow token, and that is a decision rather than an omission.
+   * A shadow works by darkening the surface under it, and on a ground at L 0.18
+   * there is nothing left to darken — a "shadow" here is either invisible or a
+   * black smear, and the version that reads as elevation is a glow, which is
+   * the thing ADR-0006 kept refusing while it gave up the light ground. So
+   * depth on this board is exactly three things: a lighter fill, a rule, and
+   * this corner.
+   */
+  --radius-block: 0.375rem;
+
   /* --- Spacing rhythm ---------------------------------------------------
-   * A bay is the board's unit. Everything vertical is a multiple of it, so a
+   * A slot is the board's unit. Everything vertical is a multiple of it, so a
    * dense passage and a quiet one share one grid.
    */
   --spacing-slot: 2.75rem;
 }
 
-/* --- The night board ------------------------------------------------------
+/* One ground, so there is nothing to switch and nothing to resolve.
  *
- * Slice 9.5, and an amendment to D17 rather than a quiet addition — see
- * ADR-0005. The day board above is a deliberate *inversion* of the physical
- * object: card stock as the ground, the board's ruling as the ink, argued from
- * a lit room and months of daylight phone checks. The night board inverts the
- * inversion back, and it is the same instrument: the ground is the board, the
- * marks are chalk, and every state is still carried by the ruling.
+ * 9.5 declared a second palette as `--night-*` and pointed `--color-*` at it
+ * from two blocks (the system preference, and an explicit override written by a
+ * script in `<head>`). Phase 10 removed all of it along with the control, the
+ * `localStorage` key and `src/lib/theme.ts`.
  *
- * What does NOT change, because changing it would be a second design system:
- * the four rule weights and their meanings, the marker's two jobs, the 10%
- * position washes, the framed Bank as one deeper sheet, and zero radius, zero
- * shadow, zero glow. A dark surface with one glowing accent is the thing the
- * direction contract refuses; this is a board under a different lamp.
- *
- * ## Why the values are named once and assigned twice
- *
- * The assignment happens in two places — the system preference, and an explicit
- * choice — and a palette copied into both would drift the first time one value
- * moved. So the night values live here under `--night-*`, each mapping block
- * only points `--color-*` at them, and `tokens.test.ts` asserts the two blocks
- * assign exactly the same set. Reading the system preference in CSS is also
- * what keeps a reader with JavaScript off on the ground their phone asked for:
- * the script only ever applies an explicit override.
- */
+ * The cost is real and is recorded in ADR-0006 and Open debt rather than left
+ * to be found as a bug: `prefers-color-scheme` is no longer honoured at all, so
+ * a reader who asks their phone for a light interface gets this one anyway. The
+ * fix is not "put the switch back" — it is a second palette, and the
+ * measurement that rules one out is `#FF5500` at 2.76:1 on card stock. */
 :root {
-  color-scheme: light;
-
-  /* Ground and ink, swapped ends of the same cool ramp, tinted toward the
-   * rail's blue exactly as the day board's neutrals are. Neither end is pure
-   * black or white here either — a pure-black ground is the category cliché
-   * the day board was drawn against, and white-on-black at full strength is
-   * the halation that makes a phone in a dark room hard to read.
-   *
-   * Every lightness below was **solved for the day board's own margin** rather
-   * than picked: ink-soft lands at 5.79:1 on this ground where it is 5.77:1 on
-   * paper, the marker at 5.10 against 5.06, the rail at 5.05 against 5.05, and
-   * the two rules at 3.35 and 4.40 against 3.36 and 4.40. That matters more
-   * than any single ratio, because the quiet inks are what carry hierarchy: a
-   * dark theme whose soft ink reads at 8:1 has no quiet, it has two shouts. */
-  --night-stock: oklch(0.243 0.012 250);
-  /* A framed panel stays *deeper* stock, as it is by day: the metaphor is a
-   * darker sheet cut into the board, not a lifted card, and lifting it would
-   * need a shadow this system does not have. */
-  --night-stock-deep: oklch(0.198 0.012 250);
-  --night-ink: oklch(0.938 0.005 250);
-  --night-ink-soft: oklch(0.686 0.008 250);
-  --night-ink-faint: oklch(0.663 0.008 250);
-
-  /* The ruling. Same job, same hierarchy: an empty slot is ruled, a filled slot
-   * is ruled harder, and both have to clear 3:1 on the deeper panel too. */
-  --night-rule: oklch(0.549 0.012 240);
-  --night-rule-strong: oklch(0.615 0.014 240);
-  --night-rail: oklch(0.649 0.046 245);
-
-  /* The marker. Lighter and a touch less saturated than by day, because a
-   * mid-dark red on a dark ground is unreadable long before it is unlovely —
-   * the day marker (L 0.525) measures 1.9:1 here. Still exactly two jobs. */
-  --night-live: oklch(0.672 0.164 27);
-  /* The live field. By day a blush on paper; by night a warm bay in the board.
-   * It is a background against a background, so nothing measures it directly —
-   * what is measured is everything written on it. */
-  --night-live-sunk: oklch(0.285 0.058 27);
-
-  /* Position patches: the same three hue families, walked up the ramp until
-   * the letter clears its own 10% wash — the tightest pairing in the app on
-   * either ground, and the one 3.3 found failing by eye. 5.11–5.13:1 here. */
-  --night-pos-g: oklch(0.691 0.096 235);
-  --night-pos-f: oklch(0.688 0.101 128);
-  --night-pos-c: oklch(0.705 0.103 305);
-}
-
-/* Somebody's phone already knows. No stored choice means the system decides,
- * and `:not([data-theme="light"])` is what lets an explicit day override win
- * inside a dark-mode OS. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-
-    --color-stock: var(--night-stock);
-    --color-stock-deep: var(--night-stock-deep);
-    --color-ink: var(--night-ink);
-    --color-ink-soft: var(--night-ink-soft);
-    --color-ink-faint: var(--night-ink-faint);
-    --color-rule: var(--night-rule);
-    --color-rule-strong: var(--night-rule-strong);
-    --color-rail: var(--night-rail);
-    --color-live: var(--night-live);
-    --color-live-sunk: var(--night-live-sunk);
-    --color-pos-g: var(--night-pos-g);
-    --color-pos-f: var(--night-pos-f);
-    --color-pos-c: var(--night-pos-c);
-  }
-}
-
-/* An explicit choice, set on `<html>` before first paint. */
-:root[data-theme="dark"] {
   color-scheme: dark;
-
-  --color-stock: var(--night-stock);
-  --color-stock-deep: var(--night-stock-deep);
-  --color-ink: var(--night-ink);
-  --color-ink-soft: var(--night-ink-soft);
-  --color-ink-faint: var(--night-ink-faint);
-  --color-rule: var(--night-rule);
-  --color-rule-strong: var(--night-rule-strong);
-  --color-rail: var(--night-rail);
-  --color-live: var(--night-live);
-  --color-live-sunk: var(--night-live-sunk);
-  --color-pos-g: var(--night-pos-g);
-  --color-pos-f: var(--night-pos-f);
-  --color-pos-c: var(--night-pos-c);
 }
 
 ::selection {
@@ -299,12 +253,88 @@ body {
   color: var(--color-rail);
 }
 
-/* A framed Bank is a panel cut from a deeper sheet of the same stock. The
- * frame is structural, never elevation: no radius, shadow or nesting. */
+/* A framed Bank is level 1 of the depth scale: panel stock inside one
+ * structural rule, at the one radius. The frame groups a TASK; a card block
+ * (below) groups a SUBJECT. Both are level 1 and there is nothing below them. */
 @utility bank-framed {
   border: 1px solid var(--color-rule-strong);
-  background-color: var(--color-stock-deep);
+  border-radius: var(--radius-block);
+  background-color: var(--color-stock-panel);
   padding: 1rem;
+}
+
+/* A card block: one subject, segmented off the board — a player in a roster, a
+ * member's night in a recap. Phase 10's one new material, and the reason the
+ * flatness rule had to go: a roster of thirteen players needs thirteen sibling
+ * blocks, and "one framed panel, never nested" could not say that.
+ *
+ * Same level as a framed Bank, deliberately, so a Bank can hold a RUN of card
+ * blocks without either of them becoming a second level. What is refused is a
+ * card block inside a card block — at that point the layout is wrong, not the
+ * scale. Nothing here floats: no shadow, because there is no shadow token, and
+ * no glow ever.
+ *
+ * Padding is tighter than a Bank's 1rem because a block is a row's worth of
+ * content rather than a section's, and on a 390px phone thirteen of them at
+ * 1rem is a lot of scrolling for the same information. */
+@utility card-block {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-block);
+  background-color: var(--color-stock-panel);
+  padding: 0.75rem;
+}
+
+/* A card block whose subject is on the clock. The marker does its usual job —
+ * state — and it does it in the block's own border rather than as a badge
+ * parked inside it, exactly as `slot-live` does for a row. Kept as a separate
+ * utility rather than a modifier so there is one declaration per material. */
+@utility card-block-live {
+  border: 2px solid var(--color-live);
+  border-radius: var(--radius-block);
+  background-color: var(--color-live-sunk);
+  padding: calc(0.75rem - 1px);
+}
+
+/* A place on the roster that nobody holds yet.
+ *
+ * Dashed and unfilled, because dashed is already this system's word for
+ * *unsettled* — the same argument `slot-waiting`, `slot-standing` and
+ * `slot-transit` each make. No panel fill: an empty place is a gap in the
+ * board, and giving it the same stock as a real player's block would make
+ * thirteen blocks out of nine players and four absences. */
+@utility card-block-waiting {
+  border: 1px dashed var(--color-rule);
+  border-radius: var(--radius-block);
+  padding: 0.75rem;
+}
+
+/* A figure in a column — Phase 10, and the only door to the mono face.
+ *
+ * It is a utility rather than a bare `font-mono` on each cell for the reason
+ * every named material here is one: the rule "figures in a column, never prose"
+ * has to live somewhere a reviewer can find and grep. A cell reaching for
+ * `font-mono` directly is how a second family leaks into a sentence.
+ *
+ * ## It deliberately sets two properties and not four
+ *
+ * The obvious version also sets `font-weight: 500` and a tighter
+ * `letter-spacing`, and that version is a bug waiting for a caller. This
+ * utility composes with `slot-label` (which sets weight 500 and 0.14em
+ * tracking) and with `font-semibold` on the surfaces that lead with a figure —
+ * and Tailwind v4 emits `@utility` blocks **alphabetically**, not in source
+ * order, splitting them across chunks in dev. `slot-label` sorts before `stat`,
+ * so a tracking declaration here would silently win over the caps tracking of
+ * every label it is combined with, and `font-semibold` would lose its weight on
+ * some builds and not others. That is precisely the composition failure
+ * `slot-transit` already paid for, where the browser rendered a 1px dashed
+ * border that existed in neither rule.
+ *
+ * So: family and figure style only. Weight and tracking stay with the caller.
+ * `tabular-nums` is restated even though `body` sets it, because this utility
+ * is what *guarantees* it for a figure rather than inheriting it by luck. */
+@utility stat {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Slot labels: the board's own small caps, used for every column head, status
@@ -427,4 +457,68 @@ body {
  * against the round they are advancing through. */
 [data-board-slot][data-state="live"][data-advanced="true"][data-reversed]::after {
   transform-origin: right;
+}
+
+/* Event three, and the budget is spent: a pick springs into its slot.
+ *
+ * Phase 10 raised the motion budget from two to three (blueprint D22) and this
+ * is the third. It is the same event the rule advance is keyed on, seen from
+ * the other side: when the clock moves, the slot it moved *off* is holding a
+ * player it did not hold a moment ago. The rule leaves; the card lands. Both
+ * play together on adjacent slots, which is what the board does physically.
+ *
+ * ## Why a spring, when this system has one curve
+ *
+ * The overshoot is in the KEYFRAMES, not in a second easing vocabulary: the
+ * timing function between them is `cubic-bezier(0.22, 1, 0.36, 1)`, the same
+ * curve `card-lands` and `rule-advances` use. So there is still one curve in
+ * this app, and a spring is a shape drawn with it rather than a physics engine
+ * imported to compete with it. `linear()` would have been the other way to get
+ * a damped bounce and it buys nothing here: four stops say it, and a reviewer
+ * can read four stops.
+ *
+ * The overshoot is deliberately small (4%). A slot is ~92px wide and its
+ * neighbours' rules are 1px, so a large one would visibly eat the board's own
+ * ruling for a third of a second — and the ruling IS the state language.
+ *
+ * ## Why it is keyed on an attribute
+ *
+ * Same reason as `rule-advances`, and it is not a preference: the server knows
+ * which slot filled but not whether THIS viewer was watching it fill. Rendered
+ * from server state it would replay on every load and every refresh, which is
+ * decoration. `board-scroll.tsx` sets `data-landed` only when it saw the
+ * marker move while mounted, and takes it off again on `animationend`.
+ */
+@keyframes pick-springs {
+  0% {
+    transform: scale(0.86);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  78% {
+    transform: scale(0.99);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+[data-board-slot][data-state="filled"][data-landed="true"] {
+  /* So the overshoot is not clipped by the neighbour that paints after it — a
+   * live slot carries an opaque field and would cut the corner off. Below the
+   * sticky round gutter's z-10 on purpose: a slot springing at the left edge
+   * should pass *under* the gutter, exactly as it does when scrolled. */
+  position: relative;
+  z-index: 1;
+  animation: pick-springs 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  /* Guarded inside the rule, never at the call site. The pick still arrives —
+   * the name, the wash and the position letter are all there on the first
+   * frame; only the travel is dropped. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }

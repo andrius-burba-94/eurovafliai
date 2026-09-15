@@ -52,11 +52,11 @@ export default async function StatImportPage() {
           <Slots testId="stats-stored">
             <Slot state={overview.rows > 0 ? "filled" : "waiting"}>
               <span className="slot-label">Game lines</span>
-              <span className="text-sm tabular-nums">{overview.rows}</span>
+              <span className="stat text-sm">{overview.rows}</span>
             </Slot>
             <Slot state={overview.rounds.length > 0 ? "filled" : "waiting"}>
               <span className="slot-label">Rounds</span>
-              <span className="text-sm tabular-nums">
+              <span className="stat text-sm">
                 {overview.rounds.length}
               </span>
             </Slot>
@@ -68,7 +68,7 @@ export default async function StatImportPage() {
                   <span className="slot-label">
                     {batch.applied ? batch.source : `${batch.source}, not applied`}
                   </span>
-                  <span className="text-sm tabular-nums">
+                  <span className="stat text-sm">
                     {batch.createdRows} new · {batch.updatedRows} corrected
                   </span>
                 </Slot>

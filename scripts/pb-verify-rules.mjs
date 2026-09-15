@@ -51,6 +51,7 @@ const created = {
   transactions: [],
   round_lineups: [],
   player_news: [],
+  fixtures: [],
 };
 
 const su = new PocketBase(url);
@@ -1420,8 +1421,89 @@ try {
     "the same item read twice is refused rather than stored twice",
   );
 
+  // --- 10.7 fixtures -------------------------------------------------------
+  check(!!byName.fixtures, "fixtures collection exists");
+  check(
+    byName.fixtures.createRule === null &&
+      byName.fixtures.updateRule === null &&
+      byName.fixtures.deleteRule === null,
+    "fixtures writes are superuser-only",
+  );
+  check(
+    byName.fixtures.listRule === '@request.auth.id != ""' &&
+      byName.fixtures.viewRule === '@request.auth.id != ""',
+    "fixtures are readable by anybody signed in, like the pool itself",
+  );
+  check(
+    byName.fixtures.indexes.some((i) =>
+      /UNIQUE.*`fixtures`.*\(`season`,\s*`game_code`\)/.test(i),
+    ),
+    "unique index on fixtures(season, game_code)",
+  );
+  check(
+    byName.fixtures.indexes.some(
+      (i) =>
+        /`fixtures`.*\(`season`,\s*`round`\)/.test(i) && !/UNIQUE/.test(i),
+    ),
+    "the (season, round) index is NOT unique — a round holds ten games",
+  );
+
+  // A season code of its own, and short: the field is 12 characters because a
+  // real one is "E2026".
+  const verifySeason = `V${String(stamp).slice(-6)}`;
+  const fixture = {
+    season: verifySeason,
+    game_code: 1,
+    round: 1,
+    phase: "RS",
+    local_club: "AAA",
+    road_club: "BBB",
+    played: false,
+    local_score: 0,
+    road_score: 0,
+    utc_date: "2026-10-01T18:00:00Z",
+  };
+  const storedFixture = await su
+    .collection("fixtures")
+    .create(fixture, { requestKey: null });
+  created.fixtures.push(storedFixture.id);
+
+  check(
+    (await listCount(carolClient, "fixtures")) >= 1,
+    "a signed-in member of any league reads the schedule",
+  );
+  check(
+    await rejects(() =>
+      aliceClient
+        .collection("fixtures")
+        .create({ ...fixture, game_code: 2 }, { requestKey: null }),
+    ),
+    "a member cannot write a fixture with their own token",
+  );
+  check(
+    await rejects(() =>
+      su.collection("fixtures").create(fixture, { requestKey: null }),
+    ),
+    "the same game read twice is refused rather than stored twice",
+  );
+  // The other half of that index: the same game code in another season is a
+  // different game, and E2025 and E2026 both number from 1.
+  const otherSeason = await su
+    .collection("fixtures")
+    .create(
+      { ...fixture, season: `W${String(stamp).slice(-6)}` },
+      { requestKey: null },
+    );
+  created.fixtures.push(otherSeason.id);
+  check(!!otherSeason.id, "the same game code in another season is allowed");
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.fixtures)
+    await su
+      .collection("fixtures")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
   for (const id of created.player_news)
     await su
       .collection("player_news")

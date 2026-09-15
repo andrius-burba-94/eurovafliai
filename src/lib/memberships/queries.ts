@@ -8,9 +8,12 @@ import {
 } from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import { readNextFixtures } from "@/lib/fixtures/queries";
+import type { PlayerFixture } from "@/lib/fixtures/types";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
+import { last5SeriesOf } from "@/lib/stats/project";
 
 import type { Seat } from "./plan";
 import { listActiveMemberships } from "./store";
@@ -21,6 +24,8 @@ type ExpandedPlayer = {
   club_code: string;
   club_name: string;
   position: Position;
+  proj_last5_games?: number;
+  proj_last5_pirs?: unknown;
 };
 
 type MembershipRow = {
@@ -44,11 +49,23 @@ export type RosterPlayer = {
   readonly clubName: string;
   readonly position: Position;
   readonly overallNo: number | null;
+  /**
+   * This season's last five PIRs, oldest first — what the block's sparkline
+   * draws. Empty before the season is under way, which draws nothing.
+   */
+  readonly last5Pirs: readonly number[];
+  /**
+   * The club's next unplayed game, or null when the schedule has nothing to say
+   * — before the season's first ingest pass, and for a club whose season is
+   * over. The block renders no fixture line rather than a "TBD".
+   */
+  readonly fixture?: PlayerFixture | null;
 };
 
 export async function readMemberRoster(
   leagueId: string,
   memberId: string,
+  season: string,
 ): Promise<RosterPlayer[]> {
   const session = await getSession();
   if (!session) return [];
@@ -63,6 +80,8 @@ export async function readMemberRoster(
       requestKey: null,
     }),
   ]);
+
+  const fixtures = await readNextFixtures(season, session.token);
 
   const mine = memberships.filter((row) => row.member === memberId);
   const draftId = drafts[0]?.id;
@@ -88,6 +107,8 @@ export async function readMemberRoster(
         clubName: player.club_name,
         position: player.position,
         overallNo: overallByPlayer.get(player.id) ?? null,
+        last5Pirs: last5SeriesOf(player),
+        fixture: fixtures.get(player.club_code) ?? null,
       },
     ];
   });

@@ -19,6 +19,7 @@ import type { PoolPlayer } from "@/lib/pool/search";
 import {
   averageFantasyOf,
   averagePirOf,
+  last5SeriesOf,
   rankPirFromRecord,
 } from "@/lib/stats/project";
 import { tierOfRank } from "@/lib/sheets/ranking";
@@ -226,6 +227,7 @@ export async function getDraftView(
       proj_last5_fantasy?: number;
       proj_last5_games?: number;
       proj_last5_pir?: number;
+      proj_last5_pirs?: unknown;
       prev_season_games?: number;
       prev_season_pir?: number;
       prev_season_fantasy?: number;
@@ -440,6 +442,10 @@ export async function getDraftView(
         averagePir: average?.tenths ?? null,
         averageGames: average?.games ?? 0,
         averageSource: average?.source ?? null,
+        // Only when the average is this season's form. A `prev` average has no
+        // per-game lines behind it — it is imported already averaged — so a
+        // series there would be five marks we invented.
+        last5Pirs: average?.source === "last5" ? last5SeriesOf(player) : [],
         averageSeason: average?.season ?? null,
         averageFantasy: averageFantasyOf(player) ?? null,
       };

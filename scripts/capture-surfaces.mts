@@ -234,6 +234,53 @@ try {
       );
     }
   }
+  /**
+   * A season with results in it — added in 10.9, when the standings became a
+   * grid.
+   *
+   * The empty table is still photographed below, because an empty state is a
+   * real surface; what was missing was the full one. A table of two members
+   * over one round is not the thing that had to be judged either: the grid
+   * exists for the season that is twelve rounds deep, so this plants six
+   * members and twelve counted rounds on a season of its own.
+   */
+  const CAPTURE_SEASON = "E2024";
+  const tableMembers = [otherMember, seasonMate];
+  for (const label of ["Tomas", "Kestas", "Vytas", "Darius"]) {
+    const member = await createTestUser(label);
+    const row = await pb.collection("league_members").create(
+      {
+        league: otherLeague.id,
+        user: member.id,
+        team_name: `${label} Ballers`,
+      },
+      { requestKey: null },
+    );
+    tableMembers.push({ id: row.id, user: member.id });
+  }
+  for (let round = 1; round <= 12; round += 1) {
+    const table = tableMembers.map((member, seat) => {
+      // Deterministic, not random: a capture that photographs a different
+      // table every run cannot be compared with the last one.
+      const roundTenths = 620 + ((round * 37 + seat * 53) % 480);
+      return {
+        memberId: member.id,
+        roundTenths,
+        totalTenths: roundTenths * round - seat * 11 * round,
+      };
+    });
+    await pb.collection("standings_snapshots").create(
+      {
+        league: otherLeague.id,
+        season: CAPTURE_SEASON,
+        round,
+        phase: "RS",
+        table,
+      },
+      { requestKey: null },
+    );
+  }
+
   await pb.collection("chat_messages").create(
     {
       league: otherLeague.id,
@@ -307,11 +354,22 @@ try {
       },
     },
     {
-      name: "standings",
+      name: "standings-empty",
       path: `/leagues/${otherLeague.id}/standings?season=E2025`,
       signedIn: true,
       assert: async (page) => {
         await expect(page.getByTestId("standings-empty")).toBeVisible();
+      },
+    },
+    {
+      name: "standings",
+      path: `/leagues/${otherLeague.id}/standings?season=${CAPTURE_SEASON}`,
+      signedIn: true,
+      assert: async (page) => {
+        // Six members and twelve rounds, or the picture is of a different
+        // table than the one this surface exists to judge.
+        await expect(page.getByTestId("standings-row")).toHaveCount(6);
+        await expect(page.getByTestId("standings-spark").first()).toBeVisible();
       },
     },
     {

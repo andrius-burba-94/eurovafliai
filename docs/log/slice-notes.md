@@ -3,6 +3,656 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.9 — Three questions, three shapes, and the one refusal worth reversing
+
+The brief's last ask was to "cleanly differentiate the Live Draft Room from the
+dashboard-style League Homepage and the tabular-focused League Standings
+screen". Every one of those three had the same shape when the slice opened: a
+48rem column of framed Banks holding runs of ruled rows. They read as one
+surface because they *were* one surface, three times.
+
+**The `max-w-3xl` question, and why it is a D-row rather than a diff.**
+DESIGN.md's open question 4 had been answered in 3.1 — "no second container
+width and no new breakpoint" — and the plan for this slice flagged it as the
+thing that had to be decided rather than quietly stepped over. Re-read, that
+answer is about the **board**: twelve member columns do not fit any measure, so
+the board overflows and scrolls, and the app does not widen around it. That part
+still holds and is untouched. What 3.1 could not have known is how much the
+*room* would come to hold. By the end of Phase 9 it is a pool, a board, a
+radar, a commissioner console and a chat — five surfaces in one column, about
+five screens tall on a 1440px laptop, on the one page in the app nobody scrolls
+away from for ninety minutes. So:
+
+- `Sheet` and `TopRail` take a `measure` prop, with a two-entry `MEASURE` map:
+  `column` (48rem, everything) and `room` (80rem from `lg`, the draft room).
+  Both components read the same map, because the rail's wordmark aligning with
+  the first slot below it is the reason they shared a measure in the first
+  place, and a room whose rail was 48rem over an 80rem sheet is the bug that
+  would prove they had drifted.
+- The room splits **acting** from **watching**: the pool on the left, the
+  radar, board, console and chat on the right, with the countdown band full
+  width above both — the clock belongs to the whole room, not to a column.
+- **Below `lg` nothing changed.** Same order, same single column, same sticky
+  band. That is the half that mattered: draft night is phones on a couch, and a
+  laptop layout that cost the phone anything would have been the wrong trade.
+
+The cost is real and is written down as blueprint **D24** rather than left for
+somebody to find: this codebase now has two measures and a second breakpoint,
+having had one of each since 1.4. What bounds it is where the exception lives —
+in one map with one entry per measure, so a third needs the argument this one
+made, in the place a reviewer looks.
+
+**The standings were the surface with the most wrong in them.** A member's
+season was a wrapped paragraph of `R12 14.0 R13 9.5 …`, one paragraph per row.
+The question a standings table exists to answer is *who won this round* — read
+down a column that is one lookup; read along 38 wrapped tokens a row it is not a
+lookup at all, and by round 38 each row is 38 tokens of its own private season.
+So it became a grid: members down, rounds across, in the **draft board's own
+scrollport component** rather than a second one that would drift from it — which
+is why `BoardScroll` now takes a `label`, a change that is one prop wide and is
+the whole reason the two grids cannot diverge. Rank, team and total are
+`sticky left-0` on panel stock, because the answer should not scroll away from
+the evidence, and the team name truncates with the whole of it in `title`: a
+grid row is one line tall, and one wrapped "Gintaras Ballers FC" makes every
+other row taller for it.
+
+**The dashboard change is a rule being narrowed, not a layout being
+preferred.** `/` was a `Slots` run that continued past your leagues into three
+empty `Slot 04` placeholders, under the Board-Shows-Its-Shape Rule. But a
+league does not occupy a slot in anything — there is no board of twelve league
+places — so those placeholders drew a board's shape for something that is not a
+board, and the ruled run claimed a ledger's alignment between rows that have
+nothing to compare. A league is a *subject*: its own season, status and roster
+fill. That is 10.4's card block, and the lobby's four doors had already made the
+same port for the same reason. The rule in `.impeccable/design.json` is now
+narrowed to things that genuinely occupy slots: a lobby, a board.
+
+**The axe sweep found nothing, and that is only worth saying because of what it
+was pointed at.** The suite had been sweeping `/` with no leagues and standings
+with no table — that is, the two surfaces this slice rebuilt, in the state where
+neither exists. Both now run populated: a list of blocks with a link inside each
+one, and a grid with a sticky `rowheader` and a scrollport. Serious and critical
+findings: none.
+
+**The full E2E run found one real regression and one stale assertion.** The
+regression: a radar row jumps to its member's board column, and the spec checks
+the column is fully inside the scrollport afterwards. In the room's new grid
+track the board's width is fractional, so the scroller stops **0.19px** short of
+its own end and an exact comparison fails while the column is, visibly and
+functionally, in view. The assertion now asks "visible" within a pixel, which is
+what it always meant. The stale one: `transactions.spec.ts` asserted `"R1 14.2"`
+as row text — a string that only existed because the old row printed its own
+round labels. It now reads the round cells by `data-round`, which is a better
+assertion than the one it replaced, because it names *which* round it is
+checking rather than hoping the substring lands in the right one.
+
+Nine flakes survived the run, all passing on first retry: eight are the
+`pool.spec.ts` count flake the debt table has carried since 10.6, and the ninth
+is a mapping correction that did not arrive inside five seconds under five
+workers. 10.8's zero-flake suite is the outlier to explain, not this one — at
+roughly 1 in 190, a 425-test sample proves nothing either way, which is what
+that debt row already said before this slice ran.
+
+## 10.8 — One state change, two ends of it
+
+The brief asked for "smooth motion design for draft selections (spring
+animations)" and a "persistent, high-contrast countdown timer". The second of
+those already existed — `pick-clock.tsx` has been in a `sticky top-0 z-20` band
+since 3.7, corrected against a server clock offset — so this slice restyles it
+and spends the motion budget D22 raised from two to three.
+
+**The third event had to earn not being a fourth.** DESIGN.md had already
+argued, back in 3.1, that the room's board gets *one* event per state change and
+that the state change when a pick lands is the clock moving. A spring on the
+pick looked like a second animation for the same fact. What makes it one:
+the rule leaves the slot that was on the clock, and that slot — which now holds
+a player it did not hold a moment ago — springs shut on it. One event, two ends,
+two adjacent slots moving at once. That is what a physical board does, and it is
+why the spring is keyed on the same signal the rule advance is: `board-scroll.tsx`
+knows the marker moved *while this viewer was mounted*, which is the one thing
+the server cannot know.
+
+That signal needed the board to say which pick each slot is, so `data-overall`
+joined `data-board-slot` and `data-state` in the DOM contract. The slot the
+marker *left* is then one `querySelector` away, and the guards fall out of it:
+
+- **It must have filled.** A rollback also moves the marker — backwards, onto a
+  slot it empties. Springing there would announce a pick that had just been
+  taken away. So the condition is `data-state === "filled"`, not "the marker
+  moved", and there is an E2E test that rolls back and asserts no spring.
+- **One slot, not a burst.** An autodraft sweep can move the marker three
+  places between renders. Three cards landing together is a board flickering
+  rather than a pick arriving, so the slot the marker left is the one that
+  springs and the two behind it simply fill.
+- **Never on a first paint**, unchanged since 3.1.
+
+**The spring is four keyframes, and the curve is the one this app already has.**
+`scale 0.86 → 1.04 → 0.99 → 1` over 320ms, with
+`cubic-bezier(0.22, 1, 0.36, 1)` between the stops — the same curve `card-lands`
+and `rule-advances` use. A physics library, or a bespoke `linear()` ramp, would
+have put a second easing vocabulary into a system with one; the overshoot is a
+*shape* here rather than a new grammar. It is 4% on purpose: a slot is about
+92px wide, its neighbours' rules are 1px, and on this board the ruling **is** the
+state language, so an overshoot large enough to swallow it would be motion
+undoing the design it plays inside. The springing slot takes `z-index: 1` for
+the duration so a neighbour's opaque field cannot clip the overshoot — below the
+round gutter's `z-10`, because a slot springing at the left edge should still
+pass *under* the gutter.
+
+**The band: restyled, and the restyle is an argument about which fact changes.**
+The headline and the countdown were both `text-2xl`, with the headline on top.
+But "Gintaras Ballers is on the clock" is the same sentence for the whole of
+somebody's two minutes, and the number under it is the only thing on the band
+that moves. So the countdown went to `text-4xl`/`text-5xl` and the headline down
+one step — measured on the real band at **+4px on a Pixel 7 and +12px at 1440**,
+which is the budget a band that never leaves the top of the viewport gets to
+spend. The comment in `page.tsx` quotes those two numbers rather than claiming
+the height is unchanged, because the first draft of it claimed exactly that and
+the screenshots said otherwise.
+
+No colour was reached for. The figure was already `ink`, the top of the chalk
+ramp at 13.89:1, and the two jobs of the marker are taken — a countdown in
+marker, on a band that is already marker-tinted because somebody is on the
+clock, is the Ink-on-Blush Rule broken on the one surface the whole league is
+looking at. "High-contrast" here is size.
+
+**One test was passing by luck and now is not.** `draft-board.spec.ts` recorded
+every `animationstart` on a board slot and asserted on `advances[0]`. With two
+animations starting in the same frame that index is DOM order, which is not a
+promise this app makes — and the reversed-origin test, which polled for "at
+least two animations", started passing before the second *rule* had begun. Both
+now select by `animationName`, and the recorder also captures `pseudoElement`
+so a record says which of the two it is without trusting its name.
+
+## 10.7 — The half of the schedule we were throwing away, and the indicator the Euroleague cannot produce
+
+`fetchSeasonSchedule` has read the whole season since 4.3 — about four hundred
+games, both club codes, the round, the kickoff, the scores — and `ingest.ts`
+dropped everything unplayed at `.filter((game) => game.played)`. So the app
+could say what had happened and never what was about to, and
+`player_game_stats` could not stand in: it stores the opponent's *score* and
+never the opponent's identity. The `fixtures` collection is that discarded half,
+kept.
+
+The failure-recovery story is the box-score import's, one level up. The pass is
+an upsert keyed on `unique(season, game_code)`, and the plan is **recomputed
+every pass** rather than queued: it is "what does the feed say that the database
+does not", so a pass that dies after two hundred rows has stored two hundred and
+the next pass, fifteen minutes later, plans exactly the remainder. A create that
+comes back `validation_not_unique` is a concurrent pass winning a race, which is
+an expected outcome and not a failure — the row is read back and corrected if it
+is stale. Nothing is ever deleted, so a fixture the feed renumbers leaves a
+stale row rather than taking a real one with it.
+
+Fixtures are written **before** the twelve box-score requests, because they are
+the cheap half of the pass: one request already in hand, four hundred local
+writes, and a pass that dies in somebody else's API should still have moved the
+schedule forward.
+
+### The double round does not exist, and the measurement is the reason
+
+The brief asked for a double-round indicator and 10.5 shipped the seam. Before
+filling it in, the schedule was counted:
+
+| Season | Games | Rounds | Club-rounds | Games in a club-round |
+|---|---|---|---|---|
+| E2025 | 402 | 47 | 804 | 1, all of them |
+| E2026 | 380 | 38 | 760 | 1, all of them |
+
+Twenty clubs and ten games make a round. A Euroleague round is one game per club
+**by construction**, so the flag would have read `false` for all 760 fixtures of
+this season and every season after it. The other reading — two games in one
+calendar week — is the competition's ordinary rhythm: the median gap between a
+club's consecutive fixtures is five days, and 32% of consecutive pairs fall
+within four days of each other.
+
+So the field is gone from `PlayerFixture` rather than left in as a constant
+`false`, and the reason is written in three places a future reader will actually
+be standing in: the type, the pure module, and the research doc with the `curl`
+that reproduces it. That redundancy is deliberate. A field that always reads
+`false` is the kind of thing somebody *fixes*, and the obvious fix — wire it to
+the four-day reading — badges a third of the season as exceptional. This is the
+second item from the brief killed by a number rather than by taste; the first
+was purple head-coach badging.
+
+### Home court is measured, and that is what makes the word honest
+
+Difficulty is the opponent's average margin, flipped, plus or minus the league's
+home advantage. The margin and the advantage both come from the schedule's own
+scores, which means the advantage could be **measured instead of assumed**: over
+all 402 played E2025 games the home side averages **+3.46** points, +3.34 across
+the 380 regular-season games alone, winning 63.7% of the time. Two slices of the
+same season agreeing to a tenth is also the check that `homeEdge` reads the table
+the way it thinks it does.
+
+The four-point threshold is chosen rather than derived, and says so where it is
+defined: the schedule cannot tell us where "even" ends. What it can tell us is
+the scale, and four points is "further from even than home court is worth".
+
+Two honesty guards sit under the word. It is absent until the **opponent** has
+played three games, because a club's record over two is a coin toss reported as
+a fact — and there is deliberately no fallback to last season, unlike 9.1's
+projections: a player's PIR follows the same person across a summer, where a
+club's margin follows a squad that has been rebuilt. And it reads the
+*opponent's* record, not the club's own, which is what the test asks from both
+ends of one fixture — hard for the visitor, kind for the home side. A function
+reading its own club's form would have said the same word twice.
+
+### Two questions, two functions
+
+The lineup page and the team page are not asking the same thing. A lineup is
+arranged **for a named round** and belongs against that round's opponent, even
+when earlier rounds are still unplayed; a current roster wants the next unplayed
+game by kickoff. Hence `fixtureForRound` and `nextFixture`, and `played` rather
+than the clock deciding what is behind us — a game that finished an hour ago is
+still today by any date comparison, and pointing a roster at a result somebody
+has already watched is the one wrong answer worth designing against.
+
+## 10.6 — Five marks, a sentence, and the five numbers nobody had stored
+
+The brief asked for "rolling 5-game PIR averages with sparkline charts". Half of
+that shipped in 9.1: the rolling average is already the pool's leading column
+and autodraft's ranking number. What was missing was the *series*. `players`
+stores `proj_last5_pir` — the **average** of the last five — and an average
+cannot be drawn. So the slice is one new JSON field, `proj_last5_pirs`, written
+in the same pass that materializes the other projection fields, plus a component
+to draw it.
+
+**No chart package.** DESIGN.md's rule for drawn marks is one stroke,
+`currentColor`, no fill, nothing imported, and a five-point polyline is nine
+lines of SVG. The arithmetic lives in `src/lib/charts/sparkline.ts` as two pure
+functions, separate from the component, for the same reason `rowSentence` is
+separate from `RosterRadar`: the marks are `aria-hidden`, so the sentence beside
+them is the **entire content** for a screen-reader user, and a string nothing
+tests is a string that ships reading "3 games that do not fit".
+
+Three decisions worth the words:
+
+**Normalized to its own range, not to a PIR scale.** A sparkline is about shape.
+Sharing one scale across the pool would flatten every honest player into a
+straight line near the floor of a box sized for Doncic. The cost — the marks
+carry no absolute magnitude — is paid by the average in the cell before them and
+the numbers in the sentence after.
+
+**Nothing below two games.** One point in a box captioned "recent form" reads as
+a flat trend rather than as an absence of one, so `sparklinePoints` returns
+`null` and the caller renders nothing. Same rule as `FixtureNote`, same reason.
+A flat *series*, though, draws down the middle of the box rather than along its
+floor: five identical games are "steady", not "as bad as possible".
+
+**The sentence takes the caller's formatter.** Half this app's figures are stored
+as integer tenths. The standings sparkline drawn from `byRound` would have said
+"120, 85, 40" to a screen reader while the row beside it showed 12.0, 8.5 and
+4.0 — two numbers for one fact, and the spoken one wrong by a factor of ten.
+`format` defaults to `String` so the callers holding whole PIR pass nothing.
+
+Where it appears is a width argument, not a taste one: `sm`-and-up in the pool
+and standings **rows**, which is the budget the pool's fantasy column already
+lives under, and unconditional on the player page and the roster block, which
+have the vertical room. Re-ingest stays a no-op write because `sameProjection`
+compares the new field too.
+
+### The flake the gate had been excusing
+
+The full E2E run has carried "some flaky pool specs, all green on retry" since
+3.3, and this slice touched the pool row, so the excuse had to be cashed. One
+variant had a real cause: the pool's filters are client state, so every control
+is in the streamed HTML — clickable, selectable — before a handler is attached
+to it, and a club selected in that window narrows nothing. The failure always
+looked like a row count stuck at the unfiltered number.
+
+`sheet-list.tsx` had already paid for this once with keystrokes and answered it
+with a hydration fact on an attribute that has no appearance. That one-liner is
+now `useHydrated` in `src/lib/hydrated.ts`, used by both surfaces, surfaced on
+`pool-ready`, and waited for by the two specs that enter the draft room. Running
+`pool.spec.ts` and `cheat-sheet.spec.ts` twice through — 190 test runs — left one
+flake with a different cause (a pick button that never arrived, a 30s timeout,
+not a lost click). The full suite still shows the position-toggle variant of the
+same family under five-worker load; it is recorded as debt with what is known
+rather than described as fixed.
+
+## 10.5 — The captaincy is a mark, not a role, and a form that cannot say otherwise
+
+The brief asked for "distinct toggles for Captaincy". The obstacle was that
+captain is currently *one option in a five-option select*, validated by a pure
+`validateLineup` against the five formations the rulebook prints — and a binary
+toggle cannot express five roles. The interesting part was that resolving it
+turned out to be a modelling question rather than a widget question.
+
+**The captaincy is not a sixth place on the team sheet.** `validateLineup`
+already said so and had said so since 9.3: it refuses a captain who is not among
+the starters. So the captain is a *mark on a starter*, and the select was
+conflating a place with a mark. Splitting them gives a four-option select —
+starter, sixth man, bench, inactive — plus one exclusive mark across the whole
+roster, and neither control can now express something the validator would have
+to refuse. That is the test for a good control here: **a control that can only
+produce an error message is a control that should not exist.** Marking a captain
+therefore also sets that player to starter, and moving a captain to the bench
+takes the armband with the place.
+
+A radio group, not thirteen toggles. "Exactly one of these" is what a radio
+group *is*: the browser clears the previous choice, arrow keys move between the
+options, and a screen reader says "3 of 13". Thirteen checkboxes wired to clear
+each other is that behaviour reimplemented, minus the keyboard handling — and
+this is a form typed on a phone after a Euroleague night.
+
+### Two doors onto one fact is how a form names two captains
+
+The server change is small and worth stating. `role:<playerId>` no longer
+accepts `captain`, and a posted one is dropped rather than honoured; the
+captaincy arrives in its own field from the radio group. If both doors stayed
+open, a crafted post could name two captains and `slotsFromRoles` would silently
+keep the first — a wrong lineup stored without a refusal. One fact, one field.
+
+`validateLineup`, `FORMATIONS`, `slotsFromRoles` and the `lineup-role` test id
+are all untouched. What is new in the pure module is `assignmentsWithCaptain`,
+which folds the mark back into the roles the validator understands and
+deliberately **ignores a mark that has come loose from its starter**. That is
+not leniency: the form clears a stale mark on the role change, and this is the
+half a future caller cannot forget, because honouring it would produce "the
+captain has to be one of the starters" — a refusal whose cause is invisible in a
+form where no control says "captain" any more.
+
+### An empty place is not a block
+
+The roster and the lineup became runs of card blocks, which needed a third block
+material: `card-block-waiting`, dashed and with **no fill**. Giving an open
+roster place the same panel stock as a real player's block turns nine players and
+four absences into thirteen blocks, which is precisely the reading the
+Board-Shows-Its-Shape Rule wants to avoid — the board should look a quarter
+empty when it is. Dashed and unfilled is the same word `slot-waiting`,
+`slot-standing` and `slot-transit` already use for *unsettled*.
+
+### A slot that renders nothing, on purpose
+
+Next opponent, fixture difficulty and double round were asked for and cannot be
+answered: `fetchSeasonSchedule` reads the whole fixture list and `ingest.ts`
+discards the unplayed half of it at `.filter((game) => game.played)`. So
+`FixtureNote` ships as a seam — the shape in `src/lib/fixtures/types.ts`, the
+surfaces passing it through, and **nothing rendered** until 10.7 fills it.
+
+Not a "TBD", not an em dash, not a skeleton: a placeholder claims the app looked
+at the schedule and found no opponent, when the truth is that it has never
+looked. It has a unit test for the empty case specifically because an affordance
+waiting for data is one refactor from being deleted as dead and one careless edit
+from growing that placeholder. The test renders through
+`renderToStaticMarkup` and builds its element with `createElement`, which keeps
+it a `.test.ts` file — no jsdom, and no widening of the Vitest include glob for
+one component with no behaviour.
+
+### Two things 10.3 had left behind
+
+Both found while updating the docs for this slice, both from the same cause —
+a generated artifact and a prose rule that describe the code rather than being
+compiled from it. `.impeccable/design.json` still named **Archivo** in nineteen
+places, and DESIGN.md's own Computed-Family Rule still said the E2E spec asserts
+"Archivo" when 10.3 had changed it to "Space Grotesk". The spec was right the
+whole time; the two documents that tell the next agent what the spec does were
+wrong. Fixed here, along with adding the card-block run to the component
+inventory so `component-reuse` can find it before somebody builds a second one.
+
+## 10.4 — A depth scale with no shadow in it, and a guard that reads source
+
+10.1 struck out the Flatness-Is-Not-Negotiable Rule and promised "an explicit
+depth scale" in its place. This slice had to decide what that actually is, and
+the answer came out smaller than the phrase suggests: **a lighter fill, a rule,
+and one corner radius.** No shadow.
+
+That is a decision, not an omission, and it is worth writing down because
+"depth" and "shadow" arrive in the same thought. A shadow works by *darkening
+what is beneath it*. The ground is at L 0.18. There is almost nothing left to
+darken, so every shadow that reads as elevation on this ground reads that way
+because it has been inverted into a **light** halo around the object — which is
+the glowing-accent failure ADR-0006 exists to refuse, wearing a different token
+name. The scale therefore goes the other way: level 1 is *lighter* than the
+ground, which is also why 10.2 renamed `stock-deep` to `stock-panel`. Depth here
+moves toward the light, and a system that says "deep" while emitting a brighter
+colour will eventually be read literally by somebody.
+
+### Two levels, and the honest reason there are not three
+
+`Bank` (framed) and `CardBlock` are the same level, distinguished by what they
+hold rather than by how far they float: a framed Bank groups a **task**, a block
+groups a **subject**. That is the rule that answers nesting without a table of
+allowed combinations — a Bank may hold a run of blocks, because a task can
+contain subjects; a block may not hold a block, because a subject is not made of
+subjects. A third level was drafted and dropped: the only thing it would have
+expressed is emphasis, and the Material-Carries-State Rule already says emphasis
+is state, and state is carried in the border.
+
+### The port went to the doors, because a door is a subject
+
+The temptation was to port `Slot` itself and get the whole app in one move.
+`Slot` is a **ledger row** — a pick in an order, a member in a standing — and a
+ledger's meaning is in the alignment between rows, which is exactly what a gap
+between separate objects destroys. So `Slots` and `CardBlocks` are separate
+containers on purpose; composing one from the other produced a bottom rail
+underneath a gap, which is what a wrong model looks like when it renders.
+
+The four league doors are the right first port because a destination *is* a
+subject, and a grid of them says "pick one" where a ruled run says "read down".
+`Door` gained a `block` prop rather than a sibling component, and the two
+renderings share one body — a door that looked different depending on which page
+built it is precisely how the lobby and the season pages drifted apart before
+`board.tsx` existed.
+
+### The guard exists because Tailwind fails silently, not because rules are nice
+
+`depth-scale.test.ts` reads every `.ts`/`.tsx` under `src/` as text and fails on
+a radius that is not the one token, on any `shadow-` / gradient / `blur-` class,
+and on a card-block material spelled anywhere but `board.tsx`. Reading source
+rather than measuring rendered values looks like the weaker test, and here it is
+the stronger one, for a specific reason: **Tailwind emits an unknown utility as
+nothing at all.** A stray `rounded-lg` renders a perfectly pleasant rounded
+button; a hand-rolled `card-block-2` renders an unstyled `<li>`. Neither throws,
+neither logs, and the first one *passes* any test that asserts a computed style
+is plausible. The failure mode is a screenshot that looks fine, which no runtime
+assertion is positioned to catch.
+
+It was verified the only way a guard can be: by injecting a violation into
+`roster-radar.tsx` and watching three assertions fail by name, then reverting
+with `git checkout` after a `cp` restore left the file dirty. A guard that has
+only ever been observed passing has not been observed.
+
+This closes the debt 10.1 opened the same week, with one piece deliberately left
+open: the recursive nest is closed structurally, but two *different* callers
+composing one block into another still depends on review.
+
+### One more Tailwind fact, checked rather than assumed
+
+`border-l-3` is not in Tailwind's classic border-width scale (0/2/4/8). It works
+in v4 — verified by grepping `border-left-width:3px` out of the built CSS, not
+by remembering — and so do the three `border-l-pos-*` classes, which matters
+because they are assembled from a lookup record and a dynamically composed class
+name is the other way Tailwind silently emits nothing. The position edge is a
+full-strength hue rather than an alpha for the reason 3.4a paid for: an alpha
+takes its colour from whatever surface it lands on. It is an *edge* rather than
+a wash specifically so it changes no text's contrast, and the G/F/C letter is
+still printed by the caller, because colour never carries position alone.
+
+### A gate finding that was not about this slice
+
+The E2E suite failed four specs on the first full run, all of them
+`/auth/callback`, all `ERR_CONNECTION_REFUSED`. The cause is that the callback
+redirects to the **absolute** `NEXT_PUBLIC_APP_URL`, which is
+`http://localhost:3007`, while the run was on `E2E_PORT=3011` — the port the
+verification table in STATUS.md recommends. Nothing was listening on 3007, so
+the browser was sent nowhere.
+
+The reason it is a debt row rather than a footnote is the *other* arrangement.
+Those two specs assert a path regex, not an origin. With a dev server running on
+3007 — which is the normal state of this laptop — the redirect lands there, the
+regex matches, `login-error` renders, and both specs pass **against a different
+build than the one under test**. The failure mode of the recommended command is
+therefore a false pass on two security specs, and the only reason it surfaced at
+all is that this run happened to have 3007 free.
+
+## 10.3 — Two families, and the boundary between a column and a sentence
+
+The brief asked for geometric labels and a condensed mono for tabular stats,
+which meant overturning the One Label Maker Rule ("one family, no exceptions…
+no mono"). Space Grotesk carries every word; JetBrains Mono carries figures that
+live in a column.
+
+**`latin-ext` was checked before either face was chosen, not after.** This
+league reads Valančiūnas and Šengelia, and a font without the extended range
+falls back mid-word — a surname that changes shape at the fourth letter looks
+like a rendering bug on the one screen the league stares at all night. Both
+faces were confirmed against `next/font`'s own `font-data.json` rather than
+against a memory of what Google Fonts ships.
+
+### The interesting part was what the `stat` utility deliberately does *not* set
+
+`stat` sets `font-family` and `font-variant-numeric`, and nothing else. Adding
+weight and tracking there would have been the natural thing to do and would have
+been a bug. `stat` composes with `slot-label` and `font-semibold`, Tailwind v4
+emits `@utility` blocks **alphabetically**, and `slot-label` sorts before
+`stat` — so a tracking declaration here would have silently overridden the caps
+tracking of every label it joined. Not a hypothetical: `slot-transit` had
+already paid for this exact ordering once. Keeping the utility to two properties
+means the composition order stops mattering.
+
+The boundary the rule draws is between a **column** and a **sentence**: the
+clock, the PIR column, chat timestamps and standings figures are mono; the chat
+unread badge and any number sitting inside prose stay sans. A figure inside a
+sentence is prose. `design.spec.ts` asserts both halves in a real browser, so
+"mono where it belongs, sans where it belongs" is measured rather than asserted
+in a comment — and the long-standing computed-family check moved from Archivo to
+Space Grotesk in the same place.
+
+## 10.2 — One ground, and the rename that says which way depth goes
+
+The palette from 10.1 landed in `globals.css`, and the second ground came out
+entirely: the `--night-*` indirection, both remapping blocks,
+`prefers-color-scheme`, `src/lib/theme.ts`, the `<head>` override script,
+`ThemeControl`, the sun and moon icons, and `theme.spec.ts`. Roughly 1,100 lines
+deleted against 500 added, which is the shape of a slice that removes a
+dimension rather than adding a look.
+
+**`stock-deep` became `stock-panel`,** and the rename is the load-bearing part.
+On card stock a secondary surface is darker; on a near-black ground it is
+lighter. The old name described the wrong direction, and the direction is what
+makes the panel the *binding* surface when solving contrast rather than the
+forgiving one — ink on the lighter panel is the harder constraint, so `rule` is
+asserted harder on the panel than on the ground.
+
+`tokens.test.ts` collapsed from two grounds to one and still came out at 74
+assertions, every pair re-measured rather than carried over. Four are new: the
+anchors pinned as sRGB bytes so the ground and the marker cannot drift; a
+**ceiling** on chalk, which is the unusual one — it stops someone "improving"
+contrast by walking ink toward pure white, where 18.8:1 on this ground is
+halation rather than legibility; `rule` bound against the panel; and every token
+declared exactly once, which restores the protection the `--night-*` prefix used
+to give for free by making a duplicate declaration a name collision.
+
+One find that CI could not have produced: **`global-error.tsx` carried its own
+copy of the theme script.** It renders only when the root layout has already
+failed, so no test exercises it, and it would have kept writing a `data-theme`
+onto a document with no theme system left. It was found by grepping for the
+symbol being deleted rather than by trusting the test suite to be complete —
+which is the general lesson, since the file that renders when everything else
+has broken is the file nothing covers.
+
+## 10.1 — Reversing a thesis, and solving a palette instead of picking one
+
+The instruction was to make the app a dark, data-dense interface on `#0B1120`
+with `#FF5500` accents. The awkward part is that this app has refused exactly
+that, in writing, in the emitted HTML of every page, since Phase 1.4: *"It
+refuses the near-black surface with one glowing accent."* And eight days ago
+9.5 shipped a dark ground while going out of its way to keep that refusal
+intact — ADR-0005 says so in as many words.
+
+So the first job was not CSS. It was deciding whether this is an amendment or a
+reversal, and saying which. It is a reversal, and pretending otherwise would
+have left three documents quietly contradicting a stylesheet.
+
+**What the old refusal was actually protecting turned out to be separable from
+its conclusion.** Read D17 and the direction contract together and the refusal
+bundles two failure modes: a dark ground doing the work structure should do, and
+a saturated accent glowing to make up for it. Both are still worth refusing, and
+ADR-0006 refuses them. What is given up is only the *inference* that a light
+ground is the sole defence. The structure was the load-bearing part — four rule
+weights carrying state, a marker with two jobs, measured contrast on every pair,
+no colour without a redundant non-colour signal — and all of it survives.
+
+### One ground rather than three, and the reason is a measurement
+
+The conservative option was a third ground beside day and night, which would
+have kept `prefers-color-scheme` working. It does not survive contact with the
+brief's own accent: **`#FF5500` measures 2.76:1 against the old card stock.**
+That fails the 4.5:1 text floor and also the 3:1 boundary floor, so the orange
+could not even be a primary action's border on a light ground. Keeping paper
+therefore means a second, darker orange — and a design system whose one accent
+is two different colours depending on the lamp has two accents. One ground.
+
+### Three constraints moved values, and none of them was aesthetic
+
+Every non-anchor token was solved with the same conversion and compositing code
+`tokens.test.ts` uses, so the numbers below are the numbers CI will compute.
+
+**A panel is lighter than the ground, which flips which surface binds.** On a
+near-black board "deeper stock" is unavailable: depth on a dark ground *is*
+lightness. So `stock-panel` sits above the ground, and a mid-grey rule now has
+less contrast on the panel than on the ground — the reverse of the paper board.
+`rule` is therefore solved for 3:1 against the **panel** (3.15:1) and clears
+3.52:1 on the ground as a by-product. Solved the old way round it came out at
+2.46:1 on the panel: a rule you cannot see, on the surface the board is drawn
+inside, which is a state language with no states.
+
+**The live bay is derived downward from faint ink.** A warm field lifted well
+off a near-black ground looks better and pushes `ink-faint` under the floor —
+and faint ink is what a muted pool row is written in, which is a row that can be
+*the armed one*. So `live-sunk` is the lightest bay on which faint ink still
+clears 4.5:1, which lands it at `oklch(0.254 0.075 38.8)`, 4.61:1, and only
+1.16:1 against the ground. Subtle on purpose, and the 2px marker rule above it
+is still what carries the state.
+
+**Soft ink is solved against its worst pairing, not against the ground.** Taking
+ADR-0005's 5.79:1 as the target failed twice over: 4.3:1 written on a position
+wash that sits on a panel, and — by 0.03 — the Ink-on-Blush Rule, which requires
+soft ink to stay *stronger* than the marker on the live field. Solved against
+both it is 6.24:1, and the marker sits at 5.05:1 beneath it.
+
+**Chalk deliberately stops short.** Pure white on this ground is 18.8:1. Ink
+lands at 13.89:1, near the night board's 13.60:1, because 9.5's halation
+argument is the part of it that outlived the decision: a ramp whose top shouts
+gives the quiet inks nothing to be quiet against, and a phone at full white in a
+dark room is harder to read, not easier.
+
+### The marker needs four decimal places
+
+`oklch(0.676 0.217 38.8)` round-trips to `#ff5502`. Invisible, and still not the
+colour the brief named, so the token carries `oklch(0.6759 0.2175 38.8)` and
+renders `#ff5500` exactly. Worth knowing before somebody tidies the decimals.
+
+### What got dropped, and why it is not an oversight
+
+**The purple head coach.** The brief asks for it across every view and the mock
+draws an HC slot in the roster. Draft Mode "is the same as the Classic Mode,
+except… there is no head coach" — D19, from last week, the slice that restored
+captain and bench *and deliberately left the coach cut*. The roster ingest
+filters coaches out by an inclusion rule on `type === "J"`. A fourth position
+colour would badge an entity the game does not have, so purple leaves the
+palette and amber takes the warm slot.
+
+**The persistent countdown and the PIR columns**, because both already exist —
+the clock has been sticky and server-offset since 3.7, and average PIR has been
+the pool's leading column since 9.1. Re-announcing shipped work as new work is
+how a status file starts lying.
+
+### The cost, recorded where it will be read
+
+`prefers-color-scheme` is no longer honoured at all, because there is nothing
+left to honour it with: a reader who asks their phone for a light interface gets
+the midnight board anyway. That is the single best argument for reversing
+ADR-0006 later, and it is written into the record rather than left for somebody
+to discover as a bug. Two more went into Open debt: the depth scale's two-level
+and one-radius rules are prose that nothing enforces, and the vibrant position
+hues have never been re-simulated under colour-vision deficiency — 3.2's
+deuteranopia measurement was of the *muted* washes, and if the new ones separate
+no better, the letter is doing all the work and the colour is decoration with a
+job title.
+
 ## The league that could not be deleted
 
 Reported from production: the commissioner pressed delete and got the route

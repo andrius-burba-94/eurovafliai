@@ -4,21 +4,24 @@ import { useActionState, useMemo, useState } from "react";
 
 import {
   Bank,
+  CardBlock,
+  CardBlocks,
   CardName,
   Correction,
+  FixtureNote,
   PositionPatch,
   selectStyles,
-  Slot,
-  Slots,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { recordLineup, type LineupResult } from "@/lib/lineups/actions";
 import {
+  assignmentsWithCaptain,
   formationName,
-  LINEUP_ROLES,
   type LineupRole,
   type LineupSource,
   type LineupTemplate,
+  type PlacementRole,
+  PLACEMENT_ROLES,
   ROLE_MULTIPLIERS,
   ROLE_WORDS,
   slotsFromRoles,
@@ -63,17 +66,49 @@ export function LineupForm({
   template: LineupTemplate;
 }) {
   const [result, action] = useActionState(recordLineup, START);
-  const [roles, setRoles] = useState<Record<string, LineupRole | "">>(() =>
-    Object.fromEntries(players.map((player) => [player.id, player.role ?? ""])),
+
+  // The stored lineup arrives with the captain as a role, because that is the
+  // shape the validator and the standings share. The form splits it back into a
+  // place plus a mark on the way in, and `assignmentsWithCaptain` puts it back
+  // together on the way out.
+  const [places, setPlaces] = useState<Record<string, PlacementRole | "">>(() =>
+    Object.fromEntries(
+      players.map((player) => [
+        player.id,
+        player.role === "captain" ? "starter" : (player.role ?? ""),
+      ]),
+    ),
   );
+  const [captainId, setCaptainId] = useState<string>(
+    () => players.find((player) => player.role === "captain")?.id ?? "",
+  );
+
+  /**
+   * Marking a captain also *places* them, because the captaincy is only ever a
+   * mark on a starter: a control that could name a captain the validator would
+   * then refuse is a control that exists to produce an error message.
+   */
+  function markCaptain(playerId: string): void {
+    setCaptainId(playerId);
+    setPlaces((current) => ({ ...current, [playerId]: "starter" }));
+  }
+
+  /** Moving the captain off the five gives up the armband with the place. */
+  function place(playerId: string, role: PlacementRole | ""): void {
+    setPlaces((current) => ({ ...current, [playerId]: role }));
+    if (role !== "starter" && captainId === playerId) setCaptainId("");
+  }
 
   const assignments = useMemo(
     () =>
-      players.flatMap((player) => {
-        const role = roles[player.id];
-        return role ? [{ playerId: player.id, role }] : [];
-      }),
-    [players, roles],
+      assignmentsWithCaptain(
+        players.flatMap((player) => {
+          const role = places[player.id];
+          return role ? [{ playerId: player.id, role }] : [];
+        }),
+        captainId,
+      ),
+    [players, places, captainId],
   );
 
   const verdict = useMemo(
@@ -145,16 +180,18 @@ export function LineupForm({
         aside={`${placed}/${players.length} placed`}
         testId="lineup-board"
       >
-        <Slots label={`${teamName} roster for round ${round}`}>
+        <CardBlocks label={`${teamName} roster for round ${round}`}>
           {players.map((player) => {
-            const role = roles[player.id] ?? "";
+            const role = places[player.id] ?? "";
+            const isCaptain = captainId === player.id;
             return (
-              <Slot
+              <CardBlock
                 key={player.id}
                 testId="lineup-row"
                 state={role === "" ? "waiting" : "filled"}
+                position={player.position}
               >
-                <span className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="flex min-w-0 items-center gap-3">
                   <PositionPatch position={player.position} />
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <CardName scale="slot">{player.name}</CardName>
@@ -163,30 +200,59 @@ export function LineupForm({
                     </span>
                   </span>
                 </span>
-                <select
-                  name={`role:${player.id}`}
-                  value={role}
-                  aria-label={`${player.name} role`}
-                  data-testid="lineup-role"
-                  onChange={(event) =>
-                    setRoles((current) => ({
-                      ...current,
-                      [player.id]: event.target.value as LineupRole | "",
-                    }))
-                  }
-                  className={`${selectStyles} w-auto min-w-36 shrink-0`}
-                >
-                  <option value="">—</option>
-                  {LINEUP_ROLES.map((option) => (
-                    <option key={option} value={option}>
-                      {ROLE_WORDS[option]} {multiplierWord(option)}
-                    </option>
-                  ))}
-                </select>
-              </Slot>
+                <FixtureNote fixture={player.fixture} />
+                <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <select
+                    name={`role:${player.id}`}
+                    value={role}
+                    aria-label={`${player.name} role`}
+                    data-testid="lineup-role"
+                    onChange={(event) =>
+                      place(player.id, event.target.value as PlacementRole | "")
+                    }
+                    className={`${selectStyles} w-auto min-w-36 shrink-0`}
+                  >
+                    <option value="">—</option>
+                    {PLACEMENT_ROLES.map((option) => (
+                      <option key={option} value={option}>
+                        {ROLE_WORDS[option]} {multiplierWord(option)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/*
+                    A radio group rather than thirteen toggles, because "exactly
+                    one of these" is what a radio group *is*: the browser clears
+                    the previous choice, arrow keys move between them, and a
+                    screen reader says "3 of 13". Thirteen checkboxes wired to
+                    clear each other would be that behaviour reimplemented, minus
+                    the keyboard handling.
+                  */}
+                  <label
+                    className="flex min-h-11 shrink-0 items-center gap-2"
+                    data-testid="lineup-captain"
+                    data-checked={isCaptain ? "true" : undefined}
+                  >
+                    <input
+                      type="radio"
+                      name="captain"
+                      value={player.id}
+                      checked={isCaptain}
+                      aria-label={`${player.name} captain`}
+                      onChange={() => markCaptain(player.id)}
+                      className="size-4 shrink-0 accent-live"
+                    />
+                    <span
+                      className={`slot-label ${isCaptain ? "text-live" : ""}`}
+                    >
+                      Captain {multiplierWord("captain")}
+                    </span>
+                  </label>
+                </span>
+              </CardBlock>
             );
           })}
-        </Slots>
+        </CardBlocks>
       </Bank>
 
       {result.error ? (

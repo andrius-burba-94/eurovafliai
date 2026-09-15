@@ -47,7 +47,9 @@ function asPool(agents: readonly FreeAgent[]): PoolPlayer[] {
     takenBy: null,
     takenAt: null,
     // A free-agent picker searches and filters by name, club and position; it
-    // has no PIR column and no floors, so there is nothing to carry here.
+    // has no PIR column and no floors, so there is nothing to carry here —
+    // including the last-five series, which has nothing to draw into.
+    last5Pirs: [],
     averagePir: null,
     averageGames: 0,
     averageSource: null,

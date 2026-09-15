@@ -2,6 +2,8 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import { readRoundFixtures } from "@/lib/fixtures/queries";
+import type { PlayerFixture } from "@/lib/fixtures/types";
 import { coversRound } from "@/lib/memberships/from";
 import { createUserClient } from "@/lib/pb/server";
 
@@ -52,6 +54,13 @@ export type LineupPlayer = {
   readonly position: Position;
   /** What the round's lineup says today. Null when nobody has said. */
   readonly role: LineupRole | null;
+  /**
+   * The club's game **in this round** — not its next one, because a lineup is
+   * arranged for a named round and that is the fixture it is arranged against.
+   * Null when the club does not play in the round, or before the season's first
+   * ingest pass: the block renders no fixture line rather than a "TBD".
+   */
+  readonly fixture?: PlayerFixture | null;
 };
 
 export type LineupBoard = {
@@ -91,13 +100,14 @@ export async function readLineupBoard(input: {
   if (!session) return null;
 
   const pb = createUserClient(session.token);
-  const [memberships, records] = await Promise.all([
+  const [memberships, records, fixtures] = await Promise.all([
     pb.collection("roster_memberships").getFullList<MembershipRow>({
       filter: `league = '${input.leagueId}' && member = '${input.memberId}'`,
       expand: "player",
       requestKey: null,
     }),
     readLineupRecords(pb, input.leagueId, input.season, input.memberId),
+    readRoundFixtures(input.season, input.round, session.token),
   ]);
 
   const seen = new Set<string>();
@@ -113,6 +123,7 @@ export async function readLineupBoard(input: {
       clubCode: player.club_code,
       clubName: player.club_name,
       position: player.position,
+      fixture: fixtures.get(player.club_code) ?? null,
     });
   }
   squad.sort((a, b) => a.name.localeCompare(b.name));

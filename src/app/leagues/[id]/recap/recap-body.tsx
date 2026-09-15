@@ -62,11 +62,11 @@ export function RecapBody({
                   className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
                 >
                   <span className="flex min-w-0 flex-wrap items-baseline gap-x-3">
-                    <span className="slot-label tabular-nums">#{index + 1}</span>
+                    <span className="stat slot-label">#{index + 1}</span>
                     <CardName>{team(row.memberId)}</CardName>
                   </span>
                   <span
-                    className="text-sm tabular-nums"
+                    className="stat text-sm"
                     data-testid="recap-tenths"
                   >
                     {formatTenths(row.tenths)}
@@ -89,7 +89,7 @@ export function RecapBody({
                     {team(night.memberId)}
                   </span>
                 </span>
-                <span className="text-sm tabular-nums">
+                <span className="stat text-sm">
                   {formatTenths(night.fantasyTenths)}
                 </span>
               </div>
@@ -111,7 +111,7 @@ export function RecapBody({
                 <span className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <CardName>{team(swing.memberId)}</CardName>
                   <span
-                    className="text-sm tabular-nums"
+                    className="stat text-sm"
                     data-testid="recap-swing-delta"
                   >
                     {formatSignedTenths(swing.deltaTenths)}

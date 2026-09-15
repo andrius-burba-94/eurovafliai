@@ -15,7 +15,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { ThemeControl } from "@/components/theme-control";
+import {
+  SPARK_HEIGHT,
+  SPARK_WIDTH,
+  sparklinePoints,
+  sparklineSentence,
+} from "@/lib/charts/sparkline";
+import type { PlayerFixture } from "@/lib/fixtures/types";
 
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
 
@@ -43,18 +49,52 @@ const SLOT_RULE: Record<SlotState, string> = {
 };
 
 /**
+ * The two measures this app has — slice 10.9, and the second one is new.
+ *
+ * `column` is the one every reading surface uses and has used since 1.4: 48rem,
+ * centred, one column, no sidebar. DESIGN.md open question 4 answered "no second
+ * container width" in 3.1 and the answer held for six phases.
+ *
+ * `room` is the exception, and it is one surface rather than a size for
+ * whoever wants it: the draft room is the only place in this app where two
+ * things have to be **seen at once** — the pool you are picking from and the
+ * board the picks land on — and that is a fact about the night rather than a
+ * preference about laptops. Below `lg` it is the column, unchanged, because the
+ * side-by-side cannot happen on a 390px phone and the phone is the primary
+ * device. See DESIGN.md's Layout section.
+ */
+const MEASURE = {
+  column: "max-w-3xl",
+  room: "max-w-3xl lg:max-w-7xl",
+} as const;
+
+export type Measure = keyof typeof MEASURE;
+
+/**
  * The board's top rail. Carries the wordmark and the season, and takes one
  * slot on the right for whatever action the surface owns.
  *
- * Since 9.5 it also carries the ground the board is drawn on. That lives here
- * rather than in each page's `action` for one reason: every surface has the
- * switch, and no surface had to be edited to get it. The rail is the only thing
- * this app renders on literally every page.
+ * It carried the ground switch for eight days (9.5, 9.5a). Phase 10 removed it
+ * with the second ground — there is one ground now, so there is nothing to
+ * switch. See ADR-0006 for what that costs.
+ *
+ * `measure` exists so the rail can widen with the surface under it. The
+ * wordmark aligns with the first slot below it, which is a promise DESIGN.md
+ * makes explicitly — a room at 80rem under a rail at 48rem would break it on
+ * the one surface the league stares at for two hours.
  */
-export function TopRail({ action }: { action?: ReactNode }) {
+export function TopRail({
+  action,
+  measure = "column",
+}: {
+  action?: ReactNode;
+  measure?: Measure;
+}) {
   return (
     <header className="border-b border-rail/40">
-      <div className="mx-auto flex w-full max-w-3xl items-baseline justify-between gap-3 px-5 py-4 sm:px-8">
+      <div
+        className={`mx-auto flex w-full ${MEASURE[measure]} items-baseline justify-between gap-3 px-5 py-4 sm:px-8`}
+      >
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
           <span className="whitespace-nowrap text-base font-semibold uppercase tracking-[0.16em]">
             Eurovafliai
@@ -66,37 +106,30 @@ export function TopRail({ action }: { action?: ReactNode }) {
             Euroleague 2026&ndash;27
           </span>
         </div>
-        {/* `gap-1` and the switch's own `self-end` are what put it *in* the
-            rail's row of controls rather than beside the block of them. A
-            surface whose action is two lines — the account stack on
-            `/`, a name over its own nav — is the case that decides this: an
-            icon centred against that stack sits between its two lines, level
-            with nothing, reading as a stray mark. Bottom-aligned it lands in
-            the nav's own 44px band, one more control in a line of them, and on
-            the single-line surfaces (a `BackLink`, same 44px box) it is the
-            same result. */}
-        <div className="flex shrink-0 items-baseline gap-1">
-          <ThemeControl />
-          {action}
-        </div>
+        <div className="flex shrink-0 items-baseline gap-1">{action}</div>
       </div>
     </header>
   );
 }
 
-/** The page's own column. One measure, so every surface lines up with the next. */
+/**
+ * The page's own column. One measure, so every surface lines up with the next —
+ * and one exception, `room`, which is the draft room and nothing else.
+ */
 export function Sheet({
   children,
   testId,
+  measure = "column",
 }: {
   children: ReactNode;
   testId?: string;
+  measure?: Measure;
 }) {
   return (
     <main
       id="main"
       data-testid={testId}
-      className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12"
+      className={`mx-auto flex w-full ${MEASURE[measure]} flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12`}
     >
       {children}
     </main>
@@ -191,6 +224,264 @@ export function Bank({
 }
 
 /**
+ * A run of card blocks. The list counterpart of `Slots`, and separate from it
+ * on purpose: `Slots` draws a ruled board (bottom rail, rules between rows)
+ * and a run of blocks is a grid of separate objects with a gap between them.
+ * Composing one out of the other produced a bottom rail under a gap.
+ *
+ * `role="list"` is stated for the same reason `Slots` states it: Safari and
+ * VoiceOver drop the list roles from a `<ul>` that has `list-style: none` and
+ * is a flex container, and draft night is iPhones.
+ */
+export function CardBlocks({
+  children,
+  testId,
+  label,
+  columns = false,
+}: {
+  children: ReactNode;
+  testId?: string;
+  label?: string;
+  /**
+   * Two across from `sm` up. Off by default because the phone is the primary
+   * device and a thirteen-player roster in two columns on a 390px screen gives
+   * each block about 170px, which cannot hold a name like Valančiūnas beside a
+   * patch and a captain control.
+   */
+  columns?: boolean;
+}) {
+  return (
+    <ul
+      aria-label={label}
+      data-testid={testId}
+      role="list"
+      className={`grid gap-2 ${columns ? "sm:grid-cols-2" : ""}`}
+    >
+      {children}
+    </ul>
+  );
+}
+
+/**
+ * One card block: a single subject, segmented off the board.
+ *
+ * Level 1 of the depth scale and the material Phase 10 added — see
+ * ADR-0006 and the `card-block` utility. A block groups a *subject* (a player
+ * in a roster, a member's night); a framed `Bank` groups a *task*. They are the
+ * same level, so a Bank may hold a run of blocks, and a block may not hold
+ * another block.
+ *
+ * State is carried in the block's own border, the way a row's is carried in its
+ * rule — never by a badge parked inside an otherwise normal block. The
+ * `position` prop tints the left edge in the position's own hue, which is the
+ * colour coding D22 asks for; the G/F/C letter still has to be printed by the
+ * caller, because colour never carries position alone.
+ */
+export function CardBlock({
+  children,
+  testId,
+  state = "filled",
+  position,
+  landed = false,
+  className = "",
+}: {
+  children: ReactNode;
+  testId?: string;
+  /**
+   * The block's three states, named the way a slot's are and carried the same
+   * way — in the material, never in a badge parked inside it.
+   *
+   * Three rather than `Slot`'s six: a subject is held, on the clock, or not
+   * there yet. `transit`, `standing` and `correction` are things that happen to
+   * a *row* — a sheet entry in your hand, a paused board, a refusal — and
+   * inventing block materials for them would be three declarations nothing
+   * renders.
+   */
+  state?: BlockState;
+  /**
+   * A 3px edge in the position's hue, so a roster can be scanned by colour.
+   *
+   * It is a *border-left* rather than a wash across the block, because a wash
+   * would put every figure in the block on a tinted field and re-open the
+   * pairing `tokens.test.ts` measures for slots — at which point thirteen
+   * blocks in three hues need their own contrast argument. An edge changes no
+   * contrast at all, and the wash is already available to a row that wants it.
+   */
+  position?: "G" | "F" | "C";
+  /** Plays the card-landing motion once. Inert under `prefers-reduced-motion`. */
+  landed?: boolean;
+  className?: string;
+}) {
+  return (
+    <li
+      data-testid={testId}
+      data-state={state}
+      data-position={position}
+      className={`${BLOCK_MATERIAL[state]} ${landed ? "card-lands" : ""} ${
+        position && state === "filled" ? `border-l-3 ${BLOCK_EDGE[position]}` : ""
+      } ${className} flex min-w-0 flex-col gap-2`}
+    >
+      {children}
+    </li>
+  );
+}
+
+export type BlockState = "filled" | "live" | "waiting";
+
+/**
+ * One declaration per material, looked up rather than composed.
+ *
+ * The position edge is suppressed for `live` and `waiting` deliberately. On a
+ * live block the marker owns the border — a hue on one edge of it would be a
+ * second thing claiming the same boundary — and on a waiting block there is no
+ * player to have a position.
+ */
+const BLOCK_MATERIAL: Record<BlockState, string> = {
+  filled: "card-block",
+  live: "card-block-live",
+  waiting: "card-block-waiting",
+};
+
+/**
+ * The position edge. Full-strength hue, not an alpha: it sits on panel stock
+ * rather than on the ground, and an alpha edge would take its colour from
+ * whichever surface the block happens to be on — the same mistake the patch's
+ * background made before 3.4a, and the reason `PATCH` below carries an opaque
+ * field. A 3px edge is a non-text boundary, and these clear 8.8:1 on a panel.
+ */
+const BLOCK_EDGE: Record<"G" | "F" | "C", string> = {
+  G: "border-l-pos-g",
+  F: "border-l-pos-f",
+  C: "border-l-pos-c",
+};
+
+/**
+ * Five games, drawn — slice 10.6.
+ *
+ * Follows the recipe `BackArrow` established and DESIGN.md records: inline
+ * `<svg>`, one stroke, `currentColor`, no fill, no package. There is no chart
+ * library in this project and adding one to draw four line segments would be
+ * the largest dependency in the repo by a wide margin.
+ *
+ * **The picture is `aria-hidden` and the sentence is the content.** Five marks
+ * announced individually are five announcements of nothing, and a bare
+ * "sparkline" label tells a screen-reader user only that they are missing
+ * something. So the marks are hidden and `sparklineSentence` says the numbers
+ * out loud, oldest first, before it says the reading — the same split
+ * `RosterRadar` makes, for the same reason.
+ *
+ * Renders **nothing** below two games, because one game is a dot rather than a
+ * line and a single mark in a box that means "recent form" reads as a flat trend
+ * rather than as an absence of one.
+ */
+export function Sparkline({
+  values,
+  what,
+  className = "inline-flex h-4 w-[3.125rem]",
+  testId,
+  format,
+}: {
+  readonly values: readonly number[];
+  /** What the numbers are, for the spoken sentence: "PIR", "points". */
+  readonly what: string;
+  /**
+   * How to say one value. Pass `formatTenths` for any figure this app stores as
+   * integer tenths, or the sentence reads "120" where the row shows "12.0".
+   */
+  readonly format?: (value: number) => string;
+  /**
+   * Replaces the default box rather than adding to it, and that includes the
+   * **display** utility.
+   *
+   * A hardcoded `inline-flex` here plus a caller's `hidden sm:inline-flex` is
+   * two utilities setting one property, and which of them wins comes down to
+   * the order Tailwind emits them in rather than to anything written here —
+   * the failure `slot-transit` already paid for. So the display belongs to
+   * whoever is placing the mark.
+   */
+  readonly className?: string;
+  readonly testId?: string;
+}) {
+  const points = sparklinePoints(values);
+  if (!points) return null;
+  return (
+    <span className={`items-center ${className}`} data-testid={testId}>
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
+        className="h-full w-full"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        // A five-point line has four joins and two ends; left square they read
+        // as a chart drawn by a machine, which is the opposite of the hand this
+        // system draws in everywhere else.
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        // The stroke must not thin out when the viewBox is scaled into a 50px
+        // cell — at 1.5 units in a 50-unit box it would otherwise land under a
+        // pixel and disappear on a phone.
+        vectorEffect="non-scaling-stroke"
+      >
+        <polyline points={points} />
+      </svg>
+      <span className="sr-only">
+        {sparklineSentence(values, what, format)}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The fixture line inside a roster block, or nothing at all.
+ *
+ * Returning `null` when there is no fixture is the whole point: a "—" or a
+ * "TBD" would be this app claiming it looked and found nothing, when in fact it
+ * has never looked. An empty line is honest and a placeholder is not. That case
+ * is real all season, not only before 10.7 landed: a club knocked out has no
+ * next game, and no club plays in every round of the playoffs.
+ *
+ * The draw is a word rather than a coloured dot, per the Letter-Always Rule, and
+ * `difficulty` is separately allowed to be absent — an opponent who has played
+ * two games has a record too thin to describe, and the line then names the
+ * fixture and stops.
+ */
+export function FixtureNote({
+  fixture,
+  testId,
+}: {
+  fixture?: PlayerFixture | null;
+  testId?: string;
+}) {
+  if (!fixture) return null;
+  return (
+    <span data-testid={testId} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+      {/* "vs" at home and "at" away, which is the shorter of the two ways to
+          say it and the one the league says out loud. */}
+      <span className="text-ink-soft">
+        {fixture.atHome ? "vs" : "at"} {fixture.nextOpponent}
+      </span>
+      {fixture.difficulty ? (
+        <span className="slot-label" data-testid="fixture-difficulty">
+          {DIFFICULTY_WORD[fixture.difficulty]}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * The difficulty said as a word. Marker is deliberately *not* used for `hard`:
+ * it has two jobs already — the clock, and the one act a surface exists for —
+ * and a third meaning on a roster is how the marker stops meaning anything.
+ */
+const DIFFICULTY_WORD: Record<"easy" | "even" | "hard", string> = {
+  easy: "Kind draw",
+  even: "Even draw",
+  hard: "Hard draw",
+};
+
+/**
  * One slot. `landed` plays the card-landing motion once — reserved for the row
  * that has genuinely just arrived, and inert under `prefers-reduced-motion`.
  */
@@ -266,6 +557,7 @@ export function Door({
   testId,
   state = "filled",
   actionTone = "ink",
+  block = false,
 }: {
   href: string;
   title: string;
@@ -274,29 +566,55 @@ export function Door({
   testId?: string;
   state?: SlotState;
   actionTone?: "ink" | "live";
+  /**
+   * Draw this door as a card block rather than as a ruled row.
+   *
+   * A door is a *destination*, which is a subject rather than an entry in a
+   * ledger — so a run of them is the clearest case in the app for the Phase 10
+   * material, and the reason the port lives here rather than in a new
+   * component. The two renderings share this body deliberately: a door that
+   * looked different depending on which surface built it is how the lobby and
+   * the season pages drifted apart before this component existed.
+   *
+   * The Link's negative margins work unchanged because a card block's padding
+   * is 0.75rem, the same as a slot's `px-3 py-3`.
+   */
+  block?: boolean;
 }) {
-  return (
-    <Slot state={state}>
-      <Link
-        href={href}
-        data-testid={testId}
-        className="-mx-3 -my-3 flex min-h-11 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+  const body = (
+    <Link
+      href={href}
+      data-testid={testId}
+      className={`-mx-3 -my-3 flex min-h-11 flex-1 ${
+        block ? "flex-col gap-2" : "flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
+      } px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live`}
+    >
+      <span className="flex min-w-0 flex-col gap-1">
+        <CardName>{title}</CardName>
+        <span className="min-w-0 text-sm break-words text-ink-soft">
+          {description}
+        </span>
+      </span>
+      <span
+        className={`slot-label shrink-0 ${
+          actionTone === "live" ? "text-live" : "text-ink"
+        }`}
       >
-        <span className="flex min-w-0 flex-col gap-1">
-          <CardName>{title}</CardName>
-          <span className="min-w-0 text-sm break-words text-ink-soft">
-            {description}
-          </span>
-        </span>
-        <span
-          className={`slot-label shrink-0 ${
-            actionTone === "live" ? "text-live" : "text-ink"
-          }`}
-        >
-          {action} &rarr;
-        </span>
-      </Link>
-    </Slot>
+        {action} &rarr;
+      </span>
+    </Link>
+  );
+
+  // `state` maps onto the block's own material the way it maps onto a row's
+  // rule: "live" is the marker at double weight, everything else is the resting
+  // border. A door is never `transit` or `correction`, so those collapse here
+  // rather than inventing two more block materials nothing would render.
+  return block ? (
+    <CardBlock state={state === "live" ? "live" : "filled"}>
+      {body}
+    </CardBlock>
+  ) : (
+    <Slot state={state}>{body}</Slot>
   );
 }
 
@@ -593,7 +911,7 @@ export function BoardPlan({
       <div className="flex flex-col border-t border-rule-strong">
         {Array.from({ length: rounds }, (_, round) => (
           <div key={round} className="flex items-stretch gap-2">
-            <span className="w-6 shrink-0 pt-0.5 text-right text-slot tabular-nums text-ink-faint">
+            <span className="stat w-6 shrink-0 pt-0.5 text-right text-slot text-ink-faint">
               {round + 1}
             </span>
             <div
@@ -667,49 +985,8 @@ export function BackArrow() {
   );
 }
 
-/**
- * Sun and moon, for the one control whose state is a picture rather than a
- * word. Same recipe as `BackArrow` — one hand-authored stroke on
- * `currentColor`, no fill, no package — on a 16px grid, because these carry a
- * whole label's meaning and the 12x8 arrow's box is too small to read a
- * crescent in. Drawn on 16 units and rendered at 18px, so the stroke comes out
- * a shade heavier than 1px and sits with the 500-weight caps beside it on the
- * rail instead of under them.
- *
- * The two are sized against each other rather than to the same box: the sun is
- * a small disc whose rays make it read wide, the moon is a single thin arc, so
- * the crescent is drawn nearer the edge of the box than the rays are. Matched
- * geometrically they look like two different sizes on the same rail.
- */
-export function SunIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      className="h-4.5 w-4.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-      strokeLinecap="round"
-    >
-      <circle cx="8" cy="8" r="3" />
-      <path d="M8 1.6v1.4M8 13v1.4M1.6 8h1.4M13 8h1.4M3.5 3.5l1 1M11.5 11.5l1 1M12.5 3.5l-1 1M4.5 11.5l-1 1" />
-    </svg>
-  );
-}
-
-export function MoonIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      className="h-4.5 w-4.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-      strokeLinejoin="round"
-    >
-      <path d="M14 10.2A6.2 6.2 0 0 1 5.8 2a6.1 6.1 0 1 0 8.2 8.2Z" />
-    </svg>
-  );
-}
+/* `SunIcon` and `MoonIcon` stood here for the ground switch and went with it in
+ * Phase 10. The recipe they established survives in DESIGN.md: draw on 16 units
+ * and render at 18px so the stroke lands a shade over 1px, and size a set
+ * against each other rather than to a shared box. 10.6's sparkline is the next
+ * thing to follow it. */

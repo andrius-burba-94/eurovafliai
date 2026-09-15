@@ -1,227 +1,227 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-09T14:05:00.000Z",
-  "title": "Design System: Eurovafliai",
+  "generatedAt": "2026-09-15T12:45:05.087Z",
+  "title": "Design System: Eurovafliai (the midnight board)",
   "extensions": {
     "colorMeta": {
       "stock": {
         "role": "neutral",
-        "displayName": "Cool Card Stock",
-        "canonical": "oklch(0.943 0.004 240)",
-        "srgbApprox": "#eaecee",
+        "displayName": "Midnight Board",
+        "canonical": "oklch(0.18 0.032 266.6)",
+        "srgbApprox": "#0b1120",
         "tonalRamp": [
-          "oklch(0.15 0.004 240)",
-          "oklch(0.264 0.004 240)",
-          "oklch(0.379 0.004 240)",
-          "oklch(0.493 0.004 240)",
-          "oklch(0.607 0.004 240)",
-          "oklch(0.721 0.004 240)",
-          "oklch(0.836 0.004 240)",
-          "oklch(0.95 0.004 240)"
+          "oklch(0.15 0.032 266.6)",
+          "oklch(0.264 0.032 266.6)",
+          "oklch(0.379 0.032 266.6)",
+          "oklch(0.493 0.032 266.6)",
+          "oklch(0.607 0.032 266.6)",
+          "oklch(0.721 0.032 266.6)",
+          "oklch(0.836 0.032 266.6)",
+          "oklch(0.95 0.032 266.6)"
         ]
       },
-      "stock-deep": {
+      "stock-panel": {
         "role": "neutral",
-        "displayName": "Deep Card Stock",
-        "canonical": "oklch(0.905 0.005 240)",
-        "srgbApprox": "#dde0e3",
+        "displayName": "Panel Stock",
+        "canonical": "oklch(0.232 0.028 265)",
+        "srgbApprox": "#171d2b",
         "contrastOnStock": "1.12:1",
         "tonalRamp": [
-          "oklch(0.15 0.005 240)",
-          "oklch(0.264 0.005 240)",
-          "oklch(0.379 0.005 240)",
-          "oklch(0.493 0.005 240)",
-          "oklch(0.607 0.005 240)",
-          "oklch(0.721 0.005 240)",
-          "oklch(0.836 0.005 240)",
-          "oklch(0.95 0.005 240)"
+          "oklch(0.15 0.028 265)",
+          "oklch(0.264 0.028 265)",
+          "oklch(0.379 0.028 265)",
+          "oklch(0.493 0.028 265)",
+          "oklch(0.607 0.028 265)",
+          "oklch(0.721 0.028 265)",
+          "oklch(0.836 0.028 265)",
+          "oklch(0.95 0.028 265)"
         ]
       },
       "ink": {
         "role": "neutral",
-        "displayName": "Board Ink",
-        "canonical": "oklch(0.24 0.012 250)",
-        "srgbApprox": "#1b2025",
-        "contrastOnStock": "13.92:1",
+        "displayName": "Chalk",
+        "canonical": "oklch(0.898 0.008 265)",
+        "srgbApprox": "#dbdde3",
+        "contrastOnStock": "13.89:1",
         "tonalRamp": [
-          "oklch(0.15 0.012 250)",
-          "oklch(0.264 0.012 250)",
-          "oklch(0.379 0.012 250)",
-          "oklch(0.493 0.012 250)",
-          "oklch(0.607 0.012 250)",
-          "oklch(0.721 0.012 250)",
-          "oklch(0.836 0.012 250)",
-          "oklch(0.95 0.012 250)"
+          "oklch(0.15 0.008 265)",
+          "oklch(0.264 0.008 265)",
+          "oklch(0.379 0.008 265)",
+          "oklch(0.493 0.008 265)",
+          "oklch(0.607 0.008 265)",
+          "oklch(0.721 0.008 265)",
+          "oklch(0.836 0.008 265)",
+          "oklch(0.95 0.008 265)"
         ]
       },
       "ink-soft": {
         "role": "neutral",
-        "displayName": "Soft Ink",
-        "canonical": "oklch(0.47 0.011 250)",
-        "srgbApprox": "#565b61",
-        "contrastOnStock": "5.77:1",
+        "displayName": "Soft Chalk",
+        "canonical": "oklch(0.668 0.014 265)",
+        "srgbApprox": "#90959e",
+        "contrastOnStock": "6.24:1",
         "tonalRamp": [
-          "oklch(0.15 0.011 250)",
-          "oklch(0.264 0.011 250)",
-          "oklch(0.379 0.011 250)",
-          "oklch(0.493 0.011 250)",
-          "oklch(0.607 0.011 250)",
-          "oklch(0.721 0.011 250)",
-          "oklch(0.836 0.011 250)",
-          "oklch(0.95 0.011 250)"
+          "oklch(0.15 0.014 265)",
+          "oklch(0.264 0.014 265)",
+          "oklch(0.379 0.014 265)",
+          "oklch(0.493 0.014 265)",
+          "oklch(0.607 0.014 265)",
+          "oklch(0.721 0.014 265)",
+          "oklch(0.836 0.014 265)",
+          "oklch(0.95 0.014 265)"
         ]
       },
       "ink-faint": {
         "role": "neutral",
-        "displayName": "Faint Ink",
-        "canonical": "oklch(0.501 0.009 250)",
-        "srgbApprox": "#606469",
-        "contrastOnStock": "5.05:1",
+        "displayName": "Faint Chalk",
+        "canonical": "oklch(0.629 0.014 265)",
+        "srgbApprox": "#858992",
+        "contrastOnStock": "5.36:1",
         "tonalRamp": [
-          "oklch(0.15 0.009 250)",
-          "oklch(0.264 0.009 250)",
-          "oklch(0.379 0.009 250)",
-          "oklch(0.493 0.009 250)",
-          "oklch(0.607 0.009 250)",
-          "oklch(0.721 0.009 250)",
-          "oklch(0.836 0.009 250)",
-          "oklch(0.95 0.009 250)"
+          "oklch(0.15 0.014 265)",
+          "oklch(0.264 0.014 265)",
+          "oklch(0.379 0.014 265)",
+          "oklch(0.493 0.014 265)",
+          "oklch(0.607 0.014 265)",
+          "oklch(0.721 0.014 265)",
+          "oklch(0.836 0.014 265)",
+          "oklch(0.95 0.014 265)"
         ]
       },
       "rule": {
         "role": "neutral",
-        "displayName": "Waiting Rule Grey",
-        "canonical": "oklch(0.598 0.008 240)",
-        "srgbApprox": "#7b8084",
-        "contrastOnStock": "3.36:1",
+        "displayName": "Waiting Rule",
+        "canonical": "oklch(0.527 0.018 262)",
+        "srgbApprox": "#656b76",
+        "contrastOnStock": "3.52:1",
         "tonalRamp": [
-          "oklch(0.15 0.008 240)",
-          "oklch(0.264 0.008 240)",
-          "oklch(0.379 0.008 240)",
-          "oklch(0.493 0.008 240)",
-          "oklch(0.607 0.008 240)",
-          "oklch(0.721 0.008 240)",
-          "oklch(0.836 0.008 240)",
-          "oklch(0.95 0.008 240)"
+          "oklch(0.15 0.018 262)",
+          "oklch(0.264 0.018 262)",
+          "oklch(0.379 0.018 262)",
+          "oklch(0.493 0.018 262)",
+          "oklch(0.607 0.018 262)",
+          "oklch(0.721 0.018 262)",
+          "oklch(0.836 0.018 262)",
+          "oklch(0.95 0.018 262)"
         ]
       },
       "rule-strong": {
         "role": "neutral",
-        "displayName": "Heavy Rule Grey",
-        "canonical": "oklch(0.533 0.01 240)",
-        "srgbApprox": "#686e72",
-        "contrastOnStock": "4.40:1",
+        "displayName": "Heavy Rule",
+        "canonical": "oklch(0.601 0.02 262)",
+        "srgbApprox": "#7a818d",
+        "contrastOnStock": "4.79:1",
         "tonalRamp": [
-          "oklch(0.15 0.01 240)",
-          "oklch(0.264 0.01 240)",
-          "oklch(0.379 0.01 240)",
-          "oklch(0.493 0.01 240)",
-          "oklch(0.607 0.01 240)",
-          "oklch(0.721 0.01 240)",
-          "oklch(0.836 0.01 240)",
-          "oklch(0.95 0.01 240)"
+          "oklch(0.15 0.02 262)",
+          "oklch(0.264 0.02 262)",
+          "oklch(0.379 0.02 262)",
+          "oklch(0.493 0.02 262)",
+          "oklch(0.607 0.02 262)",
+          "oklch(0.721 0.02 262)",
+          "oklch(0.836 0.02 262)",
+          "oklch(0.95 0.02 262)"
         ]
       },
       "rail": {
         "role": "neutral",
-        "displayName": "Rail Slate Blue",
-        "canonical": "oklch(0.5 0.042 245)",
-        "srgbApprox": "#4f667a",
-        "contrastOnStock": "5.05:1",
+        "displayName": "Rail Blue",
+        "canonical": "oklch(0.64 0.05 258)",
+        "srgbApprox": "#7a8eab",
+        "contrastOnStock": "5.60:1",
         "tonalRamp": [
-          "oklch(0.15 0.042 245)",
-          "oklch(0.264 0.042 245)",
-          "oklch(0.379 0.042 245)",
-          "oklch(0.493 0.042 245)",
-          "oklch(0.607 0.042 245)",
-          "oklch(0.721 0.042 245)",
-          "oklch(0.836 0.042 245)",
-          "oklch(0.95 0.042 245)"
+          "oklch(0.15 0.05 258)",
+          "oklch(0.264 0.05 258)",
+          "oklch(0.379 0.05 258)",
+          "oklch(0.493 0.05 258)",
+          "oklch(0.607 0.05 258)",
+          "oklch(0.721 0.05 258)",
+          "oklch(0.836 0.05 258)",
+          "oklch(0.95 0.05 258)"
         ]
       },
       "live": {
         "role": "primary",
-        "displayName": "Commissioner's Marker Red",
-        "canonical": "oklch(0.525 0.198 27)",
-        "srgbApprox": "#c31e20",
-        "contrastOnStock": "5.06:1",
+        "displayName": "Euroleague Orange",
+        "canonical": "oklch(0.6759 0.2175 38.8)",
+        "srgbApprox": "#ff5500",
+        "contrastOnStock": "5.88:1",
         "tonalRamp": [
-          "oklch(0.15 0.198 27)",
-          "oklch(0.264 0.198 27)",
-          "oklch(0.379 0.198 27)",
-          "oklch(0.493 0.198 27)",
-          "oklch(0.607 0.198 27)",
-          "oklch(0.721 0.198 27)",
-          "oklch(0.836 0.198 27)",
-          "oklch(0.95 0.198 27)"
+          "oklch(0.15 0.2175 38.8)",
+          "oklch(0.264 0.2175 38.8)",
+          "oklch(0.379 0.2175 38.8)",
+          "oklch(0.493 0.2175 38.8)",
+          "oklch(0.607 0.2175 38.8)",
+          "oklch(0.721 0.2175 38.8)",
+          "oklch(0.836 0.2175 38.8)",
+          "oklch(0.95 0.2175 38.8)"
         ]
       },
       "live-sunk": {
         "role": "primary",
-        "displayName": "Live Field Blush",
-        "canonical": "oklch(0.925 0.055 27)",
-        "srgbApprox": "#ffd9d3",
-        "contrastOnStock": "1.10:1",
+        "displayName": "Live Field Bay",
+        "canonical": "oklch(0.254 0.075 38.8)",
+        "srgbApprox": "#3f1203",
+        "contrastOnStock": "1.16:1",
         "tonalRamp": [
-          "oklch(0.15 0.055 27)",
-          "oklch(0.264 0.055 27)",
-          "oklch(0.379 0.055 27)",
-          "oklch(0.493 0.055 27)",
-          "oklch(0.607 0.055 27)",
-          "oklch(0.721 0.055 27)",
-          "oklch(0.836 0.055 27)",
-          "oklch(0.95 0.055 27)"
+          "oklch(0.15 0.075 38.8)",
+          "oklch(0.264 0.075 38.8)",
+          "oklch(0.379 0.075 38.8)",
+          "oklch(0.493 0.075 38.8)",
+          "oklch(0.607 0.075 38.8)",
+          "oklch(0.721 0.075 38.8)",
+          "oklch(0.836 0.075 38.8)",
+          "oklch(0.95 0.075 38.8)"
         ]
       },
       "pos-g": {
         "role": "tertiary",
-        "displayName": "Guard Steel Blue",
-        "canonical": "oklch(0.49 0.082 235)",
-        "srgbApprox": "#296788",
-        "contrastOnStock": "5.20:1",
+        "displayName": "Guard Cyan",
+        "canonical": "oklch(0.78 0.13 205)",
+        "srgbApprox": "#1acfdf",
+        "contrastOnStock": "9.86:1",
         "tonalRamp": [
-          "oklch(0.15 0.082 235)",
-          "oklch(0.264 0.082 235)",
-          "oklch(0.379 0.082 235)",
-          "oklch(0.493 0.082 235)",
-          "oklch(0.607 0.082 235)",
-          "oklch(0.721 0.082 235)",
-          "oklch(0.836 0.082 235)",
-          "oklch(0.95 0.082 235)"
+          "oklch(0.15 0.13 205)",
+          "oklch(0.264 0.13 205)",
+          "oklch(0.379 0.13 205)",
+          "oklch(0.493 0.13 205)",
+          "oklch(0.607 0.13 205)",
+          "oklch(0.721 0.13 205)",
+          "oklch(0.836 0.13 205)",
+          "oklch(0.95 0.13 205)"
         ]
       },
       "pos-f": {
         "role": "tertiary",
-        "displayName": "Forward Olive",
-        "canonical": "oklch(0.49 0.079 128)",
-        "srgbApprox": "#536936",
-        "contrastOnStock": "5.16:1",
+        "displayName": "Forward Emerald",
+        "canonical": "oklch(0.79 0.15 155)",
+        "srgbApprox": "#5dd68f",
+        "contrastOnStock": "10.34:1",
         "tonalRamp": [
-          "oklch(0.15 0.079 128)",
-          "oklch(0.264 0.079 128)",
-          "oklch(0.379 0.079 128)",
-          "oklch(0.493 0.079 128)",
-          "oklch(0.607 0.079 128)",
-          "oklch(0.721 0.079 128)",
-          "oklch(0.836 0.079 128)",
-          "oklch(0.95 0.079 128)"
+          "oklch(0.15 0.15 155)",
+          "oklch(0.264 0.15 155)",
+          "oklch(0.379 0.15 155)",
+          "oklch(0.493 0.15 155)",
+          "oklch(0.607 0.15 155)",
+          "oklch(0.721 0.15 155)",
+          "oklch(0.836 0.15 155)",
+          "oklch(0.95 0.15 155)"
         ]
       },
       "pos-c": {
         "role": "tertiary",
-        "displayName": "Center Plum",
-        "canonical": "oklch(0.5 0.093 305)",
-        "srgbApprox": "#70558e",
-        "contrastOnStock": "5.28:1",
+        "displayName": "Center Amber",
+        "canonical": "oklch(0.82 0.15 80)",
+        "srgbApprox": "#f7b83d",
+        "contrastOnStock": "10.63:1",
         "tonalRamp": [
-          "oklch(0.15 0.093 305)",
-          "oklch(0.264 0.093 305)",
-          "oklch(0.379 0.093 305)",
-          "oklch(0.493 0.093 305)",
-          "oklch(0.607 0.093 305)",
-          "oklch(0.721 0.093 305)",
-          "oklch(0.836 0.093 305)",
-          "oklch(0.95 0.093 305)"
+          "oklch(0.15 0.15 80)",
+          "oklch(0.264 0.15 80)",
+          "oklch(0.379 0.15 80)",
+          "oklch(0.493 0.15 80)",
+          "oklch(0.607 0.15 80)",
+          "oklch(0.721 0.15 80)",
+          "oklch(0.836 0.15 80)",
+          "oklch(0.95 0.15 80)"
         ]
       }
     },
@@ -261,6 +261,10 @@
       "action-label": {
         "displayName": "Action Label",
         "purpose": "Button text."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Figures that live in a column — the PIR column, a standings run, the clock, a box score. JetBrains Mono at 500, tabular, slightly tightened. Never prose, and never a name."
       }
     },
     "shadows": [],
@@ -279,50 +283,75 @@
         "name": "transition-colors",
         "value": "150ms (Tailwind default)",
         "purpose": "Hover and focus colour changes on interactive elements. Not animation; permitted everywhere interactive."
+      },
+      {
+        "name": "rule-advances",
+        "value": "rule-advances 260ms cubic-bezier(0.22, 1, 0.36, 1) both, on ::after",
+        "purpose": "The marker rule leaving the slot that was on the clock and drawing itself across the next one. Painted by a pseudo-element because a border cannot be scaled from one end, and from the right on a slot carrying data-reversed, because every even round of a snake draft is drafted right to left. Keyed on data-advanced, set by board-scroll.tsx only when this viewer was watching."
+      },
+      {
+        "name": "pick-springs",
+        "value": "pick-springs 320ms cubic-bezier(0.22, 1, 0.36, 1) both — scale 0.86 → 1.04 → 0.99 → 1",
+        "purpose": "Phase 10's third and final animation event: the slot the marker just left, springing shut on the pick it has taken. The same state change as rule-advances seen from the other end, which is why it is not a fourth event. The overshoot is in the keyframes so the app keeps one curve; it is 4% because the board's 1px ruling IS the state language. Only a slot that FILLED (a rollback empties one), only one slot (an autodraft burst moves the marker three places), never on a first paint. Keyed on data-landed, guarded inside the rule."
       }
     ],
     "breakpoints": [
       {
         "name": "sm",
         "value": "40rem"
+      },
+      {
+        "name": "lg",
+        "value": "64rem",
+        "purpose": "The draft room only, since 10.9: the measure opens to 80rem and the room splits acting (pool) from watching (radar, board, console, chat). No other surface uses it, and there is no md or xl."
       }
     ],
     "containers": [
       {
-        "name": "sheet",
+        "name": "column",
         "value": "48rem",
-        "purpose": "max-w-3xl. Every surface's measure, shared by the top rail's inner row so the wordmark aligns with the first slot below it."
+        "purpose": "max-w-3xl. Every surface but the draft room, shared by the top rail inner row so the wordmark aligns with the first slot below it."
+      },
+      {
+        "name": "room",
+        "value": "80rem",
+        "purpose": "The draft room from lg up, and nothing else. It is the one surface that is four surfaces at once and the one nobody scrolls away from for ninety minutes. Below lg it is the column measure, unchanged."
       }
     ],
     "contrastFloors": [
       {
-        "scope": "text and position-patch colours on stock",
+        "scope": "text and position colours on the ground (stock)",
         "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "meaningful non-text boundaries (rule, rail) on stock",
+        "scope": "meaningful non-text boundaries (rule, rail) on the ground",
         "floor": "3:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "text and position-patch colours on stock-deep",
+        "scope": "text and position colours on stock-panel",
         "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "rule and rule-strong on stock-deep",
-        "floor": "3:1",
+        "scope": "rule and rule-strong on stock-panel",
+        "floor": "3:1 (measured 3.15:1 — the panel is LIGHTER than the ground, so it is the binding surface, not the ground)",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
         "scope": "rule-strong versus rule",
-        "floor": "> 1.3x the contrast of rule (measured 1.31x)",
+        "floor": "> 1.3x the contrast of rule (measured 1.36x)",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "ink on the live field (live-sunk)",
-        "floor": "4.5:1 (measured 12.62:1)",
+        "scope": "chalk on the live field (live-sunk)",
+        "floor": "4.5:1 (measured 11.93:1)",
+        "enforcedBy": "src/app/tokens.test.ts"
+      },
+      {
+        "scope": "faint chalk on the live field",
+        "floor": "4.5:1 (measured 4.61:1) — this pairing is what FIXES live-sunk's lightness; a lighter bay puts a muted pool row under the floor",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
@@ -339,7 +368,7 @@
       "refersTo": "button-live",
       "description": "The one act a surface exists for — creating a league, signing in. Exactly one per surface, and it is the only button that carries marker red.",
       "html": "<button class=\"ds-btn ds-btn-live\">Create as commissioner</button>",
-      "css": ".ds-btn { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; min-height: 2.75rem; padding: 0.75rem 1rem; border-radius: 0; background: transparent; border: 1px solid; cursor: pointer; transition: border-color 150ms, background-color 150ms, color 150ms; }\n.ds-btn:focus-visible { outline: 2px solid var(--color-live, #cb2928); outline-offset: 2px; }\n.ds-btn-live { color: var(--color-live, #cb2928); border-color: color-mix(in oklab, var(--color-live, #cb2928) 60%, transparent); }\n.ds-btn-live:hover { border-color: var(--color-live, #cb2928); }\n.ds-btn-live:active { background-color: color-mix(in oklab, var(--color-live, #cb2928) 8%, transparent); }\n.ds-btn-live[aria-busy=\"true\"] { opacity: 0.6; cursor: progress; }"
+      "css": ".ds-btn { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; min-height: 2.75rem; padding: 0.75rem 1rem; border-radius: 0; background: transparent; border: 1px solid; cursor: pointer; transition: border-color 150ms, background-color 150ms, color 150ms; }\n.ds-btn:focus-visible { outline: 2px solid var(--color-live, #ff5500); outline-offset: 2px; }\n.ds-btn-live { color: var(--color-live, #ff5500); border-color: color-mix(in oklab, var(--color-live, #ff5500) 60%, transparent); }\n.ds-btn-live:hover { border-color: var(--color-live, #ff5500); }\n.ds-btn-live:active { background-color: color-mix(in oklab, var(--color-live, #ff5500) 8%, transparent); }\n.ds-btn-live[aria-busy=\"true\"] { opacity: 0.6; cursor: progress; }"
     },
     {
       "name": "Secondary Action (ink)",
@@ -347,7 +376,7 @@
       "refersTo": "button-ink",
       "description": "The default action — joining a league. Same geometry as the primary; ink instead of marker, because only one act per surface carries the marker.",
       "html": "<button class=\"ds-btn ds-btn-ink\">Join</button>",
-      "css": ".ds-btn { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; min-height: 2.75rem; padding: 0.75rem 1rem; border-radius: 0; background: transparent; border: 1px solid; cursor: pointer; transition: border-color 150ms, background-color 150ms; }\n.ds-btn:focus-visible { outline: 2px solid var(--color-live, #cb2928); outline-offset: 2px; }\n.ds-btn-ink { color: var(--color-ink, #1b2025); border-color: color-mix(in oklab, var(--color-ink, #1b2025) 35%, transparent); }\n.ds-btn-ink:hover { border-color: color-mix(in oklab, var(--color-ink, #1b2025) 80%, transparent); }\n.ds-btn-ink:active { background-color: color-mix(in oklab, var(--color-ink, #1b2025) 5%, transparent); }"
+      "css": ".ds-btn { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; min-height: 2.75rem; padding: 0.75rem 1rem; border-radius: 0; background: transparent; border: 1px solid; cursor: pointer; transition: border-color 150ms, background-color 150ms; }\n.ds-btn:focus-visible { outline: 2px solid var(--color-live, #ff5500); outline-offset: 2px; }\n.ds-btn-ink { color: var(--color-ink, #dbdde3); border-color: color-mix(in oklab, var(--color-ink, #dbdde3) 35%, transparent); }\n.ds-btn-ink:hover { border-color: color-mix(in oklab, var(--color-ink, #dbdde3) 80%, transparent); }\n.ds-btn-ink:active { background-color: color-mix(in oklab, var(--color-ink, #dbdde3) 5%, transparent); }"
     },
     {
       "name": "Text Field",
@@ -355,7 +384,7 @@
       "refersTo": "input-field",
       "description": "A ruled line to write on, not a box to type in. Bottom border only; the rule turns marker red on focus and the default outline is removed.",
       "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Invite code</span><input class=\"ds-input\" placeholder=\"ABC234\" /></label>",
-      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.375rem; }\n.ds-field-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 400; color: var(--color-ink-soft, #565b61); }\n.ds-input { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; min-height: 2.75rem; width: 100%; padding: 0.5rem 0.25rem; background: transparent; color: var(--color-ink, #1b2025); border: 0; border-bottom: 1px solid color-mix(in oklab, var(--color-ink, #1b2025) 30%, transparent); border-radius: 0; caret-color: var(--color-live, #cb2928); }\n.ds-input::placeholder { color: var(--color-ink-faint, #63676c); }\n.ds-input:focus { border-bottom-color: var(--color-live, #cb2928); outline: none; }"
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.375rem; }\n.ds-field-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 400; color: var(--color-ink-soft, #90959e); }\n.ds-input { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; min-height: 2.75rem; width: 100%; padding: 0.5rem 0.25rem; background: transparent; color: var(--color-ink, #dbdde3); border: 0; border-bottom: 1px solid color-mix(in oklab, var(--color-ink, #dbdde3) 30%, transparent); border-radius: 0; caret-color: var(--color-live, #ff5500); }\n.ds-input::placeholder { color: var(--color-ink-faint, #858992); }\n.ds-input:focus { border-bottom-color: var(--color-live, #ff5500); outline: none; }"
     },
     {
       "name": "Framed Bank",
@@ -363,7 +392,7 @@
       "refersTo": "bank-framed",
       "description": "One task grouped on deeper card stock behind a 1px strong rule. It is flat, square, and never nests inside another framed Bank.",
       "html": "<section class=\"ds-bank-framed\"><div class=\"ds-bank-head\"><h2 class=\"ds-slot-label\">Your team</h2><span class=\"ds-slot-label\">3 of 13</span></div><p class=\"ds-bank-body\">A programme section taped onto the board, not a floating card.</p></section>",
-      "css": ".ds-bank-framed { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 1px solid var(--color-rule-strong, #686e72); border-radius: 0; background: var(--color-stock-deep, #dde0e3); color: var(--color-ink, #1b2025); }\n.ds-bank-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); margin: 0; }\n.ds-bank-body { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; margin: 0; color: var(--color-ink, #1b2025); }"
+      "css": ".ds-bank-framed { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 1px solid var(--color-rule-strong, #7a818d); border-radius: 0; background: var(--color-stock-panel, #171d2b); color: var(--color-ink, #dbdde3); }\n.ds-bank-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }\n.ds-slot-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); margin: 0; }\n.ds-bank-body { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; margin: 0; color: var(--color-ink, #dbdde3); }"
     },
     {
       "name": "Slot Run",
@@ -371,7 +400,15 @@
       "refersTo": "slot-filled",
       "description": "The signature component. A run of slots whose top border IS its state: 1px dashed while waiting, 1px solid and darker once filled, 2px marker with a blush field when on the clock. The run is closed at the bottom by a heavy rule, the way a board has a bottom rail.",
       "html": "<ul class=\"ds-slots\">\n  <li class=\"ds-slot ds-slot-filled\"><span class=\"ds-card-name\">Gintaras Ballers</span><span class=\"ds-slot-label\">commissioner</span></li>\n  <li class=\"ds-slot ds-slot-live\"><span class=\"ds-card-name\">Rimas</span><span class=\"ds-slot-label\">on the clock</span></li>\n  <li class=\"ds-slot ds-slot-waiting\"><span class=\"ds-slot-label ds-slot-num\">Slot 03</span></li>\n  <li class=\"ds-slot ds-slot-waiting\"><span class=\"ds-slot-label ds-slot-num\">Slot 04</span></li>\n</ul>",
-      "css": ".ds-slots { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--color-rule-strong, #686e72); }\n.ds-slot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.75rem; border-radius: 0; }\n.ds-slot-waiting { border-top: 1px dashed var(--color-rule, #808589); padding-top: 0.5rem; padding-bottom: 0.5rem; }\n.ds-slot-filled { border-top: 1px solid var(--color-rule-strong, #686e72); }\n.ds-slot-live { border-top: 2px solid var(--color-live, #cb2928); background-color: var(--color-live-sunk, #ffd9d3); }\n.ds-card-name { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink, #1b2025); }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); }\n.ds-slot-num { color: var(--color-ink-faint, #63676c); }"
+      "css": ".ds-slots { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--color-rule-strong, #7a818d); }\n.ds-slot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; padding: 0.75rem; border-radius: 0; }\n.ds-slot-waiting { border-top: 1px dashed var(--color-rule, #656b76); padding-top: 0.5rem; padding-bottom: 0.5rem; }\n.ds-slot-filled { border-top: 1px solid var(--color-rule-strong, #7a818d); }\n.ds-slot-live { border-top: 2px solid var(--color-live, #ff5500); background-color: var(--color-live-sunk, #3f1203); }\n.ds-card-name { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink, #dbdde3); }\n.ds-slot-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); }\n.ds-slot-num { color: var(--color-ink-faint, #858992); }"
+    },
+    {
+      "name": "Card Block Run",
+      "kind": "custom",
+      "refersTo": "card-block",
+      "description": "A run of card blocks: one SUBJECT per block (a player on a roster, a member's night), laid out as a grid with a gap. The counterpart of a slot run, never composed out of one -- a slot run is a ledger and a ledger's meaning is in the alignment between rows, which a gap destroys. Three states carried in the block's own material: filled (panel stock in a 1px rule), live (2px marker over the blush), waiting (1px dashed, no fill). A 3px left edge in the position's hue is the colour coding, drawn on filled blocks only, and the G/F/C letter is printed anyway.",
+      "html": "<ul class=\"ds-blocks\">\n  <li class=\"ds-block ds-block-g\"><span class=\"ds-card-name\">Jonas Valančiūnas</span><span class=\"ds-slot-label\">Rytas Vilnius</span></li>\n  <li class=\"ds-block ds-block-f\"><span class=\"ds-card-name\">Rokas Jokubaitis</span><span class=\"ds-slot-label\">Žalgiris</span></li>\n  <li class=\"ds-block ds-block-waiting\"><span class=\"ds-slot-label\">Open roster slot 03</span></li>\n</ul>",
+      "css": ".ds-blocks { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }\n.ds-block { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; padding: 0.75rem; border: 1px solid var(--color-rule, #656b76); border-radius: var(--radius-block, 0.375rem); background: var(--color-stock-panel, #171d2b); font-family: var(--font-sans, \\\"Space Grotesk\\\", ui-sans-serif, system-ui, sans-serif); color: var(--color-ink, #dbdde3); }\n.ds-block-g { border-left: 3px solid var(--color-pos-g, #1acfdf); }\n.ds-block-f { border-left: 3px solid var(--color-pos-f, #5dd68f); }\n.ds-block-waiting { border: 1px dashed var(--color-rule, #656b76); background: transparent; }"
     },
     {
       "name": "Door",
@@ -379,7 +416,7 @@
       "refersTo": "Slot",
       "description": "A whole-row destination drawn as a filled slot: title and explanation on the left, one trailing verb on the right, with the full row as a 44px target. A live-draft door may color only that verb in marker; slot-live remains the clock.",
       "html": "<ul class=\"ds-slots\"><li class=\"ds-slot ds-slot-filled\"><a class=\"ds-door\" href=\"#\"><span><strong class=\"ds-card-name\">Standings</strong><span class=\"ds-door-copy\">The table, from the draft and the nights since.</span></span><span class=\"ds-slot-label\">Open &rarr;</span></a></li></ul>",
-      "css": ".ds-door { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; min-height: 2.75rem; margin: -0.75rem; padding: 0.75rem; color: var(--color-ink, #1b2025); text-decoration: none; }\n.ds-door-copy { display: block; margin-top: 0.25rem; max-width: 65ch; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-ink-soft, #565b61); }"
+      "css": ".ds-door { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; min-height: 2.75rem; margin: -0.75rem; padding: 0.75rem; color: var(--color-ink, #dbdde3); text-decoration: none; }\n.ds-door-copy { display: block; margin-top: 0.25rem; max-width: 65ch; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-ink-soft, #90959e); }"
     },
     {
       "name": "Chat Panel",
@@ -387,7 +424,7 @@
       "refersTo": "LeagueChat",
       "description": "One framed Bank with a ruled transcript and composer closing its lower edge. System lines are dashed and rail blue; member lines stay left-aligned and print their team or account name. Lobby opens it; the draft room folds it.",
       "html": "<section class=\"ds-bank-framed\"><div class=\"ds-bank-head\"><h2 class=\"ds-slot-label\">League chat</h2><button class=\"ds-slot-label\">Hide</button></div><ul class=\"ds-slots\"><li class=\"ds-slot ds-slot-waiting\">Rosters are set. The season can begin.</li><li class=\"ds-slot ds-slot-filled\"><span class=\"ds-slot-label\">Rimas</span> First round starts Thursday.</li></ul><form class=\"ds-chat-composer\"><input class=\"ds-input\" placeholder=\"Say something\" /><button>Send</button></form></section>",
-      "css": ".ds-chat-composer { display: flex; align-items: end; gap: 0.5rem; margin: 0 -1rem -1rem; padding: 0.75rem 1rem 1rem; border-top: 1px solid var(--color-rule-strong, #686e72); }\n.ds-chat-composer .ds-input { flex: 1; }"
+      "css": ".ds-chat-composer { display: flex; align-items: end; gap: 0.5rem; margin: 0 -1rem -1rem; padding: 0.75rem 1rem 1rem; border-top: 1px solid var(--color-rule-strong, #7a818d); }\n.ds-chat-composer .ds-input { flex: 1; }"
     },
     {
       "name": "Season Control",
@@ -395,7 +432,7 @@
       "refersTo": "SeasonControl",
       "description": "The shared framed GET control on standings, recap, team and transaction pages. It offers the configured season, the previous backfill season and any valid historical URL selection; changing it resets page-local filters.",
       "html": "<section class=\"ds-bank-framed\"><div class=\"ds-bank-head\"><h2 class=\"ds-slot-label\">Season</h2></div><form class=\"ds-season-control\"><label class=\"ds-field\"><span class=\"ds-field-label\">Euroleague season</span><select class=\"ds-input\"><option>E2026 · current</option><option>E2025</option></select></label><button>Show season</button></form></section>",
-      "css": ".ds-season-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.75rem; }\n@media (max-width: 639px) { .ds-season-control { grid-template-columns: 1fr; } }\n.ds-season-control button { min-height: 2.75rem; border: 1px solid var(--color-ink, #1b2025); border-radius: 0; background: transparent; color: var(--color-ink, #1b2025); }"
+      "css": ".ds-season-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.75rem; }\n@media (max-width: 639px) { .ds-season-control { grid-template-columns: 1fr; } }\n.ds-season-control button { min-height: 2.75rem; border: 1px solid var(--color-ink, #dbdde3); border-radius: 0; background: transparent; color: var(--color-ink, #dbdde3); }"
     },
     {
       "name": "Position Patch",
@@ -403,7 +440,7 @@
       "refersTo": "patch-g",
       "description": "A twill patch for Guards, Forwards and Centers. The letter is always rendered; roster summaries may show current/template counts with a full accessible label.",
       "html": "<span class=\"ds-patch ds-patch-g\"><span>5</span><span>G</span></span> <span class=\"ds-patch ds-patch-f\"><span>5</span><span>F</span></span> <span class=\"ds-patch ds-patch-c\"><span>3</span><span>C</span></span>",
-      "css": ".ds-patch { display: inline-flex; align-items: baseline; gap: 0.25rem; padding: 0.25rem 0.5rem; border: 1px solid; border-radius: 0; font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }\n.ds-patch-g { color: var(--color-pos-g, #2e6c8d); border-color: color-mix(in oklab, var(--color-pos-g, #2e6c8d) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-g, #2e6c8d) 10%, transparent); }\n.ds-patch-f { color: var(--color-pos-f, #586e3b); border-color: color-mix(in oklab, var(--color-pos-f, #586e3b) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-f, #586e3b) 10%, transparent); }\n.ds-patch-c { color: var(--color-pos-c, #71568f); border-color: color-mix(in oklab, var(--color-pos-c, #71568f) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-c, #71568f) 10%, transparent); }"
+      "css": ".ds-patch { display: inline-flex; align-items: baseline; gap: 0.25rem; padding: 0.25rem 0.5rem; border: 1px solid; border-radius: 0; font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }\n.ds-patch-g { color: var(--color-pos-g, #1acfdf); border-color: color-mix(in oklab, var(--color-pos-g, #1acfdf) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-g, #1acfdf) 10%, transparent); }\n.ds-patch-f { color: var(--color-pos-f, #5dd68f); border-color: color-mix(in oklab, var(--color-pos-f, #5dd68f) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-f, #5dd68f) 10%, transparent); }\n.ds-patch-c { color: var(--color-pos-c, #f7b83d); border-color: color-mix(in oklab, var(--color-pos-c, #f7b83d) 55%, transparent); background-color: color-mix(in oklab, var(--color-pos-c, #f7b83d) 10%, transparent); }"
     },
     {
       "name": "Correction",
@@ -411,40 +448,41 @@
       "refersTo": "slot-correction",
       "description": "The system's only error surface, struck in ink at 2px — never in marker, because an error and an invite code must not look alike.",
       "html": "<div class=\"ds-correction\" role=\"alert\"><span class=\"ds-slot-label\">Correction</span><p class=\"ds-correction-body\">That invite code does not match any league.</p></div>",
-      "css": ".ds-correction { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem; border-top: 2px solid var(--color-ink, #1b2025); border-radius: 0; }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); }\n.ds-correction-body { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.875rem; line-height: 1.25rem; margin: 0; color: var(--color-ink, #1b2025); }"
+      "css": ".ds-correction { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem; border-top: 2px solid var(--color-ink, #dbdde3); border-radius: 0; }\n.ds-slot-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); }\n.ds-correction-body { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.875rem; line-height: 1.25rem; margin: 0; color: var(--color-ink, #dbdde3); }"
     },
     {
       "name": "Top Rail",
       "kind": "nav",
       "description": "The board's frame: wordmark and season on the left, one slot-label action on the right. The season is rendered at every viewport size; when the rail must contract, the user's name is what goes.",
       "html": "<header class=\"ds-rail\"><div class=\"ds-rail-inner\"><div class=\"ds-rail-left\"><span class=\"ds-wordmark\">Eurovafliai</span><span class=\"ds-slot-label\">Euroleague 2026&ndash;27</span></div><a class=\"ds-rail-action\" href=\"#\">Leagues</a></div></header>",
-      "css": ".ds-rail { border-bottom: 1px solid color-mix(in oklab, var(--color-rail, #556c80) 40%, transparent); }\n.ds-rail-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; max-width: 48rem; margin: 0 auto; padding: 1rem 1.25rem; }\n.ds-rail-left { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.75rem; }\n.ds-wordmark { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-ink, #1b2025); white-space: nowrap; }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); white-space: nowrap; }\n.ds-rail-action { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); text-decoration: none; transition: color 150ms; }\n.ds-rail-action:hover { color: var(--color-ink, #1b2025); }\n.ds-rail-action:focus-visible { outline: 2px solid var(--color-live, #cb2928); outline-offset: 2px; }"
+      "css": ".ds-rail { border-bottom: 1px solid color-mix(in oklab, var(--color-rail, #7a8eab) 40%, transparent); }\n.ds-rail-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; max-width: 48rem; margin: 0 auto; padding: 1rem 1.25rem; }\n.ds-rail-left { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.75rem; }\n.ds-wordmark { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-ink, #dbdde3); white-space: nowrap; }\n.ds-slot-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); white-space: nowrap; }\n.ds-rail-action { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); text-decoration: none; transition: color 150ms; }\n.ds-rail-action:hover { color: var(--color-ink, #dbdde3); }\n.ds-rail-action:focus-visible { outline: 2px solid var(--color-live, #ff5500); outline-offset: 2px; }"
     },
     {
       "name": "Section Heading (Bank)",
       "kind": "custom",
       "description": "A section of the board. The heading is a slot label with an optional count aside on the same baseline — a column head on a wall, not a card in a stack. No border, no background.",
       "html": "<section class=\"ds-bank\"><div class=\"ds-bank-head\"><h2 class=\"ds-slot-label\">Members</h2><span class=\"ds-slot-label\">3 of 12</span></div><p class=\"ds-bank-body\">Section content sits directly on the stock.</p></section>",
-      "css": ".ds-bank { display: flex; flex-direction: column; gap: 0.75rem; }\n.ds-bank-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); margin: 0; }\n.ds-bank-body { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; margin: 0; color: var(--color-ink, #1b2025); }"
+      "css": ".ds-bank { display: flex; flex-direction: column; gap: 0.75rem; }\n.ds-bank-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }\n.ds-slot-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); margin: 0; }\n.ds-bank-body { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 1rem; line-height: 1.5rem; margin: 0; color: var(--color-ink, #dbdde3); }"
     },
     {
       "name": "Board Plan",
       "kind": "custom",
       "description": "An authored depiction of an empty board: 13 draft rounds down, one column per slot across, round numbers in faint ink. It carries no data, which is why it is aria-hidden rather than described. Shown here at 6 slots; real leagues run up to 12.",
       "html": "<div class=\"ds-plan\" aria-hidden=\"true\"><div class=\"ds-plan-head\"><p class=\"ds-slot-label\">The board</p><p class=\"ds-slot-label\">13 rounds &times; 6 slots</p></div><div class=\"ds-plan-grid\"><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">1</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">2</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">3</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">4</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">5</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">6</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">7</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">8</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">9</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">10</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">11</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">12</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div><div class=\"ds-plan-cell\"></div></div></div><div class=\"ds-plan-row\"><span class=\"ds-plan-no\">13</span><div class=\"ds-plan-cells\"><div class=\"ds-plan-cell ds-plan-cell-last\"></div><div class=\"ds-plan-cell ds-plan-cell-last\"></div><div class=\"ds-plan-cell ds-plan-cell-last\"></div><div class=\"ds-plan-cell ds-plan-cell-last\"></div><div class=\"ds-plan-cell ds-plan-cell-last\"></div><div class=\"ds-plan-cell ds-plan-cell-last\"></div></div></div></div></div>",
-      "css": ".ds-plan { display: flex; flex-direction: column; gap: 0.5rem; }\n.ds-plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }\n.ds-slot-label { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #565b61); margin: 0; }\n.ds-plan-grid { display: flex; flex-direction: column; border-top: 1px solid var(--color-rule-strong, #686e72); }\n.ds-plan-row { display: flex; align-items: stretch; gap: 0.5rem; }\n.ds-plan-no { font-family: var(--font-sans, \"Archivo\", ui-sans-serif, system-ui, sans-serif); width: 1.5rem; flex-shrink: 0; padding-top: 0.125rem; text-align: right; font-size: 0.6875rem; line-height: 1rem; font-variant-numeric: tabular-nums; color: var(--color-ink-faint, #63676c); }\n.ds-plan-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); flex: 1; border-left: 1px solid var(--color-rule-strong, #686e72); }\n.ds-plan-cell { height: 1.25rem; border-right: 1px dashed var(--color-rule, #808589); border-bottom: 1px dashed var(--color-rule, #808589); }\n.ds-plan-cell-last { border-bottom-style: solid; border-bottom-color: var(--color-rule-strong, #686e72); }"
+      "css": ".ds-plan { display: flex; flex-direction: column; gap: 0.5rem; }\n.ds-plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }\n.ds-slot-label { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; color: var(--color-ink-soft, #90959e); margin: 0; }\n.ds-plan-grid { display: flex; flex-direction: column; border-top: 1px solid var(--color-rule-strong, #7a818d); }\n.ds-plan-row { display: flex; align-items: stretch; gap: 0.5rem; }\n.ds-plan-no { font-family: var(--font-sans, \"Space Grotesk\", ui-sans-serif, system-ui, sans-serif); width: 1.5rem; flex-shrink: 0; padding-top: 0.125rem; text-align: right; font-size: 0.6875rem; line-height: 1rem; font-variant-numeric: tabular-nums; color: var(--color-ink-faint, #858992); }\n.ds-plan-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); flex: 1; border-left: 1px solid var(--color-rule-strong, #7a818d); }\n.ds-plan-cell { height: 1.25rem; border-right: 1px dashed var(--color-rule, #656b76); border-bottom: 1px dashed var(--color-rule, #656b76); }\n.ds-plan-cell-last { border-bottom-style: solid; border-bottom-color: var(--color-rule-strong, #7a818d); }"
     }
   ],
   "narrative": {
-    "northStar": "The Draft Board Wall",
+    "northStar": "\"The Board, Lit for a Night Game\"",
     "overview": "The world is the physical draft board seen up close: card stock slotted into ruled slots, names written in marker, the slot on the clock struck in red. The value relationship of the real object is inverted on purpose — the card stock is the ground and the board's ruling is the ink. Draft night is a lit room with a TV on, followed by months of daylight phone checks; and a near-black surface with one glowing accent is the first thing this category reaches for, so it is the first thing this board refuses.\n\nThe personality is an instrument, not an entertainment product: cool, dry, dense where density is honest and quiet everywhere else. Nothing floats, nothing glows, nothing is rounded. Depth comes from rule weight and one deeper stock used inside framed Banks. Colour is restrained to tinted neutrals plus one marker red, and the red is load-bearing — it marks who is on the clock and what just landed, and it is never decoration.\n\nThe direction contract permits one level of programme-like task grouping: a framed Bank cut from deeper stock. It never nests, rounds or floats, so no cards-inside-cards stack can form.",
     "keyCharacteristics": [
-      "Card stock as the ground, the board's ruling as the ink; light, not dark.",
-      "One accent — the commissioner's marker red — with two jobs and no third.",
+      "The midnight board as the ground, chalk as the ink; one ground, not a theme.",
+      "One accent — Euroleague orange (#FF5500) — with two jobs and no third.",
       "State is carried by a row's own material (border weight and style), never by a pill parked beside an otherwise normal row.",
-      "Zero corner radius, zero shadows, zero gradients, anywhere.",
-      "One type family (Archivo), caps for names and labels, tabular figures for every number in the app.",
-      "Exactly two animations are implemented, on exactly two state-change events.",
+      "Vibrant position coding (cyan guards, emerald forwards, amber centers), always accompanied by its G / F / C letter.",
+      "One radius step and one panel material; zero glow, zero gradients.",
+      "Two type families: Space Grotesk for words, JetBrains Mono for figures.",
+      "Exactly three animations, on exactly three state-change events, and all three are implemented.",
       "Mobile-first with a single breakpoint; the phone gets the complete rail."
     ],
     "rules": [
@@ -490,12 +528,12 @@
       },
       {
         "name": "The Computed-Family Rule",
-        "body": "tests/e2e/design.spec.ts asserts the computed font-family on body contains \"Archivo\" and does not contain \"Arial\". A hardcoded stack on body once overrode the token, so the webfont downloaded on every cold load while the page rendered in Arial. Assert the computed value, not the token.",
+        "body": "tests/e2e/design.spec.ts asserts the computed font-family on body contains \"Space Grotesk\" and does not contain \"Arial\". A hardcoded stack on body once overrode the token, so the webfont downloaded on every cold load while the page rendered in Arial. Assert the computed value, not the token.",
         "section": "typography"
       },
       {
         "name": "The One Measure Rule",
-        "body": "New surfaces use Sheet. If a future surface needs to be wider than 48rem (a real draft board with 12 columns will), that is a deliberate new container with its own justification — not a per-page max-w override.",
+        "body": "New surfaces use Sheet at its default column measure. The one exception is declared in the component — Sheet and TopRail share a MEASURE map and room is a value in it — so widening a surface means choosing a named measure a reviewer can grep, never a per-page max-w override. A third entry needs the argument 10.9 made for the second.",
         "section": "layout"
       },
       {
@@ -520,7 +558,7 @@
       },
       {
         "name": "The Board-Shows-Its-Shape Rule",
-        "body": "A list of things that occupy slots renders its empty slots too. A lobby that is a quarter full looks a quarter full; the signed-in home continues past your leagues into free slots. A list that just stops is not a board.",
+        "body": "A list of things that occupy slots renders its empty slots too: a lobby that is a quarter full looks a quarter full, and the draft board draws every slot whether it is filled or not. 10.9 narrowed it to exactly that — the signed-in dashboard used to continue past your leagues into three free slots, and a league does not occupy a slot in anything, so those were a board shape drawn for something that is not a board. A list that just stops is not a board; a grid of subjects was never a board.",
         "section": "components"
       },
       {
@@ -529,14 +567,14 @@
         "section": "components"
       },
       {
-        "name": "The Two Events Rule",
-        "body": "Nothing else animates. Colour transitions on hover (transition-colors) are not animation and are permitted on interactive elements. A spinner, a skeleton, a page transition, a parallax or an entrance animation on a static element is out of scope for this world.",
+        "name": "The Three Events Rule",
+        "body": "Three animations on three state changes, and the budget is spent: a card landing in its slot, the live rule advancing, and the slot the rule just left springing shut on its pick. A fourth is a change to DESIGN.md, not a variant. Nothing else animates. Colour transitions on hover (transition-colors) are not animation and are permitted on interactive elements. A transform driven directly by a pointer is not animation either. A spinner, a skeleton, a page transition, a parallax or an entrance animation on a static element is out of scope for this world.",
         "section": "motion"
       }
     ],
     "dos": [
       "Do carry state in the row's own material. A new state means a new rule weight or style, defined as a @utility in globals.css next to slot-waiting / slot-filled / slot-live / slot-correction.",
-      "Do put every colour in globals.css in OKLCH and add it to src/app/tokens.test.ts. Text and patch colours clear 4.5:1 on stock and stock-deep; meaningful non-text boundaries clear 3:1.",
+      "Do put every colour in globals.css in OKLCH and add it to src/app/tokens.test.ts. Text and position colours clear 4.5:1 on stock and stock-panel; meaningful non-text boundaries clear 3:1. Note that stock-panel is LIGHTER than the ground, so it is the binding surface for a rule, not the forgiving one.",
       "Do give any new interactive element a 44px minimum target on both axes (min-h-11 min-w-11) and a focus-visible 2px marker outline at 2px offset.",
       "Do render empty slots. Show the shape of the board, not the length of the list.",
       "Do use CONTEXT.md's words. A slot is a position on the board. An earlier draft of board.tsx invented \"bay\" and led a page headline with it — which is exactly the drift CONTEXT.md exists to prevent.",
@@ -545,19 +583,19 @@
       "Do use arbitrary properties for per-side border styles — e.g. [border-bottom-style:solid]."
     ],
     "donts": [
-      "Don't add a corner radius, a shadow, a gradient, a blur or any surface colour beyond stock and stock-deep. A framed Bank never nests inside another.",
+      "Don't add a gradient, a glow, a blur or a surface colour beyond stock and stock-panel. Radius is one token at one level of the depth scale, and there is no level below a panel.",
       "Don't put a second marker-red primary action on one surface, and don't use marker red for anything that is not state or the one act.",
       "Don't strike an error in marker. Corrections are ink (slot-correction) — an error and an invite code must never look alike.",
       "Don't put marker-red text on the live tint. It clears contrast, but ink is 12.62:1 and marker text would still violate the Two Jobs Rule.",
       "Don't encode position or status by colour alone. The G / F / C letter is always present.",
       "Don't hide the season from the top rail on small screens. If the rail must contract, drop the user's name.",
-      "Don't introduce a second font family, an icon package or an icon font.",
+      "Don't introduce a third font family, an icon package or an icon font, and don't set prose in the mono face.",
       "Don't write border-b-solid. It is not a Tailwind v4 utility and compiles to nothing — the border silently stays dashed and the screenshot looks plausible. Use an arbitrary property.",
       "Don't ship a system-level comment as JSX ({/* … */}). A JSX comment is a JavaScript comment: it reaches a sourcemap and nothing else, so it is a contract nobody can audit. React has no comment node, so the direction contract in layout.tsx is emitted through dangerouslySetInnerHTML and guarded by tests/e2e/design.spec.ts.",
-      "Don't animate anything new. Both events in the motion budget are built."
+      "Don't animate anything new. All three events in the motion budget are built."
     ],
     "openQuestions": [
-      "No dark mode. color-scheme: light is declared and the light ground is a deliberate inversion argued from a lit room and daylight phone use.",
+      "No light mode and no switch. color-scheme: dark is declared and the one ground is deliberate: #FF5500 measures 2.76:1 on the card stock this replaced, so a second palette is not a theme flag but a second solve. Recorded as debt in STATUS.md, not as a setting.",
       "Input error and disabled states are unstyled; Correction carries every failure today.",
       "A few type values are one-offs, not tokens: sm:text-[1.0625rem], tracking-[0.32em], tracking-[0.36em]."
     ]

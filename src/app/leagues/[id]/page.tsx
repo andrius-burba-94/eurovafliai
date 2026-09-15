@@ -6,6 +6,7 @@ import {
   BackLink,
   Bank,
   BoardPlan,
+  CardBlocks,
   Correction,
   Door,
   PositionPatch,
@@ -119,8 +120,16 @@ export default async function LobbyPage({
 
         {league.status === "season" && viewerIsMember ? (
           <Bank label="League doors" framed>
-            <Slots>
+            {/* Card blocks rather than a ruled run — 10.4. These four are
+                destinations, not entries in a ledger: nothing about them is
+                ordered, nothing is being compared down a column, and each one
+                is a whole subject. A run of ruled rows says "list"; a grid of
+                blocks says "pick one", which is the actual instruction. Two
+                across from `sm`, one on a phone, because a door's description
+                is a sentence and half of 390px is not a measure. */}
+            <CardBlocks testId="league-doors" label="League doors" columns>
               <Door
+                block
                 href={`/leagues/${league.id}/standings`}
                 testId="enter-standings"
                 title="Standings"
@@ -128,6 +137,7 @@ export default async function LobbyPage({
                 action="Open"
               />
               <Door
+                block
                 href={`/leagues/${league.id}/lineup`}
                 testId="enter-lineup"
                 title="Your lineup"
@@ -135,6 +145,7 @@ export default async function LobbyPage({
                 action="Set it"
               />
               <Door
+                block
                 href={`/leagues/${league.id}/recap`}
                 testId="enter-recap"
                 title="This round"
@@ -143,6 +154,7 @@ export default async function LobbyPage({
               />
               {viewerIsManager ? (
                 <Door
+                  block
                   href={`/leagues/${league.id}/transactions/new`}
                   testId="record-transaction"
                   title="Record a transaction"
@@ -150,7 +162,7 @@ export default async function LobbyPage({
                   action="Write it down"
                 />
               ) : null}
-            </Slots>
+            </CardBlocks>
           </Bank>
         ) : null}
 

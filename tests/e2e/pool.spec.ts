@@ -91,6 +91,14 @@ async function enterDraft(page: Page, leagueId: string, club = TEST_CLUB) {
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("pick-pool")).toBeVisible();
+  // The filters are client state, so every control below is in the streamed
+  // HTML before a handler is attached to it, and a club selected in that window
+  // narrows nothing — this spec's recurring flake, always as a row count that
+  // stayed at the unfiltered number. Wait for the fact, not for a duration.
+  await expect(page.getByTestId("pool-ready")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   await page.getByTestId("filter-club").selectOption(club);
 }
 

@@ -58,10 +58,16 @@ export type TestUser = {
 };
 
 /** Everything created through these helpers, so a spec can clean up after itself. */
-const created: { users: string[]; leagues: string[]; players: string[] } = {
+const created: {
+  users: string[];
+  leagues: string[];
+  players: string[];
+  fixtures: string[];
+} = {
   users: [],
   leagues: [],
   players: [],
+  fixtures: [],
 };
 
 /**
@@ -277,6 +283,38 @@ export async function createPlayer(
   };
 }
 
+/**
+ * A game on the season's schedule, for the club `createPlayer` plants into.
+ *
+ * `game_code` is drawn from this worker's own club code so two parallel workers
+ * cannot collide on the unique `(season, game_code)` index, and `utc_date` is
+ * far enough ahead that a real ingest pass of E2026 never overtakes it and
+ * changes which game a planted player's roster line names.
+ */
+export async function createFixture(
+  over: Record<string, unknown> = {},
+): Promise<{ id: string }> {
+  const pb = await superuser();
+  const record = await pb.collection("fixtures").create(
+    {
+      season: "E2026",
+      game_code: `9${TEST_CLUB.charCodeAt(1)}${TEST_CLUB.charCodeAt(2)}${TEST_CLUB.charCodeAt(3)}`,
+      round: 38,
+      phase: "RS",
+      local_club: TEST_CLUB,
+      road_club: "ZAL",
+      played: false,
+      local_score: 0,
+      road_score: 0,
+      utc_date: "2027-05-30 18:00:00.000Z",
+      ...over,
+    },
+    { requestKey: null },
+  );
+  created.fixtures.push(record.id);
+  return { id: record.id };
+}
+
 export async function cleanupTestData(): Promise<void> {
   const pb = await superuser();
 
@@ -352,9 +390,16 @@ export async function cleanupTestData(): Promise<void> {
       .delete(id, { requestKey: null })
       .catch(() => {});
   }
+  for (const id of created.fixtures) {
+    await pb
+      .collection("fixtures")
+      .delete(id, { requestKey: null })
+      .catch(() => {});
+  }
   created.leagues.length = 0;
   created.users.length = 0;
   created.players.length = 0;
+  created.fixtures.length = 0;
 }
 
 /** Track a league the *app* created, so cleanup removes it too. */
