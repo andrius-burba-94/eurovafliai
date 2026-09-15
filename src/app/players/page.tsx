@@ -134,6 +134,25 @@ export default async function PlayersPage() {
                   </Link>
                 </Slot>
               ) : null}
+              {/* Everybody's row, not a manager's: an injury is a drafting
+                  fact, and the pool prints the word on the player it applies
+                  to without saying who published it or when. */}
+              <Slot state="waiting">
+                <span className="slot-label">Injuries and moves</span>
+                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  {counts.unavailable > 0 ? (
+                    <span className="text-sm">
+                      {counts.unavailable} unavailable
+                    </span>
+                  ) : null}
+                  <Link
+                    href="/players/news"
+                    className="text-sm text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                  >
+                    What has been published
+                  </Link>
+                </span>
+              </Slot>
               {canImport ? (
                 // Struck as a correction once something is standing: this is
                 // the row the link already lived on, so the doorbell belongs

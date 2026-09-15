@@ -10,13 +10,30 @@ import { fetchSeasonRosters } from "./euroleague";
  * cheap to assert and expensive to discover on draft night.
  */
 
-/** `/clubs` is enveloped; a club's `/people` is a bare array. */
+/**
+ * `/clubs` is enveloped; a club's `/people` is a bare array. The season-wide
+ * `/people?limit=1000` is enveloped, and is only ever read for bios.
+ *
+ * `bios` defaults to the same rows, which is what the live feed does. Passing
+ * something else is how the tests show that the club's roster — not the
+ * season-wide registration history — decides what is in the pool.
+ */
 function serve(
   rows: unknown[],
-  clubs = [{ code: "ZAL", name: "Zalgiris Kaunas" }],
+  {
+    clubs = [{ code: "ZAL", name: "Zalgiris Kaunas" }],
+    bios,
+  }: { clubs?: unknown[]; bios?: unknown[] | "fail" } = {},
 ) {
   return (async (url: string | URL) => {
-    if (String(url).endsWith("/clubs")) return Response.json({ data: clubs });
+    const target = String(url);
+    if (target.includes("limit=1000")) {
+      // 404 rather than 5xx: a 404 is not retried, so the test asserts the
+      // degradation without waiting out a backoff.
+      if (bios === "fail") return new Response("gone", { status: 404 });
+      return Response.json({ data: bios ?? rows });
+    }
+    if (target.endsWith("/clubs")) return Response.json({ data: clubs });
     return Response.json(rows);
   }) as unknown as typeof fetch;
 }
@@ -27,6 +44,10 @@ const player = {
     name: "SIRVYDIS, DEIVIDAS",
     passportName: "DEIVIDAS",
     passportSurname: "SIRVYDIS",
+    height: 198,
+    weight: 88,
+    birthDate: "1999-06-30T00:00:00",
+    country: { code: "LTU", name: "Lithuania" },
   },
   type: "J",
   typeName: "Player",
@@ -64,6 +85,69 @@ describe("fetchSeasonRosters", () => {
     });
     expect(out.seasonName).toBe("EuroLeague 2026-27");
     expect(out.problems).toEqual([]);
+  });
+
+  it("carries the bio the feed has been sending all along", async () => {
+    const out = await fetchSeasonRosters({ doFetch: serve([player]) });
+    expect(out.rows[0]).toMatchObject({
+      height: 198,
+      weight: 88,
+      birth_date: "1999-06-30T00:00:00",
+      country_code: "LTU",
+      country_name: "Lithuania",
+    });
+  });
+
+  /**
+   * The trap that cost a sync. `/{season}/people` is a **registration
+   * history**, not a roster: it lists every spell a person has held this
+   * season, so 23 of E2026's 332 rows name a player at both the club they left
+   * and the club they joined. Measured on 2026-09-14 it disagreed with the
+   * club walk in both directions — 79 pairs it invented, 60 it omitted — and
+   * filtering to `active === true` reconciled neither.
+   *
+   * A player attached to their old club is marked `left` and vanishes from the
+   * draft, so the club's own roster has to win. This test makes the bio
+   * endpoint claim ZAL's player is at PAN and asserts the pool ignores it.
+   */
+  it("lets the club's roster decide the club, not the season-wide people list", async () => {
+    const out = await fetchSeasonRosters({
+      doFetch: serve([player], {
+        bios: [
+          { ...player, club: { code: "PAN", name: "Panathinaikos" } },
+          { ...player, person: { ...player.person, code: "99" } },
+        ],
+      }),
+    });
+
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0]?.club_code).toBe("ZAL");
+  });
+
+  it("still syncs when the bio lookup fails, and says so", async () => {
+    const said: string[] = [];
+    const out = await fetchSeasonRosters({
+      doFetch: serve([player], { bios: "fail" }),
+      onProgress: (message) => said.push(message),
+    });
+
+    // A sync that cannot read heights must still be able to read signings.
+    expect(out.rows).toHaveLength(1);
+    expect(said.join(" ")).toMatch(/bios/i);
+  });
+
+  // One of 332 E2026 players has no height. Absence must stay absence rather
+  // than becoming a 0 that `diffRosters` would write over a real measurement.
+  it("omits a bio field the feed does not have, rather than storing a zero", async () => {
+    const thin = {
+      ...player,
+      person: { ...player.person, height: 0, country: null },
+    };
+    const out = await fetchSeasonRosters({
+      doFetch: serve([thin], { bios: [thin] }),
+    });
+    expect(out.rows[0]).not.toHaveProperty("height");
+    expect(out.rows[0]).not.toHaveProperty("country_code");
   });
 
   it("turns one unreadable row into a problem rather than losing the club", async () => {
@@ -115,6 +199,9 @@ describe("fetchSeasonRosters", () => {
       if (String(url).endsWith("/clubs")) {
         return Response.json({ data: [{ code: "ZAL", name: "Zalgiris" }] });
       }
+      if (String(url).includes("limit=1000")) {
+        return Response.json({ data: [player] });
+      }
       return Response.json([player]);
     }) as unknown as typeof fetch;
 
@@ -122,13 +209,13 @@ describe("fetchSeasonRosters", () => {
       doFetch,
       onProgress: (message) => waits.push(message),
     });
-    // Two rate-limited attempts, each asking for 2 seconds.
+    // Two rate-limited attempts, each asking for 2 seconds, then the three
+    // real requests: clubs, season bios, ZAL's roster.
     await vi.advanceTimersByTimeAsync(10_000);
     const out = await pending;
 
-    expect(calls).toBe(4); // 429, 429, clubs, people
-    expect(waits).toHaveLength(2);
-    expect(waits[0]).toMatch(/429/);
+    expect(calls).toBe(5);
+    expect(waits.filter((line) => line.includes("429"))).toHaveLength(2);
     expect(waits[0]).toMatch(/2s/); // honoured Retry-After rather than backing off
     expect(out.rows).toHaveLength(1);
   });

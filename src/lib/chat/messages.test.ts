@@ -9,10 +9,12 @@ import {
   chatTime,
   chatTotal,
   chatUnread,
+  announceClock,
   announceComplete,
   announceDrop,
   announceAdd,
   announceImpact,
+  announceLineup,
   announceTrade,
   announcePause,
   announcePick,
@@ -96,6 +98,20 @@ describe("a rollback — the line this slice exists for", () => {
   });
 });
 
+describe("the pick clock, changed mid-draft", () => {
+  it("names the number and the restart", () => {
+    // The countdown everybody is watching jumps when this lands, so the line
+    // has to explain the jump as well as the new rule.
+    expect(announceClock(45)).toBe(
+      "The pick clock is now 45 seconds. The clock on the current pick restarts from now.",
+    );
+  });
+
+  it("names no team, because only a manager can do it", () => {
+    expect(announceClock(30)).not.toMatch(/\byou\b/i);
+  });
+});
+
 describe("the roll", () => {
   it("prints the whole order, numbered", () => {
     expect(
@@ -176,6 +192,14 @@ describe("a live delta", () => {
   });
 });
 
+describe("a recorded lineup", () => {
+  it("names the team, the round and the captain", () => {
+    expect(
+      announceLineup({ teamName: "Chief FC", captainName: "Nunn", round: 4 }),
+    ).toBe("Chief FC set a round 4 lineup, with Nunn as captain.");
+  });
+});
+
 describe("every system line is a whole sentence", () => {
   // The house rule, asserted rather than trusted. These sit in a run beside
   // people's own messages, and a verbless fragment reads like a broken one —
@@ -191,6 +215,7 @@ describe("every system line is a whole sentence", () => {
     }),
     announcePause(true),
     announcePause(false),
+    announceClock(45),
     announceRollback({ discarded: 2, toPick: 5, byTeamName: "Chief FC" }),
     announceRoll({ order: ["A", "B"], reshuffle: false }),
     announceStartOver("Chief FC"),
@@ -206,6 +231,7 @@ describe("every system line is a whole sentence", () => {
     announceAdd({ teamName: "Chief FC", players: ["Nunn"], fromRound: 3 }),
     announceImpact({ type: "trade", deltaTenths: 37 }),
     announceImpact({ type: "drop", deltaTenths: -50 }),
+    announceLineup({ teamName: "Chief FC", captainName: "Nunn", round: 4 }),
   ];
 
   it.each(lines)("ends in a full stop and starts with a capital: %s", (line) => {

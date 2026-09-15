@@ -3,6 +3,445 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 9.5 — The night board, and the test file that shaped it
+
+D17 refused dark mode by name, so this slice could not start with CSS. DESIGN.md
+open question 5 had already set the price: *"if it ever does, the inversion
+argument has to be re-made, not quietly dropped."* Re-made, it holds — and it
+gains a clause.
+
+The day board is an inversion of the physical object: a real draft board is dark
+card in a dim room, and this app made card stock the ground and the board's
+ruling the ink. That was argued from **the room** — a lit lounge with a TV on,
+and months of daylight phone checks either side of draft night. The room is not
+a constant. Euroleague tips at 20:00 and 21:00 CET, and an L 0.94 ground in a
+dark bedroom is not a design choice, it is a torch. So the ground inverts the
+object *for the light it is read in*: by day the card, by night the board. Read
+D17 and the direction contract together and what they refuse turns out to be
+narrower than the phrase "dark mode" — it is **"the near-black surface with one
+glowing accent"**, a look, and that refusal is untouched here and still
+asserted in a browser. [ADR-0005](../adr/ADR-0005-night-board.md), blueprint
+**D21**.
+
+**The test file decided the implementation.** `tokens.test.ts` parses
+`globals.css` with a regex for `--color-X: oklch(…)` and takes the **first**
+match. A second theme written the obvious way — override `--color-stock` inside
+a media query — would have left that regex reading the day board's value in both
+passes, and dark mode would have shipped **unmeasured**, which is the one thing
+this design system does not do. So the night palette is declared under its own
+`--night-*` names, each mapping block only points `--color-*` at them, and the
+suite is parameterized by ground. 122 assertions, every ratio among them asked
+twice. The helpers that were free functions became a `ground(theme)` factory, so
+each existing assertion body measures the second palette **unchanged** — the
+tests did not get a dark-mode variant, they got a second ground.
+
+That indirection pays for itself twice: the mapping happens in two places (the
+system preference and an explicit choice), and a palette copied into both would
+drift the first time one value moved. A token added to one block and forgotten
+in the other would strand a single day colour on a dark ground — unreadable, and
+invisible to every ratio, which reads declarations rather than mappings. So the
+two blocks are asserted to assign the same thirteen tokens, each to its own.
+
+**The values were solved, not picked.** The first pass was a clean-looking
+palette that was wrong in a way a ratio table hides: its quiet inks measured
+7–8:1. Contrast floors were all cleared and the *hierarchy* was gone, because
+what separates a slot label from a surname here is ink strength. So each
+lightness was solved numerically against the day board's own **margin** —
+`ink-soft` 5.79:1 where day is 5.77, the marker 5.10 against 5.06, the rail 5.05
+against 5.05, the two rules 3.35/4.40 against 3.36/4.40, and the position letter
+on its own 10% wash at 5.11–5.13 (the tightest pairing in the app on either
+ground). Neither end of the ramp is pure: a pure-black ground is the cliché the
+day board was drawn against, and white-on-black at full strength halates on a
+phone in the dark.
+
+**No flash, and no JavaScript required for the common case.** The system
+preference is applied by `@media (prefers-color-scheme: dark)` in CSS, so a
+reader with scripts off lands where their phone asked, and an OS switching at
+tip-off reaches a page that is already open. A ~200-byte script in `<head>`
+applies an **explicit override only**, before the first paint — a theme applied
+from an effect is a white page flashed at somebody in a dark room, which is the
+whole feature failing on the device it exists for. `global-error.tsx` replaces
+the root layout entirely, so it carries its own copy; without it the one page
+that appears when everything else has failed is the one page that ignores the
+choice. The CSP already allows `'unsafe-inline'` for scripts (Next's own
+bootstrap needs it), so this adds no new exposure — checked rather than assumed.
+
+**Choosing what the system already wants clears the override.** `overrideFor`
+returns `null` in that case. Without it every press writes one more pin, and a
+reader who turns their phone to night mode at kickoff still gets the day board
+because of a tap they made in July. The control is the existing `FilterToggle`
+in the rail — DESIGN.md's settled answer for a two-state control, a button with
+`aria-pressed` carrying its state in its own rule — so it reached every surface
+without touching a single page, and a sun/moon icon button would have introduced
+a new idiom and a new material in one step.
+
+Two implementation notes worth keeping. The control reads `localStorage` and
+`matchMedia` through **`useSyncExternalStore`**, not an effect: they *are*
+external stores, the React Compiler's `set-state-in-effect` rule rejects the
+effect version outright, and this way the server has a defined snapshot instead
+of a guess. And `board.tsx`'s position patch needed **no change at all** — it
+mixes into `var(--color-stock)`, a token *reference*, so it follows whichever
+ground is in force; a literal colour there is exactly what would have blocked a
+second theme, which is why `tokens.test.ts` asserts the shape of that mix.
+
+**The E2E spec exists for what arithmetic cannot see:** that the second palette
+is in force at all, that it arrives before the paint rather than after, and that
+the system decides until somebody says otherwise. Two things it taught us. The
+computed value of `--color-stock` comes back as `lab(93.39% …)` — Chromium
+normalizes wide-gamut colours on the way out — so the spec parses a lightness
+rather than comparing a colour syntax we do not control. And the first click on
+`/players` was swallowed: in dev that page ships ~1,000 players and the tap
+landed before hydration, which is worth knowing beyond this spec, because the
+control is the only thing in the rail that needs JavaScript.
+
+## 9.4 — `injured` was a status nothing had ever written
+
+`players.status` has carried `active | injured | doubtful | left` since 2.1, and
+until this slice **nothing set the middle two**. `normalizeApiRow` says why in a
+comment — the feed's `active` flag is a contract window, not a knee — and
+`diffRosters` has carried a `LOCAL_STATUSES` guard the whole time specifically
+so a nightly sync could not heal a flag a human had set. The guard has spent a
+phase and a half protecting a field nobody filled in.
+
+**The source question was settled by measurement, not preference.** Verified on
+2026-09-14: `/injuries` and `/news` on the Euroleague feed both 404;
+`euroleaguebasketball.net` answers **429** to an unauthenticated fetch; and
+RotoWire's Euroleague RSS is a 200 with an **empty body** (`sport=NBA` returns a
+full feed, so the endpoint works and the Euroleague one is simply not
+published). That left HTML, which D5 forbids — and reading D5 again, it forbade
+scraping **stats**, on the argument that the official API answers that question
+completely so a parsed table would be a second and worse answer. That reasoning
+does not transfer to a question the API does not answer at all. So D5 is
+narrowed in writing rather than quietly stepped over: **D20** in the log,
+[ADR-0004](../adr/ADR-0004-injury-news-source.md) for the whole argument.
+
+**What is stored is the fact; the prose stays on their site.** Player, club as
+published, position, body part, what the item asserts, the date, their headline
+and their URL. `news-update__news` — the paragraph — is matched by no regex in
+`rotowire.ts`, and `rotowire.test.ts` asserts that no stored field contains it,
+so "we do not reprint a subscription publisher's copy" is a test rather than an
+intention. Every surface links back.
+
+**The page's own marking is the only classifier.** An item is an injury item
+because its block carries `is-injured`. The tempting alternative — keywords over
+the headline — was tried against the real page and fails in both directions on
+the same screen: "Jumps to Partizan" is a *transfer* on the injuries view (for a
+player who is hurt), and "Taking part in workouts" is a *recovery* note for a
+player who still is. Neither headline can be read without the page's own flag.
+
+**Two facts about the pages shaped everything else.** Each view returns exactly
+**25 items** — the latest updates, not a census — and the injuries view is a
+filter over the same feed rather than a separate one. So (a) both views are read
+and deduplicated, because the transfer half only appears on the plain one and a
+busy injury week pushes injuries off it; and (b) **a pass may raise a flag and
+may never clear one**. Absence from a list of the 25 newest updates is not
+evidence of recovery. Recovery is a person's statement, and it is a button.
+
+**The cold-start trap, found by running it.** The first real pass read items
+back to 8 June. Flagging a squad in September from a June item asserts something
+the source never said — that item was true when written and says nothing about
+this week. So only items published within **21 days** may move a status
+(`INJURY_WINDOW_DAYS`). Older items are still stored, still shown, still dated;
+they simply do not touch the pool.
+
+**`applied` is what makes a correction stick.** Without it, the hourly pass
+would re-read the same three-week-old item and re-flag a player a commissioner
+had just marked fit — every hour, for three weeks. `markPlayerFit` therefore
+does two writes in the order whose half-finished state is harmless: spend the
+items first, clear the status second. A crash between them leaves a fit player
+still marked injured and the items unable to re-flag him; one more press
+finishes it. The other order clears the flag and leaves the reason to undo it.
+
+**Matching published names to the pool is the whole difficulty, and 4.2 had
+already solved it.** The clubs register **passport** names and the publisher
+writes common ones: the pool holds `Lessort, Mathias Michel`,
+`Bacot Jr., Armando Linwood` and `Hayes, Kevarrius Keshawn` against published
+`Mathias Lessort`, `Armando Bacot` and `Kevarrius Hayes`. Exact normalized
+matching alone left **27 of 48 items unattached** on the live pages — a queue
+that opens with 27 questions nobody needed to be asked is the queue people stop
+reading. Reusing `looksLikeRename`'s token containment, and preferring players
+who have not `left` before falling back to the whole pool, brings it to **11**,
+and all eleven are real questions: nicknames the pool spells differently
+(`Kostas Sloukas` against `Sloukas, Konstantinos`) and players who are not in
+E2026 at all. Those eleven go into 4.2's mapping queue, answered **by slug**, so
+one answer attaches every item about that person including next Tuesday's.
+Attaching a name deliberately does not flag anybody: identity and availability
+are separate claims, and the next pass decides the second one under its own
+rules.
+
+**Where it runs.** A third in-flight guard in the worker's sweep, hourly, two
+requests a pass, sharing the Euroleague importers' `fetchWithRetry` rather than
+growing a second retry policy — one set of statuses worth retrying, one way to
+be a good citizen of somebody else's server. `NEWS_FETCH=off` stops the news
+without stopping pick deadlines. The commissioner's "Read the pages now" is the
+draft-night button: the hour before a draft is the one hour where waiting forty
+minutes for a knee is not acceptable.
+
+**What the E2E suite does and does not drive.** It plants items in exactly the
+shape the pass writes and drives the browser over them: the board and its links,
+the pool carrying the word, the correction that marks a player available again
+(asserting the spend, which is the part that makes it stick), and the mapping
+question an unmatched name raises. It never fetches RotoWire — a spec that did
+would fail on their Tuesday rather than on our bug. The parser is tested against
+saved markup in `src/lib/news/fixtures/`, which is also what a fix is written
+against when the markup changes.
+
+## 9.3 — The table was thirteen players at 100%, which the official table never is
+
+D4 read the official rulebook's captain, bench and coach mechanics as belonging
+to "their game mode, not a draft league", and cut all three. The Draft Mode page
+settles it in one sentence: Draft Mode "is the same as the Classic Mode, except…
+there is no head coach". So D4 was right about the coach and wrong about the
+other two, and the cost of being wrong was not cosmetic — a league mirroring the
+official site would have read two different totals for the same night and had no
+way to tell which was theirs. Restored as **D19**, an amendment citing the page,
+rather than a quiet edit to D4.
+
+**The load-bearing decision is where the multiplier is applied.**
+`player_game_stats.fantasy_pts` is app-global: one row for one player's night,
+read by every league. Baking a captain into it would be wrong the moment two
+leagues make different players captain, which is the same trap the existing
+"scoring weights are settings nothing reads" debt describes. So it is applied in
+`computeStandings`, which means recording a lineup is a **recompute** and never a
+rescore: the box scores never move, the golden fixture of 168 real E2025 rows is
+untouched, and a league that types a lineup in December fixes October without
+re-fetching anything.
+
+**Rounding is stated once and it is the bench that forces it.** Halving 33
+tenths is 16.5, and the entire tenths scheme exists so that no float ever reaches
+a sum. `scaleTenths` in `scoring.ts` is now the single convention — multiply,
+round half away from zero — and `toTenths` is defined in terms of it, so the
+×1.1 win bonus and the ×0.5 bench round the same way. It is applied **per
+player-round**: aggregate a player's games in a round first, then weigh once,
+because weighing each game and summing would round twice for anybody who played
+a double round.
+
+**The validator refuses transcription errors rather than storing a wrong total.**
+Every id has to sit in that member's membership window *for that round* — so a
+lineup typed in November for round 4 names the thirteen who actually played it,
+not today's roster — no duplicates, and the starting five has to be one of the
+five formations the rulebook prints (2-2-1, 1-2-2, 2-1-2, 1-3-1, 3-1-1 as
+G-F-C). The formation check is the one that turns a mistyped five into a refusal
+instead of a wrong number, and it is spelled out as a list rather than derived
+from "at least one of each, never three centers": a derived rule that admitted a
+sixth shape would be our invention.
+
+**One place the plan was deliberately not followed.** It said counts must match
+the template. They do not, for the sixth man, the bench and the inactive: those
+are capped rather than exact. A 5.2 drop can legally leave a twelve-man roster,
+and "counts must match" would mean such a league could record no lineup at all —
+a rule that refuses every input is worse than a place left empty. The starting
+five stays exact, because the formation rule has no meaning otherwise.
+
+**Two failure modes are answered rather than hidden.** A round nobody typed
+carries the last recorded lineup forward, which is what a league that arranges
+once and leaves it expects. A round *before* any lineup exists cannot be carried,
+so it scores everyone at 100% — and the standings page strikes it as a
+`Correction` naming the rounds, rather than presenting an inherited number as
+final. The same generosity covers a player a carried lineup never heard of: an
+arrival predating the lineup scores at 100%, not at zero, because our bookkeeping
+gap is not their bad night. That `Correction` only counts the teams the table
+actually ranks; a member with no roster has no total a lineup could change, and
+counting them would strike every round of every league forever.
+
+**Consistency was the quiet half of the slice.** `bestNight` scanned every
+covering window and `impactForMember` assumed everyone scored fully, so left
+alone they would have named a best night that moved nobody's total and priced a
+trade the table disagreed with. Both take the same weights now. PIR stays raw in
+both: it is the basketball number, and halving it would describe a night nobody
+played.
+
+## 9.2 — Two of D13's "working paths" were only reachable by a crafted request
+
+D13 cut the commissioner console in 3.6 with a four-part argument that each item
+already had a working path. Read again a year of slices later, two of those
+parts were claims about the **server**, not about anything a person can reach.
+
+**Per-member autodraft.** `setAutodraft` has accepted a `memberId` since 2.5 and
+has always permitted a manager to set it for anybody — the docstring says so and
+names the case, a phone dying mid-round. But `getDraftView` never shipped
+anybody else's flag, and its own comment said as much ("Everyone else's flag is
+Phase 3.6's console"). So the working path was: know the member id, and POST.
+That is not a path. The fix was two lines in the query and a row per member in
+the panel, in draft order, each with its own `useActionState` so a refusal lands
+on the row it belongs to rather than at the top of twelve identical ones.
+
+**"Pick for them".** It was real since 2.4 and it was the pool's Bank *heading*
+— which on a phone sits six hundred pixels below the band. A manager whose
+teammate had gone quiet had to scroll, notice a heading had changed wording, and
+infer that the pool in front of them was now somebody else's. It is a control in
+the panel now, and it is deliberately a **walk rather than an act**: it names
+whose turn it is spending and leaves the cursor in the pool's search box. The
+implementation is the radar's own reveal idiom — an `href` that works with no
+JavaScript, a handler that focuses and then measures the sticky band's clearance
+rather than guessing at it. It is hidden on your own turn, because the pool
+below already says "Make your pick" and a second control for one act is how two
+surfaces start disagreeing.
+
+**The clock was the only one of the four carrying a real correctness question,
+and D13 said so.** The question is what happens to a deadline that is already
+running, and the answer is now stated once, in `setPickClock`: the new deadline
+is **now plus the new clock**. The rejected alternative — the pick's original
+start plus the new clock — fails in the exact direction people use this. A room
+that set 120 seconds in the lobby and then spends an hour on round three cuts
+the clock to 30, and computed from the pick's start that puts the deadline
+ninety seconds in the past: the sweep autodrafts the member on the clock on its
+next tick, and it looks like the commissioner punished somebody for asking them
+to hurry up. The E2E test is written to separate the two implementations rather
+than to confirm the one that shipped — it plants a deadline ten seconds in the
+past, which is what a long pick looks like to this action, and asserts the new
+one is in the **future** by roughly the new clock.
+
+Two smaller decisions came with it. The league's `pick_seconds` setting follows
+the draft's, second, so a start-over does not quietly return to a minute — and
+a crash between the two writes leaves the live draft correct and only the
+lobby's default stale, which is visible and repaired by pressing the button
+again. And the change **announces itself in chat**, because the countdown
+everybody in the room is watching jumps when it lands; "the clock was changed
+and restarted" is the honest reading of that jump, and without the line the only
+reading available is "the clock glitched".
+
+**Skip a turn was refused, and the refusal is mechanical rather than a matter of
+taste.** `buildPickOrder` produces a contiguous run of slots and
+`isDraftComplete` counts them, so a permanently empty slot is a draft that can
+never finish; the sweep's own board-hole repair would start reporting a draft it
+cannot move. Autodraft and "Pick for them" cover both cases a skip gets reached
+for. It is in STATUS's debt table as an argument, not a to-do.
+
+**One test-infrastructure finding, worth more than the slice.** The full E2E
+suite failed **149 of 395** against the local dev server, in a way that read
+like a broken draft room: pauses that never landed, rooms that never rendered,
+`page.goto: net::ERR_ABORTED`. Every one of them was route-compile latency —
+two other projects' `next dev` servers were running on the same laptop — and the
+same suite against `next start` over a fresh build passed **405 of 405 in four
+minutes**. The lesson is in STATUS's verification table now: measure this suite
+on a build (`CI=1 E2E_PORT=…`), the way CI does, or the noise is the result. The
+helpers that wait on a server action round trip were given the same generous
+fuse `draftPlayer` already argues for, because a fuse shorter than the work it
+waits on reports a slow thing as a broken one.
+
+## 9.1 — The pool was showing the wrong number, in the wrong ink, unlabelled
+
+The slice started from a defect rather than a feature request. The draft pool's
+row carried a figure in soft ink with no heading, and that figure was
+`proj_last5_fantasy` — fantasy points, which are PIR × 1.1 on a win. So the
+strongest numeric signal in the room was a bonus-inflated number that everyone
+would reasonably read as the PIR they talk in. Worse, **PIR was averaged
+nowhere**: it was stored per game in `player_game_stats.pir` and `projectPlayer`
+returned only the two fantasy averages. The number the league drafts on did not
+exist in the database.
+
+Three decisions followed, and the third is the one worth keeping.
+
+**One number, everywhere.** Average PIR is now the row headline, the
+`10+/15+/20+` floors, and autodraft's ranking. Two of those used to read fantasy
+points while the eye read something else; making them the same figure means the
+pool's top row and the pick the worker would make for you are now the same
+answer to the same question. `EnginePlayer.projectedPoints` became `rankPir` in
+the same change: a field named for one quantity and carrying another is exactly
+what CONTEXT.md says to rename rather than document.
+
+**Which season the average comes from is stated once**, in `averagePirOf`:
+current-season last-5 if the player has any games, last season otherwise. On
+draft night that is uniformly last season, because E2026 has none — but STATUS
+notes the league may one day draft into a season already under way, and then
+the fresher number is the right one. `averageFantasyOf` follows whichever season
+PIR chose, so one row never prints this season's PIR beside last season's
+fantasy points.
+
+**Prominence came from position and ink, because marker red was unavailable.**
+DESIGN.md's Two Jobs Rule gives marker exactly two jobs, "and no third", so the
+usual way to make something shout was closed. What was left is what the sheet
+rank already argued for at `pick-form.tsx`: a leading, fixed-width,
+right-aligned column can be *read down*, whereas the same figure trailing the
+position patch landed at eight different x-positions. PIR is that column, at
+the name's size in full ink, under a `slot-label` column head.
+
+That has a measured cost and it is worth writing down rather than glossing. A
+Pixel 7 pool row is 338px, and every part of it except the name is fixed-width,
+so the name absorbs the entire deficit. The first cut — `w-16` with the games
+count beside it — truncated names to three characters. Narrowing the column and
+holding the games count and the `FP` figure back to `sm` brought the name to
+**87px against the 101px it had before**, measured in a real browser rather than
+estimated. Fourteen pixels of name is the price of the row leading with the
+right number; the full name stays in `title` and in the row's spoken label at
+every width.
+
+### The endpoint that looked like a free win and was a data-corrupting trap
+
+The plan called for replacing the roster sync's 21 club-by-club requests with
+one call to `/{season}/people?limit=1000`, which returns all 837 season people
+with full bios. It parses cleanly, the `type === "J"` filter still works, and
+332 players come back. It shipped, the sync ran, and it marked **66 players as
+having left** and moved others to clubs they had already departed.
+
+`/{season}/people` is a **registration history, not a roster**. It lists every
+spell a person has held this season, expired ones included, so those 332 rows
+cover only 309 people: 23 appear twice, once at the club they left (`active:
+false`, `endDate` in the past) and once at the club they joined. `diffRosters`
+deduplicates by person code and keeps whichever it saw first, which is feed
+order — so Jantunen was stored at Fener rather than Madrid, and a player at the
+wrong club is diffed as a departure and vanishes from the draft pool.
+
+Measured properly afterwards, against the club walk on the same day: the bulk
+endpoint lists **79 `(person, club)` pairs the walk does not and omits 60 that
+it does**. Filtering to `active === true` reconciles neither — still 21 extra
+and 63 missing. It is not a shape trap to work around; it is a different
+question being answered.
+
+So the walk stays the roster authority and the bulk endpoint contributes **bios
+only**, joined by person code, with the club's own row winning every field it
+has. The repair was the doctrine the repo already has: re-running the corrected
+sync restored the pool exactly — 326 draftable, 222 with a previous season and
+104 without, 22 with no person code, which are the same figures 4.4's backfill
+measured. Nothing was deleted at any point, because a player who disappears
+from a source is marked, never removed.
+
+The lesson is narrower than "verify the feed" — the feed *was* verified, and
+every claim about its shape was true. What was not checked was whether it
+answered the same **question** as the endpoint it replaced. A test now asserts
+that a club's roster beats the season-wide list on club membership, and the
+research doc carries the measurement.
+
+### Where last season's numbers come from, and the four ways that endpoint lies
+
+Previous-season averages are imported from the v3 statistics table behind the
+official expanded-stats page (`npm run stats:prev`), because that is the number
+the league will compare against — a draft-night figure that disagrees with the
+official site by a tenth is a figure nobody trusts. Four parameter traps, all
+measured on 2026-09-14 and all in `docs/research/euroleague-api.md`:
+
+- Omitting `seasonMode=Single` makes it ignore `seasonCode` and return
+  **all-time career leaders** — 3,075 rows, `gamesPlayed` up to 78, retired
+  players included, and no error of any kind.
+- `statisticMode=perGame` applies a minimum-games qualification: 208 rows with
+  a 24-game floor, silently dropping **127 of 335 players**, which is precisely
+  the fringe, injured and mid-season arrivals a draft has to price. We take
+  `accumulated` totals and divide ourselves.
+- `team.code` can be `;`-joined for a mid-season move (9 rows in E2025), so it
+  is never matched against a club.
+- The current season answers `total: 0` until tip-off, which is not an error.
+
+It is also the **only v3 resource on this API**, which corrects a claim the
+research file carried since 2.1 — "v3 is rejected outright, do not reach for
+it" was a statement about every path anyone had tried, written as a statement
+about the API.
+
+The cross-check was nearly free and is the part that makes the import
+trustworthy: `applyPreviousSeason` computes each player's E2025 season PIR
+average from our own 6,902-line backfill and compares it to the feed's.
+**220 of 222 matched players agreed exactly**; the other two have no local box
+scores to compare. A disagreement is reported and never reconciled — the same
+rule 4.1 applies to a pasted PIR that does not match its own components, for
+the same reason, which is that we cannot tell which of the two numbers is
+wrong.
+
+One asymmetry worth knowing: `prev_season_fantasy` comes from our backfill and
+not from the feed, and it has to. Fantasy points are PIR plus a win bonus, and
+a season *total* carries no per-game result to apply that to. So a player we
+never backfilled gets a PIR average and no fantasy average, and the player page
+prints nothing rather than a zero.
+
 **8.4 has landed: the draft room is a first-class page for assistive tech.**
 Three defects, one missing measurement. The room was the only surface without
 an `h1` — all three band states titled as a plain `<p>`, while every other page

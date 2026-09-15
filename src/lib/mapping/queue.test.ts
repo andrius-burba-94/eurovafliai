@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   codesWorthChasing,
   newestCheckBatch,
+  NEWS_CHASE_DAYS,
+  newsWorthChasing,
   pendingCodes,
+  pendingNewsNames,
   pendingRenames,
   queueSentence,
   queueTotal,
   type CodeBatch,
+  type NewsItemRow,
   type PoolPlayerRow,
   type RenameBatch,
 } from "./queue";
@@ -163,11 +167,11 @@ describe("codesWorthChasing", () => {
 
 describe("queueSentence", () => {
   it("says nothing at all when nothing is standing", () => {
-    expect(queueSentence({ renames: 0, codes: 0 })).toBeNull();
+    expect(queueSentence({ renames: 0, codes: 0, news: 0 })).toBeNull();
   });
 
   it("names the renames and what they cost", () => {
-    const sentence = queueSentence({ renames: 15, codes: 0 });
+    const sentence = queueSentence({ renames: 15, codes: 0, news: 0 });
 
     expect(sentence).toContain("15 players");
     expect(sentence).toContain("re-registered");
@@ -176,30 +180,124 @@ describe("queueSentence", () => {
   });
 
   it("names the codes on their own", () => {
-    const sentence = queueSentence({ renames: 0, codes: 3 });
+    const sentence = queueSentence({ renames: 0, codes: 3, news: 0 });
 
     expect(sentence).toContain("3 person codes");
     expect(sentence).not.toContain("re-registered");
   });
 
   it("carries both halves when both are standing", () => {
-    const sentence = queueSentence({ renames: 2, codes: 4 });
+    const sentence = queueSentence({ renames: 2, codes: 4, news: 0 });
 
     expect(sentence).toContain("2 players");
     expect(sentence).toContain("4 person codes");
   });
 
   it("does not say '1 players'", () => {
-    const sentence = queueSentence({ renames: 1, codes: 1 });
+    const sentence = queueSentence({ renames: 1, codes: 1, news: 0 });
 
     expect(sentence).toContain("One player in the pool");
     expect(sentence).toContain("One person code");
     expect(sentence).not.toMatch(/\b1 (players|person codes)\b/);
   });
+
+  it("names 9.4's cost rather than asserting the other two's", () => {
+    // An unmatched news name does not stop a box score attaching — it stops an
+    // injury being shown. Claiming otherwise would teach the reader to
+    // disbelieve the sentence.
+    const sentence = queueSentence({ renames: 0, codes: 0, news: 2 });
+
+    expect(sentence).toContain("2 names in recent injury news");
+    expect(sentence).toContain("show up nowhere");
+    expect(sentence).not.toContain("box scores cannot attach");
+  });
+
+  it("names both costs when all three are standing", () => {
+    const sentence = queueSentence({ renames: 1, codes: 1, news: 1 });
+
+    expect(sentence).toContain("box scores cannot attach");
+    expect(sentence).toContain("show up nowhere");
+  });
+});
+
+describe("pendingNewsNames", () => {
+  const news = (over: Partial<NewsItemRow> = {}): NewsItemRow => ({
+    id: "n1",
+    slug: "dzanan-musa-923",
+    name: "Dzanan Musa",
+    club_name: "Dubai Basketball",
+    headline: "Sidelined with injury",
+    published: "2026-09-10",
+    url: "https://www.rotowire.com/euro/player/dzanan-musa-923",
+    ...over,
+  });
+
+  it("groups unattached items by the publisher's slug", () => {
+    const names = pendingNewsNames([
+      news(),
+      news({ id: "n2", headline: "Out with injury", published: "2026-09-12" }),
+      news({ id: "n3", slug: "other-1", name: "Somebody Else" }),
+    ]);
+
+    expect(names).toHaveLength(2);
+    expect(names[0]).toMatchObject({
+      slug: "dzanan-musa-923",
+      items: 2,
+      latest: "2026-09-12",
+      latestHeadline: "Out with injury",
+    });
+  });
+
+  it("stops asking about a slug any item already answers", () => {
+    // A half-applied answer is `attachSlug`'s job to finish, not a question to
+    // ask again.
+    const names = pendingNewsNames([
+      news(),
+      news({ id: "n2", player: "p1" }),
+    ]);
+
+    expect(names).toEqual([]);
+  });
+
+  it("counts nothing when every item found its player", () => {
+    expect(pendingNewsNames([news({ player: "p1" })])).toEqual([]);
+  });
+});
+
+describe("newsWorthChasing", () => {
+  const name = (latest: string) => ({
+    slug: `s-${latest}`,
+    name: "Somebody",
+    clubName: "",
+    items: 1,
+    latest,
+    latestHeadline: "Out with injury",
+    url: "",
+  });
+
+  /**
+   * Same argument `codesWorthChasing` makes: a name from six weeks ago that
+   * matched nobody is usually somebody this competition does not register, and
+   * a doorbell that rings for those is a doorbell people stop hearing.
+   */
+  it("chases recent names and lets old ones go quiet", () => {
+    const now = new Date("2026-09-14T12:00:00Z");
+    const kept = newsWorthChasing(
+      [name("2026-09-13"), name("2026-08-20"), name("2026-06-01")],
+      now,
+    );
+
+    expect(kept.map((row) => row.latest)).toEqual(["2026-09-13", "2026-08-20"]);
+    expect(NEWS_CHASE_DAYS).toBe(30);
+  });
+
+  it("lets an undated name go quiet rather than chasing it for ever", () => {
+    expect(newsWorthChasing([name("")], new Date("2026-09-14"))).toEqual([]);
+  });
 });
 
 describe("queueTotal", () => {
-  it("adds the two halves, because both block the same thing", () => {
-    expect(queueTotal({ renames: 6, codes: 10 })).toBe(16);
+  it("adds all three, because each is a question only a person can answer", () => {
+    expect(queueTotal({ renames: 6, codes: 10, news: 3 })).toBe(19);
   });
 });

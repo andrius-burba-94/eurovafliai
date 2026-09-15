@@ -13,6 +13,7 @@ import {
   type PlayerGameLine,
   type PlayerProjection,
 } from "./project";
+import { type SeasonAverages, storedStatsOf } from "./season-totals";
 
 /**
  * Reading and writing box scores — the PocketBase half, and nothing else.
@@ -292,8 +293,10 @@ type ProjectionRecord = {
   id: string;
   proj_last5_fantasy?: number;
   proj_last5_games?: number;
+  proj_last5_pir?: number;
   proj_season_fantasy?: number;
   proj_season_games?: number;
+  proj_season_pir?: number;
 };
 
 type ProjectionLine = {
@@ -302,6 +305,7 @@ type ProjectionLine = {
   game_code: number;
   time_played: number;
   fantasy_pts: number;
+  pir: number;
 };
 
 export type ProjectionRecompute = {
@@ -315,8 +319,10 @@ function asFields(projection: PlayerProjection) {
   return {
     proj_last5_fantasy: projection.last5Fantasy,
     proj_last5_games: projection.last5Games,
+    proj_last5_pir: projection.last5Pir,
     proj_season_fantasy: projection.seasonFantasy,
     proj_season_games: projection.seasonGames,
+    proj_season_pir: projection.seasonPir,
   };
 }
 
@@ -327,8 +333,10 @@ function sameProjection(
   return (
     (record.proj_last5_fantasy ?? 0) === projection.last5Fantasy &&
     (record.proj_last5_games ?? 0) === projection.last5Games &&
+    (record.proj_last5_pir ?? 0) === projection.last5Pir &&
     (record.proj_season_fantasy ?? 0) === projection.seasonFantasy &&
-    (record.proj_season_games ?? 0) === projection.seasonGames
+    (record.proj_season_games ?? 0) === projection.seasonGames &&
+    (record.proj_season_pir ?? 0) === projection.seasonPir
   );
 }
 
@@ -347,12 +355,12 @@ export async function recomputeProjections(
   const [players, lines] = await Promise.all([
     pb.collection("players").getFullList<ProjectionRecord>({
       fields:
-        "id,proj_last5_fantasy,proj_last5_games,proj_season_fantasy,proj_season_games",
+        "id,proj_last5_fantasy,proj_last5_games,proj_last5_pir,proj_season_fantasy,proj_season_games,proj_season_pir",
       requestKey: null,
     }),
     pb.collection("player_game_stats").getFullList<ProjectionLine>({
       filter: `season = "${code}"`,
-      fields: "player,round,game_code,time_played,fantasy_pts",
+      fields: "player,round,game_code,time_played,fantasy_pts,pir",
       requestKey: null,
     }),
   ]);
@@ -365,6 +373,7 @@ export async function recomputeProjections(
       gameCode: row.game_code,
       timePlayed: row.time_played,
       fantasyTenths: row.fantasy_pts,
+      pir: row.pir ?? 0,
     });
     byPlayer.set(row.player, list);
   }
@@ -384,4 +393,146 @@ export async function recomputeProjections(
   }
 
   return { season: code, players: players.length, updated, unchanged };
+}
+
+type PreviousSeasonRecord = {
+  id: string;
+  person_code?: string;
+  prev_season_code?: string;
+  prev_season_games?: number;
+  prev_season_pir?: number;
+  prev_season_fantasy?: number;
+};
+
+export type PreviousSeasonResult = {
+  readonly season: string;
+  readonly fetched: number;
+  readonly matched: number;
+  readonly updated: number;
+  readonly unchanged: number;
+  /** Person codes the feed knows and our pool does not. */
+  readonly unmatched: string[];
+  /** One line per player whose feed average disagrees with our own backfill. */
+  readonly disagreements: string[];
+};
+
+/**
+ * Last season's averages, from the official stats table onto `players`.
+ *
+ * **The feed is the source and our backfill is the check.** The league reads
+ * the official site, so a draft-night number that disagrees with it by a tenth
+ * is a number nobody trusts — but we hold last season's box scores too, and
+ * comparing the two is nearly free. A disagreement is *reported*, never
+ * reconciled: the same rule 4.1 applies to a pasted PIR that does not match
+ * its own components, and for the same reason, which is that we cannot tell
+ * which of the two numbers is wrong.
+ *
+ * Fantasy average is ours rather than the feed's, and has to be: fantasy
+ * points are PIR × 1.1 *on a win*, and a season total carries no per-game
+ * result to apply that to. So a player we never backfilled gets a PIR average
+ * and no fantasy average, which is honest — `averageFantasyOf` returns the
+ * field and the page prints nothing when there is nothing.
+ *
+ * Matching is by person code only. A row with no code was already dropped by
+ * `seasonAveragesFrom`, and a code our pool has never seen is reported rather
+ * than guessed at by name — that is 4.2's quarantine argument, and inventing a
+ * second name matcher here would be a second place for it to be wrong.
+ */
+export async function applyPreviousSeason(
+  pb: PocketBase,
+  season: string,
+  averages: readonly SeasonAverages[],
+  /** Run the comparison and report, write nothing. */
+  { dryRun = false }: { dryRun?: boolean } = {},
+): Promise<PreviousSeasonResult> {
+  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const [players, lines] = await Promise.all([
+    pb.collection("players").getFullList<PreviousSeasonRecord>({
+      fields:
+        "id,person_code,prev_season_code,prev_season_games,prev_season_pir,prev_season_fantasy",
+      requestKey: null,
+    }),
+    pb.collection("player_game_stats").getFullList<ProjectionLine>({
+      filter: `season = "${code}"`,
+      fields: "player,round,game_code,time_played,fantasy_pts,pir",
+      requestKey: null,
+    }),
+  ]);
+
+  const ours = new Map<string, PlayerGameLine[]>();
+  for (const row of lines) {
+    const list = ours.get(row.player) ?? [];
+    list.push({
+      round: row.round,
+      gameCode: row.game_code,
+      timePlayed: row.time_played,
+      fantasyTenths: row.fantasy_pts,
+      pir: row.pir ?? 0,
+    });
+    ours.set(row.player, list);
+  }
+
+  const byCode = new Map<string, PreviousSeasonRecord>();
+  for (const player of players) {
+    const personCode = (player.person_code ?? "").trim();
+    if (personCode !== "") byCode.set(personCode, player);
+  }
+
+  let updated = 0;
+  let unchanged = 0;
+  let matched = 0;
+  const unmatched: string[] = [];
+  const disagreements: string[] = [];
+
+  for (const average of averages) {
+    const player = byCode.get(average.personCode);
+    if (!player) {
+      unmatched.push(`${average.personCode} · ${average.name}`);
+      continue;
+    }
+    matched += 1;
+
+    const own = projectPlayer(ours.get(player.id) ?? []);
+    // Only meaningful where we actually have the season: a player we never
+    // backfilled has nothing to disagree with.
+    if (own.seasonGames > 0 && own.seasonPir !== average.pir) {
+      disagreements.push(
+        `${average.name} (${average.personCode}): feed ${average.pir} vs ours ${own.seasonPir} over ${own.seasonGames} game(s)`,
+      );
+    }
+
+    const fields = {
+      prev_season_code: code,
+      prev_season_games: average.games,
+      prev_season_pir: average.pir,
+      prev_season_fantasy: own.seasonGames > 0 ? own.seasonFantasy : 0,
+      prev_season_stats: storedStatsOf(average),
+    };
+    if (
+      (player.prev_season_code ?? "") === fields.prev_season_code &&
+      (player.prev_season_games ?? 0) === fields.prev_season_games &&
+      (player.prev_season_pir ?? 0) === fields.prev_season_pir &&
+      (player.prev_season_fantasy ?? 0) === fields.prev_season_fantasy
+    ) {
+      unchanged += 1;
+      continue;
+    }
+
+    if (!dryRun) {
+      await pb
+        .collection("players")
+        .update(player.id, fields, { requestKey: null });
+    }
+    updated += 1;
+  }
+
+  return {
+    season: code,
+    fetched: averages.length,
+    matched,
+    updated,
+    unchanged,
+    unmatched,
+    disagreements,
+  };
 }

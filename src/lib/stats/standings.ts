@@ -1,6 +1,7 @@
+import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
 import { coversRound } from "@/lib/memberships/from";
 import { type Phase, PHASES } from "./csv";
-import { sumTenths } from "./scoring";
+import { scaleTenths, sumTenths } from "./scoring";
 
 /**
  * Standings from rosters × game lines — slice 4.5.
@@ -86,11 +87,20 @@ function rankRows(rows: StandingRow[]): StandingRow[] {
  * One ranked table. `phases` is the filter the page will expose; pass every
  * stored phase when writing snapshots so a later toggle does not need a
  * recompute.
+ *
+ * `weights` is the lineup (9.3): captain ×2, bench ×0.5, inactive ×0. It is
+ * applied **here** and not at ingest, because `player_game_stats.fantasy_pts`
+ * is app-global — one row serves every league — so a per-league multiplier
+ * baked into it would be wrong the moment two leagues arrange the same player
+ * differently. Multiplying per player-round and rounding once, half away from
+ * zero, means no float ever reaches a sum. Omit it and everybody scores at
+ * 100%, which is what the app did before lineups existed.
  */
 export function computeStandings(
   windows: readonly StandingWindow[],
   lines: readonly StandingLine[],
   phases: readonly Phase[],
+  weights: LineupWeights = FULL_WEIGHTS,
 ): StandingRow[] {
   const byPlayer = tenthsByPlayerRound(lines, allowed(phases));
   const memberIds = [...new Set(windows.map((window) => window.memberId))];
@@ -102,7 +112,11 @@ export function computeStandings(
       if (!scored) continue;
       for (const [round, tenths] of scored) {
         if (!coversRound(window, round)) continue;
-        byRound[round] = (byRound[round] ?? 0) + tenths;
+        const weighed = scaleTenths(
+          tenths,
+          weights.multiplierFor(memberId, round, window.playerId),
+        );
+        byRound[round] = (byRound[round] ?? 0) + weighed;
       }
     }
     return {

@@ -128,6 +128,13 @@ export default async function LobbyPage({
                 action="Open"
               />
               <Door
+                href={`/leagues/${league.id}/lineup`}
+                testId="enter-lineup"
+                title="Your lineup"
+                description="Who started, who was captain, who sat — per round."
+                action="Set it"
+              />
+              <Door
                 href={`/leagues/${league.id}/recap`}
                 testId="enter-recap"
                 title="This round"

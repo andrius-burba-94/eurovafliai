@@ -13,7 +13,12 @@ import {
   type MappingResult,
   type StoredRename,
 } from "@/lib/mapping/actions";
-import type { StoredCheck, UnmatchedCode } from "@/lib/mapping/queries";
+import type {
+  StoredCheck,
+  UnmatchedCode,
+  UnmatchedNews,
+} from "@/lib/mapping/queries";
+import { attachNewsName, type NewsResult } from "@/lib/news/actions";
 
 /**
  * The mapping surface — slice 4.2.
@@ -44,13 +49,16 @@ import type { StoredCheck, UnmatchedCode } from "@/lib/mapping/queries";
 
 const START: MappingResult = { error: null };
 const CHECK_START: FeedCheck = { error: null };
+const NEWS_START: NewsResult = { error: null };
 
 export function MappingSurface({
   unmatched,
   lastCheck,
+  news,
 }: {
   unmatched: UnmatchedCode[];
   lastCheck: StoredCheck | null;
+  news: UnmatchedNews[];
 }) {
   const [check, checkAction] = useActionState(
     async () => checkTheFeed(),
@@ -59,12 +67,13 @@ export function MappingSurface({
   const [renameResult, renameAction] = useActionState(confirmRename, START);
   const [rejectResult, rejectAction] = useActionState(rejectRename, START);
   const [attachResult, attachAction] = useActionState(attachStatCode, START);
+  const [newsResult, newsAction] = useActionState(attachNewsName, NEWS_START);
 
-  const errors = [renameResult, rejectResult, attachResult, check]
+  const errors = [renameResult, rejectResult, attachResult, newsResult, check]
     .map((result) => result.error)
     .filter((message): message is string => Boolean(message));
 
-  const dones = [renameResult, rejectResult, attachResult]
+  const dones = [renameResult, rejectResult, attachResult, newsResult]
     .map((result) => (result.error ? null : result.done))
     .filter((message): message is string => Boolean(message));
 
@@ -199,7 +208,91 @@ export function MappingSurface({
           </Slots>
         )}
       </Bank>
+
+      <Bank label="Names in the news" aside={`${news.length} unmatched`}>
+        <p className="text-sm text-ink-soft">
+          A player RotoWire has published about whose name matches nobody in the
+          pool — or matches two people, which is the same question. Answering it
+          attaches every item about them, including the ones that arrive later.
+        </p>
+
+        {news.length === 0 ? (
+          <p className="text-sm" data-testid="mapping-no-news">
+            Every published name found its player.
+          </p>
+        ) : (
+          <Slots testId="mapping-news">
+            {news.map((entry) => (
+              <NewsRow key={entry.slug} entry={entry} action={newsAction} />
+            ))}
+          </Slots>
+        )}
+      </Bank>
     </>
+  );
+}
+
+function NewsRow({
+  entry,
+  action,
+}: {
+  entry: UnmatchedNews;
+  action: (formData: FormData) => void;
+}) {
+  const [playerId, setPlayerId] = useState(entry.candidates[0]?.id ?? "");
+
+  return (
+    <Slot state="live" testId={`news-name-${entry.slug}`}>
+      <span className="flex w-full flex-col gap-2">
+        <span className="text-sm">
+          <strong>{entry.name}</strong>{" "}
+          <span className="text-ink-soft">
+            {entry.clubName || "no club given"} · {entry.items} item
+            {entry.items === 1 ? "" : "s"}
+            {entry.latest ? ` · latest ${entry.latest}` : ""}
+          </span>
+        </span>
+        <span className="text-xs text-ink-soft break-words">
+          {entry.latestHeadline}
+        </span>
+
+        {entry.candidates.length === 0 ? (
+          <span className="text-xs text-ink-soft">
+            The pool is empty, so there is nobody to attach them to yet.
+          </span>
+        ) : (
+          <>
+            <label className="flex flex-col gap-1 text-xs">
+              This is
+              <select
+                value={playerId}
+                onChange={(event) => setPlayerId(event.target.value)}
+                data-testid={`news-choice-${entry.slug}`}
+                className="border-t-2 border-ink bg-transparent px-2 py-2 text-sm"
+              >
+                {entry.candidates.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.name} ({candidate.clubCode})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <form action={action}>
+              <input type="hidden" name="slug" value={entry.slug} />
+              <input type="hidden" name="player" value={playerId} />
+              <SubmitButton
+                testId={`news-attach-${entry.slug}`}
+                tone="liveOnField"
+                compact
+                pendingLabel="Attaching…"
+              >
+                Attach the name
+              </SubmitButton>
+            </form>
+          </>
+        )}
+      </span>
+    </Slot>
   );
 }
 

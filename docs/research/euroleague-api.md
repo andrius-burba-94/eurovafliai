@@ -18,8 +18,13 @@ https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/clubs
 https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/clubs/{CLUB}/people
 ```
 
-- **v2 is current.** v3 is rejected outright with
-  `UnsupportedApiVersion`, so do not reach for it.
+- **v2 is current for rosters and box scores.** v3 answers
+  `UnsupportedApiVersion` on *these* paths. This file used to say "v3 is
+  rejected outright … do not reach for it", which was a claim about every path
+  anyone had tried, stated as a claim about the API. It is false in general:
+  the season statistics table is served by **v3 and only v3** (see
+  [Season statistics](#season-statistics--the-bulk-table-behind-the-official-site)
+  below, verified 2026-09-14). Check the resource, not the version.
 - **No authentication.** No key, no token, no referer check.
 - **There IS a rate limit.** This file originally said "~50 requests during this
   investigation, none refused", and read that as no limit. There is one:
@@ -223,6 +228,75 @@ a season and runs 1–406 with gaps, which is what makes
 `unique(player, season, game_code)` the right physical key.
 
 E2026 tips off **2026-09-24**.
+
+## Season statistics — the bulk table behind the official site
+
+Verified by request on **2026-09-14**, while building slice 9.1. This is the
+endpoint the expanded stats table on euroleaguebasketball.net reads, and it is
+the source of the previous-season PIR averages the draft pool shows.
+
+```
+https://api-live.euroleague.net/v3/competitions/E/statistics/players/traditional
+  ?seasonCode=E2025&seasonMode=Single&statisticMode=accumulated&limit=1000
+```
+
+One request, `{ total, players[] }`, 335 rows for E2025. Each row carries
+`playerRanking`, `player.{code, name, age, imageUrl, team{code, name}}` and 24
+stat fields including **`pir`**, `gamesPlayed`, `gamesStarted`, `minutesPlayed`
+and the three shooting percentages (as strings: `"34.4%"`).
+
+**This is the only v3 resource on the API.** v1, v2 and v4 all answer
+`UnsupportedApiVersion` on the same path, and v3 answers it on every path the
+rest of this document describes. It also brings a third field vocabulary —
+`pointsScored`, `assists`, `blocks`, `foulsDrawn` — alongside `BoxScore`'s
+names and the database column names.
+
+### Four parameter traps, all measured
+
+| What | Measured on 2026-09-14 |
+|---|---|
+| **Omit `seasonMode=Single`** | `seasonCode` is ignored entirely and you get **all-time career leaders**: `total: 3075`, `gamesPlayed` up to **78**, retired players included, no error. |
+| **`statisticMode=perGame`** | Applies a minimum-games qualification — **208 rows, minimum `gamesPlayed` 24** — silently dropping 127 of 335, exactly the fringe, injured and mid-season arrivals a draft has to price. Ask for `accumulated` and divide yourself. |
+| **`team.code`** | Can be `;`-joined (`"PAO;PES"`) for a player who moved mid-season — **9 such rows in E2025**. Never match a club on it. |
+| **Current season** | `E2026` answers `total: 0` until its first game. Not an error, and retrying will not change it. |
+
+### It agrees with our own arithmetic
+
+`applyPreviousSeason` computes each player's E2025 season PIR average from our
+own `player_game_stats` backfill and compares it to the feed's. On 2026-09-14,
+**220 of 222 matched players agreed exactly** and the other two had no local
+box scores to compare. Same discipline as 4.1's PIR check: a disagreement is
+reported, never reconciled.
+
+## The season-wide people list — a registration history, NOT a roster
+
+```
+https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/people?limit=1000
+```
+
+Verified **2026-09-14**. Enveloped (`{data: […]}`), unlike a club's `/people`.
+Returns all **837** season people in one request with full bios — `height`,
+`weight`, `birthDate`, `country`, `images`, `position`, `dorsal`, `club`. 332
+are `type: "J"` for E2026 and only **1 of 332** has no height.
+
+**It looks like it should replace the 21-request club walk, and it must not.**
+It lists every spell a person has held this season, expired ones included:
+
+- 332 `type: "J"` rows cover only **309 distinct people**; 23 appear twice, once
+  at the club they left (`active: false`, `endDate` in the past) and once at
+  the club they joined.
+- Compared against the club-by-club walk it disagreed **in both directions**:
+  79 `(person, club)` pairs it lists that the walk does not, and 60 the walk
+  lists that it omits.
+- Filtering to `active === true` does not reconcile it either — still 21 extra
+  and 63 missing, against a walk that returns 326 rows.
+
+A player attached to their previous club is diffed as a departure and marked
+`left`, so they vanish from the draft pool. This was not theoretical: a sync
+built on this endpoint marked 66 players as having left and moved others to
+clubs they had already departed. So the club walk stays the roster authority
+and this endpoint contributes **bios only**, joined by person code, with the
+club's own row winning every field it has.
 
 ## What this means for slice 2.1
 

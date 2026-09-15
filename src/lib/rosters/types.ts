@@ -47,6 +47,20 @@ export type NormalizedPlayer = {
   source: PlayerSource;
   /** Jersey number as text — it is an identifier, not a quantity. */
   dorsal: string;
+  /**
+   * Bio, as the roster feed has been sending it all along — 9.1.
+   *
+   * **Optional, and absence means "this import does not know", never "erase
+   * it".** The CSV door cannot produce any of it, and a commissioner's
+   * spreadsheet must not blank a height the API filled in. `diffRosters`
+   * enforces that; see `BIO` there.
+   */
+  height?: number;
+  weight?: number;
+  /** ISO-ish date string as the feed sends it. Shown as a year. */
+  birth_date?: string;
+  country_code?: string;
+  country_name?: string;
 };
 
 /** A player as it exists in the table now, as much of it as the diff needs. */

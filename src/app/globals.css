@@ -88,8 +88,118 @@
   --spacing-slot: 2.75rem;
 }
 
+/* --- The night board ------------------------------------------------------
+ *
+ * Slice 9.5, and an amendment to D17 rather than a quiet addition — see
+ * ADR-0005. The day board above is a deliberate *inversion* of the physical
+ * object: card stock as the ground, the board's ruling as the ink, argued from
+ * a lit room and months of daylight phone checks. The night board inverts the
+ * inversion back, and it is the same instrument: the ground is the board, the
+ * marks are chalk, and every state is still carried by the ruling.
+ *
+ * What does NOT change, because changing it would be a second design system:
+ * the four rule weights and their meanings, the marker's two jobs, the 10%
+ * position washes, the framed Bank as one deeper sheet, and zero radius, zero
+ * shadow, zero glow. A dark surface with one glowing accent is the thing the
+ * direction contract refuses; this is a board under a different lamp.
+ *
+ * ## Why the values are named once and assigned twice
+ *
+ * The assignment happens in two places — the system preference, and an explicit
+ * choice — and a palette copied into both would drift the first time one value
+ * moved. So the night values live here under `--night-*`, each mapping block
+ * only points `--color-*` at them, and `tokens.test.ts` asserts the two blocks
+ * assign exactly the same set. Reading the system preference in CSS is also
+ * what keeps a reader with JavaScript off on the ground their phone asked for:
+ * the script only ever applies an explicit override.
+ */
 :root {
   color-scheme: light;
+
+  /* Ground and ink, swapped ends of the same cool ramp, tinted toward the
+   * rail's blue exactly as the day board's neutrals are. Neither end is pure
+   * black or white here either — a pure-black ground is the category cliché
+   * the day board was drawn against, and white-on-black at full strength is
+   * the halation that makes a phone in a dark room hard to read.
+   *
+   * Every lightness below was **solved for the day board's own margin** rather
+   * than picked: ink-soft lands at 5.79:1 on this ground where it is 5.77:1 on
+   * paper, the marker at 5.10 against 5.06, the rail at 5.05 against 5.05, and
+   * the two rules at 3.35 and 4.40 against 3.36 and 4.40. That matters more
+   * than any single ratio, because the quiet inks are what carry hierarchy: a
+   * dark theme whose soft ink reads at 8:1 has no quiet, it has two shouts. */
+  --night-stock: oklch(0.243 0.012 250);
+  /* A framed panel stays *deeper* stock, as it is by day: the metaphor is a
+   * darker sheet cut into the board, not a lifted card, and lifting it would
+   * need a shadow this system does not have. */
+  --night-stock-deep: oklch(0.198 0.012 250);
+  --night-ink: oklch(0.938 0.005 250);
+  --night-ink-soft: oklch(0.686 0.008 250);
+  --night-ink-faint: oklch(0.663 0.008 250);
+
+  /* The ruling. Same job, same hierarchy: an empty slot is ruled, a filled slot
+   * is ruled harder, and both have to clear 3:1 on the deeper panel too. */
+  --night-rule: oklch(0.549 0.012 240);
+  --night-rule-strong: oklch(0.615 0.014 240);
+  --night-rail: oklch(0.649 0.046 245);
+
+  /* The marker. Lighter and a touch less saturated than by day, because a
+   * mid-dark red on a dark ground is unreadable long before it is unlovely —
+   * the day marker (L 0.525) measures 1.9:1 here. Still exactly two jobs. */
+  --night-live: oklch(0.672 0.164 27);
+  /* The live field. By day a blush on paper; by night a warm bay in the board.
+   * It is a background against a background, so nothing measures it directly —
+   * what is measured is everything written on it. */
+  --night-live-sunk: oklch(0.285 0.058 27);
+
+  /* Position patches: the same three hue families, walked up the ramp until
+   * the letter clears its own 10% wash — the tightest pairing in the app on
+   * either ground, and the one 3.3 found failing by eye. 5.11–5.13:1 here. */
+  --night-pos-g: oklch(0.691 0.096 235);
+  --night-pos-f: oklch(0.688 0.101 128);
+  --night-pos-c: oklch(0.705 0.103 305);
+}
+
+/* Somebody's phone already knows. No stored choice means the system decides,
+ * and `:not([data-theme="light"])` is what lets an explicit day override win
+ * inside a dark-mode OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-stock: var(--night-stock);
+    --color-stock-deep: var(--night-stock-deep);
+    --color-ink: var(--night-ink);
+    --color-ink-soft: var(--night-ink-soft);
+    --color-ink-faint: var(--night-ink-faint);
+    --color-rule: var(--night-rule);
+    --color-rule-strong: var(--night-rule-strong);
+    --color-rail: var(--night-rail);
+    --color-live: var(--night-live);
+    --color-live-sunk: var(--night-live-sunk);
+    --color-pos-g: var(--night-pos-g);
+    --color-pos-f: var(--night-pos-f);
+    --color-pos-c: var(--night-pos-c);
+  }
+}
+
+/* An explicit choice, set on `<html>` before first paint. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-stock: var(--night-stock);
+  --color-stock-deep: var(--night-stock-deep);
+  --color-ink: var(--night-ink);
+  --color-ink-soft: var(--night-ink-soft);
+  --color-ink-faint: var(--night-ink-faint);
+  --color-rule: var(--night-rule);
+  --color-rule-strong: var(--night-rule-strong);
+  --color-rail: var(--night-rail);
+  --color-live: var(--night-live);
+  --color-live-sunk: var(--night-live-sunk);
+  --color-pos-g: var(--night-pos-g);
+  --color-pos-f: var(--night-pos-f);
+  --color-pos-c: var(--night-pos-c);
 }
 
 ::selection {

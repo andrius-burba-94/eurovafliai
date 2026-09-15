@@ -17,16 +17,38 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
-/** Read an `--color-*: oklch(L C H)` declaration out of the stylesheet. */
-function token(name: string): [number, number, number] {
+/**
+ * Two grounds since 9.5, and every ratio below is asked of both.
+ *
+ * The day board's values are declared as `--color-*` and the night board's as
+ * `--night-*`, which is what makes this parameterization possible at all: a
+ * second theme that overrode `--color-stock` in place would be invisible to a
+ * regex that reads the *first* declaration of a name — and dark mode would
+ * have shipped unmeasured, which is the one thing this design system does not
+ * do. See `both grounds assign the same tokens` at the bottom, which is what
+ * stops the two lists drifting apart.
+ */
+const THEMES = ["day", "night"] as const;
+type Theme = (typeof THEMES)[number];
+
+const prefixOf = (theme: Theme) => (theme === "day" ? "--color" : "--night");
+
+/** Read an `oklch(L C H)` token declaration for one ground. */
+function token(name: string, theme: Theme): [number, number, number] {
   const match = css.match(
     new RegExp(
-      `--color-${name}:\\s*oklch\\(([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)\\)`,
+      `${prefixOf(theme)}-${name}:\\s*oklch\\(([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)\\)`,
     ),
   );
-  if (!match) throw new Error(`token --color-${name} not found in globals.css`);
+  if (!match) {
+    throw new Error(
+      `token ${prefixOf(theme)}-${name} not found in globals.css`,
+    );
+  }
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
+
+const round = (n: number) => Math.round(n * 100) / 100;
 
 /** OKLCH → linear sRGB, per the Oklab spec. */
 function oklchToLinearRgb([l, c, h]: [number, number, number]) {
@@ -48,27 +70,6 @@ function oklchToLinearRgb([l, c, h]: [number, number, number]) {
     -0.0041960863 * L - 0.7034186147 * M + 1.707614701 * S,
   ];
 }
-
-/** WCAG relative luminance. Linear sRGB needs no further linearisation. */
-function luminance(name: string): number {
-  const [r, g, b] = oklchToLinearRgb(token(name)).map((v) =>
-    Math.min(Math.max(v, 0), 1),
-  );
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrast(a: string, b: string): number {
-  const la = luminance(a);
-  const lb = luminance(b);
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-const round = (n: number) => Math.round(n * 100) / 100;
-
-/** Clamped linear sRGB for a token, ready to composite. */
-const rgbOf = (name: string): number[] =>
-  oklchToLinearRgb(token(name)).map((v) => Math.min(Math.max(v, 0), 1));
 
 const luminanceOf = ([r, g, b]: number[]): number =>
   0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
@@ -102,29 +103,48 @@ const decode = (v: number): number =>
  * It scored `pos-g` on its own wash at 4.50 and asserted ≥4.5; the browser
  * renders 4.30. Encode, blend, decode.
  */
-const wash = (name: string, alpha: number, over: string): number[] => {
-  const fg = rgbOf(name).map(encode);
-  const bg = rgbOf(over).map(encode);
-  return fg.map((v, i) => decode(v * alpha + bg[i]! * (1 - alpha)));
-};
-
-/** Contrast between two already-composited colours. */
-function contrastOn2(a: number[], b: number[]): number {
-  const la = luminanceOf(a);
-  const lb = luminanceOf(b);
+function ratio(la: number, lb: number): number {
   const [hi, lo] = la > lb ? [la, lb] : [lb, la];
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Contrast of a token against an already-composited background. */
-function contrastOn(name: string, background: number[]): number {
-  const la = luminanceOf(rgbOf(name));
-  const lb = luminanceOf(background);
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
+/**
+ * Every measurement, bound to one ground.
+ *
+ * The helpers were free functions until 9.5 and read one palette; they are now
+ * produced per theme, so a test body written against the day board measures the
+ * night board unchanged when the loop comes round again. That is the point:
+ * the assertions did not get a dark-mode variant, they got a second ground.
+ */
+function ground(theme: Theme) {
+  /** Clamped linear sRGB for a token, ready to composite. */
+  const rgbOf = (name: string): number[] =>
+    oklchToLinearRgb(token(name, theme)).map((v) => Math.min(Math.max(v, 0), 1));
+
+  const contrast = (a: string, b: string): number =>
+    ratio(luminanceOf(rgbOf(a)), luminanceOf(rgbOf(b)));
+
+  const wash = (name: string, alpha: number, over: string): number[] => {
+    const fg = rgbOf(name).map(encode);
+    const bg = rgbOf(over).map(encode);
+    return fg.map((v, i) => decode(v * alpha + bg[i]! * (1 - alpha)));
+  };
+
+  /** Contrast between two already-composited colours. */
+  const contrastOn2 = (a: number[], b: number[]): number =>
+    ratio(luminanceOf(a), luminanceOf(b));
+
+  /** Contrast of a token against an already-composited background. */
+  const contrastOn = (name: string, background: number[]): number =>
+    ratio(luminanceOf(rgbOf(name)), luminanceOf(background));
+
+  return { rgbOf, contrast, wash, contrastOn, contrastOn2 };
 }
 
-describe("text on card stock clears AA", () => {
+for (const theme of THEMES) {
+  const { rgbOf, contrast, wash, contrastOn, contrastOn2 } = ground(theme);
+
+describe(`${theme}: text on card stock clears AA`, () => {
   // 4.5:1 is the floor for body text and for anything that tells a user what to
   // do. Every one of these renders as words on the stock ground.
   const bodyText = ["ink", "ink-soft", "ink-faint", "live"];
@@ -152,7 +172,7 @@ describe("text on card stock clears AA", () => {
   }
 });
 
-describe("text and rules on framed panel stock clear AA", () => {
+describe(`${theme}: text and rules on framed panel stock clear AA`, () => {
   for (const name of [
     "ink",
     "ink-soft",
@@ -182,15 +202,9 @@ describe("text and rules on framed panel stock clear AA", () => {
     });
   }
 
-  it("defines the framed Bank as one deeper stock with one structural rule", () => {
-    const framed = css.match(/@utility bank-framed \{([^}]*)\}/)?.[1] ?? "";
-    expect(framed).toContain("border: 1px solid var(--color-rule-strong)");
-    expect(framed).toContain("background-color: var(--color-stock-deep)");
-    expect(framed).not.toMatch(/shadow|radius|gradient/);
-  });
 });
 
-describe("the draft board's slots clear AA on their position wash", () => {
+describe(`${theme}: the draft board's slots clear AA on their position wash`, () => {
   // Slice 3.1. A filled slot is tinted by its position — `bg-pos-*/10` over
   // stock — and everything the slot says is written on that tint. These are the
   // pairings the board actually renders, so they are the ones asserted.
@@ -246,7 +260,7 @@ describe("the draft board's slots clear AA on their position wash", () => {
   });
 });
 
-describe("position washes stay legible on framed panel stock", () => {
+describe(`${theme}: position washes stay legible on framed panel stock`, () => {
   for (const position of ["pos-g", "pos-f", "pos-c"] as const) {
     const field = () => wash(position, 0.1, "stock-deep");
 
@@ -270,7 +284,7 @@ describe("position washes stay legible on framed panel stock", () => {
   }
 });
 
-describe("a position patch carries its own letter", () => {
+describe(`${theme}: a position patch carries its own letter`, () => {
   // Open question 7 left these eyeballed for two slices, and measured they were
   // failing: the patch sets its letter in the position's own colour on a 10%
   // wash of the same hue, which is the tightest pairing in the app. The letter
@@ -288,7 +302,7 @@ describe("a position patch carries its own letter", () => {
   }
 });
 
-describe("the pool's armed row", () => {
+describe(`${theme}: the pool's armed row`, () => {
   // 3.3 struck the armed row in marker — correctly, it is the one act — and put
   // the button's own marker-red label on the blush that strike brings with it.
   // Ink remains the label because the marker's two jobs are semantic, even
@@ -325,48 +339,7 @@ describe("the pool's armed row", () => {
   });
 });
 
-/**
- * The patch's field is read out of the component, not out of the stylesheet.
- *
- * Everything else in this file is a number; this one is a *shape*, and the
- * shape is the fix. A `bg-pos-<hue>` at 10% alpha is a wash, so whatever row
- * the patch sits in decides the letter's contrast — on the live blush of an
- * armed pool row that composited to 4.10–4.18:1, under the floor, on the one
- * element that exists to be the colour-blind fallback for position. An opaque
- * `color-mix(…, stock)` field cannot do that, and no arithmetic over
- * `globals.css` can tell the two apart, because the difference is in
- * `board.tsx`. So this reads the source, the way `purity.test.ts` does.
- */
-describe("a position patch brings its own field", () => {
-  const board = readFileSync(
-    resolve(process.cwd(), "src/components/board.tsx"),
-    "utf8",
-  );
-  const patchMap = /const PATCH: Record<[^>]+> = \{([\s\S]*?)\};/.exec(board);
-
-  it("the PATCH map is where this test thinks it is", () => {
-    expect(patchMap, "PATCH map not found in board.tsx").not.toBeNull();
-  });
-
-  for (const position of ["g", "f", "c"] as const) {
-    it(`pos-${position}'s field is opaque, not an alpha wash`, () => {
-      const line = patchMap![1]!
-        .split("\n")
-        .find((row) => row.includes(`text-pos-${position}`));
-      expect(line, `no pos-${position} row in PATCH`).toBeDefined();
-      expect(
-        line,
-        `bg-pos-${position}/N is an alpha wash — the row behind the patch then ` +
-          `decides the letter's contrast, which is 4.1:1 on the live blush`,
-      ).not.toMatch(new RegExp(`bg-pos-${position}/`));
-      expect(line).toContain(
-        `color-mix(in_oklab,var(--color-pos-${position})_10%,var(--color-stock))`,
-      );
-    });
-  }
-});
-
-describe("a control's own border is a boundary that means something", () => {
+describe(`${theme}: a control's own border is a boundary that means something`, () => {
   // The last thing open question 7 left eyeballed. On a button the border *is*
   // the control — no fill, no radius, and in the pool no coloured label — and a
   // patch's border is the only thing making a patch a patch rather than a
@@ -434,7 +407,7 @@ describe("a control's own border is a boundary that means something", () => {
   }
 });
 
-describe("the board's ruling is perceivable", () => {
+describe(`${theme}: the board's ruling is perceivable`, () => {
   // 3:1 is the AA floor for a meaningful non-text boundary. The rules ARE the
   // state language here: dashed means waiting, solid means filled, and if the
   // rule cannot be seen the surface has no states.
@@ -471,7 +444,7 @@ describe("the board's ruling is perceivable", () => {
   });
 });
 
-describe("the app's own voice in chat", () => {
+describe(`${theme}: the app's own voice in chat`, () => {
   // 3.5 draws a system message in `--color-rail`, which already existed as the
   // rail's own colour and had no competing job. Marker was not available: it
   // has exactly two (who is on the clock, what just landed) and DESIGN.md calls
@@ -498,7 +471,7 @@ describe("the app's own voice in chat", () => {
   });
 });
 
-describe("a control's border on the live blush, not only on stock", () => {
+describe(`${theme}: a control's border on the live blush, not only on stock`, () => {
   // 3.7's critique measured `Cancel` in the on-the-clock band at **3.03:1** —
   // clearing the 3:1 boundary floor by 0.03 — because `ink/50` loses contrast
   // on the blush relative to the 3.10:1 it gets on stock. And this file
@@ -529,17 +502,60 @@ describe("a control's border on the live blush, not only on stock", () => {
   });
 });
 
-describe("a row in your hand says so in its own material", () => {
+describe(`${theme}: a row in your hand says so in its own material`, () => {
   // 3.4b's `slot-transit`. The whole state language depends on this rule being
   // both visible and distinguishable from the four beside it, because a held
   // row is the one thing on the surface that behaves differently from every
   // other row — dragging it moves it, and tapping another row moves it there.
-
+  // The rule's *shape* is asserted once, below the theme loop; what belongs
+  // here is the only part of it a second ground can break.
   it("--color-ink clears 3:1 on stock as a boundary", () => {
     const ratio = contrast("ink", "stock");
     expect(round(ratio), `ink was ${round(ratio)}:1`).toBeGreaterThanOrEqual(3);
   });
+});
 
+describe(`${theme}: the live slot is visibly live`, () => {
+  // There is deliberately no ratio assertion on `--color-live-sunk`. It is a
+  // background against a background, so WCAG has no threshold for it, and the
+  // review agreed: the boundary is what must carry the state. What is measured
+  // is everything written on the tint.
+  it("ink stays readable on the live field", () => {
+    const ratio = contrast("ink", "live-sunk");
+    expect(
+      round(ratio),
+      `ink on live-sunk was ${round(ratio)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+}
+
+/**
+ * Below here the assertions are about **shape**, not about a ratio, so they are
+ * asked once rather than once per ground: a rule's weight, a material's
+ * uniqueness, and where a component reaches for its field.
+ */
+
+describe("the board's materials keep their shape", () => {
+  it("defines the framed Bank as one deeper stock with one structural rule", () => {
+    const framed = css.match(/@utility bank-framed \{([^}]*)\}/)?.[1] ?? "";
+    expect(framed).toContain("border: 1px solid var(--color-rule-strong)");
+    expect(framed).toContain("background-color: var(--color-stock-deep)");
+    expect(framed).not.toMatch(/shadow|radius|gradient/);
+  });
+
+  it("the live rule is heavier than every other rule", () => {
+    // The state is carried by weight as well as colour, so a 1px marker rule
+    // would be a regression even at full saturation.
+    const live = css.match(/@utility slot-live \{([^}]*)\}/)?.[1] ?? "";
+    const filled = css.match(/@utility slot-filled \{([^}]*)\}/)?.[1] ?? "";
+    expect(live).toMatch(/border-top:\s*2px solid var\(--color-live\)/);
+    expect(filled).toMatch(/border-top:\s*1px solid/);
+  });
+});
+
+describe("a row in your hand says so in its own material", () => {
   it("is 2px dashed ink — unsettled, and not the marker", () => {
     // Dashed because dashed is this system's word for unsettled, the same
     // argument `slot-standing` makes. Ink rather than marker because the marker
@@ -601,27 +617,103 @@ describe("a row in your hand says so in its own material", () => {
   });
 });
 
-describe("the live slot is visibly live", () => {
-  // There is deliberately no ratio assertion on `--color-live-sunk`. It is a
-  // background against a background, so WCAG has no threshold for it, and the
-  // review agreed: the boundary is what must carry the state. The two tests
-  // below are the ones that do the work — the 2px marker rule, and ink staying
-  // readable on the tint.
+/**
+ * The patch's field is read out of the component, not out of the stylesheet.
+ *
+ * Everything else in this file is a number; this one is a *shape*, and the
+ * shape is the fix. A `bg-pos-<hue>` at 10% alpha is a wash, so whatever row
+ * the patch sits in decides the letter's contrast — on the live blush of an
+ * armed pool row that composited to 4.10–4.18:1, under the floor, on the one
+ * element that exists to be the colour-blind fallback for position. An opaque
+ * `color-mix(…, stock)` field cannot do that, and no arithmetic over
+ * `globals.css` can tell the two apart, because the difference is in
+ * `board.tsx`. So this reads the source, the way `purity.test.ts` does.
+ *
+ * 9.5 left the `var(--color-stock)` inside that mix exactly as it was, and that
+ * is the point of it being a *token reference*: `--color-stock` is whichever
+ * ground is in force, so a patch mixed into it follows the night board without
+ * the component knowing there is one. A literal colour here would have been the
+ * thing that blocked a second theme.
+ */
+describe("a position patch brings its own field", () => {
+  const board = readFileSync(
+    resolve(process.cwd(), "src/components/board.tsx"),
+    "utf8",
+  );
+  const patchMap = /const PATCH: Record<[^>]+> = \{([\s\S]*?)\};/.exec(board);
 
-  it("the live rule is heavier than every other rule", () => {
-    // The state is carried by weight as well as colour, so a 1px marker rule
-    // would be a regression even at full saturation.
-    const live = css.match(/@utility slot-live \{([^}]*)\}/)?.[1] ?? "";
-    const filled = css.match(/@utility slot-filled \{([^}]*)\}/)?.[1] ?? "";
-    expect(live).toMatch(/border-top:\s*2px solid var\(--color-live\)/);
-    expect(filled).toMatch(/border-top:\s*1px solid/);
+  it("the PATCH map is where this test thinks it is", () => {
+    expect(patchMap, "PATCH map not found in board.tsx").not.toBeNull();
   });
 
-  it("ink stays readable on the live field", () => {
-    const ratio = contrast("ink", "live-sunk");
-    expect(
-      round(ratio),
-      `ink on live-sunk was ${round(ratio)}:1`,
-    ).toBeGreaterThanOrEqual(4.5);
+  for (const position of ["g", "f", "c"] as const) {
+    it(`pos-${position}'s field is opaque, not an alpha wash`, () => {
+      const line = patchMap![1]!
+        .split("\n")
+        .find((row) => row.includes(`text-pos-${position}`));
+      expect(line, `no pos-${position} row in PATCH`).toBeDefined();
+      expect(
+        line,
+        `bg-pos-${position}/N is an alpha wash — the row behind the patch then ` +
+          `decides the letter's contrast, which is 4.1:1 on the live blush`,
+      ).not.toMatch(new RegExp(`bg-pos-${position}/`));
+      expect(line).toContain(
+        `color-mix(in_oklab,var(--color-pos-${position})_10%,var(--color-stock))`,
+      );
+    });
+  }
+});
+
+/**
+ * Two grounds, one palette — asserted, because the failure mode here is silent.
+ *
+ * The night values are assigned in two blocks (the system preference, and an
+ * explicit choice) and a token added to one and forgotten in the other would
+ * leave a single day-board colour stranded on a dark ground: unreadable, and
+ * invisible to every ratio above, which reads the declarations rather than the
+ * mapping.
+ */
+describe("both grounds carry the same tokens", () => {
+  const TOKENS = [
+    "stock",
+    "stock-deep",
+    "ink",
+    "ink-soft",
+    "ink-faint",
+    "rule",
+    "rule-strong",
+    "rail",
+    "live",
+    "live-sunk",
+    "pos-g",
+    "pos-f",
+    "pos-c",
+  ] as const;
+
+  const assignments = (selector: string): string[] => {
+    const block = css.slice(css.indexOf(selector));
+    const body = block.slice(block.indexOf("{"), block.indexOf("}") + 1);
+    return [...body.matchAll(/--color-([a-z-]+):\s*var\(--night-([a-z-]+)\)/g)]
+      .map((match) => `${match[1]}=${match[2]}`)
+      .sort();
+  };
+
+  it("every token has a night value", () => {
+    for (const name of TOKENS) {
+      expect(() => token(name, "night"), `--night-${name} is missing`).not.toThrow();
+    }
+  });
+
+  it("the system block and the explicit block assign the same tokens", () => {
+    const system = assignments(':root:not([data-theme="light"])');
+    const explicit = assignments(':root[data-theme="dark"]');
+    expect(system).toEqual(explicit);
+    expect(system).toHaveLength(TOKENS.length);
+    // And each one points at its own night value rather than at another's.
+    for (const name of TOKENS) expect(system).toContain(`${name}=${name}`);
+  });
+
+  it("the night board declares its color-scheme, so form controls follow", () => {
+    expect(css).toMatch(/:root\[data-theme="dark"\]\s*\{\s*color-scheme: dark/);
   });
 });

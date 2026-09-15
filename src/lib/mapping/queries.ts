@@ -7,15 +7,19 @@ import { rankCandidates } from "@/lib/rosters/rename";
 import {
   codesWorthChasing,
   newestCheckBatch,
+  newsWorthChasing,
   pendingCodes,
+  pendingNewsNames,
   pendingRenames,
   type CodeBatch,
   type MappingQueue,
+  type NewsItemRow,
   type PendingCode,
   type PoolPlayerRow,
   type RenameBatch,
   type StoredCheck,
   type UnmatchedCode,
+  type UnmatchedNewsName,
 } from "./queue";
 
 /**
@@ -46,6 +50,11 @@ import {
  */
 
 export type { StoredCheck, UnmatchedCode } from "./queue";
+
+/** A published name, with the pool players it might be — 9.4. */
+export type UnmatchedNews = UnmatchedNewsName & {
+  readonly candidates: UnmatchedCode["candidates"];
+};
 
 /**
  * A stored feed check — the one named, or the newest, or null.
@@ -104,6 +113,47 @@ export async function readUnmatchedCodes(limit = 20): Promise<UnmatchedCode[]> {
 }
 
 /**
+ * Every published name the pool cannot resolve, with who it might be — 9.4.
+ *
+ * Candidates are ranked across the **whole** pool rather than narrowed by
+ * club, unlike the codes half above. A box score knows which side a line was
+ * on in the Euroleague's own vocabulary; a publisher's club names are its own
+ * ("Free Agent" is one of them), so narrowing by club here would be guessing
+ * with extra steps. Players who already have a person code are still
+ * candidates, because this attaches a publisher's slug rather than a code —
+ * there is no second-code trap to avoid.
+ */
+export async function readUnmatchedNews(): Promise<UnmatchedNews[]> {
+  const pb = await getSuperuserClient();
+
+  const [items, players] = await Promise.all([
+    pb.collection("player_news").getFullList<NewsItemRow>({
+      fields: "id,slug,name,club_name,headline,published,player,url",
+      requestKey: null,
+    }),
+    pb.collection("players").getFullList<PoolPlayerRow>({ requestKey: null }),
+  ]);
+
+  return pendingNewsNames(items).map((name) => ({
+    ...name,
+    candidates: rankCandidates(
+      normalizeName(name.name),
+      players.map((player) => ({
+        key: player.name_normalized ?? normalizeName(player.name),
+        value: player,
+      })),
+    )
+      .slice(0, 6)
+      .map((player) => ({
+        id: player.id,
+        name: player.name,
+        clubCode: player.club_code,
+        hasCode: Boolean(player.person_code),
+      })),
+  }));
+}
+
+/**
  * How much unanswered mapping work is standing — the doorbell on 4.2's queue.
  *
  * Cheap on purpose: three PocketBase reads and no network. The feed is only
@@ -126,15 +176,20 @@ export async function countMappingQueue(limit = 20): Promise<MappingQueue> {
   const pb = await getSuperuserClient();
   const season = serverConfig().EUROLEAGUE_SEASON;
 
-  const [checkBatches, codeBatches, players] = await Promise.all([
+  const [checkBatches, codeBatches, players, news] = await Promise.all([
     readCheckBatches(pb),
     readCodeBatches(pb, limit),
     pb.collection("players").getFullList<PoolPlayerRow>({ requestKey: null }),
+    pb.collection("player_news").getFullList<NewsItemRow>({
+      fields: "id,slug,name,club_name,headline,published,player,url",
+      requestKey: null,
+    }),
   ]);
 
   return {
     renames: pendingRenames(newestCheckBatch(checkBatches), players).length,
     codes: codesWorthChasing(pendingCodes(codeBatches, players), season).length,
+    news: newsWorthChasing(pendingNewsNames(news), new Date()).length,
   };
 }
 

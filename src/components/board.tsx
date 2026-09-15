@@ -15,6 +15,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ThemeControl } from "@/components/theme-control";
+
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
 
 const SLOT_RULE: Record<SlotState, string> = {
@@ -43,6 +45,11 @@ const SLOT_RULE: Record<SlotState, string> = {
 /**
  * The board's top rail. Carries the wordmark and the season, and takes one
  * slot on the right for whatever action the surface owns.
+ *
+ * Since 9.5 it also carries the ground the board is drawn on. That lives here
+ * rather than in each page's `action` for one reason: every surface has the
+ * switch, and no surface had to be edited to get it. The rail is the only thing
+ * this app renders on literally every page.
  */
 export function TopRail({ action }: { action?: ReactNode }) {
   return (
@@ -59,7 +66,10 @@ export function TopRail({ action }: { action?: ReactNode }) {
             Euroleague 2026&ndash;27
           </span>
         </div>
-        {action}
+        <div className="flex shrink-0 items-baseline gap-3">
+          <ThemeControl />
+          {action}
+        </div>
       </div>
     </header>
   );
@@ -140,11 +150,13 @@ export function Bank({
   children,
   aside,
   framed = false,
+  testId,
 }: {
   label: string;
   children: ReactNode;
   aside?: ReactNode;
   framed?: boolean;
+  testId?: string;
 }) {
   // A section with a heading it is not associated with is an unnamed region:
   // a screen reader lands in it and is told nothing, while the heading it
@@ -154,6 +166,7 @@ export function Bank({
   return (
     <section
       aria-labelledby={headingId}
+      data-testid={testId}
       data-framed={framed ? "true" : undefined}
       className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
     >

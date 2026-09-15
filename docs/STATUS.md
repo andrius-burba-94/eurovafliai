@@ -21,15 +21,40 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
-**Next up: the season, not a slice.** Every phase that is going to ship before
-E2026 has shipped — Phase 8 is closed on the box as well as in code, the
-blueprint's remaining phases are 6 (keepers, explicitly a summer-2027 feature)
-and 7 (AI, not next), and the issue tracker is empty. **E2026 tips off on
-24 September 2026**, so what is actually outstanding is a date rather than a
-ticket: the human half of 3.7 / D12 — a real draft night, with friends, on their
-own phones — has to happen before the league drafts into a season already in
-progress. Everything mechanical about that night is proven; whether it *feels*
-right is the one claim no script can make.
+**Next up: nothing mechanical — Phase 9 is closed.** What is outstanding is a
+date rather than a ticket (the real draft night, below). Phase 9 was
+five gaps measured against the official EuroLeague Fantasy Challenge **Draft
+Mode** rulebook and against comparable fantasy apps; the table below carries
+them. **9.1 has landed**: the draft pool now leads with average PIR rather than
+an unlabelled fantasy average, last season's numbers are imported from the
+official stats table, and autodraft ranks on the same figure the row shows.
+**9.2 has landed too**: the room's commissioner controls are a named, framed
+panel with per-member autodraft, a mid-draft pick clock and a real
+"Pick for them" — see D18, which takes three of D13's four cut items back.
+**9.3 has landed**: lineups and the captain, so a table finally means what the
+official game's table means — see D19, which amends D4. **9.4 has landed**:
+`players.status` finally has something writing it — the worker reads RotoWire's
+two Euroleague pages hourly, stores the fact and links out for the prose, and an
+unmatched published name becomes a mapping question rather than a dropped item.
+See D20 and [ADR-0004](adr/ADR-0004-injury-news-source.md), which narrow D5 to
+the decision it actually made. **9.5 has landed and closes the phase**: the
+board has a night ground, the system preference decides until somebody says
+otherwise, and the switch rides in the top rail on every surface. It amends
+D17's dark-mode clause rather than stepping over it — the price DESIGN.md's open
+question 5 set was that the inversion argument be re-made, and it is, in D21 and
+[ADR-0005](adr/ADR-0005-night-board.md). One design system, two grounds: every
+contrast assertion in `tokens.test.ts` now runs on both.
+
+**E2026 tips off on 24 September 2026**, so 9.1, 9.2 and 9.4 were draft-night
+critical, and 9.3 had to land before round-1 standings could be trusted.
+Alongside the slices, one thing outstanding is a date rather than a
+ticket: the human half of 3.7 / D12 — a real draft night, with friends, on
+their own phones — has to happen before the league drafts into a season already
+in progress. Everything mechanical about that night is proven; whether it
+*feels* right is the one claim no script can make.
+
+Phases 0–5 and 8 are closed; the blueprint's remaining phases are 6 (keepers,
+explicitly a summer-2027 feature) and 7 (AI, not next).
 
 The last piece of pre-season engineering is in: **4.2's quarantine now has a
 doorbell.** A manager's lobby and the pool's own mapping row both name how many
@@ -77,6 +102,118 @@ closed in product code; R1 scripts the mechanical half of 3.7 / D12. Whether
 it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
+
+## Try it on localhost — slice 9.5
+
+```bash
+npm run dev
+```
+
+Open any page and press **Night** in the top rail. The ground goes to the board
+and the ink to chalk, the rail's switch says it is pressed, and a hard reload
+lands dark **without a white flash** — the choice is applied in `<head>` before
+the first paint, not from an effect afterwards. Walk to another surface: the
+same ground, because the switch lives in the rail rather than on a page.
+
+Then the part worth checking twice. Put macOS in Dark Mode with **nothing
+chosen** in the app (press Night until the rail's toggle matches your system,
+which clears the override rather than pinning it) and reload: the app is dark
+because CSS asked, not because JavaScript ran — turn scripts off and it still
+is. Switch your system back to Light while the page sits open and it follows
+live, which is what a 21:00 tip-off actually does to a phone.
+
+Nothing else moves. Same rules, same washes, same marker with the same two jobs,
+no shadow and no glow — asserted on the night ground by
+`tests/e2e/theme.spec.ts`, and every ratio measured on both by
+`npm run test -- src/app/tokens.test.ts`.
+
+## Try it on localhost — slice 9.4
+
+```bash
+npm run dev
+npm run news:sync -- --dry   # what a pass would do, writing nothing
+npm run news:sync            # and now for real
+```
+
+Open `http://localhost:3007/players` — the pool's own row now says how many
+players are marked unavailable — and follow **Injuries and moves**. Each item is
+the fact, the date and the publisher's headline, with a **RotoWire** link for
+everything we deliberately did not copy. A player currently marked by an item is
+struck `live`; open them and the same items are on their profile.
+
+Then check the two corrections a person is needed for. **Available again** on
+the flagged list clears the status *and* spends the items, so run
+`npm run news:sync` a second time and the player stays fit — that is the part
+that stops an hourly pass undoing you. **Read the pages now** runs a pass
+without waiting for the hour.
+
+Finally open `/players/mapping`: published names the pool cannot resolve are the
+third question there, answered **by slug**, so one answer attaches every item
+about that person — including the ones that arrive next week. `NEWS_FETCH=off`
+in `.env` stops the worker's hourly read without stopping pick deadlines.
+
+## Try it on localhost — slice 9.3
+
+```bash
+npm run dev
+```
+
+In a league whose draft is complete, open **Your lineup** from the lobby.
+Thirteen rows, one role each: captain, starter, sixth man, bench, inactive —
+the multiplier is printed beside every role. The summary line under the list
+names the formation as guards-forwards-centers and refuses an illegal one
+before you submit it (try three centers in the five). Record it, then open
+**Standings**: the totals are recomputed with the captain doubled, the bench
+halved and the inactive three at zero.
+
+Then change the round to one you have not typed. It says the previous round's
+lineup is carried forward. Go back far enough and it says nothing is recorded,
+and the standings page strikes that round as a `Correction` naming it. As
+commissioner, the **Whose team** select opens anybody's lineup; a plain member
+does not see it and cannot reach another team's by URL.
+
+## Try it on localhost — slice 9.2
+
+```bash
+npm run dev
+```
+
+Roll and start a draft in a league you run, then open the room and find
+**Running the draft** — a framed panel where an unnamed cluster of buttons used
+to be. Three things to try:
+
+- **Set the clock to 20 seconds** while somebody is mid-turn. The countdown
+  restarts at 0:20 rather than jumping into the past, chat says so, and the
+  lobby's own setting has followed it.
+- **Press `Draft for them`** on another member's row. The row says the engine
+  picks for them now; with `npm run worker:dev` running, their next turn is
+  taken the moment it comes round. Press `Hand it back` to undo it.
+- **Press `Pick for <name>`** while it is somebody else's turn. It puts the
+  cursor in the pool's search box, below the sticky band — the walk a manager
+  used to make by scrolling and inferring.
+
+Then open the same room as a plain member: the panel is not there at all, and
+their own "Draft for me" still is.
+
+## Try it on localhost — slice 9.1
+
+```bash
+npm run dev
+# Once, before the draft. Last season is the only number E2026 has:
+npm run stats:prev              # 335 in the feed, 222 matched, 0 disagreements
+npm run rosters:sync            # now also lands heights, birth years, countries
+```
+
+Open a live draft room. **The pool row leads with a `PIR` column** — bold, full
+ink, right-aligned under a column head, with the games behind the average
+beside it and the fantasy average trailing as `FP`. A player nobody has data
+for reads `—` and fails every floor. Toggle `15+`: it is now a PIR floor, not a
+fantasy one. Then open `/players/<id>` for someone who played last season: a
+**Last season** bank above the game log with PIR leading, and the bio on the
+header line.
+
+`npm run stats:prev -- --check` compares the feed against our own E2025
+backfill and writes nothing; it exits non-zero if they ever disagree.
 
 ## Try it on localhost — the mapping doorbell
 
@@ -663,6 +800,27 @@ row below).
 | **8.4 Accessibility pass** | done | — | Draft room `h1` (all three band states); disarm restores focus to the armed row (cheat-sheet `focusWanted` idiom); skip link in the root layout → `#main` on `Sheet`; `@axe-core/playwright` over login, home, lobby, draft, standings (serious/critical). Clock live regions already shipped with 3.7 |
 | **8.5 Impeccable harden / onboard / adapt / audit** | done | — | A board-shaped `not-found` (missing and forbidden still look the same), Archivo loaded on `global-error` because that file replaces the root layout, a 44×44 `retry`, and `break-words` / `min-w-0` on every name that can be a long one. Empty Banks name the next act as a sibling `Door` in a `Slots` run, never a nested framed Bank, and their `data-testid` stays on the sentence so the framed-Bank E2E assertions still hold. **No tours** — PRODUCT rules out onboarding hand-holding, so first-run is the empty slot itself. English-only, so i18n and RTL were skipped deliberately and the budget went to overflow and recovery. Audit 17/20 |
 
+## Phase 9 — Official rules alignment and the five missing surfaces
+
+**In progress.** Five gaps measured against the official EuroLeague Fantasy
+Challenge **Draft Mode** rulebook and against comparable fantasy apps, sequenced
+so the draft-night-critical work lands before E2026 tips off on 24 September.
+
+The rulebook settled one thing worth recording before the table: Draft Mode "is
+the same as the Classic Mode, except… there is no head coach". So **per-player
+scoring is already exactly right** — PIR plus a 10% team-win bonus is what
+`scoreGame` computes and what 168 real E2025 rows are golden-tested against —
+and **blueprint D4 was right to cut coach scoring**. What D4 got wrong is
+**captain 2× and bench 50%**, which Draft Mode keeps; 9.3 put them back.
+
+| Slice | State | Landed | Notes |
+|---|---|---|---|
+| **9.1 Previous-season stats and PIR on every pool row** | done | — | **The pool row was showing the wrong number, unlabelled.** It printed `proj_last5_fantasy` in soft ink with no heading — fantasy points, which is PIR × 1.1 on a win — so a drafter reading `14.2` was reading a bonus-inflated figure and would reasonably take it for the PIR the league actually talks in. PIR was stored per game and **averaged nowhere**. Now `projectPlayer` returns `last5Pir` / `seasonPir` beside the fantasy pair, and **average PIR is the single ranking number**: the row headline, the `10+/15+/20+` floors, and autodraft all read it, so the eye, the filters and the worker cannot disagree. `EnginePlayer.projectedPoints` is renamed **`rankPir`** — a field called `projectedPoints` carrying PIR is the kind of name CONTEXT.md says to change rather than document. Resolution is stated once, in `averagePirOf`: **last-5 when the player has current-season games, last season otherwise**, which on draft night is uniformly last season because E2026 has no games. Prominence without breaking the Two Jobs Rule (marker red has two jobs "and no third"): a **leading, fixed-width, right-aligned column in full `text-ink`** under a `slot-label` column head, games played beside it, fantasy demoted and labelled `FP`. Measured cost on a Pixel 7: the name column goes 101px → 87px, and the games count and `FP` return at `sm`. **Last season comes from the official stats table**, a v3 bulk endpoint (`npm run stats:prev`) carrying four traps now written into the research doc — omitting `seasonMode=Single` silently returns all-time career leaders, and `statisticMode=perGame` silently drops 127 of 335 players below a 24-game qualification. Our own E2025 backfill is the cross-check and **220 of 222 matched players agreed exactly**. Bios (`height`, `weight`, `birth_date`, `country_*`) now land from the feed and show on `/players/[id]` above a last-season block. **The one-request roster endpoint was tried and rejected**: `/{season}/people?limit=1000` is a registration *history*, not a roster — see the log |
+| **9.2 Commissioner control panel** | done | — | **Three of D13's four cut items are back** (blueprint **D18**), because two of their "working paths" were claims about the server rather than a surface. The room's controls were a bare unlabelled `<div>` between "Draft for me" and the pool: no heading, no frame, nothing in the accessibility tree. Now a fourth framed `Bank` — "Running the draft" — carrying pause, the clock, autodraft per member, undo and start-over, ordered by what each costs. **Per-member autodraft** has worked server-side since 2.5 (`setAutodraft` takes a `memberId` and lets a manager set it for anybody); `getDraftView` simply never shipped anyone else's flag, so the only way to reach it was a crafted POST. Rows are in draft order, each with its own refusal. **The mid-draft clock** is the item D13 admitted carried a real correctness question, and the answer is stated once in `setPickClock`: the new deadline is **now plus the new clock**, never the pick's original start plus it — so cutting 120s to 30s cannot hand the member on the clock to the sweep. Asserted against a deadline already ten seconds in the past, which is the state that separates the two implementations; the league's own default follows the draft's, so a start-over does not quietly go back to a minute, and the change announces itself in chat because the countdown everybody is watching jumps. **"Pick for them"** existed only as the pool's Bank heading, 600px down the page; it is now a control in the panel that names whose turn it is spending and leaves the focus in the pool's search box — the radar's own reveal idiom, `href` first so it works before JavaScript. **Skip a turn is refused**, not deferred: see the debt row |
+| **9.3 Lineup and captain scoring** | done | — | **Every total the app had printed was thirteen players at 100%**, which the official game's table never is. Draft Mode is Classic Mode without the head coach, so it keeps **captain ×2 and bench ×50%** — blueprint **D19**, amending D4, which cut all three as Classic-only. New `round_lineups` (unique on league+member+season+round, one JSON `slots` field so a lineup either landed or did not) plus `lineup_template` in settings, defaulting to 5 starters + 1 sixth + 4 bench + 3 inactive. **The multiplier applies in `computeStandings`, never at ingest**: `player_game_stats.fantasy_pts` is app-global — one row serves every league — so baking a per-league captain into it would be wrong the moment two leagues arrange the same player differently, and the golden fixture never moves. Rounding is stated once, in `scaleTenths`: multiply, round half away from zero, **per player-round**, which is where halving an odd 3.3 into 1.7 would otherwise let a float into a season of sums. The pure validator refuses transcription errors rather than storing a wrong total — every id inside that round's membership windows, no duplicates, the five exactly full, and the starting five one of the **five official formations** (2-2-1, 1-2-2, 2-1-2, 1-3-1, 3-1-1 as G-F-C); the sixth/bench/inactive caps are *at most*, because 5.2's drop can legally leave a twelve-man roster and a lineup nobody could record is worse than a place left empty. **Carry-forward is the default** and an unarranged round is not silently final: a round with no lineup of its own inherits the last one recorded before it, and a round before any lineup exists is struck on the standings page as a `Correction` naming it. `bestNight` and `impactForMember` take the same weights, so the recap and a trade's delta cannot tell a different story from the table — PIR stays raw in both, because nobody played half a game. Entry at `/leagues/[id]/lineup` for the owner and, per the league's answer, for the commissioner on anyone's behalf: the league is played on the official site and typed in here afterwards |
+| **9.4 Injury and transfer news** | done | — | **`injured` was a status nothing had ever written**, and `diffRosters`' `LOCAL_STATUSES` guard had spent a phase and a half protecting a field nobody filled in. The Euroleague feed cannot help — `/injuries` and `/news` both 404, and RotoWire publishes no Euroleague RSS (`sport=EURO` is a 200 with an empty body while `sport=NBA` works) — so 9.4 reads their two HTML pages. **D5 is narrowed, not stepped over**: it refused scraping *stats*, because the official API answers that completely; availability is a question it does not answer at all. See **D20** and [ADR-0004](adr/ADR-0004-injury-news-source.md). What is stored is the **fact and a link** — player, body part, what the item asserts, the date, their headline, their URL — and `rotowire.test.ts` asserts no stored field contains their paragraph. **The page's own `is-injured` marking is the only classifier**: keywords fail in both directions on one screen ("Jumps to Partizan" is a transfer on the injuries view, "Taking part in workouts" a recovery note for a player still hurt). Each view returns the latest **25 updates, not a census**, so a pass may **raise a flag and never clear one**, and only items published within **21 days** may move a status — the first real pass reached back to 8 June. `applied` is what makes a commissioner's "Available again" stick: without it the next hourly pass re-flags them from the same item, so `markPlayerFit` spends the items first and clears the status second. Matching published names is the whole difficulty and 4.2 had already solved it — clubs register passport names (`Lessort, Mathias Michel`) and publishers write common ones (`Mathias Lessort`), so reusing `looksLikeRename`'s token containment took the live pages from **27 of 48 items unattached to 11**, and all eleven are real questions that go into the mapping queue, answered **by slug** so one answer covers every future item. Hourly, on the worker's own third guard, `NEWS_FETCH=off` to stop it |
+| **9.5 The night board** | done | — | **A second ground, and only a ground.** It contradicts D17's dark-mode clause head-on, so it opens by paying the price DESIGN.md's open question 5 set — the inversion argument is **re-made** rather than quietly dropped: the day board inverts the physical object *for the light it is read in*, and Euroleague tips at 20:00 and 21:00 CET, so by day the card is the ground and by night the board is. What the direction contract actually refuses — the near-black surface with one glowing accent — is untouched and still asserted. Blueprint **D21** and [ADR-0005](adr/ADR-0005-night-board.md). **The system preference decides in CSS**, so a reader with JavaScript off lands where their phone asked and an OS that switches at tip-off reaches a page already open; a ~200-byte script in `<head>` applies an explicit override **before first paint**, because a theme applied from an effect is a white page flashed at somebody in a dark room. Choosing what the system already wants **clears** the override, or "follow my phone" becomes something you get back by clearing site data. The control is the existing `FilterToggle` in the top rail — DESIGN.md's settled answer for a two-state control, a button with `aria-pressed` carrying its state in its own rule — so it reached every surface without editing a page, and a sun/moon icon would have been a new idiom and a new material in one step. **The test file was the design constraint**: `tokens.test.ts` reads the *first* `--color-X` declaration in `globals.css`, so a palette that overrode those names in place would have measured the day board twice and dark mode would have shipped unmeasured. The night values are therefore declared as `--night-*`, pointed at `--color-*` from two blocks whose token lists are asserted identical, and the suite is parameterized by ground: **122 assertions, every ratio asked twice**. Each value was solved against the day board's own **margin** rather than picked — soft ink 5.79:1 where day is 5.77, marker 5.10 against 5.06, rail 5.05 against 5.05, the rules 3.35/4.40 against 3.36/4.40 — because a dark theme whose quiet inks read at 8:1 has no quiet, it has two shouts, and hierarchy here is carried in ink strength. `board.tsx`'s patch field needed no change: it mixes into `var(--color-stock)`, a *token reference*, so it follows the ground without the component knowing there is a second one |
+
 ## Phases 5–8
 
 | Phase | State |
@@ -727,9 +885,19 @@ touch should be fixed by that slice rather than deferred again.
 | **The design detector cannot see this app's real risks** | Four runs now have reported zero findings on the surfaces under review, and 3.4b's pass re-traced the regex engine's own module graph to put a firmer number on it: **18 of the registry's 59 rules can fire on a `.tsx` file, so 41 cannot.** This number has now been derived twice and the second method is the one to trust: 3.5's pass cross-referenced the rule ids the regex engine actually references against `ANTIPATTERNS` and **enumerated all 18** (`side-tab, border-accent-on-rounded, overused-font, flat-type-hierarchy, gradient-text, ai-color-palette, monotonous-spacing, bounce-easing, dark-glow, radial-halo, marquee, em-dash-overuse, marketing-buzzword, aphoristic-cadence, broken-image, gray-on-color, layout-transition, codex-grid-background`). Earlier passes guessed "37 of 59 never execute" and then "~15 can fire"; an enumeration beats both. On `.tsx` input only the regex engine runs — including `low-contrast`, `tiny-text`, `undersized-ui-text`, `all-caps-body`, `wide-tracking` and `text-overflow`, which are precisely this system's failure modes. The static-HTML engine needs `htmlparser2`/`css-select`/`css-tree`/`domutils` and the browser engine needs `puppeteer`; none is installed, and `.tsx` would not route to them anyway. `design-system-radius` also cannot read Tailwind `rounded-*` in source. A clean `design-detect` in CI means "no purple gradients and no bounce easing", which was never the risk here — every real finding in three critiques came from measurement or from reading. Worth knowing before anybody trusts that green tick | Nothing; but the CI check is far weaker evidence than it looks |
 | **A radar row cannot reach that member's column** | The last open finding from 3.2's critique, and the only one not fixed. The radar answers "who needs a center" and the board answers "what did they take" — and getting from a name on one to a column on the other means scrolling the board sideways by hand. An enhancement rather than a defect, and it wants a decision first: whether a radar row is a link at all, given the board is a horizontally scrolling region and this system has no idiom for "scroll that thing to here" | Nothing; two surfaces that answer adjacent questions do not connect |
 | **A board wider than about six members scrolls on a desktop too** | Accepted with the layout decision (DESIGN.md, open question 4): one scrolling region everywhere rather than a second container width for one route. At the real league's size the columns share the width they have; at twelve members a laptop scrolls sideways like a phone. Recorded because the alternative — a wider container and a new breakpoint — is a real option somebody may want later, not an oversight | Nothing; a decision, logged so it can be revisited |
-| **Autodraft ranks unsheeted members by last-5** | Closed in 4.4. A member with a sheet is still picked from the sheet first. A member with no played games in the projected season still ties on player id | Nothing |
-| **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. Standings now filter by phase; last-5 on the pool still does not. A September ranking built from last season therefore uses late-playoff form for anyone who was still playing in May | Nothing; a known skew on the preseason ranking |
-| **A third of the pool has no projection at all on draft night** | Measured on a full E2025 backfill (6,902 game lines, 0 corrections) against the live E2026 pool: **222 of 326 active players carry a last-5, and 104 do not.** 22 of those have no `person_code` yet, so nothing can attach; the other 82 have a code and simply did not play a Euroleague game last season — arrivals from the NBA, from domestic leagues, and young players being promoted. Autodraft treats a missing projection as worse than −2, and the pool's 10+/15+/20+ filters drop them, so **a genuine signing ranks below a fringe player who logged garbage minutes in May**. This is not a bug in 4.4 — it is what ranking a new season on an old one means — but it is the strongest argument for writing a cheat sheet before draft night, because a sheet is read before any projection is | Nothing mechanical; it distorts the *first* draft and nothing after it |
+| **Autodraft ranks unsheeted members by last-5** | Closed in 4.4, and **re-pointed in 9.1**: the ranking number is now average PIR rather than a fantasy average, which is the number the pool displays and the league talks in. A member with a sheet is still picked from the sheet first, `isLegalPick` still refuses a pick into a full G/F/C bucket, and a player with no games anywhere still ties on player id | Nothing |
+| **Last-5 of a full E2025 backfill includes the Final Four** | 4.4 averages every stored phase of the season it is pointed at. Standings now filter by phase; last-5 on the pool still does not. **Mostly defused by 9.1**, which makes the *previous-season* average the draft-night headline and only falls back to last-5 once a player has current-season games — so the late-playoff skew no longer decides a draft. The feed's own season average spans the same phases (`gamesPlayed` reaches 44), so the two agree by construction. What is unfixed is mid-season: from October, last-5 across a phase boundary still mixes RS and playoff form | Nothing; a known skew, now only during the season |
+| **A turn cannot be skipped** | Argued against rather than deferred, in 9.2 (blueprint **D18**), and recorded here because it is the one thing a commissioner may go looking for in the new panel and not find. A skip leaves a hole in the order: `buildPickOrder` builds a contiguous run of slots and `isDraftComplete` counts them, so a permanently empty slot is a draft that can never finish — and the sweep's own board-hole repair would start reporting a draft it cannot move. The two cases a skip is reached for both already have controls beside it: **autodraft** takes the absent member's turns as they come, and **"Pick for them"** enters a pick for whoever is on the clock. What is genuinely missing is only the case where a league wants somebody to draft *fewer than thirteen* players, which nothing in this app supports anyway | Nothing; a hole in the board is worse than a slow turn |
+| **An injury flag never expires on its own** | 9.4 may raise a flag and may never clear one, because both RotoWire views carry the latest 25 *updates* rather than a census of who is hurt — a player disappearing from them is not evidence of anything. So a player who quietly recovers stays marked until somebody presses **Available again** on `/players/news`. Two candidate fixes, neither chosen: an age-out (a flag older than N days stops warning), which invents a recovery date the source never gave; or a second source that publishes a *current* injury list, which is a new ADR and a new parser. The commissioner button is the honest version and it is one press | Nothing mechanical; a stale "injured" beside a fit player until somebody says otherwise |
+| **The news parser breaks when somebody else's markup does** | `rotowire.ts` reads class hooks (`news-update`, `news-update__playerhead`, `is-injured`) from pages we do not control. A rename makes a pass parse **zero** items, which is why zero is reported as a problem rather than logged as a quiet success — it shows in the worker log, in `npm run news:sync -- --dry` and in the commissioner's "Read the pages now". The saved markup in `src/lib/news/fixtures/` is what a fix is written against. What is *not* detectable is a subtler change — a body part moving to another element — which would show up as items losing a field rather than as an error | Nothing else; the news stops, and the app does not |
+| **`pool.spec.ts` flakes on counts, and passes on retry** | Eight of the suite's 430 tests, all in one file, all green on the first retry — measured on a fresh build, so it is not the dev server's route compilation. The shape is always the same: a filter that should leave one row resolves three. The pool is **app-global** and these specs scope themselves with `TEST_CLUB`, a club code randomised once per *worker process* and therefore shared by every test that worker runs; `cleanupTestData` runs `afterEach` and deletes what it recorded. So a player the cleanup could not delete — or a run that aborted mid-draft — is still in that worker's club when the next test filters it, and the count is off by exactly the leftovers. Not caused by 9.5, and visible since 9.4's specs joined the file's neighbourhood. The fix is a club **per test** rather than per worker, which touches every helper in `pool.spec.ts`; recorded rather than done because CI's one retry hides it and a rushed change here breaks the file that catches real pool regressions | Nothing in the app; a retry in CI, and a count assertion that cannot be trusted on a first run |
+| **The night switch corrects itself after hydration** | The *page* never flashes — 9.5's script sets `data-theme` in `<head>` before the first paint. The control's own `aria-pressed` is another matter: it is rendered from the server's snapshot, which has no `localStorage` and no media query, so on a night phone it is drawn unpressed and flips when React arrives. Rendering nothing until mount was the alternative, and it moves the rail as every page loads, which is worse on the surface that is on every page. A cookie read in the root layout would fix it properly and makes every route dynamic for one attribute | Nothing mechanical; the toggle's label can be wrong for one frame while the ground it reports is already right |
+| **Every new colour now has to clear two grounds** | Not a defect and not deferrable — the standing cost of 9.5, written down so the next person meets it before CI does. `tokens.test.ts` loops over `day` and `night`, so a token added to one palette fails the other's ratio assertions *and* the block that asserts both mapping lists are identical. The same applies to anything visual done by eye: a screenshot is now two screenshots | Nothing; a doubled check on every colour change |
+| **Nothing writes `lineup_template`** | 9.3 reads the lineup shape from league settings — 5 starters, 1 sixth, 4 bench, 3 inactive — and no surface sets it, exactly like `roster_template`, which has been read-from-settings and never written since 2.2. So every league runs the official shape, which is the shape every league wants. The check that matters is enforced where it bites: `recordLineup` refuses when the lineup template and the roster template disagree, rather than a schema refinement that would quietly reset *every* other setting to its default on one bad number | Nothing today; a league that wanted an 11-man roster would need the setting written before its lineups made sense |
+| **A lineup is per round and typed by hand** | 9.3's entry surface takes one round at a time, because that is how the official site is read: somebody looks at a past round and copies what it says. There is no "apply this to every remaining round" and no import. Carry-forward covers the common case — arrange once and it holds until you change it — but a league correcting ten past rounds types ten lineups | Nothing; ten rounds of typing rather than one |
+| **The official 6-players-from-one-club limit is not enforced** | The Draft Mode rulebook caps a roster at six players from any one EuroLeague club, and `isLegalPick` only knows the G/F/C roster template. So the app will happily let somebody draft seven Olympiacos players and the official site would refuse the same squad. Found while reading the rulebook for Phase 9 and deliberately not built into 9.1, which is about what a row *shows* rather than what a pick may be — it belongs with the engine's legality rules and wants `buildPickOrder`-grade tests across formats | Nothing mechanical; a league that mirrors the official site could build a squad the site rejects |
+| **Trades are not confined to commissioner-opened windows** | The official rules only allow trades in windows between rounds; our `transactions` accept any `from_round`. 5.2's "record, do not broker" stance makes this less severe than it sounds — a commissioner is typing in what already happened — but nothing stops a deal being recorded into a round that was already played | Nothing; the commissioner is the window |
+| **A third of the pool has no projection at all on draft night** | Measured on a full E2025 backfill (6,902 game lines, 0 corrections) against the live E2026 pool, and **re-measured unchanged after 9.1 imported last season from the official feed: 222 of 326 active players carry an average PIR, and 104 do not.** 22 of those have no `person_code` yet, so nothing can attach; the other 82 have a code and simply did not play a Euroleague game last season — arrivals from the NBA, from domestic leagues, and young players being promoted. Autodraft treats a missing projection as worse than −2, and the pool's 10+/15+/20+ filters drop them, so **a genuine signing ranks below a fringe player who logged garbage minutes in May**. This is not a bug in 4.4 — it is what ranking a new season on an old one means — but it is the strongest argument for writing a cheat sheet before draft night, because a sheet is read before any projection is | Nothing mechanical; it distorts the *first* draft and nothing after it |
 | **No path from the pool *into* a sheet** | What is left of 3.4a's central critique finding after 3.4b closed two thirds of it. A sheet can now be reordered and a player removed from it, but the only way to *add* somebody is still to paste a list — there is no "put this player on my sheet" from the pool or from the room. It needs a picker over 323 players and a decision about where it lives, so it is its own piece of work rather than a rough edge | Nothing; a sheet can still be built, just not incrementally |
 | **A sheet still cannot be edited from inside the room** | The third thing blueprint 3.4 asks for, and the only part of that line still unmet: "editable before *and during* the draft in a sidebar". It is a page, and the room links to it and pins the best three from it. On a phone that is arguably the right answer — this app is one column and a sixty-row list does not sit beside a board — but it is a divergence rather than a finished thought | Nothing; the sheet is reachable mid-draft, just not beside the board |
 | **An unmatched cheat-sheet line cannot be fixed in place** | The confirm step offers a choice for an *ambiguous* line, because it has two or three real candidates to offer. A line the pool has never heard of gets a message telling you to fix the spelling and read the list again — which is now cheap, because the box holds your sheet as editable text. A `<select>` over all 323 players per unmatched line was the obvious alternative and was rejected on weight: twenty unmatched lines would ship 6,460 options to a phone | Nothing; a rough edge on the least common path |
@@ -755,10 +923,10 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run lint` | pass |
 | `npm run lint:dead` | pass — knip reports no unused files, exports or dependencies |
 | `npm run typecheck` | pass |
-| `npm run test` | **1021 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season projection arithmetic, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, and the mapping queue's filters and sentence |
+| `npm run test` | **1219 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season / PIR projection arithmetic and the previous-season import, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, the mapping queue's filters and sentence, the pure lineup validator and the weights standings apply, and the news parser, plan, store and pass — the parser against saved markup rather than the live site. Since 9.5 the 122 design-token assertions are asked of **both grounds**, and the theme's own resolve/override rules are unit-tested including the `<head>` script's behaviour |
 | `npm run build` | pass |
-| `npm run test:e2e` | Roster page + access boundary, standings one-round, and start-over membership cleanup pass on chromium and Pixel 7. Full suite in CI |
-| `npm run pb:verify` | **126 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, and superuser-only writes |
+| `npm run test:e2e` | **421 passed, 1 skipped, 8 flaky** on chromium and Pixel 7 — the whole suite, run locally the way CI runs it (`CI=1 E2E_PORT=3011`, against `next start` over a fresh build). Every flake is in `pool.spec.ts` and every one passed on retry; see the debt row below for what is actually leaking. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
+| `npm run pb:verify` | **148 checks pass** — including unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, unique `(league, member, season, round)` on lineups, unique `(source, source_key)` on news items, and superuser-only writes |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs at the last run. The feed moves; do not treat the count as a constant |
 

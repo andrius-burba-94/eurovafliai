@@ -48,6 +48,32 @@ const COMPARED = [
   "dorsal",
 ] as const;
 
+/**
+ * Bio fields, diffed under a weaker rule than the ones above — 9.1.
+ *
+ * The roster feed carries height, weight, birth date and nationality; a
+ * commissioner's CSV carries none of them. Under the `COMPARED` rule that
+ * asymmetry would be destructive: every CSV import would see `undefined`
+ * against a stored 198 and record it as a change, so running the fallback door
+ * once would strip the bio off all 324 players.
+ *
+ * So the rule here is **fill and update, never blank**. An import that does not
+ * mention a field leaves it alone. That is the same instinct as the
+ * `LOCAL_STATUSES` protection directly below — a source may only overwrite
+ * with knowledge, never with its own ignorance.
+ */
+const BIO = [
+  "height",
+  "weight",
+  "birth_date",
+  "country_code",
+  "country_name",
+] as const;
+
+/** Absent, or the empty value PocketBase stores an unset column as. */
+const unknown = (value: string | number | undefined): boolean =>
+  value === undefined || value === "" || value === 0;
+
 const nameClubKey = (row: { name_normalized: string; club_code: string }) =>
   `${row.name_normalized}|${row.club_code}`;
 
@@ -133,6 +159,18 @@ export function diffRosters({
     for (const field of COMPARED) {
       if (row[field] !== match[field]) record(field);
     }
+
+    // Generic for the same reason `record` above is: indexing with a union of
+    // keys on the *assignment* side collapses the value type to the
+    // intersection of all five, which is `undefined`.
+    const recordBio = <K extends (typeof BIO)[number]>(field: K): void => {
+      const value = row[field];
+      if (unknown(value) || value === match[field]) return;
+      fields[field] = value;
+      before[field] = match[field] ?? null;
+    };
+
+    for (const field of BIO) recordBio(field);
 
     // A code is only ever filled in, never blanked and never swapped.
     if (row.person_code && !match.person_code) {

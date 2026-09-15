@@ -34,6 +34,11 @@ import { FEED_BASE, type FeedFetch, getFeedJson, sleep } from "@/lib/euroleague/
 
 import { type ParsedStatRow, type Phase, PHASES, phaseForRound } from "./csv";
 import { type BoxScore, scoreGame } from "./scoring";
+import {
+  type SeasonAverages,
+  seasonAveragesFrom,
+  seasonTotalsUrl,
+} from "./season-totals";
 
 /** Politeness gap between game requests, as the roster sync does per club. */
 const REQUEST_GAP_MS = 150;
@@ -172,6 +177,28 @@ export async function fetchSeasonSchedule({
     roadScore: game.road.score ?? 0,
     utcDate: game.utcDate ?? null,
   }));
+}
+
+/**
+ * A whole season's per-game averages, in one request.
+ *
+ * The parameters that make this the season rather than all-time, and the
+ * reason it asks for totals and divides them itself, are argued in
+ * `season-totals.ts`. An empty list is a real answer — a season answers
+ * `total: 0` until its first game is played — so callers report it rather
+ * than retrying.
+ */
+export async function fetchSeasonAverages({
+  season,
+  doFetch = fetch,
+  onProgress,
+}: {
+  season: string;
+  doFetch?: FeedFetch;
+  onProgress?: (message: string) => void;
+}): Promise<SeasonAverages[]> {
+  const body = await getFeedJson(seasonTotalsUrl(season), doFetch, onProgress);
+  return seasonAveragesFrom(body);
 }
 
 export type FetchedGame = {

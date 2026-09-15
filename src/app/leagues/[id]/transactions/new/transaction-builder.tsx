@@ -46,7 +46,13 @@ function asPool(agents: readonly FreeAgent[]): PoolPlayer[] {
     status: "active",
     takenBy: null,
     takenAt: null,
-    projectedLast5: null,
+    // A free-agent picker searches and filters by name, club and position; it
+    // has no PIR column and no floors, so there is nothing to carry here.
+    averagePir: null,
+    averageGames: 0,
+    averageSource: null,
+    averageSeason: null,
+    averageFantasy: null,
   }));
 }
 

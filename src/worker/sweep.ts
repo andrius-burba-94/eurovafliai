@@ -23,7 +23,7 @@ import {
   type Position,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
-import { projectedPointsFromRecord } from "@/lib/stats/project";
+import { rankPirFromRecord } from "@/lib/stats/project";
 import { readSheet } from "@/lib/sheets/store";
 
 /**
@@ -401,9 +401,13 @@ async function sweepDraft(
  * The `sort` is for the log and for a readable database read; it does **not**
  * decide the pick. A member with a cheat sheet (3.4) is picked for from their
  * own ranking; below it, and for a member without one, `selectAutoPick` falls
- * through to last-5 projection rank and finally to its own total tiebreak,
- * the player id. A pool with no played games still ties on id, which is
- * identical on every replay.
+ * through to average PIR and finally to its own total tiebreak, the player id.
+ * A pool with no played games still ties on id, which is identical on every
+ * replay.
+ *
+ * The four projection fields are read rather than just the last-5 pair,
+ * because `rankPirFromRecord` falls back to last season for a player with no
+ * games this one — which, on draft night, is every player.
  */
 async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
   const players = await pb
@@ -412,20 +416,22 @@ async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
       id: string;
       name: string;
       position: Position;
-      proj_last5_fantasy?: number;
       proj_last5_games?: number;
+      proj_last5_pir?: number;
+      prev_season_games?: number;
+      prev_season_pir?: number;
     }>({
       filter: DRAFTABLE_PLAYERS_FILTER,
       sort: "name",
       requestKey: null,
     });
   return players.map((player) => {
-    const projectedPoints = projectedPointsFromRecord(player);
+    const rankPir = rankPirFromRecord(player);
     return {
       id: player.id,
       name: player.name,
       position: player.position,
-      ...(projectedPoints === undefined ? {} : { projectedPoints }),
+      ...(rankPir === undefined ? {} : { rankPir }),
     };
   });
 }

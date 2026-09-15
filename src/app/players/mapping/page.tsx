@@ -2,7 +2,11 @@ import { notFound, redirect } from "next/navigation";
 
 import { BackLink, Sheet, TopRail } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
-import { readLatestCheck, readUnmatchedCodes } from "@/lib/mapping/queries";
+import {
+  readLatestCheck,
+  readUnmatchedCodes,
+  readUnmatchedNews,
+} from "@/lib/mapping/queries";
 import { canManageRosters } from "@/lib/rosters/actions";
 
 import { MappingSurface } from "./mapping-surface";
@@ -15,7 +19,10 @@ import { MappingSurface } from "./mapping-surface";
  * - the feed has re-registered a stored player under a different name, so a
  *   sync would split one human into a departure and a duplicate;
  * - a box score names a person code the pool has never heard of, so those
- *   points have nowhere to land.
+ *   points have nowhere to land;
+ * - **9.4:** a publisher names an injured player the pool cannot resolve, so
+ *   an injury lands nowhere. Same question, third direction — and it is here
+ *   rather than on the news board because answering it is the same act.
  *
  * The blueprint calls this "a light verification pass", which it was expected
  * to be — 2.1 syncs `person_code` on day one, so joins are exact by id. What
@@ -42,9 +49,10 @@ export default async function MappingPage({
   // one by link is worth having on its own — and "the newest" is app-global,
   // which is a property tests cannot work around.
   const { check } = await searchParams;
-  const [unmatched, lastCheck] = await Promise.all([
+  const [unmatched, lastCheck, news] = await Promise.all([
     readUnmatchedCodes(),
     readLatestCheck(typeof check === "string" ? check : undefined),
+    readUnmatchedNews(),
   ]);
 
   return (
@@ -56,14 +64,19 @@ export default async function MappingPage({
             Player mapping
           </h1>
           <p className="text-ink-soft">
-            Two things end up here: a player the feed now calls something else,
-            and a person code from a box score that matches nobody. Both are
-            questions about whether two records are one person, and neither is
+            Three things end up here: a player the feed now calls something
+            else, a person code from a box score that matches nobody, and a name
+            in the injury news the pool does not answer to. All three are
+            questions about whether two records are one person, and none is
             answered without you.
           </p>
         </div>
 
-        <MappingSurface unmatched={unmatched} lastCheck={lastCheck} />
+        <MappingSurface
+          unmatched={unmatched}
+          lastCheck={lastCheck}
+          news={news}
+        />
       </Sheet>
     </>
   );

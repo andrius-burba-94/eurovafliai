@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { archivo } from "@/app/font";
+import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -59,7 +60,24 @@ const DIRECTION_CONTRACT = `<!--
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    // `suppressHydrationWarning` for one attribute and one only: the script
+    // below writes `data-theme` on this element before React sees the document,
+    // so the server's markup and the browser's differ by design.
+    <html
+      lang="en"
+      className={`${archivo.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Before the first paint, not after hydration — 9.5. A theme applied
+            from an effect is a white page flashed at somebody in a dark room,
+            and on a phone on draft night that is the whole of the feature
+            failing. It is deliberately tiny and applies an explicit override
+            only: the system preference is CSS's job (`prefers-color-scheme`),
+            which is what keeps a reader with JavaScript off on the ground their
+            phone asked for. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-stock text-ink">
         <div hidden dangerouslySetInnerHTML={{ __html: DIRECTION_CONTRACT }} />
         {/* First focusable control in the document. Off-screen until focused,

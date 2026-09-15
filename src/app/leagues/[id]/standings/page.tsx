@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import {
   BackLink,
   Bank,
+  Correction,
   Door,
   EmptyNotice,
   Sheet,
@@ -16,6 +18,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { readProvisionalRounds } from "@/lib/lineups/queries";
 import { readStandingsSnapshots } from "@/lib/stats/queries";
 
 import { StandingsTable } from "./standings-table";
@@ -48,6 +51,28 @@ export default async function StandingsPage({
   const snapshots =
     data.league.status === "season"
       ? await readStandingsSnapshots(id, season)
+      : [];
+
+  // A round nobody has arranged counted every player at 100%, which is not
+  // what the official game would have printed. Named rather than left to look
+  // final — slice 9.3.
+  //
+  // Only the teams the table actually ranks are asked: a member with no roster
+  // has no total a lineup could change, and counting them would strike every
+  // round of every league forever.
+  const rankedMembers = [
+    ...new Set(
+      snapshots.flatMap((snap) => snap.table.map((row) => row.memberId)),
+    ),
+  ];
+  const provisional =
+    snapshots.length > 0
+      ? await readProvisionalRounds({
+          leagueId: id,
+          season,
+          rounds: snapshots.map((snap) => snap.round),
+          memberIds: rankedMembers,
+        })
       : [];
 
   const names = Object.fromEntries(
@@ -112,12 +137,25 @@ export default async function StandingsPage({
             </Slots>
           </Bank>
         ) : (
-          <StandingsTable
-            snapshots={snapshots}
-            names={names}
-            leagueId={id}
-            season={season}
-          />
+          <>
+            {provisional.length > 0 ? (
+              <Correction testId="standings-provisional">
+                {provisional.length === 1
+                  ? `Round ${provisional[0]} counted every player at 100%: no lineup has been recorded for it.`
+                  : `Rounds ${provisional.join(", ")} counted every player at 100%: no lineup has been recorded for them.`}{" "}
+                <Link href={`/leagues/${id}/lineup`} className="underline">
+                  Set a lineup
+                </Link>{" "}
+                and the table is recomputed.
+              </Correction>
+            ) : null}
+            <StandingsTable
+              snapshots={snapshots}
+              names={names}
+              leagueId={id}
+              season={season}
+            />
+          </>
         )}
       </Sheet>
     </>
