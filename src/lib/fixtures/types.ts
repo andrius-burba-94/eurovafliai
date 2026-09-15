@@ -16,4 +16,16 @@ export type PlayerFixture = {
   readonly nextOpponent: string;
   /** Two games in one round — the reason anybody starts a marginal player. */
   readonly doubleRound: boolean;
+  /**
+   * How hard the next game looks, as a word rather than a number or a colour.
+   *
+   * Three buckets and not five, because the schedule's own scores are the only
+   * evidence available and they do not support finer grading than "this club
+   * has been beating people". A word for the reason every signal here is a word:
+   * a green-amber-red dot is undecodable to 8% of the men in this league without
+   * a legend, and the Letter-Always Rule already settled that argument.
+   *
+   * Absent until 10.7 derives it, like the rest of this type.
+   */
+  readonly difficulty?: "easy" | "even" | "hard" | null;
 };

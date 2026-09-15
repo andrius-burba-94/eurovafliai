@@ -13,6 +13,7 @@ import {
   PositionPatch,
   Sheet,
   Slots,
+  Sparkline,
   TopRail,
 } from "@/components/board";
 import { RosterRadar } from "@/components/roster-radar";
@@ -155,6 +156,15 @@ export default async function TeamPage({
                       </span>
                     ) : null}
                   </Link>
+                  {/* Drawn at every width here, unlike the pool row: a block has
+                      vertical room where a 390px ledger row has none, which is
+                      most of the argument for blocks on this surface. */}
+                  <Sparkline
+                    values={player.last5Pirs}
+                    what="PIR"
+                    className="flex h-4 w-[3.125rem] text-ink-soft"
+                    testId="roster-spark"
+                  />
                   <FixtureNote fixture={player.fixture} />
                 </CardBlock>
               ))}

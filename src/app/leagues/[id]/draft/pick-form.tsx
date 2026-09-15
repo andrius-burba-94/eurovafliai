@@ -10,6 +10,7 @@ import {
   PositionPatch,
   Slot,
   Slots,
+  Sparkline,
   inputStyles,
   selectStyles,
 } from "@/components/board";
@@ -17,6 +18,7 @@ import {
 import { useArmedPick } from "./armed-pick";
 import type { DraftView } from "@/lib/drafts/queries";
 import type { Position } from "@/lib/engine";
+import { useHydrated } from "@/lib/hydrated";
 import { formatTenths } from "@/lib/stats/scoring";
 import {
   NO_FILTERS,
@@ -253,6 +255,8 @@ export function PickForm({
   const [keyboardUsed, setKeyboardUsed] = useState(false);
   /** The list has been asked for more than its resting eight rows. */
   const [expanded, setExpanded] = useState(false);
+  /** Surfaced on `pool-ready`, below, where the reason lives. */
+  const poolReady = useHydrated();
 
   // Built against the pool array, not on every keystroke: fuse builds its index
   // up front, and rebuilding it per character is the one way to make a 324-row
@@ -783,6 +787,18 @@ export function PickForm({
         {listSaid}
       </p>
 
+      {/* Has the pool hydrated? The filters are client state, so the controls
+          are in the streamed HTML — clickable, selectable — before a single
+          handler is attached, and a filter toggled in that window narrows
+          nothing. `sheet-list.tsx` lost the same race with keystrokes and
+          answered it the same way: an attribute with no appearance, so a spec
+          waits for a fact instead of a duration. */}
+      <span
+        data-testid="pool-ready"
+        data-ready={poolReady ? "true" : "false"}
+        className="sr-only"
+      />
+
       {/* A column head, so the figures are named rather than inferred.
           
           `slot-label` because DESIGN.md already assigns column heads to it —
@@ -921,6 +937,21 @@ export function PickForm({
                     {`FP ${formatTenths(player.averageFantasy)}`}
                   </span>
                 ) : null}
+                {/* Form, behind the number it qualifies — and `sm` and up only,
+                    on exactly the budget the fantasy average above it is held
+                    to. The measurement in `PIR_COLUMN` is what makes this a
+                    rule rather than a preference: the name absorbs the whole
+                    deficit on a 390px row and is already down to 87px, so a
+                    50px cell here would take a third of what is left of a
+                    surname. The average and its games count both survive at
+                    every width; the *shape* of the last five is the thing a
+                    phone can do without. */}
+                <Sparkline
+                  values={player.last5Pirs}
+                  what="PIR"
+                  className="hidden h-4 w-[3.125rem] shrink-0 text-ink-soft sm:inline-flex"
+                  testId="pool-spark"
+                />
                 <PositionPatch position={player.position} />
                 {/* Every one of these is a word, not a colour. */}
                 {player.status !== "active" ? (

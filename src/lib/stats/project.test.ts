@@ -4,6 +4,7 @@ import {
   LAST5,
   averageFantasyOf,
   averagePirOf,
+  last5SeriesOf,
   projectPlayer,
   rankPirFromRecord,
   type PlayerGameLine,
@@ -22,6 +23,10 @@ const EMPTY = {
   last5Fantasy: 0,
   last5Games: 0,
   last5Pir: 0,
+  // An empty array, not `[0]` and not absent: a series has no games count of
+  // its own, so this is the only thing that keeps "never played" distinguishable
+  // from "played five and scored nothing".
+  last5Pirs: [],
   seasonFantasy: 0,
   seasonGames: 0,
   seasonPir: 0,
@@ -33,6 +38,41 @@ describe("projectPlayer", () => {
     expect(
       projectPlayer([line({ timePlayed: 0, fantasyTenths: 999, pir: 99 })]),
     ).toEqual(EMPTY);
+  });
+
+  it("keeps the series the same length as the games it averaged", () => {
+    // The invariant the migration states: `proj_last5_pirs.length ===
+    // proj_last5_games`. Without it the sparkline can draw a mark the average
+    // never counted, and the two numbers on one row start disagreeing.
+    const out = projectPlayer([
+      line({ round: 1, pir: 4 }),
+      line({ round: 2, pir: 18, timePlayed: 0 }),
+      line({ round: 3, pir: 9 }),
+      line({ round: 4, pir: 22 }),
+    ]);
+    expect(out.last5Pirs).toEqual([4, 9, 22]);
+    expect(out.last5Pirs).toHaveLength(out.last5Games);
+  });
+
+  it("keeps the series oldest-first and capped at five", () => {
+    const out = projectPlayer(
+      [3, 7, 11, 2, 19, 25].map((pir, index) =>
+        line({ round: index + 1, pir }),
+      ),
+    );
+    // The first game drops off the front, not the back: a sparkline read
+    // right-to-left is the same picture upside down in time.
+    expect(out.last5Pirs).toEqual([7, 11, 2, 19, 25]);
+    expect(out.last5Pirs).toHaveLength(LAST5);
+  });
+
+  it("keeps a negative game rather than flooring it", () => {
+    // PIR goes negative, and that is the most informative game on the line.
+    const out = projectPlayer([
+      line({ round: 1, pir: -3 }),
+      line({ round: 2, pir: 12 }),
+    ]);
+    expect(out.last5Pirs).toEqual([-3, 12]);
   });
 
   it("treats last-N as last-5 when the player has fewer than five games", () => {
@@ -205,5 +245,33 @@ describe("averagePirOf", () => {
     expect(averageFantasyOf(record)).toBe(110);
     expect(averageFantasyOf({ ...record, proj_last5_games: 0 })).toBe(243);
     expect(averageFantasyOf({})).toBeUndefined();
+  });
+});
+
+describe("last5SeriesOf", () => {
+  /**
+   * A PocketBase json column is genuinely `unknown`. Unset it comes back as
+   * `null` on one version and `""` on another, a row written before 10.6 has
+   * neither, and nothing between here and the database validates the shape —
+   * so every one of these reaches the sparkline unless this function stops it.
+   */
+  it("reads a stored series", () => {
+    expect(last5SeriesOf({ proj_last5_pirs: [4, 9, 22] })).toEqual([4, 9, 22]);
+  });
+
+  it("treats every flavour of absent as no series", () => {
+    expect(last5SeriesOf({})).toEqual([]);
+    expect(last5SeriesOf({ proj_last5_pirs: null })).toEqual([]);
+    expect(last5SeriesOf({ proj_last5_pirs: "" })).toEqual([]);
+    expect(last5SeriesOf({ proj_last5_pirs: {} })).toEqual([]);
+    expect(last5SeriesOf({ proj_last5_pirs: [] })).toEqual([]);
+  });
+
+  it("refuses a partly-numeric array rather than drawing the half it likes", () => {
+    // Silently dropping the bad entries would shorten the series, break the
+    // length-equals-games invariant, and draw a four-game line labelled five.
+    expect(last5SeriesOf({ proj_last5_pirs: [4, "9", 22] })).toEqual([]);
+    expect(last5SeriesOf({ proj_last5_pirs: [4, null] })).toEqual([]);
+    expect(last5SeriesOf({ proj_last5_pirs: [4, Number.NaN] })).toEqual([]);
   });
 });

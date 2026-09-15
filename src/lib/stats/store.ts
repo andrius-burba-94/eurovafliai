@@ -9,6 +9,7 @@ import type {
   StatRowFields,
 } from "./plan";
 import {
+  last5SeriesOf,
   projectPlayer,
   type PlayerGameLine,
   type PlayerProjection,
@@ -294,6 +295,7 @@ type ProjectionRecord = {
   proj_last5_fantasy?: number;
   proj_last5_games?: number;
   proj_last5_pir?: number;
+  proj_last5_pirs?: unknown;
   proj_season_fantasy?: number;
   proj_season_games?: number;
   proj_season_pir?: number;
@@ -320,6 +322,7 @@ function asFields(projection: PlayerProjection) {
     proj_last5_fantasy: projection.last5Fantasy,
     proj_last5_games: projection.last5Games,
     proj_last5_pir: projection.last5Pir,
+    proj_last5_pirs: projection.last5Pirs,
     proj_season_fantasy: projection.seasonFantasy,
     proj_season_games: projection.seasonGames,
     proj_season_pir: projection.seasonPir,
@@ -334,9 +337,26 @@ function sameProjection(
     (record.proj_last5_fantasy ?? 0) === projection.last5Fantasy &&
     (record.proj_last5_games ?? 0) === projection.last5Games &&
     (record.proj_last5_pir ?? 0) === projection.last5Pir &&
+    sameSeries(last5SeriesOf(record), projection.last5Pirs) &&
     (record.proj_season_fantasy ?? 0) === projection.seasonFantasy &&
     (record.proj_season_games ?? 0) === projection.seasonGames &&
     (record.proj_season_pir ?? 0) === projection.seasonPir
+  );
+}
+
+/**
+ * The series compared element-wise, because this whole function exists to keep
+ * a no-op recompute from writing.
+ *
+ * Read back through `last5SeriesOf` rather than compared raw: the stored value
+ * is a json column that can come back `null`, `""` or absent, and any of those
+ * against a genuinely empty projection is "unchanged", not a write. Without
+ * this every player with no games would be updated on every single recompute.
+ */
+function sameSeries(stored: readonly number[], fresh: readonly number[]): boolean {
+  return (
+    stored.length === fresh.length &&
+    stored.every((value, index) => value === fresh[index])
   );
 }
 
@@ -355,7 +375,7 @@ export async function recomputeProjections(
   const [players, lines] = await Promise.all([
     pb.collection("players").getFullList<ProjectionRecord>({
       fields:
-        "id,proj_last5_fantasy,proj_last5_games,proj_last5_pir,proj_season_fantasy,proj_season_games,proj_season_pir",
+        "id,proj_last5_fantasy,proj_last5_games,proj_last5_pir,proj_last5_pirs,proj_season_fantasy,proj_season_games,proj_season_pir",
       requestKey: null,
     }),
     pb.collection("player_game_stats").getFullList<ProjectionLine>({

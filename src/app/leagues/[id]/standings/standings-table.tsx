@@ -9,6 +9,7 @@ import {
   FilterToggle,
   Slot,
   Slots,
+  Sparkline,
 } from "@/components/board";
 import { formatTenths } from "@/lib/stats/scoring";
 import {
@@ -103,11 +104,28 @@ export function StandingsTable({
                       ))}
                     </span>
                   </span>
-                  <span
-                    className="stat text-sm"
-                    data-testid="standings-total"
-                  >
-                    {formatTenths(row.totalTenths)}
+                  <span className="flex shrink-0 items-center gap-3">
+                    {/* The same rounds the run above prints, as a shape.
+                        
+                        Drawn from `byRound` rather than from a second query:
+                        the table already has every value, and a chart reading
+                        from its own source is how two numbers on one row end up
+                        disagreeing. `formatTenths` is passed for the spoken
+                        sentence, so a screen reader hears the same 12.0 the run
+                        above prints rather than the 120 that is stored. */}
+                    <Sparkline
+                      values={rounds.map((round) => row.byRound[round] ?? 0)}
+                      what="points"
+                      format={formatTenths}
+                      className="hidden h-4 w-[3.125rem] text-ink-soft sm:inline-flex"
+                      testId="standings-spark"
+                    />
+                    <span
+                      className="stat text-sm"
+                      data-testid="standings-total"
+                    >
+                      {formatTenths(row.totalTenths)}
+                    </span>
                   </span>
                 </Link>
               </Slot>

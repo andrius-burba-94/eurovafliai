@@ -51,6 +51,7 @@ function player(name: string, over: Partial<PoolPlayer> = {}): PoolPlayer {
     averagePir: over.averagePir ?? null,
     averageGames: over.averageGames ?? 0,
     averageSource: over.averageSource ?? null,
+    last5Pirs: over.last5Pirs ?? [],
     averageSeason: over.averageSeason ?? null,
     averageFantasy: over.averageFantasy ?? null,
     ...over,

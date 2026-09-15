@@ -6,7 +6,6 @@ import {
   useOptimistic,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -20,6 +19,7 @@ import {
   Slots,
 } from "@/components/board";
 import type { Position } from "@/lib/engine";
+import { useHydrated } from "@/lib/hydrated";
 import { positionSentence } from "@/lib/positions";
 import { editCheatSheet } from "@/lib/sheets/actions";
 import { tierOfRank } from "@/lib/sheets/ranking";
@@ -75,9 +75,6 @@ const POSITIONS: Position[] = ["G", "F", "C"];
 /** The bar's own controls, sized by DESIGN.md's Do: 44px on **both** axes. */
 const BAR_BUTTON =
   "slot-label min-h-11 min-w-11 border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:opacity-40";
-
-/** For `useSyncExternalStore` as a hydration flag: the store never changes. */
-const subscribeToNothing = () => () => {};
 
 export function SheetList({
   leagueId,
@@ -152,19 +149,8 @@ export function SheetList({
   /** The bar, measured, so the list can reserve exactly its height. */
   const barRef = useRef<HTMLDivElement>(null);
   const [barHeight, setBarHeight] = useState(0);
-  /**
-   * Has this list hydrated? The page streams behind a `loading.tsx`, so the
-   * rows are in the HTML — focusable, clickable — before React has attached a
-   * single handler to them. A keyboard press in that window does nothing, and
-   * a spec that focuses a row and presses Enter was losing exactly that race.
-   * Surfaced on `sheet-pending` as `data-ready`, with no appearance: a fact to
-   * wait for rather than a duration.
-   */
-  const ready = useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
+  /** Surfaced on `sheet-pending` as `data-ready`. See `useHydrated`. */
+  const ready = useHydrated();
   /**
    * The row the pointer is currently over, held in a ref as well as in state.
    *

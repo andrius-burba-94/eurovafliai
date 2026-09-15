@@ -15,6 +15,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import {
+  SPARK_HEIGHT,
+  SPARK_WIDTH,
+  sparklinePoints,
+  sparklineSentence,
+} from "@/lib/charts/sparkline";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
@@ -310,6 +316,83 @@ const BLOCK_EDGE: Record<"G" | "F" | "C", string> = {
 };
 
 /**
+ * Five games, drawn — slice 10.6.
+ *
+ * Follows the recipe `BackArrow` established and DESIGN.md records: inline
+ * `<svg>`, one stroke, `currentColor`, no fill, no package. There is no chart
+ * library in this project and adding one to draw four line segments would be
+ * the largest dependency in the repo by a wide margin.
+ *
+ * **The picture is `aria-hidden` and the sentence is the content.** Five marks
+ * announced individually are five announcements of nothing, and a bare
+ * "sparkline" label tells a screen-reader user only that they are missing
+ * something. So the marks are hidden and `sparklineSentence` says the numbers
+ * out loud, oldest first, before it says the reading — the same split
+ * `RosterRadar` makes, for the same reason.
+ *
+ * Renders **nothing** below two games, because one game is a dot rather than a
+ * line and a single mark in a box that means "recent form" reads as a flat trend
+ * rather than as an absence of one.
+ */
+export function Sparkline({
+  values,
+  what,
+  className = "inline-flex h-4 w-[3.125rem]",
+  testId,
+  format,
+}: {
+  readonly values: readonly number[];
+  /** What the numbers are, for the spoken sentence: "PIR", "points". */
+  readonly what: string;
+  /**
+   * How to say one value. Pass `formatTenths` for any figure this app stores as
+   * integer tenths, or the sentence reads "120" where the row shows "12.0".
+   */
+  readonly format?: (value: number) => string;
+  /**
+   * Replaces the default box rather than adding to it, and that includes the
+   * **display** utility.
+   *
+   * A hardcoded `inline-flex` here plus a caller's `hidden sm:inline-flex` is
+   * two utilities setting one property, and which of them wins comes down to
+   * the order Tailwind emits them in rather than to anything written here —
+   * the failure `slot-transit` already paid for. So the display belongs to
+   * whoever is placing the mark.
+   */
+  readonly className?: string;
+  readonly testId?: string;
+}) {
+  const points = sparklinePoints(values);
+  if (!points) return null;
+  return (
+    <span className={`items-center ${className}`} data-testid={testId}>
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
+        className="h-full w-full"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        // A five-point line has four joins and two ends; left square they read
+        // as a chart drawn by a machine, which is the opposite of the hand this
+        // system draws in everywhere else.
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        // The stroke must not thin out when the viewBox is scaled into a 50px
+        // cell — at 1.5 units in a 50-unit box it would otherwise land under a
+        // pixel and disappear on a phone.
+        vectorEffect="non-scaling-stroke"
+      >
+        <polyline points={points} />
+      </svg>
+      <span className="sr-only">
+        {sparklineSentence(values, what, format)}
+      </span>
+    </span>
+  );
+}
+
+/**
  * The fixture line inside a roster block, or nothing at all.
  *
  * Returning `null` when there is no fixture is the whole point: a "—" or a
@@ -329,8 +412,13 @@ export function FixtureNote({
 }) {
   if (!fixture) return null;
   return (
-    <span data-testid={testId} className="flex items-baseline gap-2 text-sm">
+    <span data-testid={testId} className="flex flex-wrap items-baseline gap-x-2 text-sm">
       <span className="text-ink-soft">vs {fixture.nextOpponent}</span>
+      {fixture.difficulty ? (
+        <span className="slot-label" data-testid="fixture-difficulty">
+          {DIFFICULTY_WORD[fixture.difficulty]}
+        </span>
+      ) : null}
       {fixture.doubleRound ? (
         <span className="slot-label text-live" data-testid="double-round">
           Double round
@@ -339,6 +427,17 @@ export function FixtureNote({
     </span>
   );
 }
+
+/**
+ * The difficulty said as a word. Marker is deliberately *not* used for `hard`:
+ * it has two jobs already — the clock, and the one act a surface exists for —
+ * and a third meaning on a roster is how the marker stops meaning anything.
+ */
+const DIFFICULTY_WORD: Record<"easy" | "even" | "hard", string> = {
+  easy: "Kind draw",
+  even: "Even draw",
+  hard: "Hard draw",
+};
 
 /**
  * One slot. `landed` plays the card-landing motion once — reserved for the row

@@ -8,6 +8,7 @@ import {
   Sheet,
   Slot,
   Slots,
+  Sparkline,
   TopRail,
 } from "@/components/board";
 import { getSession } from "@/lib/auth/session";
@@ -111,6 +112,47 @@ export default async function PlayerPage({
             ) : null}
           </div>
         </div>
+
+        {/* **Current form, and only when there is any.**
+            
+            Above last season because form beats a body of work once form
+            exists — the same precedence `averagePirOf` applies when it decides
+            which average the pool ranks on. It is absent for everybody until
+            the season is under way, which is why last season is still the
+            block that carries draft night.
+            
+            The five numbers are printed *beside* the picture rather than left
+            to the sparkline's spoken sentence: this is the one surface with
+            room for both, and a chart whose values can only be heard is a chart
+            that cannot be checked. */}
+        {player.last5 ? (
+          <Bank
+            label="Form"
+            aside={`Last ${player.last5.games} game${player.last5.games === 1 ? "" : "s"}`}
+          >
+            <div
+              className="flex flex-wrap items-center gap-x-6 gap-y-3"
+              data-testid="player-form"
+            >
+              <dl className="flex flex-wrap gap-x-8 gap-y-3">
+                <Stat
+                  label="PIR"
+                  value={formatTenths(player.last5.pirTenths)}
+                  lead
+                />
+              </dl>
+              <Sparkline
+                values={player.last5.pirs}
+                what="PIR"
+                className="inline-flex h-8 w-24 text-live"
+                testId="player-spark"
+              />
+              <p className="stat text-sm text-ink-soft" aria-hidden="true">
+                {player.last5.pirs.join(" · ")}
+              </p>
+            </div>
+          </Bank>
+        ) : null}
 
         {/* **Last season, above the game log, because on draft night it is the
             only thing on this page.** E2026 has no games in it, so the log

@@ -3,6 +3,69 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.6 — Five marks, a sentence, and the five numbers nobody had stored
+
+The brief asked for "rolling 5-game PIR averages with sparkline charts". Half of
+that shipped in 9.1: the rolling average is already the pool's leading column
+and autodraft's ranking number. What was missing was the *series*. `players`
+stores `proj_last5_pir` — the **average** of the last five — and an average
+cannot be drawn. So the slice is one new JSON field, `proj_last5_pirs`, written
+in the same pass that materializes the other projection fields, plus a component
+to draw it.
+
+**No chart package.** DESIGN.md's rule for drawn marks is one stroke,
+`currentColor`, no fill, nothing imported, and a five-point polyline is nine
+lines of SVG. The arithmetic lives in `src/lib/charts/sparkline.ts` as two pure
+functions, separate from the component, for the same reason `rowSentence` is
+separate from `RosterRadar`: the marks are `aria-hidden`, so the sentence beside
+them is the **entire content** for a screen-reader user, and a string nothing
+tests is a string that ships reading "3 games that do not fit".
+
+Three decisions worth the words:
+
+**Normalized to its own range, not to a PIR scale.** A sparkline is about shape.
+Sharing one scale across the pool would flatten every honest player into a
+straight line near the floor of a box sized for Doncic. The cost — the marks
+carry no absolute magnitude — is paid by the average in the cell before them and
+the numbers in the sentence after.
+
+**Nothing below two games.** One point in a box captioned "recent form" reads as
+a flat trend rather than as an absence of one, so `sparklinePoints` returns
+`null` and the caller renders nothing. Same rule as `FixtureNote`, same reason.
+A flat *series*, though, draws down the middle of the box rather than along its
+floor: five identical games are "steady", not "as bad as possible".
+
+**The sentence takes the caller's formatter.** Half this app's figures are stored
+as integer tenths. The standings sparkline drawn from `byRound` would have said
+"120, 85, 40" to a screen reader while the row beside it showed 12.0, 8.5 and
+4.0 — two numbers for one fact, and the spoken one wrong by a factor of ten.
+`format` defaults to `String` so the callers holding whole PIR pass nothing.
+
+Where it appears is a width argument, not a taste one: `sm`-and-up in the pool
+and standings **rows**, which is the budget the pool's fantasy column already
+lives under, and unconditional on the player page and the roster block, which
+have the vertical room. Re-ingest stays a no-op write because `sameProjection`
+compares the new field too.
+
+### The flake the gate had been excusing
+
+The full E2E run has carried "some flaky pool specs, all green on retry" since
+3.3, and this slice touched the pool row, so the excuse had to be cashed. One
+variant had a real cause: the pool's filters are client state, so every control
+is in the streamed HTML — clickable, selectable — before a handler is attached
+to it, and a club selected in that window narrows nothing. The failure always
+looked like a row count stuck at the unfiltered number.
+
+`sheet-list.tsx` had already paid for this once with keystrokes and answered it
+with a hydration fact on an attribute that has no appearance. That one-liner is
+now `useHydrated` in `src/lib/hydrated.ts`, used by both surfaces, surfaced on
+`pool-ready`, and waited for by the two specs that enter the draft room. Running
+`pool.spec.ts` and `cheat-sheet.spec.ts` twice through — 190 test runs — left one
+flake with a different cause (a pick button that never arrived, a 30s timeout,
+not a lost click). The full suite still shows the position-toggle variant of the
+same family under five-worker load; it is recorded as debt with what is known
+rather than described as fixed.
+
 ## 10.5 — The captaincy is a mark, not a role, and a form that cannot say otherwise
 
 The brief asked for "distinct toggles for Captaincy". The obstacle was that

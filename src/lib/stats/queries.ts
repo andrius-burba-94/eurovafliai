@@ -6,6 +6,7 @@ import { createUserClient } from "@/lib/pb/server";
 import type { Position } from "@/lib/engine";
 import { type Phase, PHASES } from "./csv";
 import type { ImpactLine, ImpactTransaction } from "./impact";
+import { last5SeriesOf } from "./project";
 import { recapForRound, type Recap } from "./recap";
 import type { RoundSnapshot, SnapshotRow } from "./standings";
 
@@ -247,6 +248,22 @@ export type PlayerProfile = {
    * from an average of zero and is why this is a nullable object rather than
    * a row of nullable numbers.
    */
+  /**
+   * This season's form — the five games behind the last-5 average, and the
+   * average itself. Null when there are none, which on draft night is everyone.
+   *
+   * Nullable as an object rather than a row of nullable numbers, for the same
+   * reason `previousSeason` is: "no games" and "averaged 0.0" are different
+   * facts, and a shape that cannot tell them apart will eventually print one as
+   * the other.
+   */
+  last5: {
+    /** Integer tenths. */
+    pirTenths: number;
+    games: number;
+    /** The unaveraged games, oldest first. Whole numbers, as PIR is stored. */
+    pirs: number[];
+  } | null;
   previousSeason: {
     season: string;
     games: number;
@@ -323,6 +340,9 @@ export async function readPlayerProfile(
       weight?: number;
       birth_date?: string;
       country_name?: string;
+      proj_last5_games?: number;
+      proj_last5_pir?: number;
+      proj_last5_pirs?: unknown;
       prev_season_code?: string;
       prev_season_games?: number;
       prev_season_pir?: number;
@@ -366,6 +386,7 @@ export async function readPlayerProfile(
     // identical if this keyed off the PIR.
     const prevGames = record.prev_season_games ?? 0;
     const prevStats = record.prev_season_stats;
+    const last5Games = record.proj_last5_games ?? 0;
 
     return {
       player: {
@@ -382,6 +403,14 @@ export async function readPlayerProfile(
           country: nonEmpty(record.country_name),
           dorsal: nonEmpty(record.dorsal),
         },
+        last5:
+          last5Games > 0
+            ? {
+                pirTenths: record.proj_last5_pir ?? 0,
+                games: last5Games,
+                pirs: last5SeriesOf(record),
+              }
+            : null,
         previousSeason:
           prevGames > 0
             ? {

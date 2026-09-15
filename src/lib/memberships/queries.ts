@@ -12,6 +12,7 @@ import type { PlayerFixture } from "@/lib/fixtures/types";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
+import { last5SeriesOf } from "@/lib/stats/project";
 
 import type { Seat } from "./plan";
 import { listActiveMemberships } from "./store";
@@ -22,6 +23,8 @@ type ExpandedPlayer = {
   club_code: string;
   club_name: string;
   position: Position;
+  proj_last5_games?: number;
+  proj_last5_pirs?: unknown;
 };
 
 type MembershipRow = {
@@ -45,6 +48,11 @@ export type RosterPlayer = {
   readonly clubName: string;
   readonly position: Position;
   readonly overallNo: number | null;
+  /**
+   * This season's last five PIRs, oldest first — what the block's sparkline
+   * draws. Empty before the season is under way, which draws nothing.
+   */
+  readonly last5Pirs: readonly number[];
   /**
    * The club's next game, once there is a fixtures collection to read it from.
    * Absent today, and the block renders no fixture line rather than a "TBD".
@@ -94,6 +102,7 @@ export async function readMemberRoster(
         clubName: player.club_name,
         position: player.position,
         overallNo: overallByPlayer.get(player.id) ?? null,
+        last5Pirs: last5SeriesOf(player),
       },
     ];
   });
