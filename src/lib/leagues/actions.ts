@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireSession } from "@/lib/auth/session";
+import { clearLeagueMemberships } from "@/lib/memberships/store";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import {
   generateInviteCode,
@@ -475,8 +476,30 @@ export async function deleteLeague(
     };
   }
 
-  // Step 1. Drafts, oldest or newest, all of them: a league may have finished
-  // one and started another across seasons.
+  // Deleting the league cascades to its memberships, and PocketBase refuses to
+  // delete a member while a **required** relation still points at it — even
+  // when that pointing record is itself slated for the same cascade. So
+  // everything that holds a required, non-cascading reference to a
+  // `league_members` row has to go first, by hand, in dependency order. There
+  // are exactly two such references in the schema:
+  //
+  // - `picks.member`, taken care of by deleting the drafts (`picks.draft`
+  //    cascades), and
+  // - `roster_memberships.member`, which is what 5.1 added and this action was
+  //    never taught. A league whose rosters had been materialized could not be
+  //    deleted at all: the cascade 400'd on the *league* record after the
+  //    drafts were already gone.
+  //
+  // Order matters and idempotence is the recovery story: every step below is a
+  // delete of things filtered by this league, so a run that dies halfway
+  // leaves strictly less to do and the same click finishes the job. Nothing
+  // here can be a transaction — there are none.
+
+  // Step 1. The roster windows, before the members they point at.
+  await clearLeagueMemberships(pb, leagueId);
+
+  // Step 2. Drafts, oldest or newest, all of them: a league may have finished
+  // one and started another across seasons. Each takes its picks with it.
   const drafts = await pb
     .collection("drafts")
     .getFullList<{ id: string }>({
@@ -487,7 +510,8 @@ export async function deleteLeague(
     await pb.collection("drafts").delete(draft.id, { requestKey: null });
   }
 
-  // Step 2.
+  // Step 3. The league, and the cascade takes the rest — members, chat, cheat
+  // sheets, lineups, transactions, snapshots.
   await pb.collection("leagues").delete(leagueId, { requestKey: null });
 
   revalidatePath("/");

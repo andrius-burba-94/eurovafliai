@@ -299,6 +299,40 @@ test("the commissioner deletes the league, board and all", async ({
   await expectNoLobby(page);
 });
 
+test("a league whose rosters were materialized still deletes", async ({
+  page,
+  context,
+}) => {
+  // Production shape, not a hypothetical: the league that could not be deleted
+  // on the box had no drafts and no picks left, and 39 roster memberships.
+  const { commissioner, league, members } = await leagueWithABoard("Held League");
+  const player = await createPlayer("Beta", { position: "F" });
+  const pb = await superuser();
+  await pb.collection("roster_memberships").create(
+    {
+      league: league.id,
+      member: members[0].id,
+      player: player.id,
+      acquired_via: "draft",
+      from_date: "2026-09-01 00:00:00.000Z",
+      from_round: 1,
+      to_date: "",
+      to_round: 0,
+    },
+    { requestKey: null },
+  );
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("delete-league-toggle").click();
+  await page.getByTestId("delete-league-confirm").fill("Held League");
+  await page.getByTestId("delete-league").click();
+
+  await expect(page).toHaveURL("/");
+  await page.goto(`/leagues/${league.id}`);
+  await expectNoLobby(page);
+});
+
 test("a deputy is trusted to help run the league, not to end it", async ({
   page,
   context,
