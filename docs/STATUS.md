@@ -138,6 +138,100 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — four reports from a real draft night
+
+```bash
+npm run dev
+npm run worker:dev   # the second one. It is not optional.
+```
+
+Four things were reported after a full local draft. **Two were the app telling
+the truth and one was a missing process** — recorded here because the
+diagnosis is worth more than the fixes:
+
+| Reported | What it actually was |
+|---|---|
+| "The commissioner always gets 1st" | **No bias.** 200,000 rolls per league size, every slot within noise; see the fairness tests in `roll.test.ts`. The cause was #119's replay announcing one roll fifty-two times |
+| "The draft order seemed weird" | **Correct.** All 39 stored picks replay identically through `buildPickOrder`; snake alternates every round, 13 picks each. It reads oddly because at every turn one member picks *twice in a row*, which is what a snake is — and because all three teams were named "Andrius Burba" |
+| "Autodraft does not work" | **The worker was not running.** 39 picks, **0 autodrafted**, with `autodraft_enabled` set on all three members. `npm run dev` does not start it. `selectAutoPick` needs no cheat sheet — it ranks, then takes the first legal player |
+| "No legal picks with one C left" | **Correct.** All four Olympiacos centers were already drafted, and the club filter was still set to Olympiacos from an earlier search |
+
+Two of those were fixed as code, and one gap was closed that none of them asked
+for:
+
+**The club filter reads as clubs.** It listed bare three-letter codes in code
+order, which put `OLY` between `MIL` and `PAN`. It now carries `club_name`,
+sorted and labelled by name; the option's value is still the code, so the
+filter itself is unchanged. A row still shows the code — three characters
+beside a name is what a code is for.
+
+**An empty pool says what emptied it.** "Nobody left matching that" described
+the result without naming the cause, on the surface where a manager has sixty
+seconds. It now reads back the filters: *"Filtered to C · Olympiacos Piraeus ·
+legal for me."*
+
+**The room admits when nothing took an expired pick.** This is the gap: every
+`stuck_reason` 8.2 renders is written **by the worker**, so the one failure the
+banner can never report is the worker's own absence — no process, no write, no
+banner, and the room still promising "the engine picks the moment your turn
+comes". It is now detected client-side from the deadline the server wrote,
+precisely because it cannot depend on the worker being alive, and it waits out
+the room's existing pulls first so a healthy expiry says nothing. It names a
+symptom and the two ways out, never a cause: a slow box, a paused worker and a
+crashed worker are indistinguishable from a browser.
+
+**A note on local data.** A full e2e run leaves players behind whose club is a
+generated `Z???` code, and a killed run leaves them for good because `afterEach`
+never runs. That had reached **900 test players against 327 real ones and 213
+test leagues**, which is why the club dropdown had 195 entries. Local PocketBase
+after a cleanup should read 327 players and exactly 20 clubs; `npm run pb:backup`
+first, delete leagues before players (PocketBase refuses to delete a player a
+pick points at).
+
+## Try it on localhost — the season dashboard
+
+```bash
+npm run dev
+npx playwright test tests/e2e/season-dashboard.spec.ts
+```
+
+Open a league whose `status` is `season` with a seat of your own. The lobby body
+is gone: in its place, at the **`wide`** measure, the table and the conversation
+across the top, your roster and the league's news underneath. The thing to look
+at is that **you can tell whether you are winning without pressing anything** —
+which the four-door grid it replaced could not do. Then narrow the window: below
+`lg` it is one column in the same order, because match night is phones on a
+couch.
+
+The rail's **Eurovafliai · Euroleague 2026–27** is now a link home, on every
+surface. One link over both clauses, not two to the same place.
+
+**Three of the brief's panels described a different game and were substituted
+rather than faked** ([D26](EUROVAFLIAI_BLUEPRINT.md), the same discipline as D19
+and D23):
+
+| Asked for | Why it cannot be true here | What is there instead |
+|---|---|---|
+| A **W-L** column | No head-to-head. Standings are cumulative fantasy points with per-round snapshots (4.5), so there is no opponent to have beaten and the column reads `0-0` forever | `PTS`, and the round's signed movement |
+| **Matchup of the week** | No matchup format exists in the blueprint, PRODUCT.md or CONTEXT.md. Inventing one would invent a game | 5.4's recap: the night's ranking, the best night, the deal that moved most |
+| Player **headshots** | `players` has no image field — name, club, position, status, person code, dorsal. A photo would have to be invented per player, which PRODUCT.md forbids | The position patch, this app's own colour-coded mark, which always prints its letter |
+
+A spec asserts the page says neither "W-L", "matchup" nor "final", and that the
+roster panel contains no `<img>` at all — so none of the three can be quietly
+"finished" later.
+
+**The `wide` measure now has two callers**, and the `MEASURE` key was renamed
+`room` → `wide` to say so. That is D24's argument reused rather than a new one:
+the room is pool, board, radar and console, the dashboard is standings, chat,
+roster and news, and both are four surfaces at once. There is still no third
+measure.
+
+Two things left this screen on purpose: the **cheat sheet** (the brief's own
+instruction, and its season copy was already only a souvenir) and the lobby's
+**second copy of the chat** — the dashboard renders the same thread in its own
+panel, and two transcripts of one thread on one page is two unread counts for
+the same messages.
+
 ## Try it on localhost — the roll ceremony
 
 ```bash
@@ -1286,7 +1380,7 @@ written — is in [`docs/log/verification.md`](log/verification.md).
 | `npm run typecheck` | pass |
 | `npm run test` | **1198 passed.** The engine, the sweep and the pipeline, ingestion, leagues and draft setup, components, cheat sheets, the pool, the design tokens, the on-the-clock cue, league chat, the stores and repairs — plus last-5 / season / PIR projection arithmetic and the previous-season import, standings tenths and phase filter, the membership materialize, the idempotent snapshot recompute, the mapping queue's filters and sentence, the pure lineup validator and the weights standings apply, and the news parser, plan, store and pass — the parser against saved markup rather than the live site. Since 10.2 there is **one ground**: the token suite is 74 assertions against it, the theme's resolve/override tests are gone with the theme, and the count fell accordingly. 10.4 adds nine **depth-scale** assertions that read source text rather than rendered values, because Tailwind emits an unknown utility as nothing and a stray `rounded-lg` therefore renders cleanly and wrong; 10.5 adds the captain-as-a-mark arithmetic and three cases for a fixture line that currently renders nothing; 10.6 adds the sparkline's points and its spoken sentence — including the two-game floor, the flat series that draws down the middle rather than along the floor, and the tenths formatter that stops a reader hearing "120" where the row says 12.0. **1225 at 10.8**: 10.7 adds the pure schedule reading (the measured home edge, the difficulty threshold, next-versus-round fixture) and the fixtures upsert driven through the strict fake, which enforces the real `(season, game_code)` index |
 | `npm run build` | pass |
-| `npm run test:e2e` | **447 passed, 1 skipped, 10 flaky** on chromium and Pixel 7 at the roll ceremony — nothing failed, and all ten flakes are the `pool.spec.ts` count flake in the debt row below, so the 9 → 10 move is that same debt rather than a new one. **Measured the hard way this time, and the method is the finding**: the first run of this slice was made *without* `CI=1`, which means `next dev` and `retries: 0`, and it reported **26 failures** — every one of which passed in isolation. The row below already said measure on a build; it is repeated here because the noise is convincing. Worse, that run was piped through `tail`, so the shell reported `tail`'s exit code and the suite looked like it had passed. **Write the exit code into the log** (`echo "EXIT=$?"`) rather than reading a summary line. The CI-faithful run then found a genuine defect the noisy one had buried — a start-over inside the ceremony's own window summoning a fresh tab to a dead draw — which is the argument for running it properly rather than for running it twice. Earlier, at 10.9, it was **426 passed, 1 skipped, 9 flaky** — the whole suite, run locally the way CI runs it (`CI=1`, against `next start` over a fresh build). Nothing failed; every flake passed on its first retry, eight of them the `pool.spec.ts` count flake in the debt row below and the ninth a `mapping-done` correction that did not arrive inside 5s under five workers. **10.8's clean run was the outlier, not this one** — that suite was 425 and this flake is not rare enough for 425 to prove anything, which is exactly what the row below said. `pool.spec.ts` alone, twice over, is clean. Run it **on the port `NEXT_PUBLIC_APP_URL` names**, which is the default 3007: `E2E_PORT=3011` fails the two `/auth/callback` specs outright, because that route redirects to the absolute configured origin and there is nothing listening on 3007 — see the debt row. The flakes it used to carry were all in `pool.spec.ts`; see the debt row below, which 10.6 narrowed by closing the pre-hydration variant. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
+| `npm run test:e2e` | **463 passed, 1 skipped, 10 flaky** on chromium and Pixel 7 after the draft-night reports — nothing failed, and all ten flakes are the `pool.spec.ts` count debt below, back to its usual shape. The three extra flakes the previous run carried (`radar`, two in `cheat-sheet`) did **not** recur, which points at load rather than at the ceremony's `rollOrder` round trip: this run had a **clean local database** (327 players, 20 clubs) where the previous one had 1,243 players and 219 leagues in every pool render. Worth knowing before chasing a flake: a full e2e run leaves `Z???`-club players behind, and a *killed* run leaves them for good because `afterEach` never fires, so the suite gets slower the more often you interrupt it. Before that, at the season dashboard, it was **455 passed, 1 skipped, 12 flaky** on chromium and Pixel 7 at the season dashboard — nothing failed. Nine flakes are the `pool.spec.ts` count debt below; the other three (`radar.spec.ts:160`, two in `cheat-sheet.spec.ts`) are **new to the list and worth watching rather than dismissing**: both specs gained a `rollOrder` round trip with the roll ceremony, which makes their setup slower under six workers, and all three passed on the first retry. If that count keeps climbing, the ceremony's navigation in test setup is the first thing to look at. **This run also earned its keep**: it found a door rendered inside its panel's "has data" branch, so a league whose configured season had nothing ingested lost its way to standings and recap entirely — on the first day of a season. Two runs before it reported `PLAYWRIGHT_EXIT=1` without executing a single test, both times because a `next dev` from an earlier non-`CI` run still held port 3007; kill it first, and never read a summary line for a verdict. Before that, at the roll ceremony, it was **447 passed, 1 skipped, 10 flaky** on chromium and Pixel 7 at the roll ceremony — nothing failed, and all ten flakes are the `pool.spec.ts` count flake in the debt row below, so the 9 → 10 move is that same debt rather than a new one. **Measured the hard way this time, and the method is the finding**: the first run of this slice was made *without* `CI=1`, which means `next dev` and `retries: 0`, and it reported **26 failures** — every one of which passed in isolation. The row below already said measure on a build; it is repeated here because the noise is convincing. Worse, that run was piped through `tail`, so the shell reported `tail`'s exit code and the suite looked like it had passed. **Write the exit code into the log** (`echo "EXIT=$?"`) rather than reading a summary line. The CI-faithful run then found a genuine defect the noisy one had buried — a start-over inside the ceremony's own window summoning a fresh tab to a dead draw — which is the argument for running it properly rather than for running it twice. Earlier, at 10.9, it was **426 passed, 1 skipped, 9 flaky** — the whole suite, run locally the way CI runs it (`CI=1`, against `next start` over a fresh build). Nothing failed; every flake passed on its first retry, eight of them the `pool.spec.ts` count flake in the debt row below and the ninth a `mapping-done` correction that did not arrive inside 5s under five workers. **10.8's clean run was the outlier, not this one** — that suite was 425 and this flake is not rare enough for 425 to prove anything, which is exactly what the row below said. `pool.spec.ts` alone, twice over, is clean. Run it **on the port `NEXT_PUBLIC_APP_URL` names**, which is the default 3007: `E2E_PORT=3011` fails the two `/auth/callback` specs outright, because that route redirects to the absolute configured origin and there is nothing listening on 3007 — see the debt row. The flakes it used to carry were all in `pool.spec.ts`; see the debt row below, which 10.6 narrowed by closing the pre-hydration variant. Worth knowing: the same suite against the **dev** server, with other projects' dev servers on the same laptop, failed 149 tests on route-compile timeouts alone. Measure the suite on a build, or the noise is the result |
 | `npm run pb:verify` | **159 checks pass** — including unique `(season, game_code)` on fixtures, unique active `(league, player)` on roster memberships, unique `(league, season, round)` on standings snapshots, unique `(league, member, season, round)` on lineups, unique `(source, source_key)` on news items, and superuser-only writes |
 | `npm run pb:verify:oauth2` | 7 checks pass |
 | `npm run rosters:sync` | **323** draftable players across 20 clubs at the last run. The feed moves; do not treat the count as a constant |

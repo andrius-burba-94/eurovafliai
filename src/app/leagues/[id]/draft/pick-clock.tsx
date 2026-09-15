@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { formatRemaining, millisRemaining } from "@/lib/drafts/due";
+import { STALLED_SENTENCE, pickHasStalled } from "@/lib/drafts/stalled";
 
 /**
  * The countdown — display only, and offset-corrected.
@@ -60,6 +61,8 @@ export function PickClock({
 }) {
   const router = useRouter();
   const [remaining, setRemaining] = useState<number | null>(null);
+  /** Spent every pull on this deadline and the pick still has not moved. */
+  const [stalled, setStalled] = useState(false);
   /** Server clock minus this device's clock, in milliseconds. */
   const offset = useRef(0);
   /** How often this deadline has been pulled for, and when it last was. */
@@ -98,6 +101,7 @@ export function PickClock({
       const state = pulls.current;
       if (state.deadline !== deadline) {
         pulls.current = { deadline, count: 0, at: 0 };
+        setStalled(false);
       }
       const at = Date.now();
       if (
@@ -108,6 +112,17 @@ export function PickClock({
         pulls.current.at = at;
         router.refresh();
       }
+      // Asked the server every time we are allowed to and the deadline has not
+      // changed, so nothing took the pick. The one failure 8.2's banner cannot
+      // report, because every stuck reason is written by the worker — see
+      // `stalled.ts`. A new deadline clears it above.
+      setStalled(
+        pickHasStalled({
+          remainingMs: left,
+          pullsSpent: pulls.current.count,
+          maxPulls: MAX_PULLS,
+        }),
+      );
     };
     read();
     const timer = setInterval(read, READ_EVERY_MS);
@@ -117,15 +132,18 @@ export function PickClock({
   const expired = remaining !== null && remaining <= 0;
 
   return (
-    <p
-      // `role="timer"` without a live region: a number that announced itself
-      // every second would make the room unusable with a screen reader on.
-      role="timer"
-      data-testid="pick-clock"
-      className={`${className} flex items-baseline gap-2`}
-    >
-      <span className="slot-label">{expired ? "Time's up" : "Time left"}</span>
-      {/* The largest figure in the room — Phase 10's restyle of this band.
+    <>
+      <p
+        // `role="timer"` without a live region: a number that announced itself
+        // every second would make the room unusable with a screen reader on.
+        role="timer"
+        data-testid="pick-clock"
+        className={`${className} flex items-baseline gap-2`}
+      >
+        <span className="slot-label">
+          {expired ? "Time's up" : "Time left"}
+        </span>
+        {/* The largest figure in the room — Phase 10's restyle of this band.
           
           It was `text-2xl`, one step under the headline above it, and the
           headline is the same sentence for the whole two minutes while this is
@@ -138,12 +156,28 @@ export function PickClock({
           no colour to reach for — the marker's two jobs are taken, and a number
           in marker on a marker-tinted band is the Ink-on-Blush Rule broken on
           the one surface everybody is looking at. */}
-      <span className="stat text-4xl font-semibold sm:text-5xl">
-        {/* Nothing on the first paint: the server has no business rendering a
+        <span className="stat text-4xl font-semibold sm:text-5xl">
+          {/* Nothing on the first paint: the server has no business rendering a
             countdown, and a value it computed would be a hydration mismatch a
             quarter of a second before the real one arrived. */}
-        {remaining === null ? "—" : formatRemaining(remaining)}
-      </span>
-    </p>
+          {remaining === null ? "—" : formatRemaining(remaining)}
+        </span>
+      </p>
+      {/* `w-full` so it takes its own line in the band's wrapping row rather
+          than sitting beside "You still need". Chalk on the live bay, per the
+          Ink-on-Blush Rule — the marker's two jobs are taken, and this is not
+          a third. `role="status"`, polite: it is the room's state, and it
+          arrives fifteen seconds after a deadline nobody enforced, so it is
+          not an interruption. */}
+      {stalled ? (
+        <p
+          data-testid="pick-stalled"
+          role="status"
+          className="w-full text-sm text-ink"
+        >
+          {STALLED_SENTENCE}
+        </p>
+      ) : null}
+    </>
   );
 }

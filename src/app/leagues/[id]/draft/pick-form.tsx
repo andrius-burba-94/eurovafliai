@@ -23,6 +23,7 @@ import { formatTenths } from "@/lib/stats/scoring";
 import {
   NO_FILTERS,
   clubsIn,
+  narrowedBy,
   poolIndex,
   selectPool,
   type PoolFilters,
@@ -335,9 +336,30 @@ export function PickForm({
     filters.sheetOnly,
     filters.tier,
   ].join("|");
+  /**
+   * What is narrowing the list, in the reader's own filters.
+   *
+   * On the last pick of a real draft, needing one center, this list said
+   * "Nobody left matching that" and meant it — every Olympiacos center had
+   * gone and the club filter was still set from a search several picks
+   * earlier. The sentence was true and useless. Naming the filters turns a
+   * zero into something a manager can act on with a clock running.
+   */
+  const narrowing = useMemo(
+    () =>
+      narrowedBy(
+        filters,
+        view.pool.find((player) => player.club === filters.club)?.clubName,
+      ),
+    [filters, view.pool],
+  );
+  const emptySentence =
+    narrowing.length === 0
+      ? "Nobody left in the pool at all."
+      : `Nobody left matching that. Filtered to ${narrowing.join(" \u00b7 ")}.`;
   const listSentence =
     rows.length === 0
-      ? "Nobody left matching that."
+      ? emptySentence
       : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`;
   const [saidKey, setSaidKey] = useState(listKey);
   const [listSaid, setListSaid] = useState(listSentence);
@@ -444,11 +466,7 @@ export function PickForm({
       // 30-row list and having to hold it all the way back up is worse than
       // arriving at the top.
       const nextIndex =
-        next < 0
-          ? shortlist.length - 1
-          : next >= shortlist.length
-            ? 0
-            : next;
+        next < 0 ? shortlist.length - 1 : next >= shortlist.length ? 0 : next;
       setHighlighted(nextIndex);
       disarm();
       // Move focus with the highlight. Without this, Escape returns focus to
@@ -489,9 +507,7 @@ export function PickForm({
       arm({
         playerId: row.id,
         playerName: row.name,
-        forTeamName: view.isYourTurn
-          ? null
-          : (view.clockMemberName ?? null),
+        forTeamName: view.isYourTurn ? null : (view.clockMemberName ?? null),
       });
     }
   };
@@ -638,7 +654,10 @@ export function PickForm({
           still points at it, and a screen-reader user on a phone with a
           Bluetooth keyboard is exactly who benefits from it being announced
           rather than drawn. */}
-      <p id="pool-keys" className="hidden max-w-prose text-sm text-ink-soft sm:block">
+      <p
+        id="pool-keys"
+        className="hidden max-w-prose text-sm text-ink-soft sm:block"
+      >
         {canPick
           ? "Arrows to move · Enter to choose · Enter again to draft · Esc to cancel"
           : "Arrows to move through the pool"}
@@ -730,8 +749,8 @@ export function PickForm({
           >
             <option value="">Every club</option>
             {clubs.map((club) => (
-              <option key={club} value={club}>
-                {club}
+              <option key={club.code} value={club.code}>
+                {club.name}
               </option>
             ))}
           </select>
@@ -1013,9 +1032,9 @@ export function PickForm({
           );
         })}
         {shortlist.length === 0 ? (
-          <Slot state="waiting">
-            <span className="text-sm text-ink-soft">
-              Nobody left matching that.
+          <Slot state="waiting" testId="pool-empty">
+            <span className="min-w-0 text-sm break-words text-ink-soft">
+              {emptySentence}
             </span>
           </Slot>
         ) : null}

@@ -351,7 +351,9 @@ test("a position the viewer has filled is muted, but still offered to the server
   // the confirm would otherwise have traded that fix away.
   await remaining.getByRole("button").click();
   await page.getByTestId("confirm-pick-go").click();
-  await expect(page.getByTestId("confirm-pick-error")).toContainText(/all the Cs/i);
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(
+    /all the Cs/i,
+  );
   await expect(page.getByTestId("pool-refused")).toContainText(/all the Cs/i);
   await expect(remaining).toHaveAttribute("data-state", "correction");
 
@@ -373,8 +375,9 @@ test("somebody else's full bucket does not mute the commissioner's own pool", as
   // forwards were the one thing they were full at.
   //
   // The needs line, the radar and the pool now all read the viewer's roster.
-  const { commissioner, league, centers, guards } =
-    await mutedLeague("Other Bucket League");
+  const { commissioner, league, centers, guards } = await mutedLeague(
+    "Other Bucket League",
+  );
 
   await signIn(context, commissioner);
   await enterDraft(page, league.id);
@@ -398,7 +401,9 @@ test("somebody else's full bucket does not mute the commissioner's own pool", as
   // else's behalf, and the refusal arrives when the pick is actually attempted.
   await remaining.getByRole("button").click();
   await page.getByTestId("confirm-pick-go").click();
-  await expect(page.getByTestId("confirm-pick-error")).toContainText(/all the Cs/i);
+  await expect(page.getByTestId("confirm-pick-error")).toContainText(
+    /all the Cs/i,
+  );
 });
 
 test("the keyboard arms a pick and never lands one on its own", async ({
@@ -454,6 +459,83 @@ test("the keyboard arms a pick and never lands one on its own", async ({
   await expect(page.getByTestId("board-slot-1")).toContainText("Alphatwo");
   // And the untouched player is still on offer.
   await expect(page.getByTestId(`pick-${first.id}`)).toBeVisible();
+});
+
+test("an empty pool says which filters emptied it, and names the club", async ({
+  page,
+  context,
+}) => {
+  // Reported from a real draft: on the last pick of round 13, needing one
+  // center, the pool said "Nobody left matching that. 0 matches" — and it was
+  // telling the truth. Every Olympiacos center had gone, and the club filter
+  // was still set from a search several picks earlier. Correct and useless, on
+  // the one surface where a manager has sixty seconds and a clock.
+  const { commissioner, league } = await poolLeague("Narrowed League");
+  await createFoldedPlayer("Homeguard", { position: "G" });
+  const elsewhere = otherClub();
+  await createFoldedPlayer("Awayguard", {
+    position: "G",
+    club_code: elsewhere,
+    club_name: "Olympiacos Piraeus",
+  });
+
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id, elsewhere);
+  await expect(rows(page)).toHaveCount(1);
+
+  // That club has a guard and no center. Ask for a center.
+  await page.getByTestId("filter-position-C").click();
+  await expect(rows(page)).toHaveCount(0);
+
+  // The sentence names what is narrowing it, by the club's *name* rather than
+  // its code, so the reader can see which control to undo.
+  const empty = page.getByTestId("pool-empty");
+  await expect(empty).toBeVisible();
+  await expect(empty).toContainText(/filtered to/i);
+  await expect(empty).toContainText("Olympiacos Piraeus");
+  await expect(empty).toContainText("C");
+});
+
+test("the club filter is a list of club names, in name order", async ({
+  page,
+  context,
+}) => {
+  // The dropdown is read cold, so a run of three-letter codes in code order is
+  // a memory test rather than a filter.
+  const { commissioner, league } = await poolLeague("Named Clubs League");
+  await createFoldedPlayer("Homeguard", { position: "G" });
+  const elsewhere = otherClub();
+  await createFoldedPlayer("Awayguard", {
+    position: "G",
+    club_code: elsewhere,
+    club_name: "Zzz Last Club",
+  });
+  const third = otherClub();
+  await createFoldedPlayer("Thirdguard", {
+    position: "G",
+    club_code: third,
+    club_name: "Aaa First Club",
+  });
+
+  await signIn(context, commissioner);
+  await enterDraft(page, league.id);
+
+  const labels = await page
+    .getByTestId("filter-club")
+    .locator("option")
+    .allInnerTexts();
+  // "Every club" leads, then the names this pool actually has, alphabetically.
+  expect(labels[0]).toMatch(/every club/i);
+  const named = labels.slice(1);
+  expect(named).toContain("Aaa First Club");
+  expect(named).toContain("Zzz Last Club");
+  expect(named.indexOf("Aaa First Club")).toBeLessThan(
+    named.indexOf("Zzz Last Club"),
+  );
+  // And the option's value is still the code, so the filter itself is unchanged.
+  await expect(
+    page.getByTestId("filter-club").locator(`option[value="${third}"]`),
+  ).toHaveText("Aaa First Club");
 });
 
 test("the pool tells a screen reader what the list did, not what it thinks", async ({
