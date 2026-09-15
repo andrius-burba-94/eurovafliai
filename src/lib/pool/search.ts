@@ -42,6 +42,8 @@ export type PoolPlayer = {
    */
   readonly normalized: string;
   readonly club: string;
+  /** The club's full name, for the club filter's list. */
+  readonly clubName?: string;
   readonly position: Position;
   /** `active`, `injured` or `doubtful`. `left` never reaches the pool. */
   readonly status: string;
@@ -332,6 +334,64 @@ function orderBySheet(rows: PoolRow[]): PoolRow[] {
 }
 
 /** Every club in the pool, for the club filter. Sorted, deduplicated. */
-export function clubsIn(pool: readonly PoolPlayer[]): string[] {
-  return [...new Set(pool.map((player) => player.club))].sort();
+export type PoolClub = { readonly code: string; readonly name: string };
+
+/**
+ * The clubs present in this pool, for the filter's list.
+ *
+ * **Sorted by name, and labelled by name.** It used to return bare codes in
+ * code order, which put `OLY` between `MIL` and `PAN` and asked the reader to
+ * know that it meant Olympiacos. A row shows the code — three characters beside
+ * a player's name is exactly what a code is for — but a dropdown is read cold,
+ * and a run of codes in code order is a memory test rather than a filter.
+ *
+ * Only clubs that actually have somebody in the pool, which is what `pool`
+ * already means: a club whose every player has left the league is not an option
+ * anybody can usefully pick.
+ */
+export function clubsIn(pool: readonly PoolPlayer[]): PoolClub[] {
+  const byCode = new Map<string, string>();
+  for (const player of pool) {
+    if (!player.club) continue;
+    // First name wins, but a later row fills one in if the first had none — the
+    // same rule ingestion uses for a player's own name.
+    const existing = byCode.get(player.club);
+    if (!existing) byCode.set(player.club, player.clubName || player.club);
+  }
+  return [...byCode.entries()]
+    .map(([code, name]) => ({ code, name }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
+}
+
+/**
+ * Why the list is empty, said in the reader's own filters.
+ *
+ * Reported from a real draft: on the last pick of round 13, needing one center,
+ * the pool said "Nobody left matching that. 0 matches" — and it was **telling
+ * the truth**. Every Olympiacos center had gone, and the club filter was still
+ * set to Olympiacos from a search several picks earlier. The sentence was
+ * correct and useless: it described the result without naming the cause, on the
+ * one surface where a manager has sixty seconds and a clock.
+ *
+ * So the empty state now reads back what is narrowing it. Nothing here decides
+ * anything — it is the filters the reader already set, said out loud, which is
+ * the cheapest possible way to make a zero explicable.
+ */
+export function narrowedBy(
+  filters: PoolFilters,
+  clubName?: string,
+): string[] {
+  const parts: string[] = [];
+  if (filters.positions.length > 0) {
+    parts.push(filters.positions.join(", "));
+  }
+  if (filters.club) parts.push(clubName || filters.club);
+  if (filters.legalOnly) parts.push("legal for me");
+  if (filters.sheetOnly) parts.push("on my sheet");
+  if (filters.tier > 0) parts.push(`tier ${filters.tier}`);
+  if (filters.minProjection > 0) {
+    parts.push(`PIR ${Math.round(filters.minProjection / 10)}+`);
+  }
+  if (filters.hideUnavailable) parts.push("fit to play");
+  return parts;
 }
