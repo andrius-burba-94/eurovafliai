@@ -10,6 +10,7 @@ import { announceRoll } from "@/lib/chat/messages";
 import { announce } from "@/lib/chat/store";
 
 import { isManager } from "./lobby";
+import { orderAlreadyApplied } from "./order";
 
 import {
   DRAFT_FORMATS,
@@ -36,8 +37,19 @@ import type { LeagueRecord, MemberRecord } from "./types";
  * the 1.3b lobby actions do — never a URL somebody could be handed (issue #16).
  */
 
-export type SetupResult = { error: string | null };
+export type SetupResult = { error: string | null; notice?: string };
 const OK: SetupResult = { error: null };
+/**
+ * A re-apply that changed nothing. Not an error — the order is exactly what the
+ * commissioner asked for — but it needs saying, because silence after a press
+ * reads as a button that does not work, and that is the confusion this whole
+ * fix is about.
+ */
+const ALREADY_APPLIED: SetupResult = {
+  error: null,
+  notice:
+    "That order is already on the board — the roll is seeded, so re-applying always gives the same result. Use Reshuffle to draw a new order.",
+};
 const NOT_YOURS: SetupResult = {
   error:
     "Only the commissioner, or someone they trust with it, can change the draft setup.",
@@ -180,6 +192,11 @@ export async function updateDraftSettings(
  *
  * The engine refuses a duplicate member id, and `unique(league, user)` makes
  * that impossible in the database anyway.
+ *
+ * Idempotent had to mean quiet, too. The write always was repeatable; the
+ * announcement was not, so a re-apply published a fresh-looking "the draft
+ * order was rolled" every time and the button looked stuck. A roll now
+ * announces only when the board actually changed — see `orderAlreadyApplied`.
  */
 /**
  * Write one position per member, in the given order.
@@ -333,13 +350,24 @@ export async function rollDraftOrder(
     seed,
   );
 
+  // Decided from the members read *before* the write, which is the only moment
+  // the previous order still exists. A re-apply writes the same numbers it
+  // already wrote, and announcing that again is what made a working replay look
+  // like a broken shuffle.
+  const replay = orderAlreadyApplied(order, members);
+
   const failures = await writePositions(pb, order);
 
-  await announce(
-    pb,
-    league.id,
-    announceRoll({ order: teamNamesInOrder(members, order), reshuffle: false }),
-  );
+  if (!replay) {
+    await announce(
+      pb,
+      league.id,
+      announceRoll({
+        order: teamNamesInOrder(members, order),
+        reshuffle: false,
+      }),
+    );
+  }
 
   revalidatePath(`/leagues/${league.id}`);
 
@@ -348,7 +376,7 @@ export async function rollDraftOrder(
       error: `Rolled, but ${failures.length} of ${order.length} positions did not save. Roll again — the seed is stored, so the order will be the same.`,
     };
   }
-  return OK;
+  return replay ? ALREADY_APPLIED : OK;
 }
 
 /**

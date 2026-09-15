@@ -385,6 +385,47 @@ test("the roll announces itself in the lobby, where it happens", async ({
   await expect(messages(page).last()).toContainText("Chief FC");
 });
 
+test("re-applying the roll announces nothing, and says so on the page", async ({
+  page,
+  context,
+}) => {
+  // The defect this guards: the roll write was idempotent but its announcement
+  // was not, so every press of "Re-apply the roll" published a fresh-looking
+  // "the draft order was rolled". A production lobby collected fifty of them
+  // and the commissioner concluded — reasonably — that rolling was broken,
+  // because a seeded roll of two members had returned the same order every
+  // time and nothing on the page said it was a replay.
+  const { commissioner, league } = await chatLeague("Re-apply League");
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await expect(messages(page).last()).toContainText(
+    /the draft order was rolled/i,
+  );
+  const after = await messages(page).count();
+
+  // The button now offers a re-apply rather than a first roll.
+  await expect(page.getByTestId("draft-roll")).toContainText(/re-apply/i);
+
+  // Press it twice more. The order is already on the board, so the transcript
+  // must not grow at all.
+  await page.getByTestId("draft-roll").click();
+  await expect(page.getByTestId("draft-order-notice")).toContainText(
+    /already on the board/i,
+  );
+  await page.getByTestId("draft-roll").click();
+  await expect(page.getByTestId("draft-order-notice")).toBeVisible();
+
+  expect(await messages(page).count()).toBe(after);
+
+  // And the notice points at the action that does re-draw, which is the thing
+  // the commissioner was actually looking for.
+  await expect(page.getByTestId("draft-order-notice")).toContainText(
+    /reshuffle/i,
+  );
+});
+
 /* ── what 3.5's design critique found ────────────────────────────────────────
  *
  * The pass scored the surface 21/40, and two of its findings were P0. Each spec
