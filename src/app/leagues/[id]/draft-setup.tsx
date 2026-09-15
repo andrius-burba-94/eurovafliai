@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import {
   Bank,
   Correction,
+  EmptyNotice,
   Field,
   Slot,
   Slots,
@@ -146,6 +147,16 @@ export function DraftSetup({
       >
         {rolled.error ? (
           <Correction testId="draft-order-error">{rolled.error}</Correction>
+        ) : null}
+        {/* A re-apply that changed nothing still has to say so. Announced as a
+            status rather than drawn as a Correction, because nothing went
+            wrong: the order is exactly what was asked for. */}
+        {rolled.notice ? (
+          <div role="status">
+            <EmptyNotice testId="draft-order-notice">
+              {rolled.notice}
+            </EmptyNotice>
+          </div>
         ) : null}
         {manual.error ? (
           <Correction testId="draft-manual-error">{manual.error}</Correction>
