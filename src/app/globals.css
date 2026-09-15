@@ -117,6 +117,22 @@
   --text-slot--line-height: 1rem;
   --text-slot--letter-spacing: 0.14em;
 
+  /* --- The depth scale --------------------------------------------------
+   * Phase 10, replacing "zero radius, everywhere". ONE radius, and it belongs
+   * to level 1 of the scale — a framed Bank and a card block. A ruled slot, a
+   * button, an input and a position patch stay right-angled, because a ruled
+   * slot with a rounded corner is not a ruled slot.
+   *
+   * There is no shadow token, and that is a decision rather than an omission.
+   * A shadow works by darkening the surface under it, and on a ground at L 0.18
+   * there is nothing left to darken — a "shadow" here is either invisible or a
+   * black smear, and the version that reads as elevation is a glow, which is
+   * the thing ADR-0006 kept refusing while it gave up the light ground. So
+   * depth on this board is exactly three things: a lighter fill, a rule, and
+   * this corner.
+   */
+  --radius-block: 0.375rem;
+
   /* --- Spacing rhythm ---------------------------------------------------
    * A slot is the board's unit. Everything vertical is a multiple of it, so a
    * dense passage and a quiet one share one grid.
@@ -238,12 +254,45 @@ body {
 }
 
 /* A framed Bank is level 1 of the depth scale: panel stock inside one
- * structural rule. The frame groups a task; it never glows and there is no
- * level below it. Radius arrives with the card block in 10.4. */
+ * structural rule, at the one radius. The frame groups a TASK; a card block
+ * (below) groups a SUBJECT. Both are level 1 and there is nothing below them. */
 @utility bank-framed {
   border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-block);
   background-color: var(--color-stock-panel);
   padding: 1rem;
+}
+
+/* A card block: one subject, segmented off the board — a player in a roster, a
+ * member's night in a recap. Phase 10's one new material, and the reason the
+ * flatness rule had to go: a roster of thirteen players needs thirteen sibling
+ * blocks, and "one framed panel, never nested" could not say that.
+ *
+ * Same level as a framed Bank, deliberately, so a Bank can hold a RUN of card
+ * blocks without either of them becoming a second level. What is refused is a
+ * card block inside a card block — at that point the layout is wrong, not the
+ * scale. Nothing here floats: no shadow, because there is no shadow token, and
+ * no glow ever.
+ *
+ * Padding is tighter than a Bank's 1rem because a block is a row's worth of
+ * content rather than a section's, and on a 390px phone thirteen of them at
+ * 1rem is a lot of scrolling for the same information. */
+@utility card-block {
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-block);
+  background-color: var(--color-stock-panel);
+  padding: 0.75rem;
+}
+
+/* A card block whose subject is on the clock. The marker does its usual job —
+ * state — and it does it in the block's own border rather than as a badge
+ * parked inside it, exactly as `slot-live` does for a row. Kept as a separate
+ * utility rather than a modifier so there is one declaration per material. */
+@utility card-block-live {
+  border: 2px solid var(--color-live);
+  border-radius: var(--radius-block);
+  background-color: var(--color-live-sunk);
+  padding: calc(0.75rem - 1px);
 }
 
 /* A figure in a column — Phase 10, and the only door to the mono face.

@@ -176,6 +176,113 @@ export function Bank({
 }
 
 /**
+ * A run of card blocks. The list counterpart of `Slots`, and separate from it
+ * on purpose: `Slots` draws a ruled board (bottom rail, rules between rows)
+ * and a run of blocks is a grid of separate objects with a gap between them.
+ * Composing one out of the other produced a bottom rail under a gap.
+ *
+ * `role="list"` is stated for the same reason `Slots` states it: Safari and
+ * VoiceOver drop the list roles from a `<ul>` that has `list-style: none` and
+ * is a flex container, and draft night is iPhones.
+ */
+export function CardBlocks({
+  children,
+  testId,
+  label,
+  columns = false,
+}: {
+  children: ReactNode;
+  testId?: string;
+  label?: string;
+  /**
+   * Two across from `sm` up. Off by default because the phone is the primary
+   * device and a thirteen-player roster in two columns on a 390px screen gives
+   * each block about 170px, which cannot hold a name like Valančiūnas beside a
+   * patch and a captain control.
+   */
+  columns?: boolean;
+}) {
+  return (
+    <ul
+      aria-label={label}
+      data-testid={testId}
+      role="list"
+      className={`grid gap-2 ${columns ? "sm:grid-cols-2" : ""}`}
+    >
+      {children}
+    </ul>
+  );
+}
+
+/**
+ * One card block: a single subject, segmented off the board.
+ *
+ * Level 1 of the depth scale and the material Phase 10 added — see
+ * ADR-0006 and the `card-block` utility. A block groups a *subject* (a player
+ * in a roster, a member's night); a framed `Bank` groups a *task*. They are the
+ * same level, so a Bank may hold a run of blocks, and a block may not hold
+ * another block.
+ *
+ * State is carried in the block's own border, the way a row's is carried in its
+ * rule — never by a badge parked inside an otherwise normal block. The
+ * `position` prop tints the left edge in the position's own hue, which is the
+ * colour coding D22 asks for; the G/F/C letter still has to be printed by the
+ * caller, because colour never carries position alone.
+ */
+export function CardBlock({
+  children,
+  testId,
+  live = false,
+  position,
+  landed = false,
+  className = "",
+}: {
+  children: ReactNode;
+  testId?: string;
+  /** This subject is on the clock. Drawn in the marker, at double weight. */
+  live?: boolean;
+  /**
+   * A 3px edge in the position's hue, so a roster can be scanned by colour.
+   *
+   * It is a *border-left* rather than a wash across the block, because a wash
+   * would put every figure in the block on a tinted field and re-open the
+   * pairing `tokens.test.ts` measures for slots — at which point thirteen
+   * blocks in three hues need their own contrast argument. An edge changes no
+   * contrast at all, and the wash is already available to a row that wants it.
+   */
+  position?: "G" | "F" | "C";
+  /** Plays the card-landing motion once. Inert under `prefers-reduced-motion`. */
+  landed?: boolean;
+  className?: string;
+}) {
+  return (
+    <li
+      data-testid={testId}
+      data-state={live ? "live" : "filled"}
+      data-position={position}
+      className={`${live ? "card-block-live" : "card-block"} ${
+        landed ? "card-lands" : ""
+      } ${position && !live ? `border-l-3 ${BLOCK_EDGE[position]}` : ""} ${className} flex min-w-0 flex-col gap-2`}
+    >
+      {children}
+    </li>
+  );
+}
+
+/**
+ * The position edge. Full-strength hue, not an alpha: it sits on panel stock
+ * rather than on the ground, and an alpha edge would take its colour from
+ * whichever surface the block happens to be on — the same mistake the patch's
+ * background made before 3.4a, and the reason `PATCH` below carries an opaque
+ * field. A 3px edge is a non-text boundary, and these clear 8.8:1 on a panel.
+ */
+const BLOCK_EDGE: Record<"G" | "F" | "C", string> = {
+  G: "border-l-pos-g",
+  F: "border-l-pos-f",
+  C: "border-l-pos-c",
+};
+
+/**
  * One slot. `landed` plays the card-landing motion once — reserved for the row
  * that has genuinely just arrived, and inert under `prefers-reduced-motion`.
  */
@@ -251,6 +358,7 @@ export function Door({
   testId,
   state = "filled",
   actionTone = "ink",
+  block = false,
 }: {
   href: string;
   title: string;
@@ -259,29 +367,55 @@ export function Door({
   testId?: string;
   state?: SlotState;
   actionTone?: "ink" | "live";
+  /**
+   * Draw this door as a card block rather than as a ruled row.
+   *
+   * A door is a *destination*, which is a subject rather than an entry in a
+   * ledger — so a run of them is the clearest case in the app for the Phase 10
+   * material, and the reason the port lives here rather than in a new
+   * component. The two renderings share this body deliberately: a door that
+   * looked different depending on which surface built it is how the lobby and
+   * the season pages drifted apart before this component existed.
+   *
+   * The Link's negative margins work unchanged because a card block's padding
+   * is 0.75rem, the same as a slot's `px-3 py-3`.
+   */
+  block?: boolean;
 }) {
-  return (
-    <Slot state={state}>
-      <Link
-        href={href}
-        data-testid={testId}
-        className="-mx-3 -my-3 flex min-h-11 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+  const body = (
+    <Link
+      href={href}
+      data-testid={testId}
+      className={`-mx-3 -my-3 flex min-h-11 flex-1 ${
+        block ? "flex-col gap-2" : "flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
+      } px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live`}
+    >
+      <span className="flex min-w-0 flex-col gap-1">
+        <CardName>{title}</CardName>
+        <span className="min-w-0 text-sm break-words text-ink-soft">
+          {description}
+        </span>
+      </span>
+      <span
+        className={`slot-label shrink-0 ${
+          actionTone === "live" ? "text-live" : "text-ink"
+        }`}
       >
-        <span className="flex min-w-0 flex-col gap-1">
-          <CardName>{title}</CardName>
-          <span className="min-w-0 text-sm break-words text-ink-soft">
-            {description}
-          </span>
-        </span>
-        <span
-          className={`slot-label shrink-0 ${
-            actionTone === "live" ? "text-live" : "text-ink"
-          }`}
-        >
-          {action} &rarr;
-        </span>
-      </Link>
-    </Slot>
+        {action} &rarr;
+      </span>
+    </Link>
+  );
+
+  // `state` maps onto the block's own material the way it maps onto a row's
+  // rule: "live" is the marker at double weight, everything else is the resting
+  // border. A door is never `transit` or `correction`, so those collapse here
+  // rather than inventing two more block materials nothing would render.
+  return block ? (
+    <CardBlock live={state === "live"}>
+      {body}
+    </CardBlock>
+  ) : (
+    <Slot state={state}>{body}</Slot>
   );
 }
 

@@ -517,11 +517,21 @@ card block groups one *subject* (a player, a member's night). Rows and controls
 inside either keep their own material and do not become further cards.
 
 **The No-Atmosphere Rule.** Replaces the Flatness-Is-Not-Negotiable Rule, and
-keeps most of it. Depth is structural: a border, a panel fill, one radius step,
-and — where the depth scale defines it — one shadow. What is still a regression
-rather than a variant: a **gradient**, a **glow**, a coloured halo, a blurred
-backdrop, or a shadow used to float something for emphasis. The board is lit; it
-does not shine.
+keeps most of it. Depth is exactly three things: a lighter fill, a rule, and one
+radius step. **There is no shadow token**, and that is a decision rather than an
+omission — a shadow works by darkening the surface beneath it, and on a ground
+at L 0.18 there is nothing left to darken, so the version that reads as
+elevation is a glow. What is still a regression rather than a variant: a
+**gradient**, a **glow**, a coloured halo, a blurred backdrop, or a shadow used
+to float something. The board is lit; it does not shine.
+
+Both halves of this are now **enforced** by `src/app/depth-scale.test.ts`, which
+reads every `.ts`/`.tsx` file under `src/` and fails on a radius that is not the
+one token, on any shadow, gradient or blur class, and on a card-block material
+spelled out anywhere but `board.tsx`. It reads source rather than measuring
+values because Tailwind emits an unknown utility as *nothing at all*: a stray
+`rounded-lg` renders a rounded button and a hand-rolled `card-block-2` renders
+an unstyled `<li>`, and both look plausible in a screenshot.
 
 ## Shapes
 
@@ -1368,14 +1378,16 @@ rather than deleted, so the decision and the question it settled stay together.
    place needs them, promote them to `@theme`. (A third one-off, a 1.0625rem
    card-name step, was removed rather than promoted: at 6% it was never a step,
    and weight plus caps already separate a card name from body text.)
-9. **The depth scale has two levels and one radius, and nothing enforces
-   either.** `tokens.test.ts` can assert that a token exists and what it
-   measures; it cannot assert that nobody wrote `rounded-lg` on a button or
-   nested a card block inside a card block. The Two Levels Rule and the
-   one-radius rule are currently prose plus code review, which is exactly the
-   position the alpha modifiers were in before open question 7 was answered by
-   measurement. A lint rule over `src/**/*.tsx` for `rounded-` outside the one
-   token is the obvious fix and is not written.
+9. ~~**The depth scale has two levels and one radius, and nothing enforces
+   either.**~~ **Answered in 10.4** by `src/app/depth-scale.test.ts`, and more
+   of it than the question asked for: one radius, no shadow/gradient/blur, and
+   the card-block materials applied only by `board.tsx` — which is what makes
+   "is a block nested inside a block?" a question about one file instead of
+   forty. What is *still* open is the cross-component case: the recursive nest
+   is closed (a `CardBlock` cannot render a `CardBlock`), but two callers
+   composing one into another is left to review. Verified by injecting a
+   violation and watching three assertions fail, rather than by watching the
+   suite go green.
 10. **Position colour is now the primary scanning signal, and the letter is the
     only fallback.** That is a deliberate trade (D22) rather than an oversight,
     but it has not been tested with anybody who needs the fallback. 3.2's

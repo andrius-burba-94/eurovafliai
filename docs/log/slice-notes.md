@@ -3,6 +3,168 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.4 — A depth scale with no shadow in it, and a guard that reads source
+
+10.1 struck out the Flatness-Is-Not-Negotiable Rule and promised "an explicit
+depth scale" in its place. This slice had to decide what that actually is, and
+the answer came out smaller than the phrase suggests: **a lighter fill, a rule,
+and one corner radius.** No shadow.
+
+That is a decision, not an omission, and it is worth writing down because
+"depth" and "shadow" arrive in the same thought. A shadow works by *darkening
+what is beneath it*. The ground is at L 0.18. There is almost nothing left to
+darken, so every shadow that reads as elevation on this ground reads that way
+because it has been inverted into a **light** halo around the object — which is
+the glowing-accent failure ADR-0006 exists to refuse, wearing a different token
+name. The scale therefore goes the other way: level 1 is *lighter* than the
+ground, which is also why 10.2 renamed `stock-deep` to `stock-panel`. Depth here
+moves toward the light, and a system that says "deep" while emitting a brighter
+colour will eventually be read literally by somebody.
+
+### Two levels, and the honest reason there are not three
+
+`Bank` (framed) and `CardBlock` are the same level, distinguished by what they
+hold rather than by how far they float: a framed Bank groups a **task**, a block
+groups a **subject**. That is the rule that answers nesting without a table of
+allowed combinations — a Bank may hold a run of blocks, because a task can
+contain subjects; a block may not hold a block, because a subject is not made of
+subjects. A third level was drafted and dropped: the only thing it would have
+expressed is emphasis, and the Material-Carries-State Rule already says emphasis
+is state, and state is carried in the border.
+
+### The port went to the doors, because a door is a subject
+
+The temptation was to port `Slot` itself and get the whole app in one move.
+`Slot` is a **ledger row** — a pick in an order, a member in a standing — and a
+ledger's meaning is in the alignment between rows, which is exactly what a gap
+between separate objects destroys. So `Slots` and `CardBlocks` are separate
+containers on purpose; composing one from the other produced a bottom rail
+underneath a gap, which is what a wrong model looks like when it renders.
+
+The four league doors are the right first port because a destination *is* a
+subject, and a grid of them says "pick one" where a ruled run says "read down".
+`Door` gained a `block` prop rather than a sibling component, and the two
+renderings share one body — a door that looked different depending on which page
+built it is precisely how the lobby and the season pages drifted apart before
+`board.tsx` existed.
+
+### The guard exists because Tailwind fails silently, not because rules are nice
+
+`depth-scale.test.ts` reads every `.ts`/`.tsx` under `src/` as text and fails on
+a radius that is not the one token, on any `shadow-` / gradient / `blur-` class,
+and on a card-block material spelled anywhere but `board.tsx`. Reading source
+rather than measuring rendered values looks like the weaker test, and here it is
+the stronger one, for a specific reason: **Tailwind emits an unknown utility as
+nothing at all.** A stray `rounded-lg` renders a perfectly pleasant rounded
+button; a hand-rolled `card-block-2` renders an unstyled `<li>`. Neither throws,
+neither logs, and the first one *passes* any test that asserts a computed style
+is plausible. The failure mode is a screenshot that looks fine, which no runtime
+assertion is positioned to catch.
+
+It was verified the only way a guard can be: by injecting a violation into
+`roster-radar.tsx` and watching three assertions fail by name, then reverting
+with `git checkout` after a `cp` restore left the file dirty. A guard that has
+only ever been observed passing has not been observed.
+
+This closes the debt 10.1 opened the same week, with one piece deliberately left
+open: the recursive nest is closed structurally, but two *different* callers
+composing one block into another still depends on review.
+
+### One more Tailwind fact, checked rather than assumed
+
+`border-l-3` is not in Tailwind's classic border-width scale (0/2/4/8). It works
+in v4 — verified by grepping `border-left-width:3px` out of the built CSS, not
+by remembering — and so do the three `border-l-pos-*` classes, which matters
+because they are assembled from a lookup record and a dynamically composed class
+name is the other way Tailwind silently emits nothing. The position edge is a
+full-strength hue rather than an alpha for the reason 3.4a paid for: an alpha
+takes its colour from whatever surface it lands on. It is an *edge* rather than
+a wash specifically so it changes no text's contrast, and the G/F/C letter is
+still printed by the caller, because colour never carries position alone.
+
+### A gate finding that was not about this slice
+
+The E2E suite failed four specs on the first full run, all of them
+`/auth/callback`, all `ERR_CONNECTION_REFUSED`. The cause is that the callback
+redirects to the **absolute** `NEXT_PUBLIC_APP_URL`, which is
+`http://localhost:3007`, while the run was on `E2E_PORT=3011` — the port the
+verification table in STATUS.md recommends. Nothing was listening on 3007, so
+the browser was sent nowhere.
+
+The reason it is a debt row rather than a footnote is the *other* arrangement.
+Those two specs assert a path regex, not an origin. With a dev server running on
+3007 — which is the normal state of this laptop — the redirect lands there, the
+regex matches, `login-error` renders, and both specs pass **against a different
+build than the one under test**. The failure mode of the recommended command is
+therefore a false pass on two security specs, and the only reason it surfaced at
+all is that this run happened to have 3007 free.
+
+## 10.3 — Two families, and the boundary between a column and a sentence
+
+The brief asked for geometric labels and a condensed mono for tabular stats,
+which meant overturning the One Label Maker Rule ("one family, no exceptions…
+no mono"). Space Grotesk carries every word; JetBrains Mono carries figures that
+live in a column.
+
+**`latin-ext` was checked before either face was chosen, not after.** This
+league reads Valančiūnas and Šengelia, and a font without the extended range
+falls back mid-word — a surname that changes shape at the fourth letter looks
+like a rendering bug on the one screen the league stares at all night. Both
+faces were confirmed against `next/font`'s own `font-data.json` rather than
+against a memory of what Google Fonts ships.
+
+### The interesting part was what the `stat` utility deliberately does *not* set
+
+`stat` sets `font-family` and `font-variant-numeric`, and nothing else. Adding
+weight and tracking there would have been the natural thing to do and would have
+been a bug. `stat` composes with `slot-label` and `font-semibold`, Tailwind v4
+emits `@utility` blocks **alphabetically**, and `slot-label` sorts before
+`stat` — so a tracking declaration here would have silently overridden the caps
+tracking of every label it joined. Not a hypothetical: `slot-transit` had
+already paid for this exact ordering once. Keeping the utility to two properties
+means the composition order stops mattering.
+
+The boundary the rule draws is between a **column** and a **sentence**: the
+clock, the PIR column, chat timestamps and standings figures are mono; the chat
+unread badge and any number sitting inside prose stay sans. A figure inside a
+sentence is prose. `design.spec.ts` asserts both halves in a real browser, so
+"mono where it belongs, sans where it belongs" is measured rather than asserted
+in a comment — and the long-standing computed-family check moved from Archivo to
+Space Grotesk in the same place.
+
+## 10.2 — One ground, and the rename that says which way depth goes
+
+The palette from 10.1 landed in `globals.css`, and the second ground came out
+entirely: the `--night-*` indirection, both remapping blocks,
+`prefers-color-scheme`, `src/lib/theme.ts`, the `<head>` override script,
+`ThemeControl`, the sun and moon icons, and `theme.spec.ts`. Roughly 1,100 lines
+deleted against 500 added, which is the shape of a slice that removes a
+dimension rather than adding a look.
+
+**`stock-deep` became `stock-panel`,** and the rename is the load-bearing part.
+On card stock a secondary surface is darker; on a near-black ground it is
+lighter. The old name described the wrong direction, and the direction is what
+makes the panel the *binding* surface when solving contrast rather than the
+forgiving one — ink on the lighter panel is the harder constraint, so `rule` is
+asserted harder on the panel than on the ground.
+
+`tokens.test.ts` collapsed from two grounds to one and still came out at 74
+assertions, every pair re-measured rather than carried over. Four are new: the
+anchors pinned as sRGB bytes so the ground and the marker cannot drift; a
+**ceiling** on chalk, which is the unusual one — it stops someone "improving"
+contrast by walking ink toward pure white, where 18.8:1 on this ground is
+halation rather than legibility; `rule` bound against the panel; and every token
+declared exactly once, which restores the protection the `--night-*` prefix used
+to give for free by making a duplicate declaration a name collision.
+
+One find that CI could not have produced: **`global-error.tsx` carried its own
+copy of the theme script.** It renders only when the root layout has already
+failed, so no test exercises it, and it would have kept writing a `data-theme`
+onto a document with no theme system left. It was found by grepping for the
+symbol being deleted rather than by trusting the test suite to be complete —
+which is the general lesson, since the file that renders when everything else
+has broken is the file nothing covers.
+
 ## 10.1 — Reversing a thesis, and solving a palette instead of picking one
 
 The instruction was to make the app a dark, data-dense interface on `#0B1120`
