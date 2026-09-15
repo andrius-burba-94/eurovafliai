@@ -3,6 +3,96 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 10.9 — Three questions, three shapes, and the one refusal worth reversing
+
+The brief's last ask was to "cleanly differentiate the Live Draft Room from the
+dashboard-style League Homepage and the tabular-focused League Standings
+screen". Every one of those three had the same shape when the slice opened: a
+48rem column of framed Banks holding runs of ruled rows. They read as one
+surface because they *were* one surface, three times.
+
+**The `max-w-3xl` question, and why it is a D-row rather than a diff.**
+DESIGN.md's open question 4 had been answered in 3.1 — "no second container
+width and no new breakpoint" — and the plan for this slice flagged it as the
+thing that had to be decided rather than quietly stepped over. Re-read, that
+answer is about the **board**: twelve member columns do not fit any measure, so
+the board overflows and scrolls, and the app does not widen around it. That part
+still holds and is untouched. What 3.1 could not have known is how much the
+*room* would come to hold. By the end of Phase 9 it is a pool, a board, a
+radar, a commissioner console and a chat — five surfaces in one column, about
+five screens tall on a 1440px laptop, on the one page in the app nobody scrolls
+away from for ninety minutes. So:
+
+- `Sheet` and `TopRail` take a `measure` prop, with a two-entry `MEASURE` map:
+  `column` (48rem, everything) and `room` (80rem from `lg`, the draft room).
+  Both components read the same map, because the rail's wordmark aligning with
+  the first slot below it is the reason they shared a measure in the first
+  place, and a room whose rail was 48rem over an 80rem sheet is the bug that
+  would prove they had drifted.
+- The room splits **acting** from **watching**: the pool on the left, the
+  radar, board, console and chat on the right, with the countdown band full
+  width above both — the clock belongs to the whole room, not to a column.
+- **Below `lg` nothing changed.** Same order, same single column, same sticky
+  band. That is the half that mattered: draft night is phones on a couch, and a
+  laptop layout that cost the phone anything would have been the wrong trade.
+
+The cost is real and is written down as blueprint **D24** rather than left for
+somebody to find: this codebase now has two measures and a second breakpoint,
+having had one of each since 1.4. What bounds it is where the exception lives —
+in one map with one entry per measure, so a third needs the argument this one
+made, in the place a reviewer looks.
+
+**The standings were the surface with the most wrong in them.** A member's
+season was a wrapped paragraph of `R12 14.0 R13 9.5 …`, one paragraph per row.
+The question a standings table exists to answer is *who won this round* — read
+down a column that is one lookup; read along 38 wrapped tokens a row it is not a
+lookup at all, and by round 38 each row is 38 tokens of its own private season.
+So it became a grid: members down, rounds across, in the **draft board's own
+scrollport component** rather than a second one that would drift from it — which
+is why `BoardScroll` now takes a `label`, a change that is one prop wide and is
+the whole reason the two grids cannot diverge. Rank, team and total are
+`sticky left-0` on panel stock, because the answer should not scroll away from
+the evidence, and the team name truncates with the whole of it in `title`: a
+grid row is one line tall, and one wrapped "Gintaras Ballers FC" makes every
+other row taller for it.
+
+**The dashboard change is a rule being narrowed, not a layout being
+preferred.** `/` was a `Slots` run that continued past your leagues into three
+empty `Slot 04` placeholders, under the Board-Shows-Its-Shape Rule. But a
+league does not occupy a slot in anything — there is no board of twelve league
+places — so those placeholders drew a board's shape for something that is not a
+board, and the ruled run claimed a ledger's alignment between rows that have
+nothing to compare. A league is a *subject*: its own season, status and roster
+fill. That is 10.4's card block, and the lobby's four doors had already made the
+same port for the same reason. The rule in `.impeccable/design.json` is now
+narrowed to things that genuinely occupy slots: a lobby, a board.
+
+**The axe sweep found nothing, and that is only worth saying because of what it
+was pointed at.** The suite had been sweeping `/` with no leagues and standings
+with no table — that is, the two surfaces this slice rebuilt, in the state where
+neither exists. Both now run populated: a list of blocks with a link inside each
+one, and a grid with a sticky `rowheader` and a scrollport. Serious and critical
+findings: none.
+
+**The full E2E run found one real regression and one stale assertion.** The
+regression: a radar row jumps to its member's board column, and the spec checks
+the column is fully inside the scrollport afterwards. In the room's new grid
+track the board's width is fractional, so the scroller stops **0.19px** short of
+its own end and an exact comparison fails while the column is, visibly and
+functionally, in view. The assertion now asks "visible" within a pixel, which is
+what it always meant. The stale one: `transactions.spec.ts` asserted `"R1 14.2"`
+as row text — a string that only existed because the old row printed its own
+round labels. It now reads the round cells by `data-round`, which is a better
+assertion than the one it replaced, because it names *which* round it is
+checking rather than hoping the substring lands in the right one.
+
+Nine flakes survived the run, all passing on first retry: eight are the
+`pool.spec.ts` count flake the debt table has carried since 10.6, and the ninth
+is a mapping correction that did not arrive inside five seconds under five
+workers. 10.8's zero-flake suite is the outlier to explain, not this one — at
+roughly 1 in 190, a 425-test sample proves nothing either way, which is what
+that debt row already said before this slice ran.
+
 ## 10.8 — One state change, two ends of it
 
 The brief asked for "smooth motion design for draft selections (spring

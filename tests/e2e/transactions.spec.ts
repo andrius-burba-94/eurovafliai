@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import {
   addMemberTo,
@@ -213,11 +213,13 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   const mateRow = page.getByTestId("standings-row").filter({
     hasText: "Other FC",
   });
-  await expect(chiefRow).toContainText("R1 14.2");
-  await expect(chiefRow).toContainText("R2 0.7");
+  const roundCell = (row: Locator, round: number) =>
+    row.getByTestId("standings-round").and(page.locator(`[data-round="${round}"]`));
+  await expect(roundCell(chiefRow, 1)).toHaveText("14.2");
+  await expect(roundCell(chiefRow, 2)).toHaveText("0.7");
   await expect(chiefRow.getByTestId("standings-total")).toHaveText("14.9");
-  await expect(mateRow).toContainText("R1 8.0");
-  await expect(mateRow).toContainText("R2 5.0");
+  await expect(roundCell(mateRow, 1)).toHaveText("8.0");
+  await expect(roundCell(mateRow, 2)).toHaveText("5.0");
   await expect(mateRow.getByTestId("standings-total")).toHaveText("13.0");
 });
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-15T09:43:17.350Z",
+  "generatedAt": "2026-09-15T12:45:05.087Z",
   "title": "Design System: Eurovafliai (the midnight board)",
   "extensions": {
     "colorMeta": {
@@ -299,13 +299,23 @@
       {
         "name": "sm",
         "value": "40rem"
+      },
+      {
+        "name": "lg",
+        "value": "64rem",
+        "purpose": "The draft room only, since 10.9: the measure opens to 80rem and the room splits acting (pool) from watching (radar, board, console, chat). No other surface uses it, and there is no md or xl."
       }
     ],
     "containers": [
       {
-        "name": "sheet",
+        "name": "column",
         "value": "48rem",
-        "purpose": "max-w-3xl. Every surface's measure, shared by the top rail's inner row so the wordmark aligns with the first slot below it."
+        "purpose": "max-w-3xl. Every surface but the draft room, shared by the top rail inner row so the wordmark aligns with the first slot below it."
+      },
+      {
+        "name": "room",
+        "value": "80rem",
+        "purpose": "The draft room from lg up, and nothing else. It is the one surface that is four surfaces at once and the one nobody scrolls away from for ninety minutes. Below lg it is the column measure, unchanged."
       }
     ],
     "contrastFloors": [
@@ -523,7 +533,7 @@
       },
       {
         "name": "The One Measure Rule",
-        "body": "New surfaces use Sheet. If a future surface needs to be wider than 48rem (a real draft board with 12 columns will), that is a deliberate new container with its own justification — not a per-page max-w override.",
+        "body": "New surfaces use Sheet at its default column measure. The one exception is declared in the component — Sheet and TopRail share a MEASURE map and room is a value in it — so widening a surface means choosing a named measure a reviewer can grep, never a per-page max-w override. A third entry needs the argument 10.9 made for the second.",
         "section": "layout"
       },
       {
@@ -548,7 +558,7 @@
       },
       {
         "name": "The Board-Shows-Its-Shape Rule",
-        "body": "A list of things that occupy slots renders its empty slots too. A lobby that is a quarter full looks a quarter full; the signed-in home continues past your leagues into free slots. A list that just stops is not a board.",
+        "body": "A list of things that occupy slots renders its empty slots too: a lobby that is a quarter full looks a quarter full, and the draft board draws every slot whether it is filled or not. 10.9 narrowed it to exactly that — the signed-in dashboard used to continue past your leagues into three free slots, and a league does not occupy a slot in anything, so those were a board shape drawn for something that is not a board. A list that just stops is not a board; a grid of subjects was never a board.",
         "section": "components"
       },
       {

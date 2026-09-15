@@ -35,9 +35,10 @@ import { useEffect, useRef, type ReactNode } from "react";
  * and the ring is the design system's own: 2px marker at 2px offset.
  */
 export function BoardScroll({
-  markedOverallNo,
+  markedOverallNo = null,
   children,
   testId,
+  label = "The draft board",
 }: {
   /**
    * The slot the board marks. Used only to notice that it moved.
@@ -49,9 +50,19 @@ export function BoardScroll({
    * there: two marker rules on one board, one of them on a finished pick, which
    * is the one thing DESIGN.md says the marker may never do.
    */
-  markedOverallNo: number | null;
+  markedOverallNo?: number | null;
   children: ReactNode;
   testId?: string;
+  /**
+   * What this scrollport is, for the screen reader that lands in it.
+   *
+   * 10.9 gave the standings the same grid treatment — members down, rounds
+   * across, wider than the column it sits in — so this component is now the
+   * app's *one* horizontally scrolling region rather than the draft board's
+   * own. Without a label per caller, a reader tabbing into the standings would
+   * be told they had entered "the draft board".
+   */
+  label?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   /** The last marked slot this component saw. `null` until it has seen one. */
@@ -165,7 +176,7 @@ export function BoardScroll({
       // in rather than nothing at all.
       tabIndex={0}
       role="region"
-      aria-label="The draft board"
+      aria-label={label}
       // `relative` so a slot's `offsetLeft` is measured against this box.
       // `overscroll-x-contain` so swiping the board at its end does not walk
       // the browser back a page on a phone.

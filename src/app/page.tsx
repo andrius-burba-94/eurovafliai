@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 
 import {
   Bank,
+  CardBlock,
+  CardBlocks,
   CardName,
   PositionPatch,
   Sheet,
-  Slot,
-  Slots,
   TopRail,
 } from "@/components/board";
 import { logout } from "@/lib/auth/actions";
@@ -20,14 +20,17 @@ import { LeagueForms } from "./league-forms";
  * Your leagues: the signed-in home. Create one as commissioner, or join a
  * friend's with its invite code.
  *
- * Each league is a slot on the board, and the run continues into the free slots
- * below it, so the surface shows the board's shape rather than a list that
- * stops. A league still in setup is ruled dashed; every established league is
- * ruled solid. Drafting remains a status word here, never the clock's marker.
+ * A dashboard since 10.9, and the change is the layout rather than the data: a
+ * league is a *subject* — a whole board with its own season, status and roster
+ * fill — and nothing here is ordered or compared down a column, so a grid of
+ * card blocks saying "pick one" is honest where a ruled run saying "list" was
+ * not. The free slots this page used to pad itself with went with them: they
+ * drew a board's shape for something that is not a board, and the two forms
+ * below are how another league actually starts.
+ *
+ * A league still in setup is a waiting block; an established one is held.
+ * Drafting remains a status word here, never the clock's marker.
  */
-
-/** How many free slots to show under the run. Enough to read as a board. */
-const FREE_SLOTS_SHOWN = 3;
 
 export default async function Home() {
   const session = await getSession();
@@ -81,21 +84,25 @@ export default async function Home() {
         </div>
 
         <Bank
-          label="The league board"
+          label="Open a league"
           framed
           aside={
-            leagues.length > 0 ? `${leagues.length} on the board` : "none yet"
+            leagues.length > 0
+              ? `${leagues.length} league${leagues.length === 1 ? "" : "s"}`
+              : "none yet"
           }
         >
-          <Slots testId="leagues-list">
+          <CardBlocks testId="leagues-list" label="Your leagues" columns>
             {leagues.map((league) => (
-              <Slot
+              <CardBlock
                 key={league.id}
                 state={league.status === "setup" ? "waiting" : "filled"}
               >
+                {/* The same negative-margin link a `Door` block uses, for the
+                    same reason: the target is the whole card, not the words. */}
                 <Link
                   href={`/leagues/${league.id}`}
-                  className="-mx-3 -my-3 flex min-h-11 flex-1 flex-col gap-2 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                  className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 flex-col gap-2 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
                 >
                   <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <CardName>{league.name}</CardName>
@@ -124,10 +131,10 @@ export default async function Home() {
                     <span className="slot-label text-ink">Open league</span>
                   </span>
                 </Link>
-              </Slot>
+              </CardBlock>
             ))}
             {leagues.length === 0 ? (
-              <Slot state="waiting">
+              <CardBlock state="waiting">
                 <span
                   data-testid="leagues-empty"
                   className="min-w-0 text-sm break-words text-ink-soft"
@@ -136,16 +143,9 @@ export default async function Home() {
                   table you keep score on. Start one below, or join a
                   friend&rsquo;s with their invite code.
                 </span>
-              </Slot>
+              </CardBlock>
             ) : null}
-            {Array.from({ length: FREE_SLOTS_SHOWN }, (_, index) => (
-              <Slot key={`free-${index}`} state="waiting">
-                <span className="slot-label text-ink-faint">
-                  Slot {String(leagues.length + index + 1).padStart(2, "0")}
-                </span>
-              </Slot>
-            ))}
-          </Slots>
+          </CardBlocks>
         </Bank>
 
         <LeagueForms hasLeagues={leagues.length > 0} />

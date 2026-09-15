@@ -140,9 +140,13 @@ test("a radar row reveals a far board column below the sticky band", async ({
     const bandRect = document
       .querySelector('[data-testid="on-the-clock"]')!
       .getBoundingClientRect();
+    // A fractional grid column leaves the scroller a fraction of a pixel short
+    // of its own end, so "visible" is asked within a pixel rather than exactly.
+    const slack = 1;
     return {
       horizontallyVisible:
-        targetRect.left >= boardRect.left && targetRect.right <= boardRect.right,
+        targetRect.left >= boardRect.left - slack &&
+        targetRect.right <= boardRect.right + slack,
       belowBand: targetRect.top >= bandRect.bottom,
       outline: getComputedStyle(node).outlineWidth,
     };

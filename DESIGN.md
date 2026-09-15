@@ -448,11 +448,31 @@ because two families can only drift apart if something measures both.
 
 ## Layout
 
-**One column, one measure.** Every surface is a `TopRail` followed by a `Sheet`.
-`Sheet` is `max-w-3xl` (48rem) centred, and `TopRail`'s inner row uses the same
-measure, so the rail's wordmark aligns with the first slot below it on every
-page. There is no sidebar, no second column at page level, and no full-bleed
-region.
+**One column, two measures.** Every surface is a `TopRail` followed by a
+`Sheet`, and both take the same `measure` prop so the rail's wordmark aligns
+with the first slot below it on every page. There are exactly two:
+
+- **`column`** — `max-w-3xl` (48rem) centred. Every surface in the app but one.
+- **`room`** — 48rem up to `lg`, then 80rem. **The draft room only**, and the
+  argument is in 10.9 and in open question 4 below: the room is the one surface
+  that is four surfaces at once (pool, board, radar, console) and the one a
+  friend watches for ninety minutes without scrolling away. Below `lg` it is
+  `column`, unchanged, because the phone is still the primary device.
+
+There is no sidebar, no full-bleed region, and no third measure. A surface that
+wants to be wider than `column` is either the draft room or wrong.
+
+**Three surfaces, three shapes.** 10.9's differentiation is layout, not skin —
+one design system, three shapes, each one the shape of its own question:
+
+| Surface | Shape | The question it answers |
+|---|---|---|
+| Dashboard (`/`) | a grid of card blocks, two across from `sm` | "which league?" |
+| Draft room | `room` measure, two columns from `lg`, sticky band | "who is on the clock, and who do I take?" |
+| Standings | one scrolling grid, sticky identity column | "who won this round?" |
+
+The lobby sits between them and is both: a framed run for the apparatus of
+setting a league up, a grid of door blocks once the season is on.
 
 **Spacing rhythm.** The board's unit is the slot: `--spacing-slot: 2.75rem`
 (44px). It is also the minimum touch target, which is why the two numbers are
@@ -464,19 +484,24 @@ and its action. Slot rows are padded `0.75rem` horizontally, `0.75rem` verticall
 when filled and `0.5rem` when waiting — an empty slot is deliberately shorter
 than a filled one.
 
-**Responsive behaviour: one breakpoint.** Only Tailwind's `sm` (40rem / 640px) is
-used anywhere in the codebase; there is no `md`, `lg` or `xl` in any source file,
-and no custom breakpoint is declared. Everything below 40rem is the phone
-layout, everything above is the wide layout, and above 48rem the sheet simply
-centres. What changes at `sm`:
+**Responsive behaviour: two breakpoints, and the second one is the room.**
+Tailwind's `sm` (40rem / 640px) is the app's layout breakpoint; since 10.9 `lg`
+(64rem / 1024px) appears too, **only in the draft room**, and there is still no
+`md` or `xl` and no custom breakpoint. Everything below 40rem is the phone
+layout, everything above is the wide layout, and above the sheet's measure it
+simply centres. What changes at `sm`:
 
 - Sheet padding and gap step up; display type goes 1.875rem → 2.25rem.
 - "Start a league" and "Join a league" go from stacked to a two-column grid.
 - Buttons go from full-width to auto-width.
-- The signed-in home shows five extra empty slots (8 total instead of 3) — a wide
-  viewport has the height for them.
+- The signed-in dashboard lays its league blocks two across.
 - The signed-out user's name appears next to "Sign out" in the rail.
 - The board plan appears on the lobby (it is hidden on phones there).
+
+And at `lg`, in the room and nowhere else: the measure opens to 80rem and the
+room splits into two columns — what you *do* on the left (the pool), what you
+*watch* on the right (radar, board, console, chat). The band above the split
+stays full width, because the clock belongs to the whole room.
 
 **The rail stays complete on the phone.** The season ("Euroleague 2026–27") is
 rendered at every size. It was hidden on small screens once, which made the
@@ -485,10 +510,12 @@ contract, the *name* beside "Sign out" is what goes.
 
 ### Named Rules
 
-**The One Measure Rule.** New surfaces use `Sheet`. If a future surface needs to
-be wider than 48rem (a real draft board with 12 columns will), that is a
-deliberate new container with its own justification — not a per-page `max-w`
-override.
+**The One Measure Rule.** New surfaces use `Sheet` at its default `column`
+measure. The one exception is declared *in the component* — `Sheet` and
+`TopRail` share a `MEASURE` map, and `room` is a value in it — so widening a
+surface is choosing a named measure that a reviewer can grep, never a per-page
+`max-w` override. A third entry in that map needs the argument 10.9 made for
+the second.
 
 **The Slot Grid Rule.** Anything vertical is a multiple of the slot unit or of
 Tailwind's 0.25rem step. Do not introduce a third spacing system.
@@ -650,9 +677,11 @@ The board's top rail. Character: a label on the frame, not a navigation bar.
 
 ### Sheet — `Sheet`
 
-The page's own column. `max-w-3xl`, centred, `flex-1`, column flow. Takes an
-optional `testId` which lands as `data-testid` — the E2E suite identifies
-surfaces this way (`login`, `app-shell`, `lobby`).
+The page's own column. Centred, `flex-1`, column flow, at one of the two named
+measures — `column` (`max-w-3xl`) by default, `room` for the draft room, and
+`TopRail` takes the same prop so the rail and the sheet below it always agree.
+Takes an optional `testId` which lands as `data-testid` — the E2E suite
+identifies surfaces this way (`login`, `app-shell`, `lobby`, `draft-room`).
 
 ### Section — `Bank`
 
@@ -737,9 +766,16 @@ composing one from the other produced a bottom rail underneath a gap, which is
 what a wrong model looks like when it renders.
 
 - **Use a block for a subject; use a slot for an entry.** A player on a roster,
-  a member's night in a recap, a destination you can choose — those are
-  subjects. A pick in an order, a member in a standing, a row in a cheat sheet —
-  those are entries in a ledger, and they stay ruled.
+  a member's night in a recap, a destination you can choose, **a league on the
+  dashboard** — those are subjects. A pick in an order, a member in a standing,
+  a row in a cheat sheet — those are entries in a ledger, and they stay ruled.
+  The dashboard is 10.9's port and the clearest case of the distinction: a
+  league is a whole board with its own season, status and roster fill, nothing
+  about the list is ordered, and nothing in it is compared down a column — so
+  the ruled run it used to be was claiming a ledger's meaning it did not have.
+  The three empty "Slot 04" placeholders went with it: they drew a board's
+  shape for something that is not a board, and the create and join forms below
+  are how another league actually starts.
 - **`columns` is off by default.** Two across from `sm` up is available, and the
   phone is the primary device: thirteen players two-up on a 390px screen gives
   each block about 170px, which cannot hold a name like Valančiūnas beside a
@@ -766,10 +802,12 @@ produce an error message.
 **The Fixture-Or-Nothing Rule.** A block renders a fixture line only when there
 is fixture data, and renders *nothing* when there is not. No "TBD", no em dash,
 no skeleton. A placeholder claims the app looked at the schedule and found no
-opponent; the truth today is that ingestion discards every unplayed game and it
-has never looked. `FixtureNote` owns this and has a test for the empty case
-precisely because an affordance waiting for data is one refactor from being
-deleted as dead and one careless edit from growing a placeholder.
+opponent. Since 10.7 it does look — `fixtures` holds every unplayed game — but
+the rule is unchanged and matters more, not less: a league whose season has not
+been ingested yet, or a club with no game left in the phase, has to render
+nothing rather than a hopeful dash. `FixtureNote` owns this and has a test for
+the empty case precisely because an affordance waiting for data is one refactor
+from being deleted as dead and one careless edit from growing a placeholder.
 
 ### Door — `Door`
 
@@ -1139,6 +1177,33 @@ they are content, and they are announced. The rule is about what the element
 whose whole meaning is "this one is filled" is a picture of a number, and the
 number should be said once.
 
+### Standings table — the board's grid, scored
+
+Slice 10.9, and it is the draft board's layout applied to the season: members
+down, rounds across, in the **same scrollport component** the board uses — which
+is why `BoardScroll` now takes a `label`.
+
+- **The run of tokens it replaced could not answer the table's own question.**
+  Until 10.9 a member's season was a wrapped paragraph — `R12 14.0 R13 9.5 …` —
+  and a standings table exists to compare *members in a round* ("who won
+  Thursday"). Read down a column that is a one-step lookup; read along 38
+  wrapped tokens per row it is not a lookup at all.
+- **Identity and the headline number are sticky; the evidence scrolls.** The
+  rank, the team name and the total sit in a `sticky left-0` block on panel
+  stock, and the rounds move under it — because the answer should not scroll
+  away from the question. The same reasoning put the board's round gutter on the
+  left.
+- **The name truncates, with the whole of it in `title`.** A grid row is one
+  line tall, and a wrapped "Gintaras Ballers FC" makes every other row taller
+  for it. 10.5rem holds about sixteen characters, which is most team names in
+  this league.
+- **Semantics are table roles on a grid**, exactly as `DraftBoard`: `role=
+  "table"`, `columnheader` per round, `rowheader` on the sticky block. A real
+  `<table>` divides its container; this one has to overflow in order to scroll.
+- **The row ends with its own sparkline**, drawn from the values the row already
+  prints rather than from a second query — a chart reading from its own source
+  is how two numbers on one row come to disagree.
+
 ### Cheat sheet — a run per tier, and a pinned shortlist
 
 Slice 3.4. Two surfaces, and both are made of `Slots` runs with no new material
@@ -1440,7 +1505,19 @@ rather than deleted, so the decision and the question it settled stay together.
    column, and the board overflows it rather than the app widening around the
    board. The cost is accepted knowingly: a full twelve-member league scrolls
    sideways on a laptop as well as on a phone. Up to about six members the
-   columns simply share the width they have.
+   columns simply share the width they have. **Reopened and re-answered in
+   10.9**, and the 3.1 answer survives everywhere except one surface. The
+   scrollport was never the problem — it is still how twelve columns fit, on a
+   phone and on a laptop alike. What 3.1 could not have known is how much the
+   room would come to hold: by Phase 9 it is a pool, a board, a radar, a
+   console and a chat stacked into one 48rem column, and on a 1440px laptop
+   that is a third of the glass used and a page five screens tall on the one
+   surface nobody scrolls away from. So `room` opens to 80rem at `lg` and
+   splits acting from watching; every other surface keeps `column`, the board
+   still overflows rather than the app widening around it, and below `lg` the
+   room is byte-for-byte the phone layout it always was. The cost, stated:
+   there is now a second measure and a second breakpoint, and both are in a
+   `MEASURE` map with one entry per measure rather than in a page.
 5. ~~**No dark mode.**~~ ~~**Answered in 9.5**~~ — and then **overtaken in Phase
    10**, which is worth stating before the paragraph below is read, because the
    paragraph is now history rather than law. There is **one** ground and it is

@@ -49,17 +49,52 @@ const SLOT_RULE: Record<SlotState, string> = {
 };
 
 /**
+ * The two measures this app has — slice 10.9, and the second one is new.
+ *
+ * `column` is the one every reading surface uses and has used since 1.4: 48rem,
+ * centred, one column, no sidebar. DESIGN.md open question 4 answered "no second
+ * container width" in 3.1 and the answer held for six phases.
+ *
+ * `room` is the exception, and it is one surface rather than a size for
+ * whoever wants it: the draft room is the only place in this app where two
+ * things have to be **seen at once** — the pool you are picking from and the
+ * board the picks land on — and that is a fact about the night rather than a
+ * preference about laptops. Below `lg` it is the column, unchanged, because the
+ * side-by-side cannot happen on a 390px phone and the phone is the primary
+ * device. See DESIGN.md's Layout section.
+ */
+const MEASURE = {
+  column: "max-w-3xl",
+  room: "max-w-3xl lg:max-w-7xl",
+} as const;
+
+export type Measure = keyof typeof MEASURE;
+
+/**
  * The board's top rail. Carries the wordmark and the season, and takes one
  * slot on the right for whatever action the surface owns.
  *
  * It carried the ground switch for eight days (9.5, 9.5a). Phase 10 removed it
  * with the second ground — there is one ground now, so there is nothing to
  * switch. See ADR-0006 for what that costs.
+ *
+ * `measure` exists so the rail can widen with the surface under it. The
+ * wordmark aligns with the first slot below it, which is a promise DESIGN.md
+ * makes explicitly — a room at 80rem under a rail at 48rem would break it on
+ * the one surface the league stares at for two hours.
  */
-export function TopRail({ action }: { action?: ReactNode }) {
+export function TopRail({
+  action,
+  measure = "column",
+}: {
+  action?: ReactNode;
+  measure?: Measure;
+}) {
   return (
     <header className="border-b border-rail/40">
-      <div className="mx-auto flex w-full max-w-3xl items-baseline justify-between gap-3 px-5 py-4 sm:px-8">
+      <div
+        className={`mx-auto flex w-full ${MEASURE[measure]} items-baseline justify-between gap-3 px-5 py-4 sm:px-8`}
+      >
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
           <span className="whitespace-nowrap text-base font-semibold uppercase tracking-[0.16em]">
             Eurovafliai
@@ -77,19 +112,24 @@ export function TopRail({ action }: { action?: ReactNode }) {
   );
 }
 
-/** The page's own column. One measure, so every surface lines up with the next. */
+/**
+ * The page's own column. One measure, so every surface lines up with the next —
+ * and one exception, `room`, which is the draft room and nothing else.
+ */
 export function Sheet({
   children,
   testId,
+  measure = "column",
 }: {
   children: ReactNode;
   testId?: string;
+  measure?: Measure;
 }) {
   return (
     <main
       id="main"
       data-testid={testId}
-      className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12"
+      className={`mx-auto flex w-full ${MEASURE[measure]} flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12`}
     >
       {children}
     </main>

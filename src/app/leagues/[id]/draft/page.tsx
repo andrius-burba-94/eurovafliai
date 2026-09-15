@@ -111,8 +111,17 @@ export default async function DraftPage({
 
   return (
     <>
-      <TopRail action={<BackLink href={`/leagues/${id}`}>Lobby</BackLink>} />
-      <Sheet testId="draft-room">
+      {/* The room is the app's one wide surface — 10.9, and the exception that
+          re-answers DESIGN.md's open question 4. Everywhere else is 48rem; here
+          the pool you are picking from and the board it lands on have to be
+          seen at the same time, and that is a fact about draft night rather
+          than a preference about laptops. The rail widens with it so the
+          wordmark still aligns with the first slot under it. */}
+      <TopRail
+        action={<BackLink href={`/leagues/${id}`}>Lobby</BackLink>}
+        measure="room"
+      />
+      <Sheet testId="draft-room" measure="room">
         {/* One piece of shared state: the row you have armed. The band's
             confirm and the pool's rows are in different components — and, for
             the band, a different render environment — so a small client
@@ -181,7 +190,13 @@ export default async function DraftPage({
               {/* The clock is the room's, not the picker's: everybody watches
                   the same number run down. It only renders while a draft is
                   live, which is the only state `onClock` is non-null in. */}
-              <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+              {/* Grouped, not spread. `justify-between` put the countdown at
+                  one end of the band and what you still need at the other —
+                  fine at 48rem, and a metre apart once 10.9 took the room to
+                  80rem. They are two halves of one fact: this is your pick, and
+                  this is what it has to be. On a phone they still wrap onto
+                  their own lines, which is what they did before. */}
+              <div className="mt-2 flex flex-wrap items-end gap-x-8 gap-y-3">
                 <PickClock deadline={draft.deadline} className="" />
                 {needsLine}
               </div>
@@ -225,69 +240,10 @@ export default async function DraftPage({
             useful next to the board it is about. */}
         <LiveDraft draftId={draft.id} authToken={session.token} />
 
-        {/* The way to a sheet for somebody who has not written one — the pool
-            pins a link for everybody who has. Shown to a member only: a
-            commissioner with no membership row has no roster to rank for. */}
-        {view.you && view.sheet.length === 0 ? (
-          <Link
-            href={`/leagues/${id}/sheet`}
-            data-testid="write-a-sheet"
-            className="slot-waiting flex min-h-11 items-baseline justify-between gap-4 px-3 py-3 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-          >
-            <span className="text-sm text-ink-soft">
-              You have no cheat sheet. Autodraft has nothing of yours to go on.
-            </span>
-            <span className="slot-label shrink-0">Write one &rarr;</span>
-          </Link>
-        ) : null}
-
-        {/* Your own switch, above the commissioner's controls: the common
-            case is a member handing their own picks over, not a manager
-            intervening. */}
-        {view.you && draft.status !== "complete" ? (
-          <>
-            <AutodraftToggle
-              leagueId={id}
-              enabled={view.you.autodraftEnabled}
-              pickSeconds={draft.pick_seconds}
-            />
-            {/* Beside "Draft for me": the two controls that are about *you* on
-                draft night, in one place. This one also carries the live
-                region that finally closes PRODUCT.md's promise — being on the
-                clock "announced to assistive tech", open since 2.6. */}
-            {/* Rendered only for a member — a commissioner with no membership
-                row has no turn to be told about, so there is nothing for a
-                live region to say. */}
-            <ClockCue
-              isYourTurn={isYourTurn}
-              overallNo={onClock?.overallNo ?? null}
-              round={onClock?.round ?? null}
-            />
-          </>
-        ) : null}
-
-        {/* The manager's panel, a sibling framed Bank. Its member list is in
-            draft order — the order the board reads across and the radar reads
-            down — so the three surfaces name the same league in the same
-            sequence. */}
-        <DraftControls
-          leagueId={id}
-          status={draft.status}
-          canManage={view.canManage}
-          picksMade={picks.length}
-          pickSeconds={draft.pick_seconds}
-          members={draft.order.map((memberId) => ({
-            id: memberId,
-            name: nameOf.get(memberId)?.name ?? "Unknown member",
-            isYou: Boolean(nameOf.get(memberId)?.isYou),
-            autodraftEnabled: Boolean(
-              nameOf.get(memberId)?.autodraftEnabled,
-            ),
-          }))}
-          onClockMemberId={onClock?.memberId ?? null}
-          onClockMemberName={onClock?.memberName ?? null}
-        />
-
+        {/* Full width, above both columns, and first after the band: a draft
+            that cannot advance is the room's most important sentence, and the
+            commissioner panel it used to sit inside now lives in the watching
+            column beside the board. */}
         {view.canManage &&
         draft.stuck_reason &&
         isStuckReason(draft.stuck_reason) ? (
@@ -299,102 +255,188 @@ export default async function DraftPage({
           </Correction>
         ) : null}
 
-        {/* The pool stays readable while paused — you just cannot pick from
-            it. Offering a button the server is about to refuse would be worse
-            than not offering one. */}
-        {draft.status !== "complete" ? (
-          <Bank
-            label={
-              isPaused
-                ? "The pool"
-                : isYourTurn
-                  ? "Make your pick"
-                  : onClock && view.canManage
-                    ? `Pick for ${onClock.memberName}`
-                    : "The pool"
-            }
-            aside={`${view.availableCount} available`}
-            framed
-          >
-            {isPaused ? (
-              <p className="slot-waiting px-3 py-4 text-sm text-ink-soft">
-                Picking is paused. The pool is still here to look through.
-              </p>
+        {/* Two columns from `lg` up, one below it — the room's whole layout
+            decision, and it is about what a person does rather than about
+            screen size. The left column is where you ACT: the sheet nudge, your
+            own autodraft switch, and the pool. The right column is what you
+            WATCH: the radar, the board, the commissioner's panel and the
+            transcript.
+            
+            On a phone this is one flow in the order it has always been, with
+            one change: the commissioner console moves from above the pool to
+            below the board. On draft night a commissioner is a picker first —
+            they meet the pool every turn and the pause button once a night —
+            and the console was 300px of intervention controls between the clock
+            and the pick for the one person who cannot avoid it.
+            
+            `items-start` so the shorter column does not stretch to the taller
+            one's height and leave a framed Bank with a metre of empty stock
+            under its last row. */}
+        <div className="flex flex-col gap-8 sm:gap-slot lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
+          <div className="flex flex-col gap-8 sm:gap-slot">
+            {/* The way to a sheet for somebody who has not written one — the pool
+                pins a link for everybody who has. Shown to a member only: a
+                commissioner with no membership row has no roster to rank for. */}
+            {view.you && view.sheet.length === 0 ? (
+              <Link
+                href={`/leagues/${id}/sheet`}
+                data-testid="write-a-sheet"
+                className="slot-waiting flex min-h-11 items-baseline justify-between gap-4 px-3 py-3 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              >
+                <span className="text-sm text-ink-soft">
+                  You have no cheat sheet. Autodraft has nothing of yours to go on.
+                </span>
+                <span className="slot-label shrink-0">Write one &rarr;</span>
+              </Link>
             ) : null}
-            <PickForm
+
+            {/* Your own switch, above the commissioner's controls: the common
+                case is a member handing their own picks over, not a manager
+                intervening. */}
+            {view.you && draft.status !== "complete" ? (
+              <>
+                <AutodraftToggle
+                  leagueId={id}
+                  enabled={view.you.autodraftEnabled}
+                  pickSeconds={draft.pick_seconds}
+                />
+                {/* Beside "Draft for me": the two controls that are about *you* on
+                    draft night, in one place. This one also carries the live
+                    region that finally closes PRODUCT.md's promise — being on the
+                    clock "announced to assistive tech", open since 2.6. */}
+                {/* Rendered only for a member — a commissioner with no membership
+                    row has no turn to be told about, so there is nothing for a
+                    live region to say. */}
+                <ClockCue
+                  isYourTurn={isYourTurn}
+                  overallNo={onClock?.overallNo ?? null}
+                  round={onClock?.round ?? null}
+                />
+              </>
+            ) : null}
+
+            {/* The pool stays readable while paused — you just cannot pick from
+                it. Offering a button the server is about to refuse would be worse
+                than not offering one. */}
+            {draft.status !== "complete" ? (
+              <Bank
+                label={
+                  isPaused
+                    ? "The pool"
+                    : isYourTurn
+                      ? "Make your pick"
+                      : onClock && view.canManage
+                        ? `Pick for ${onClock.memberName}`
+                        : "The pool"
+                }
+                aside={`${view.availableCount} available`}
+                framed
+              >
+                {isPaused ? (
+                  <p className="slot-waiting px-3 py-4 text-sm text-ink-soft">
+                    Picking is paused. The pool is still here to look through.
+                  </p>
+                ) : null}
+                <PickForm
+                  leagueId={id}
+                  view={{
+                    pool: view.pool,
+                    isYourTurn,
+                    yourNeeds,
+                    clockMemberName: onClock?.memberName ?? null,
+                    sheet: view.sheet,
+                    bestFromSheet: view.bestFromSheet,
+                  }}
+                  canPick={(isYourTurn || view.canManage) && !isPaused && !!onClock}
+                />
+              </Bank>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-8 sm:gap-slot">
+            {/* Before the board on purpose. On a phone the pick path owns the top
+                of the room — clock, then a way to pick — and the radar is the first
+                thing you meet when you scroll to *study* the draft rather than to
+                act in it. Beside it at `lg`, it is the head of the watching column
+                for the same reason. It also pairs with the board: the radar is
+                sorted by what a roster is missing, the board by when a pick
+                happened, and the two answer different questions. */}
+            <Bank
+              label="The radar"
+              aside={`${draft.order.length} rosters × ${view.rosterTotal}`}
+              framed
+            >
+              <RosterRadar
+                rows={view.radar}
+                columns={columns}
+                total={view.rosterTotal}
+                onClockMemberId={onClock?.memberId ?? null}
+                linkToBoard
+              />
+            </Bank>
+
+            {/* The board proper. No empty state: an empty board is still a board,
+                which is the whole of the Board-Shows-Its-Shape rule. */}
+            <Bank
+              label="The board"
+              aside={`${picks.length} of ${draft.order.length * draft.rounds}`}
+              framed
+            >
+              <DraftBoard
+                shape={shape}
+                columns={columns}
+                entries={entries}
+                markedOverallNo={view.markedOverallNo}
+                isPaused={isPaused}
+              />
+            </Bank>
+
+            {/* The manager's panel, a sibling framed Bank, and below the board
+                since 10.9 — see the column note above. Its member list is in draft
+                order — the order the board reads across and the radar reads down —
+                so the three surfaces name the same league in the same sequence. */}
+            <DraftControls
               leagueId={id}
-              view={{
-                pool: view.pool,
-                isYourTurn,
-                yourNeeds,
-                clockMemberName: onClock?.memberName ?? null,
-                sheet: view.sheet,
-                bestFromSheet: view.bestFromSheet,
-              }}
-              canPick={(isYourTurn || view.canManage) && !isPaused && !!onClock}
+              status={draft.status}
+              canManage={view.canManage}
+              picksMade={picks.length}
+              pickSeconds={draft.pick_seconds}
+              members={draft.order.map((memberId) => ({
+                id: memberId,
+                name: nameOf.get(memberId)?.name ?? "Unknown member",
+                isYou: Boolean(nameOf.get(memberId)?.isYou),
+                autodraftEnabled: Boolean(
+                  nameOf.get(memberId)?.autodraftEnabled,
+                ),
+              }))}
+              onClockMemberId={onClock?.memberId ?? null}
+              onClockMemberName={onClock?.memberName ?? null}
             />
-          </Bank>
-        ) : null}
 
-        {/* Between the pool and the board on purpose. The pick path owns the
-            top of the room — clock, then a way to pick — and the radar is the
-            first thing you meet when you scroll to *study* the draft rather
-            than to act in it. It also pairs with the board: the radar is
-            sorted by what a roster is missing, the board by when a pick
-            happened, and the two answer different questions. */}
-        <Bank
-          label="The radar"
-          aside={`${draft.order.length} rosters × ${view.rosterTotal}`}
-          framed
-        >
-          <RosterRadar
-            rows={view.radar}
-            columns={columns}
-            total={view.rosterTotal}
-            onClockMemberId={onClock?.memberId ?? null}
-            linkToBoard
-          />
-        </Bank>
+            {/* Where the ticker was.
 
-        {/* The board proper. No empty state: an empty board is still a board,
-            which is the whole of the Board-Shows-Its-Shape rule. */}
-        <Bank
-          label="The board"
-          aside={`${picks.length} of ${draft.order.length * draft.rounds}`}
-          framed
-        >
-          <DraftBoard
-            shape={shape}
-            columns={columns}
-            entries={entries}
-            markedOverallNo={view.markedOverallNo}
-            isPaused={isPaused}
-          />
-        </Bank>
+                3.1's argument for a ticker was that "the board holds the history
+                and the run is better at the sentence". Chat is now the thing that
+                is better at the sentence: it carries the same chronological run of
+                who took whom — every pick announces itself — plus the rolls,
+                pauses and rollbacks the ticker never knew about, plus what people
+                are actually saying. Keeping both would put the same fact on screen
+                twice, 200px apart, which is a duplication this project's critiques
+                have caught twice already.
 
-        {/* Where the ticker was.
-
-            3.1's argument for a ticker was that "the board holds the history
-            and the run is better at the sentence". Chat is now the thing that
-            is better at the sentence: it carries the same chronological run of
-            who took whom — every pick announces itself — plus the rolls,
-            pauses and rollbacks the ticker never knew about, plus what people
-            are actually saying. Keeping both would put the same fact on screen
-            twice, 200px apart, which is a duplication this project's critiques
-            have caught twice already.
-
-            The trade, stated: collapsed, the room shows one line of recent
-            activity where the ticker showed eight. The board above it still
-            holds every pick, and one tap gives the full transcript. */}
-        <LeagueChat
-          leagueId={id}
-          authToken={session.token}
-          initial={view.chat}
-          myMemberId={view.you?.memberId ?? null}
-          authorNames={Object.fromEntries(
-            view.members.map((member) => [member.id, member.name]),
-          )}
-        />
+                The trade, stated: collapsed, the room shows one line of recent
+                activity where the ticker showed eight. The board above it still
+                holds every pick, and one tap gives the full transcript. */}
+            <LeagueChat
+              leagueId={id}
+              authToken={session.token}
+              initial={view.chat}
+              myMemberId={view.you?.memberId ?? null}
+              authorNames={Object.fromEntries(
+                view.members.map((member) => [member.id, member.name]),
+              )}
+            />
+          </div>
+        </div>
         </ArmedPickProvider>
       </Sheet>
     </>
