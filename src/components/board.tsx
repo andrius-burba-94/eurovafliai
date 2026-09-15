@@ -66,7 +66,16 @@ export function TopRail({ action }: { action?: ReactNode }) {
             Euroleague 2026&ndash;27
           </span>
         </div>
-        <div className="flex shrink-0 items-baseline gap-3">
+        {/* `gap-1` and the switch's own `self-end` are what put it *in* the
+            rail's row of controls rather than beside the block of them. A
+            surface whose action is two lines — the account stack on
+            `/`, a name over its own nav — is the case that decides this: an
+            icon centred against that stack sits between its two lines, level
+            with nothing, reading as a stray mark. Bottom-aligned it lands in
+            the nav's own 44px band, one more control in a line of them, and on
+            the single-line surfaces (a `BackLink`, same 44px box) it is the
+            same result. */}
+        <div className="flex shrink-0 items-baseline gap-1">
           <ThemeControl />
           {action}
         </div>
@@ -654,6 +663,53 @@ export function BackArrow() {
       strokeWidth="1"
     >
       <path d="M11.5 4H1M4 1L1 4l3 3" />
+    </svg>
+  );
+}
+
+/**
+ * Sun and moon, for the one control whose state is a picture rather than a
+ * word. Same recipe as `BackArrow` — one hand-authored stroke on
+ * `currentColor`, no fill, no package — on a 16px grid, because these carry a
+ * whole label's meaning and the 12x8 arrow's box is too small to read a
+ * crescent in. Drawn on 16 units and rendered at 18px, so the stroke comes out
+ * a shade heavier than 1px and sits with the 500-weight caps beside it on the
+ * rail instead of under them.
+ *
+ * The two are sized against each other rather than to the same box: the sun is
+ * a small disc whose rays make it read wide, the moon is a single thin arc, so
+ * the crescent is drawn nearer the edge of the box than the rays are. Matched
+ * geometrically they look like two different sizes on the same rail.
+ */
+export function SunIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="h-4.5 w-4.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1"
+      strokeLinecap="round"
+    >
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 1.6v1.4M8 13v1.4M1.6 8h1.4M13 8h1.4M3.5 3.5l1 1M11.5 11.5l1 1M12.5 3.5l-1 1M4.5 11.5l-1 1" />
+    </svg>
+  );
+}
+
+export function MoonIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="h-4.5 w-4.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1"
+      strokeLinejoin="round"
+    >
+      <path d="M14 10.2A6.2 6.2 0 0 1 5.8 2a6.1 6.1 0 1 0 8.2 8.2Z" />
     </svg>
   );
 }

@@ -3,6 +3,50 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## 9.5a — The ground switch becomes a mark, and the alignment was the whole slice
+
+9.5 shipped the switch as a `FilterToggle` reading "Night", and said so in
+writing: a sun/moon icon "would have been a new idiom and a new material in one
+step." That was the cautious call and it was the right one to *record*; asked
+for the icon, the honest thing is not to relitigate it but to pay the price it
+named. So the new idiom is written down rather than smuggled in — DESIGN.md
+gains a **Ground switch** entry stating the exception it earns (the one control
+here whose state is the picture, not a rule, which is why it takes no
+underline), and the Shapes section gains the recipe so the next icon is not
+invented from scratch.
+
+**The drawing was never the problem.** The first attempt looked wrong, and the
+reason was the alignment context. `TopRail`'s right group is baseline-aligned,
+and a button whose only child is an `<svg>` has no baseline to give it — but
+the deciding case is the one surface whose action is not a single line. On `/`
+the action is a stack: a name over its own nav row. Centred against that stack
+the mark sits *between* its two lines, level with nothing and 20px clear of the
+nearest control, which reads as a stray tick rather than as a switch. The rule
+that came out of it is the one worth keeping: **the rail has one line of
+controls, and everything that is a control sits in it.** `self-end` at `gap-1`
+puts the mark in the nav's own 44px band as one more control in a row of them,
+and on the `BackLink` surfaces — the same 44px box, one line — it is the same
+result, so no page needed editing for either case.
+
+Two smaller decisions, both made from the rendered pixels rather than from the
+numbers. The pair is sized against **each other**, not to a shared box: the sun
+is a small disc whose rays make it read wide, the moon is one thin arc, so the
+crescent is drawn nearer the edge of its box than the rays are — matched
+geometrically they look like two different sizes on the same rail. And they are
+drawn on 16 units but rendered at **18px**, which puts the stroke a shade over
+1px; at 16px the mark sat visibly lighter than the 500-weight caps beside it,
+and a control that reads quieter than its neighbours reads as decoration.
+
+The a11y shape is unchanged on purpose, and that is what kept the slice cheap:
+the accessible name stays the fixed string "Night board" rather than swapping
+with the picture, so a screen reader hears one control changing position instead
+of two controls trading places, and `aria-pressed` still says which way it is.
+`theme.spec.ts` asserts exactly that contract plus the test id, so 9.5's eight
+specs — the no-flash first paint, the system preference deciding, the override
+clearing itself — needed no edit and all still pass. The whole 419-test E2E
+suite was run rather than just those eight, because the rail is on every page
+and a `gap` change there is a change everywhere.
+
 ## 9.5 — The night board, and the test file that shaped it
 
 D17 refused dark mode by name, so this slice could not start with CSS. DESIGN.md
