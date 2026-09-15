@@ -6,7 +6,6 @@ import {
   BackLink,
   Bank,
   BoardPlan,
-  CardBlocks,
   Correction,
   Door,
   PositionPatch,
@@ -21,6 +20,13 @@ import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueSentence } from "@/lib/mapping/queue";
 import { createUserClient } from "@/lib/pb/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import {
+  readMemberRoster,
+  readRecentTransactions,
+} from "@/lib/memberships/queries";
+import { serverConfig } from "@/lib/config/server";
+import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
+import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
 import { DeleteLeague } from "./delete-league";
 import { LiveLobby } from "./live-lobby";
@@ -66,13 +72,16 @@ export default async function LobbyPage({
   // The same conversation as the room's — `chat_messages` is league-scoped, so
   // the hours before a roll and the draft itself are one thread. Read with the
   // viewer's own token, so the collection's read rule is what scopes it.
-  const chat = await readMessages(createUserClient(session.token), id).catch(() => []);
+  const chat = await readMessages(createUserClient(session.token), id).catch(
+    () => [],
+  );
   const template = settings.roster_template;
   // A cheat sheet belongs to a *membership*. A commissioner who has not taken a
   // slot has no roster to rank for, so they are not offered one.
   const viewerIsMember = members.some((member) => member.isYou);
   const viewerIsManager =
-    isCommissioner || members.some((member) => member.isYou && member.canManage);
+    isCommissioner ||
+    members.some((member) => member.isYou && member.canManage);
   // The mapping queue is app-global and `/players/mapping` gates on
   // `canManageRosters()`, which anybody who manages *this* league already
   // satisfies — so this gate cannot dangle a door that would 404, and it costs
@@ -82,14 +91,54 @@ export default async function LobbyPage({
     : EMPTY_QUEUE;
   const mappingSentence = queueSentence(mappingQueue);
 
+  const youMemberId = members.find((member) => member.isYou)?.id ?? null;
+  const teamNames = Object.fromEntries(
+    members.map((member) => [member.id, member.teamName || member.name]),
+  );
+
+  /**
+   * The dashboard replaces the lobby's own body once the season is on, and only
+   * for somebody with a seat in the league: a commissioner who never took one
+   * has no roster to be shown and no rank to be in.
+   */
+  const isSeasonDashboard = league.status === "season" && viewerIsMember;
+  const season = serverConfig().EUROLEAGUE_SEASON;
+
+  // Four reads, and only on the surface that uses them — every one of them is a
+  // query that already existed for the page the dashboard is replacing a door
+  // to (4.5, 5.4, 5.1, 5.2). In parallel because they are independent, and at
+  // ~10 users the cost that matters is the round trip rather than the work.
+  const [snapshots, recap, roster, transactions] = isSeasonDashboard
+    ? await Promise.all([
+        readStandingsSnapshots(id, season).catch(() => []),
+        readLeagueRecap(id, season, null).catch(() => null),
+        youMemberId
+          ? readMemberRoster(id, youMemberId, season).catch(() => [])
+          : Promise.resolve([]),
+        readRecentTransactions(id, teamNames).catch(() => []),
+      ])
+    : [[], null, [], []];
+
   return (
     <>
-      <TopRail action={<BackLink href="/">Leagues</BackLink>} />
-      <Sheet testId="lobby">
+      <TopRail
+        action={<BackLink href="/">Leagues</BackLink>}
+        measure={isSeasonDashboard ? "wide" : "column"}
+      />
+      <Sheet testId="lobby" measure={isSeasonDashboard ? "wide" : "column"}>
+        {/* One display headline per surface (DESIGN.md). On the dashboard that
+            one belongs to the season, so the league's name steps down to a
+            slot label above it and the `h1` lives in `SeasonDashboard`. Two
+            elements at display size, one of them the same size as the other,
+            is the hierarchy 10.9 spent a whole slice fixing. */}
         <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            {league.name}
-          </h1>
+          {isSeasonDashboard ? (
+            <span className="slot-label text-ink">{league.name}</span>
+          ) : (
+            <h1 className="text-3xl font-semibold tracking-[0.04em] uppercase sm:text-4xl">
+              {league.name}
+            </h1>
+          )}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <span className="slot-label">
               {league.season} &middot; {league.status}
@@ -118,52 +167,30 @@ export default async function LobbyPage({
           </Bank>
         ) : null}
 
-        {league.status === "season" && viewerIsMember ? (
-          <Bank label="League doors" framed>
-            {/* Card blocks rather than a ruled run — 10.4. These four are
-                destinations, not entries in a ledger: nothing about them is
-                ordered, nothing is being compared down a column, and each one
-                is a whole subject. A run of ruled rows says "list"; a grid of
-                blocks says "pick one", which is the actual instruction. Two
-                across from `sm`, one on a phone, because a door's description
-                is a sentence and half of 390px is not a measure. */}
-            <CardBlocks testId="league-doors" label="League doors" columns>
-              <Door
-                block
-                href={`/leagues/${league.id}/standings`}
-                testId="enter-standings"
-                title="Standings"
-                description="The table, from the draft and the nights since."
-                action="Open"
+        {isSeasonDashboard ? (
+          <SeasonDashboard
+            leagueId={league.id}
+            season={season}
+            snapshots={snapshots}
+            recap={recap?.recap ?? null}
+            playerNames={recap?.playerNames ?? {}}
+            roster={roster}
+            rosterTemplate={template}
+            transactions={transactions}
+            teamNames={teamNames}
+            youMemberId={youMemberId}
+            viewerIsManager={viewerIsManager}
+            chat={
+              <LeagueChat
+                leagueId={id}
+                authToken={session.token}
+                initial={chat}
+                myMemberId={youMemberId}
+                initiallyOpen
+                authorNames={teamNames}
               />
-              <Door
-                block
-                href={`/leagues/${league.id}/lineup`}
-                testId="enter-lineup"
-                title="Your lineup"
-                description="Who started, who was captain, who sat — per round."
-                action="Set it"
-              />
-              <Door
-                block
-                href={`/leagues/${league.id}/recap`}
-                testId="enter-recap"
-                title="This round"
-                description="Each team's night, the best night and the deal that moved most."
-                action="Open"
-              />
-              {viewerIsManager ? (
-                <Door
-                  block
-                  href={`/leagues/${league.id}/transactions/new`}
-                  testId="record-transaction"
-                  title="Record a transaction"
-                  description="A trade, an add or a drop, once the room has agreed."
-                  action="Write it down"
-                />
-              ) : null}
-            </CardBlocks>
-          </Bank>
+            }
+          />
         ) : null}
 
         {league.status === "setup" ? (
@@ -248,26 +275,32 @@ export default async function LobbyPage({
 
         {/* The lobby half of league chat. The roll announces itself here,
             which is where people are looking when it happens, and it is the
-            same thread the room shows. */}
-        <LeagueChat
-          leagueId={id}
-          authToken={session.token}
-          initial={chat}
-          myMemberId={members.find((member) => member.isYou)?.id ?? null}
-          initiallyOpen
-          authorNames={Object.fromEntries(
-            members.map((member) => [
-              member.id,
-              member.teamName || member.name,
-            ]),
-          )}
-        />
+            same thread the room shows.
+
+            Not on the dashboard: that surface renders the same conversation in
+            its own top-right panel, and two transcripts of one thread on one
+            page is two unread counts for the same messages. */}
+        {isSeasonDashboard ? null : (
+          <LeagueChat
+            leagueId={id}
+            authToken={session.token}
+            initial={chat}
+            myMemberId={members.find((member) => member.isYou)?.id ?? null}
+            initiallyOpen
+            authorNames={Object.fromEntries(
+              members.map((member) => [
+                member.id,
+                member.teamName || member.name,
+              ]),
+            )}
+          />
+        )}
 
         {/* The cheat sheet, from the lobby — the hours before a draft are when
             somebody actually writes one. A member's own row only: a
             commissioner without a membership has no roster to rank for, and a
             sheet is private to the member who owns it. */}
-        {viewerIsMember ? (
+        {viewerIsMember && !isSeasonDashboard ? (
           <Slots>
             <Door
               href={`/leagues/${league.id}/sheet`}

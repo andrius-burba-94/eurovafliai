@@ -485,14 +485,23 @@ because two families can only drift apart if something measures both.
 with the first slot below it on every page. There are exactly two:
 
 - **`column`** — `max-w-3xl` (48rem) centred. Every surface in the app but one.
-- **`room`** — 48rem up to `lg`, then 80rem. **The draft room only**, and the
+- **`wide`** — 48rem up to `lg`, then 80rem. **Two surfaces**, and the
   argument is in 10.9 and in open question 4 below: the room is the one surface
   that is four surfaces at once (pool, board, radar, console) and the one a
   friend watches for ninety minutes without scrolling away. Below `lg` it is
   `column`, unchanged, because the phone is still the primary device.
 
-There is no sidebar, no full-bleed region, and no third measure. A surface that
-wants to be wider than `column` is either the draft room or wrong.
+**The second surface is the season dashboard** (blueprint **D26**), and it
+earned the measure by the same argument rather than by preference: the room is
+pool, board, radar and console; the dashboard is standings, chat, roster and
+news. Both are *four surfaces at once*, on a page a league sits on rather than
+passes through. The map's key was renamed `room` → `wide` when the second one
+arrived, because a key named after one of its two callers is a lie a reviewer
+has to open the map to catch.
+
+There is still no sidebar, no full-bleed region, and **no third measure**. A
+surface that wants to be wider than `column` is the draft room, the season
+dashboard, or wrong.
 
 **Three surfaces, three shapes.** 10.9's differentiation is layout, not skin —
 one design system, three shapes, each one the shape of its own question:
@@ -500,11 +509,17 @@ one design system, three shapes, each one the shape of its own question:
 | Surface | Shape | The question it answers |
 |---|---|---|
 | Dashboard (`/`) | a grid of card blocks, two across from `sm` | "which league?" |
-| Draft room | `room` measure, two columns from `lg`, sticky band | "who is on the clock, and who do I take?" |
+| Draft room | `wide` measure, two columns from `lg`, sticky band | "who is on the clock, and who do I take?" |
 | Standings | one scrolling grid, sticky identity column | "who won this round?" |
 
-The lobby sits between them and is both: a framed run for the apparatus of
-setting a league up, a grid of door blocks once the season is on.
+The lobby sits between them and is **two surfaces on one route**: a framed run
+at `column` for the apparatus of setting a league up, and at `wide` the season
+dashboard once the draft is over — the table, the conversation, your roster and
+the league's news, on one screen. The grid of door blocks it used to be is gone
+(**D26**): every block was a *promise* of a surface rather than a surface, so
+the page a league opens most often across thirty-eight rounds told it nothing
+until you picked a door. The doors remain, inside the panels, as the way in to
+each.
 
 **Spacing rhythm.** The board's unit is the slot: `--spacing-slot: 2.75rem`
 (44px). It is also the minimum touch target, which is why the two numbers are
@@ -544,7 +559,7 @@ contract, the *name* beside "Sign out" is what goes.
 
 **The One Measure Rule.** New surfaces use `Sheet` at its default `column`
 measure. The one exception is declared *in the component* — `Sheet` and
-`TopRail` share a `MEASURE` map, and `room` is a value in it — so widening a
+`TopRail` share a `MEASURE` map, and `wide` is a value in it — so widening a
 surface is choosing a named measure that a reviewer can grep, never a per-page
 `max-w` override. A third entry in that map needs the argument 10.9 made for
 the second.
@@ -710,7 +725,8 @@ The board's top rail. Character: a label on the frame, not a navigation bar.
 ### Sheet — `Sheet`
 
 The page's own column. Centred, `flex-1`, column flow, at one of the two named
-measures — `column` (`max-w-3xl`) by default, `room` for the draft room, and
+measures — `column` (`max-w-3xl`) by default, `wide` for the draft room and
+the season dashboard, and
 `TopRail` takes the same prop so the rail and the sheet below it always agree.
 Takes an optional `testId` which lands as `data-testid` — the E2E suite
 identifies surfaces this way (`login`, `app-shell`, `lobby`, `draft-room`).
@@ -1587,7 +1603,7 @@ rather than deleted, so the decision and the question it settled stay together.
    room would come to hold: by Phase 9 it is a pool, a board, a radar, a
    console and a chat stacked into one 48rem column, and on a 1440px laptop
    that is a third of the glass used and a page five screens tall on the one
-   surface nobody scrolls away from. So `room` opens to 80rem at `lg` and
+   surface nobody scrolls away from. So `wide` opens to 80rem at `lg` and
    splits acting from watching; every other surface keeps `column`, the board
    still overflows rather than the app widening around it, and below `lg` the
    room is byte-for-byte the phone layout it always was. The cost, stated:

@@ -3,6 +3,90 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## The season dashboard — four panels, and three that had to tell the truth
+
+The ask came with a rendered reference and a panel-by-panel brief: a 2-column
+dashboard for after the draft, with standings, chat, roster and news, plus a
+clickable wordmark. Precisely specified, so it was shaped directly — the
+playbook's own instruction is not to run a concept round on a pinned brief.
+
+**What it replaced is the interesting part.** The season lobby was four `Door`
+blocks: Standings, Your lineup, This round, Record a transaction. Every one was
+a *promise of a surface* rather than a surface. So the page a league opens most
+often across thirty-eight rounds answered nothing — you had to pick a door to
+find out whether you were winning. The doors are still there, inside the panels,
+as the way in to each; what changed is that the page now says something before
+you touch it.
+
+### Three panels described a different game
+
+Recorded as **D26**, in the lineage of D19 (purple head coaches) and D23 (the
+double round): a brief item that needs data the competition does not produce is
+dropped on the measurement, with the measurement written down.
+
+- **A W-L column.** This league has no head-to-head. Standings are cumulative
+  fantasy points with per-round snapshots (4.5), so there is no opponent to have
+  beaten and the column would read `0-0` for thirty-eight rounds. It is `PTS`
+  and the round's signed movement instead — which is what the league is actually
+  playing for.
+- **"Matchup of the week."** The same fact, larger. There is no matchup format
+  anywhere in the blueprint, PRODUCT.md or CONTEXT.md; checked before building
+  rather than assumed. Inventing one would be inventing a game. What a round
+  genuinely has is 5.4's recap, so the card shows that.
+- **Player headshots.** `players` carries name, club, position, status, person
+  code and dorsal — and no image. A photo would have to be invented per player,
+  which PRODUCT.md forbids outright. The position patch is this app's own mark,
+  it is colour-coded, and it always prints its letter.
+
+The guard is a spec asserting the page says neither "W-L", "matchup" nor
+"final", and that the roster panel contains no `<img>`. Without it, all three
+are exactly the kind of gap a later reader *fixes*.
+
+### What the measure cost, and what it did not
+
+A 2-column desktop grid needs width, and DESIGN.md allows two measures with the
+wide one reserved for the draft room. Rather than adding a third, the existing
+one gained a second caller on the identical argument: the room is pool, board,
+radar and console, the dashboard is standings, chat, roster and news — both are
+*four surfaces at once*, on a page a league sits on rather than passes through.
+The `MEASURE` key was renamed `room` → `wide` in the same change, because a key
+named after one of its two callers is a lie a reviewer has to open the map to
+catch.
+
+### Four defects a render caught that the markup did not
+
+Worth listing, because every one of them type-checked and passed lint:
+
+1. **The season printed as `26`.** A regex stripped the century, and `E2026`
+   came out as half the name of the competition. A Euroleague season is named
+   for both its years; `seasonLabel` now says `26-27`, with the century wrapped
+   so a 2099 season reads `99-00` rather than `99-100`.
+2. **The viewer's own row used `Slot`'s `current`.** That is the *keyboard
+   cursor* — a 2px ink outline plus `aria-current` — and "this row is mine" is
+   not a cursor position. The word "you" carries it, as it already does in the
+   lobby's member list.
+3. **A sentence set in the mono face.** "you finished 1 of 5" was rendered with
+   `stat`, which DESIGN.md reserves for figures read *down a column*; a sentence
+   with a number in it stays in Space Grotesk by that document's own rule.
+4. **A best night of `0.0`.** Before any box score lands, the recap still ranks
+   whoever it has — which is somebody with nothing — so the panel headlined a
+   performance that had not happened. It renders only above zero now.
+
+### Two smaller things
+
+`formatTenths` and `formatSignedTenths` were written a second time in the first
+draft of the pure module and deleted before commit: tenths become a decimal in
+exactly one place in this app, and a second rounding rule is how a codebase
+starts disagreeing with itself. And `readRecentTransactions` borrows the chat's
+own `announceTrade` / `announceAdd` / `announceDrop` verbatim, so a deal is
+described identically in the panel and in the transcript six inches to its
+right.
+
+The `depth-scale.test.ts` guard also earned its keep: a stray `rounded-none` on
+the new wordmark link failed it immediately. The class was redundant anyway,
+which is the point — the test caught a radius that did nothing rather than one
+that did something wrong.
+
 ## "The commissioner always gets 1st" — measured, and the answer was #119
 
 Reported from production: *"it seems that the commissioner always gets better
