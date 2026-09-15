@@ -45,7 +45,10 @@ import { parseServerEnv, type ServerEnv } from "@/lib/config/schema";
 import { describeError } from "@/lib/drafts/pipeline";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
+import { fetchSeasonAverages } from "@/lib/stats/euroleague";
 import { ingestFinishedGames, summariseIngest } from "@/lib/stats/ingest";
+import { previousSeasonOf } from "@/lib/stats/seasons";
+import { applyPreviousSeason } from "@/lib/stats/store";
 
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
@@ -122,7 +125,8 @@ function summarise(report: SweepReport): string {
   if (report.raced) parts.push(`${report.raced} raced`);
   if (report.repaired) parts.push(`${report.repaired} repaired`);
   if (report.finished) parts.push(`${report.finished} finished`);
-  if (report.clocksRestarted) parts.push(`${report.clocksRestarted} clocks restarted`);
+  if (report.clocksRestarted)
+    parts.push(`${report.clocksRestarted} clocks restarted`);
   if (report.stuck) parts.push(`${report.stuck} stuck`);
   if (report.moved) parts.push(`${report.moved} moved`);
   if (report.failed) parts.push(`${report.failed} failed`);
@@ -344,8 +348,63 @@ function main(): void {
 
   let statsTimer: ReturnType<typeof setInterval> | null = null;
   let newsTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Last season's averages, once, when the pool has none.
+   *
+   * This is **the number a draft is decided on**: a draft happens before the
+   * season it drafts for has a single game in it, so `averagePirOf` falls back
+   * to `prev_season_*` for every player on draft night. Until it is there the
+   * pool shows dashes and autodraft falls all the way through to its
+   * alphabetical tiebreak.
+   *
+   * It was a one-off script (`npm run stats:prev`) and therefore a thing to
+   * forget. It *was* forgotten — on a local database and on production, where
+   * 324 players had no last-season PIR at all until somebody went looking. A
+   * pre-draft step that nothing enforces is a pre-draft step that does not
+   * happen.
+   *
+   * So the worker does it, on the same reasoning 4.3 uses for box scores: the
+   * work is idempotent, so the honest design is to let the process notice what
+   * is outstanding rather than to ask a human to remember. The guard is the
+   * pool itself — if any player already has a last-season average, this does
+   * nothing and makes no request, so a restart costs the feed nothing.
+   *
+   * Once per boot, deliberately: a pool that legitimately has no last season
+   * (a brand-new competition, or a feed that has not published yet) must not
+   * be retried every fifteen minutes forever.
+   */
+  async function previousSeasonOnce(): Promise<void> {
+    if (env.STATS_FETCH === "off") return;
+    try {
+      await ensureAuth(pb, env);
+      const existing = await pb.collection("players").getList(1, 1, {
+        filter: "prev_season_games > 0",
+        fields: "id",
+        requestKey: null,
+      });
+      if (existing.totalItems > 0) return;
+
+      const season = previousSeasonOf(env.EUROLEAGUE_SEASON);
+      if (!season) return;
+      log(`no last-season averages in the pool — importing ${season}`);
+      const averages = await fetchSeasonAverages({ season });
+      const result = await applyPreviousSeason(pb, season, averages);
+      log(
+        `previous season · ${season} · ${result.fetched} in the feed · ${result.matched} matched · ${result.updated} written`,
+      );
+    } catch (error) {
+      // Never fatal. A draft with no averages is worse than one with them and
+      // still perfectly playable — the pool shows dashes and every pick is
+      // still legal. `npm run stats:prev` remains the manual path.
+      log(`previous-season import failed: ${describeError(error)}`, "error");
+      pb.authStore.clear();
+    }
+  }
+
   scheduleStats();
   scheduleNews();
+  // After the schedulers, so a slow feed cannot delay the sweep starting.
+  void previousSeasonOnce();
 
   const timer = setInterval(() => {
     if (stopping) return;

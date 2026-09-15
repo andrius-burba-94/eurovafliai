@@ -138,6 +138,77 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — one command, and test data that always goes
+
+```bash
+npm run dev      # next + PocketBase + the worker, together
+```
+
+**`npm run dev` now starts the worker too.** It was a second terminal
+(`npm run worker:dev`) and therefore a thing to forget — and it was forgotten,
+for a whole local draft: autodraft was armed on three members, the clock ran to
+zero every turn, and **0 of 39 picks** were taken by the engine. Nothing
+enforces a deadline unless that process is alive.
+
+**The worker imports last season's averages on boot when the pool has none.**
+That is the number a draft is decided on — a draft happens before its season has
+a single game, so the pool falls back to `prev_season_*` for every player. It
+was a one-off script and so it never got run: **local and production both had
+zero**. The guard is the pool itself, so a restart with data present makes no
+request at all. Verified both ways:
+
+```
+# pool has it:
+(nothing — no log line, no request)
+# pool does not:
+no last-season averages in the pool — importing E2025
+previous season · E2025 · 335 in the feed · 225 matched · 225 written
+```
+
+`npm run stats:prev` is still there for a forced re-import, and reports
+`225 already current` when there is nothing to do.
+
+**E2E test data now always goes.** `afterEach` only ever cleaned the run it
+belonged to: `TEST_CLUB` is a random code minted per worker process, and the id
+registry lives in memory, so a **killed** run left players, leagues and users
+that no later cleanup could even name. That reached 900 test players against
+327 real ones and 213 leagues, which is why the club filter offered 195 clubs —
+and it made every pool render slower, which showed up as *flaky specs*.
+
+Playwright now sweeps **before** the suite as well as after
+(`tests/e2e/helpers/sweep.ts`), on two markers no real row can carry: users at
+`@e2e.invalid` (RFC 2606 reserves `.invalid`, so it can never be a person) and
+players whose `club_name` is the literal `E2E Test Club` — deterministic, unlike
+the random club *code* a dead process takes with it. Fixtures are found through
+the club codes of the test players, read before those are deleted. Proved by
+killing a run mid-test and watching the next one report:
+
+```
+e2e sweep before: 1 leagues, 1 players, 1 users
+```
+
+It is silent when there is nothing to clean, so a line means the previous run
+did not finish.
+
+### What runs by itself, and what does not
+
+| | Local (`npm run dev`) | Production |
+|---|---|---|
+| Next | ✔ | ✔ PM2 `eurovafliai-web` |
+| PocketBase | ✔ | ✔ systemd `eurovafliai-pb` |
+| **Worker** — pick deadlines, autodraft, repairs (1s) | ✔ **new** | ✔ PM2 `eurovafliai-worker` |
+| Box scores + standings (15min) | ✔ via worker | ✔ via worker |
+| Injury news (60min) | ✔ via worker | ✔ via worker |
+| Last-season averages | ✔ **new**, on boot when absent | ✔ same worker |
+| Nightly backup | — | ✔ systemd timer |
+| **Roster ingestion** (`rosters:sync`) | ✖ by hand | ✖ by hand |
+
+PM2 is `enabled` for boot, so both processes survive a reboot. **Roster
+ingestion stays manual by design** — ADR/blueprint 2.1 makes the API and the
+hand-corrected CSV alternately authoritative, and a process that silently
+re-synced the pool could overwrite a commissioner's corrections the night
+before a draft.
+
 ## Try it on localhost — four reports from a real draft night
 
 ```bash
