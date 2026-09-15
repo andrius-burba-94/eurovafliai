@@ -174,7 +174,7 @@ export function DraftBoard({
           <span
             role="columnheader"
             aria-label="Draft round"
-            className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock-deep"
+            className="sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock-panel"
           />
           {columns.map((column, index) => (
             <span
@@ -211,7 +211,7 @@ export function DraftBoard({
                   you are looking at stays labelled while the columns move. */}
               <span
                 role="rowheader"
-                className="sticky left-0 z-10 border-r border-rule-strong bg-stock-deep pt-1 pr-1.5 text-right text-slot tabular-nums text-ink-faint"
+                className="sticky left-0 z-10 border-r border-rule-strong bg-stock-panel pt-1 pr-1.5 text-right text-slot tabular-nums text-ink-faint"
               >
                 {row[0]?.round ?? index + 1}
               </span>

@@ -122,7 +122,32 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
-## Try it on localhost — slice 9.5
+## Try it on localhost — slice 10.2
+
+```bash
+npm run dev
+npm run test -- src/app/tokens.test.ts
+```
+
+Open any page. The ground is **`#0B1120`** and there is **no sun in the top
+rail** — that is the whole of 10.2 visible in one glance, because the switch and
+the second ground went together.
+
+The one thing to look at: put your OS in **Light** mode and reload. The app is
+still the midnight board. That is not a bug, it is
+[ADR-0006](adr/ADR-0006-midnight-board.md)'s accepted cost, and it is in Open
+debt so nobody has to rediscover it.
+
+Then `/leagues/<id>/draft` with a board on it. The slots are still ruled the
+same four ways, the marker is now orange on the slot on the clock, and the
+G/F/C patches are cyan/emerald/amber with their letters still printed. Type is
+deliberately unchanged — Archivo until 10.3.
+
+## Try it on localhost — slice 9.5 (superseded by 10.2)
+
+The sun/moon switch this describes **no longer exists**; kept because the
+"does it arrive without JavaScript" check below is the one the midnight board
+inherited, and `design.spec.ts` now asserts it.
 
 ```bash
 npm run dev
@@ -861,7 +886,7 @@ the *sparkline*, which needs per-game values the pool never queried.
 | Slice | State | Notes |
 |---|---|---|
 | **10.1 The decision, the rulebook and the palette** | done | ADR-0006, D22, DESIGN.md re-grounded, `.impeccable/design.json` regenerated. **The palette is solved, not picked**, and three constraints moved real values: a panel is *lighter* than the ground (depth on a dark ground is lightness), so `rule` is solved for 3:1 on the **panel** (3.15) and clears 3.52 on the ground as a by-product — the reverse of which surface was binding on paper. `live-sunk` is the *lightest* warm bay on which `ink-faint` still clears 4.5:1 (4.61), because faint ink is what a muted pool row is written in and that row can be the armed one. `ink-soft` is solved against its **worst** pairing — a position wash on a panel (4.57) and staying above the marker on the bay (5.36 vs 5.05) — where ADR-0005's 5.79:1 failed both. Chalk stops at **13.89:1** rather than the 18.8:1 the ground now allows, because halation is real: that argument is the one part of 9.5 that outlived it. The marker carries **four** decimal places (`oklch(0.6759 0.2175 38.8)`) because three round-trips to `#ff5502` |
-| **10.2 The palette in code** | todo | `globals.css` rewritten; the `--night-*` indirection, `theme.ts`, the `<head>` script, `ThemeControl` and `theme.spec.ts` removed; `tokens.test.ts` collapsed to one ground with every pair re-measured; `stock-deep` renamed `stock-panel`, because on this ground "deep" would be a lie |
+| **10.2 The palette in code** | done | `globals.css` rewritten; the `--night-*` indirection, `theme.ts`, the `<head>` script, `ThemeControl`, the sun/moon icons and `theme.spec.ts` all removed; `stock-deep` renamed **`stock-panel`**, because on this ground "deep" says the opposite of what it does. `tokens.test.ts` collapsed from two grounds to one — **74 assertions, every pair re-measured**, plus four that are new and deliberate: the two anchors asserted as sRGB *bytes* (`#0b1120`, `#ff5500`) rather than as OKLCH nobody can read; a **ceiling** on chalk so "improving" contrast toward white stops being a one-character change; `rule` asserted to be *harder on the panel than on the ground*, which is the inversion easiest to undo by accident; and a guard that every token is declared **exactly once**, because 9.5's `--night-*` naming was what stopped a second palette shipping unmeasured and deleting it removed that protection. `global-error.tsx` also carried a copy of the theme script — it renders when the layout has failed, so it had to be found by grep rather than by CI |
 | **10.3 Two type families** | todo | Space Grotesk for words, JetBrains Mono for figures in a column. Both verified against Next's own font metadata to ship `latin-ext` **before** being chosen — this league reads Valančiūnas |
 | **10.4 The card-block material** | todo | One radius step and a two-level depth scale, in `board.tsx`, replacing "zero radius, never nested" |
 | **10.5 Roster blocks and the captain** | todo | Segmented per-player blocks; an exclusive captain control that keeps the five-role select, `validateLineup` and the five official formations |

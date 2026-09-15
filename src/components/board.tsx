@@ -15,8 +15,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { ThemeControl } from "@/components/theme-control";
-
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
 
 const SLOT_RULE: Record<SlotState, string> = {
@@ -46,10 +44,9 @@ const SLOT_RULE: Record<SlotState, string> = {
  * The board's top rail. Carries the wordmark and the season, and takes one
  * slot on the right for whatever action the surface owns.
  *
- * Since 9.5 it also carries the ground the board is drawn on. That lives here
- * rather than in each page's `action` for one reason: every surface has the
- * switch, and no surface had to be edited to get it. The rail is the only thing
- * this app renders on literally every page.
+ * It carried the ground switch for eight days (9.5, 9.5a). Phase 10 removed it
+ * with the second ground — there is one ground now, so there is nothing to
+ * switch. See ADR-0006 for what that costs.
  */
 export function TopRail({ action }: { action?: ReactNode }) {
   return (
@@ -66,19 +63,7 @@ export function TopRail({ action }: { action?: ReactNode }) {
             Euroleague 2026&ndash;27
           </span>
         </div>
-        {/* `gap-1` and the switch's own `self-end` are what put it *in* the
-            rail's row of controls rather than beside the block of them. A
-            surface whose action is two lines — the account stack on
-            `/`, a name over its own nav — is the case that decides this: an
-            icon centred against that stack sits between its two lines, level
-            with nothing, reading as a stray mark. Bottom-aligned it lands in
-            the nav's own 44px band, one more control in a line of them, and on
-            the single-line surfaces (a `BackLink`, same 44px box) it is the
-            same result. */}
-        <div className="flex shrink-0 items-baseline gap-1">
-          <ThemeControl />
-          {action}
-        </div>
+        <div className="flex shrink-0 items-baseline gap-1">{action}</div>
       </div>
     </header>
   );
@@ -667,49 +652,8 @@ export function BackArrow() {
   );
 }
 
-/**
- * Sun and moon, for the one control whose state is a picture rather than a
- * word. Same recipe as `BackArrow` — one hand-authored stroke on
- * `currentColor`, no fill, no package — on a 16px grid, because these carry a
- * whole label's meaning and the 12x8 arrow's box is too small to read a
- * crescent in. Drawn on 16 units and rendered at 18px, so the stroke comes out
- * a shade heavier than 1px and sits with the 500-weight caps beside it on the
- * rail instead of under them.
- *
- * The two are sized against each other rather than to the same box: the sun is
- * a small disc whose rays make it read wide, the moon is a single thin arc, so
- * the crescent is drawn nearer the edge of the box than the rays are. Matched
- * geometrically they look like two different sizes on the same rail.
- */
-export function SunIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      className="h-4.5 w-4.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-      strokeLinecap="round"
-    >
-      <circle cx="8" cy="8" r="3" />
-      <path d="M8 1.6v1.4M8 13v1.4M1.6 8h1.4M13 8h1.4M3.5 3.5l1 1M11.5 11.5l1 1M12.5 3.5l-1 1M4.5 11.5l-1 1" />
-    </svg>
-  );
-}
-
-export function MoonIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      className="h-4.5 w-4.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-      strokeLinejoin="round"
-    >
-      <path d="M14 10.2A6.2 6.2 0 0 1 5.8 2a6.1 6.1 0 1 0 8.2 8.2Z" />
-    </svg>
-  );
-}
+/* `SunIcon` and `MoonIcon` stood here for the ground switch and went with it in
+ * Phase 10. The recipe they established survives in DESIGN.md: draw on 16 units
+ * and render at 18px so the stroke lands a shade over 1px, and size a set
+ * against each other rather than to a shared box. 10.6's sparkline is the next
+ * thing to follow it. */

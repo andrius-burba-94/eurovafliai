@@ -939,10 +939,13 @@ gutter cell needs `self-stretch` on top of that, because its only child is
 zero-height box hides
 nothing.
 
-**The Wash-Costs-A-Tenth Rule.** A 10% wash over stock costs roughly a tenth of
-every contrast ratio measured on top of it, and a wash over stock-deep costs
-more. So text on a washed field is `ink` or `ink-soft`, and a rule on one is
-`rule-strong`. `tokens.test.ts` asserts those pairs over both stock materials.
+**The Wash-Costs-A-Tenth Rule.** A 10% wash over the ground costs roughly a
+tenth of every contrast ratio measured on top of it, and a wash over
+`stock-panel` costs more. So text on a washed field is `ink` or `ink-soft`, and
+a rule on one is `rule-strong`. `tokens.test.ts` asserts those pairs over both
+stock materials — and the panel version of that pairing is one of the two
+constraints that fixed `ink-soft`'s lightness, so it is load-bearing rather
+than belt-and-braces.
 3.1 shipped the opposite of all three, and the test was green throughout,
 because it could not yet express an alpha background.
 

@@ -25,10 +25,14 @@ test.afterEach(async () => {
 
 async function assertNoSerious(page: Page, label: string) {
   // Contrast is owned by `src/app/tokens.test.ts` — the design system already
-  // measures every ink/stock pair, and axe's runtime sample of the same tokens
-  // (live on stock-deep at 4.49:1 vs 4.5:1) is a known near-miss recorded in
-  // open debt rather than a second, fighting source of truth. This suite is
-  // for landmarks, names, and focus order that tokens cannot see.
+  // measures every ink/stock pair, and a second, fighting source of truth is
+  // worse than one. This suite is for landmarks, names, and focus order that
+  // tokens cannot see.
+  //
+  // The near-miss this comment used to record (the marker on panel stock at
+  // 4.49:1 against a 4.5 floor) is gone with the card-stock board: it is
+  // 5.25:1 on the midnight board. The rule stays disabled because the division
+  // of labour is the point, not because anything is being hidden.
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .disableRules(["color-contrast"])
