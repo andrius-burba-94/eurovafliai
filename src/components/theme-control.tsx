@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import { FilterToggle } from "@/components/board";
+import { MoonIcon, SunIcon } from "@/components/board";
 import {
   ATTRIBUTE,
   otherTheme,
@@ -16,11 +16,16 @@ import {
  * Which ground the board is drawn on — slice 9.5, and it rides in the top rail
  * so it is on every surface without any page knowing about it.
  *
- * It is a `FilterToggle`, deliberately, rather than a new control: DESIGN.md's
- * answer to open question 3 is that a two-state control here is a **button with
- * `aria-pressed`**, carrying its state in its own rule. A theme switch is the
- * same shape as "Hide drafted", so it is the same component — a sun/moon icon
- * button would have been a second idiom and a third material at once.
+ * It is a plain button with `aria-pressed` — DESIGN.md's answer to open
+ * question 3, and the same contract `FilterToggle` carries. What it does *not*
+ * borrow from `FilterToggle` is the rule under the label, because this control
+ * no longer has a label: the icon is the state. A sun means the day board, a
+ * moon means the night board, and a dashed rule under either would be the same
+ * fact stated twice.
+ *
+ * The accessible name stays the word "Night board" rather than swapping with
+ * the picture, so a screen reader hears one control changing position instead
+ * of two controls trading places. `aria-pressed` is what says which way it is.
  *
  * Three behaviours worth knowing, all decided in `src/lib/theme.ts`:
  *
@@ -111,13 +116,26 @@ export function ThemeControl() {
     for (const listener of listeners) listener();
   }
 
+  const night = theme === "night";
+
   return (
-    <FilterToggle
-      testId="theme-control"
-      pressed={theme === "night"}
-      onPressedChange={() => choose(otherTheme(theme))}
+    <button
+      type="button"
+      data-testid="theme-control"
+      aria-pressed={night}
+      aria-label="Night board"
+      onClick={() => choose(otherTheme(theme))}
+      // 44px on both axes, which is this project's written target and the one
+      // `FilterToggle` had to learn twice — a 16px icon is exactly the kind of
+      // control that falls through a height-only rule.
+      //
+      // `self-end`, not the rail's baseline: a button whose only child is an
+      // SVG has no baseline of its own, and it belongs in the line of controls
+      // at the bottom of the rail rather than on the wordmark's line. See the
+      // note on `TopRail`'s action group.
+      className="inline-flex min-h-11 min-w-11 items-center justify-center self-end text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
     >
-      Night
-    </FilterToggle>
+      {night ? <MoonIcon /> : <SunIcon />}
+    </button>
   );
 }
