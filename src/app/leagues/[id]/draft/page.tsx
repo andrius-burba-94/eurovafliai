@@ -119,9 +119,9 @@ export default async function DraftPage({
           wordmark still aligns with the first slot under it. */}
       <TopRail
         action={<BackLink href={`/leagues/${id}`}>Lobby</BackLink>}
-        measure="room"
+        measure="wide"
       />
-      <Sheet testId="draft-room" measure="room">
+      <Sheet testId="draft-room" measure="wide">
         {/* One piece of shared state: the row you have armed. The band's
             confirm and the pool's rows are in different components — and, for
             the band, a different render environment — so a small client

@@ -138,6 +138,50 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — the season dashboard
+
+```bash
+npm run dev
+npx playwright test tests/e2e/season-dashboard.spec.ts
+```
+
+Open a league whose `status` is `season` with a seat of your own. The lobby body
+is gone: in its place, at the **`wide`** measure, the table and the conversation
+across the top, your roster and the league's news underneath. The thing to look
+at is that **you can tell whether you are winning without pressing anything** —
+which the four-door grid it replaced could not do. Then narrow the window: below
+`lg` it is one column in the same order, because match night is phones on a
+couch.
+
+The rail's **Eurovafliai · Euroleague 2026–27** is now a link home, on every
+surface. One link over both clauses, not two to the same place.
+
+**Three of the brief's panels described a different game and were substituted
+rather than faked** ([D26](EUROVAFLIAI_BLUEPRINT.md), the same discipline as D19
+and D23):
+
+| Asked for | Why it cannot be true here | What is there instead |
+|---|---|---|
+| A **W-L** column | No head-to-head. Standings are cumulative fantasy points with per-round snapshots (4.5), so there is no opponent to have beaten and the column reads `0-0` forever | `PTS`, and the round's signed movement |
+| **Matchup of the week** | No matchup format exists in the blueprint, PRODUCT.md or CONTEXT.md. Inventing one would invent a game | 5.4's recap: the night's ranking, the best night, the deal that moved most |
+| Player **headshots** | `players` has no image field — name, club, position, status, person code, dorsal. A photo would have to be invented per player, which PRODUCT.md forbids | The position patch, this app's own colour-coded mark, which always prints its letter |
+
+A spec asserts the page says neither "W-L", "matchup" nor "final", and that the
+roster panel contains no `<img>` at all — so none of the three can be quietly
+"finished" later.
+
+**The `wide` measure now has two callers**, and the `MEASURE` key was renamed
+`room` → `wide` to say so. That is D24's argument reused rather than a new one:
+the room is pool, board, radar and console, the dashboard is standings, chat,
+roster and news, and both are four surfaces at once. There is still no third
+measure.
+
+Two things left this screen on purpose: the **cheat sheet** (the brief's own
+instruction, and its season copy was already only a souvenir) and the lobby's
+**second copy of the chat** — the dashboard renders the same thread in its own
+panel, and two transcripts of one thread on one page is two unread counts for
+the same messages.
+
 ## Try it on localhost — the roll ceremony
 
 ```bash

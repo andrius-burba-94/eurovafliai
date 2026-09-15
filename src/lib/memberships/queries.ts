@@ -242,20 +242,20 @@ export async function readMemberDeals(
   });
   const transactions: (ImpactTransaction & { members: string[] })[] =
     rows.flatMap((row) => {
-    if (row.type !== "trade" && row.type !== "add" && row.type !== "drop") {
-      return [];
-    }
-    return [
-      {
-        id: row.id,
-        type: row.type,
-        fromRound: row.from_round,
-        members: asMemberIds(row.members),
-        playersIn: asIdMap(row.players_in),
-        playersOut: asIdMap(row.players_out),
-      },
-    ];
-  });
+      if (row.type !== "trade" && row.type !== "add" && row.type !== "drop") {
+        return [];
+      }
+      return [
+        {
+          id: row.id,
+          type: row.type,
+          fromRound: row.from_round,
+          members: asMemberIds(row.members),
+          playersIn: asIdMap(row.players_in),
+          playersOut: asIdMap(row.players_out),
+        },
+      ];
+    });
 
   const playerIds = [
     ...new Set(
@@ -357,5 +357,123 @@ export async function readMemberDeals(
         deltaTenths: row.deltaTenths,
       })),
     };
+  });
+}
+
+/** A recorded transaction, said the way the league already hears it. */
+export type TransactionLine = {
+  readonly id: string;
+  readonly type: "trade" | "add" | "drop";
+  readonly fromRound: number;
+  readonly sentence: string;
+};
+
+/**
+ * The league's recent transactions, newest first — the dashboard's news panel.
+ *
+ * ## Why it borrows the chat's sentences
+ *
+ * 5.2 already announces every recorded deal in chat, through `announceTrade` /
+ * `announceAdd` / `announceDrop`. Those functions are reused verbatim here
+ * rather than a second phrasing being written for the panel: a dashboard that
+ * described the same deal in different words from the transcript six inches to
+ * its right would read as two different events, and the league would have to
+ * work out whether it was one. One voice, two surfaces.
+ *
+ * Players are resolved in a single read of the ids the transactions actually
+ * mention, not of the whole pool: this runs on the lobby, which is the page
+ * everybody opens.
+ */
+export async function readRecentTransactions(
+  leagueId: string,
+  teamNames: Readonly<Record<string, string>>,
+  limit = 6,
+): Promise<TransactionLine[]> {
+  const session = await getSession();
+  if (!session) return [];
+
+  const pb = createUserClient(session.token);
+  const rows = await pb.collection("transactions").getFullList<StoredTx>({
+    filter: `league = '${leagueId}'`,
+    sort: "-date,-created",
+    requestKey: null,
+  });
+  if (rows.length === 0) return [];
+
+  const wanted = new Set<string>();
+  for (const row of rows.slice(0, limit)) {
+    for (const ids of Object.values(asIdMap(row.players_in))) {
+      for (const id of ids) wanted.add(id);
+    }
+    for (const ids of Object.values(asIdMap(row.players_out))) {
+      for (const id of ids) wanted.add(id);
+    }
+  }
+
+  const names = new Map<string, string>();
+  if (wanted.size > 0) {
+    const players = await pb
+      .collection("players")
+      .getFullList<{ id: string; name: string }>({
+        filter: [...wanted].map((id) => `id = '${id}'`).join(" || "),
+        fields: "id,name",
+        requestKey: null,
+      });
+    for (const player of players) names.set(player.id, player.name);
+  }
+  // A player whose row is gone still has to appear: a deal with a blank in it
+  // is confusing, a deal that vanished is worse.
+  const named = (ids: readonly string[]) =>
+    ids.map((id) => names.get(id) ?? "a player");
+  const team = (memberId: string) => teamNames[memberId] ?? "A team";
+
+  return rows.slice(0, limit).flatMap((row): TransactionLine[] => {
+    const incoming = asIdMap(row.players_in);
+    const outgoing = asIdMap(row.players_out);
+    const members = Object.keys({ ...incoming, ...outgoing });
+
+    if (row.type === "add" || row.type === "drop") {
+      const memberId = members[0];
+      if (!memberId) return [];
+      const players = named(
+        row.type === "add"
+          ? (incoming[memberId] ?? [])
+          : (outgoing[memberId] ?? []),
+      );
+      if (players.length === 0) return [];
+      const sentence =
+        row.type === "add"
+          ? announceAdd({
+              teamName: team(memberId),
+              players,
+              fromRound: row.from_round,
+            })
+          : announceDrop({
+              teamName: team(memberId),
+              players,
+              fromRound: row.from_round,
+            });
+      return [
+        { id: row.id, type: row.type, fromRound: row.from_round, sentence },
+      ];
+    }
+
+    if (row.type !== "trade") return [];
+    const [a, b] = members;
+    if (!a || !b) return [];
+    return [
+      {
+        id: row.id,
+        type: "trade" as const,
+        fromRound: row.from_round,
+        sentence: announceTrade({
+          teamA: team(a),
+          teamB: team(b),
+          sent: named(outgoing[a] ?? []),
+          received: named(incoming[a] ?? []),
+          fromRound: row.from_round,
+        }),
+      },
+    ];
   });
 }
