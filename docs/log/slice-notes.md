@@ -3,6 +3,69 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## The roll re-apply fix — idempotent had to mean quiet, too
+
+Reported from production, in the plainest possible terms: "I don't think the
+rolling works, it keeps rolling same result" — followed by fifty pasted copies
+of `The draft order was rolled: 1. Team 1 · 2. Virtuozas.`
+
+**The premise was wrong and the report was right**, which is the interesting
+part. With two members there are two possible orders, so fifty identical results
+is p = 2⁻⁴⁹ — not luck, so the obvious read is a broken shuffle. It wasn't. The
+production database said `roll_seed` was stored and stable, `order_mode: roll`,
+fifty `rolled` announcements and **zero** reshuffles, with those fifty rows being
+the entire chat history of the league. So every press had gone down the
+*re-apply* path, which by design recomputes the same order from the stored seed:
+
+```ts
+const seed = settings.roll_seed || crypto.randomUUID();
+```
+
+That reuse is deliberate and 2.3a argues it at length — re-applying must be safe
+to press twice so a half-saved roll can be finished without changing who drafts
+first, and the action that genuinely re-draws is `reshuffleDraftOrder`, behind
+its own confirmation. None of that moved.
+
+What moved is the announcement. `rollDraftOrder` called `announce()`
+unconditionally, and `announceRoll({reshuffle: false})` produces wording
+byte-identical to a first draw. So the write was idempotent while the *story the
+app told about the write* was not, and a replay was indistinguishable from a
+fresh roll — from the outside, indistinguishable from a shuffle that never
+changes. **The defect was never in the randomness; it was in the app being
+unable to say "nothing happened".** A button that reports success while the
+result never changes teaches the person holding it that it is broken, and they
+press it again, which is precisely the loop that produced fifty rows.
+
+The fix is one pure predicate, `orderAlreadyApplied` in
+`src/lib/leagues/order.ts`, compared against the members read **before** the
+write — the only moment the previous order still exists. A roll announces only
+when the board actually changed, and a replay returns a `notice` (not an
+`error`: nothing went wrong) that says the order is already applied and points
+at Reshuffle. It lives outside `draft-setup.ts` because that file is
+`"use server"` and may only export async actions, so a sync helper could not go
+there; it is pure because the announcement decision is the half worth testing,
+not the PocketBase writes around it.
+
+**A partial save is deliberately not a replay.** Some member still carries the
+wrong number, so re-applying does move the board and the league should hear
+about it — that is one of the nine unit cases, and the one most likely to be
+broken by a future simplification of the predicate.
+
+The regression test is in `chat.spec.ts` rather than only in units, because the
+defect was a *count*: the assertion that matters is that the transcript does not
+grow across two further presses. It was confirmed to fail against the
+un-neutralized fix before being trusted.
+
+**What this cost, and what is still true.** Fifty junk rows in a production
+lobby, since deleted after a backup. Two things were left alone on purpose: the
+seed reuse and the roll/reshuffle split, which the decision log treats as
+settled and which this report did not actually contradict. And one thing is
+worth watching — "Re-apply the roll" is a control whose correct behaviour is to
+do nothing visible, which is a hard affordance to make legible. The notice is a
+mitigation, not a redesign; if a commissioner reports confusion here again, the
+answer is probably that a satisfied order should not offer a re-apply button at
+all, and that the repair path belongs behind the same fold as Reshuffle.
+
 ## 10.9 — Three questions, three shapes, and the one refusal worth reversing
 
 The brief's last ask was to "cleanly differentiate the Live Draft Room from the

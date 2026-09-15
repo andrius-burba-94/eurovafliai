@@ -138,6 +138,34 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — the roll re-apply fix
+
+```bash
+npm run dev
+```
+
+Open a league in `setup` with at least two members and press **Roll the order**.
+It announces in the lobby chat, as it always did. Now press the same button
+again — it reads **Re-apply the roll** — and the thing to look at is that
+**the transcript does not grow**. Instead the order Bank says the order is
+already on the board and points at Reshuffle. Press it a third time: still one
+announcement. Then open **Reshuffle&hellip;**, tick the box, and confirm — that
+one *does* announce, because it changed who picks first.
+
+```bash
+npx playwright test tests/e2e/chat.spec.ts -g "re-applying the roll"
+```
+
+Found in production, not in a test: a two-member league collected **fifty**
+identical "the draft order was rolled" announcements, which is the whole of that
+lobby's chat history. The roll was never broken — a seeded roll of two members
+returns the same order every time by design, and re-applying is deliberately
+idempotent so a half-saved roll can be finished without changing who drafts
+first. What was broken is that the *announcement* was not idempotent: every
+press published a fresh-looking roll, and nothing on the page said "this was a
+replay". So the correct behaviour was indistinguishable from a stuck shuffle,
+and the commissioner reasonably concluded the button did nothing.
+
 ## Try it on localhost — slice 10.9
 
 ```bash
