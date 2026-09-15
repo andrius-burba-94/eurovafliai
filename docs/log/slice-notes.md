@@ -3,6 +3,52 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## The league that could not be deleted
+
+Reported from production: the commissioner pressed delete and got the route
+error boundary. The log said it in one line —
+
+```
+ClientResponseError 400: Failed to delete record. Make sure that the record
+is not part of a required relation reference.
+url: .../api/collections/leagues/records/5njsumqmr6h0opi
+```
+
+— and the schema said the rest. **PocketBase refuses to delete a record while a
+required, non-cascading relation still points at it, even when the pointing
+record is itself slated for the same cascade.** Deleting a league cascades to
+`league_members`; two fields in this schema hold exactly that kind of reference
+to a member row. `picks.member` is one, and it is the reason `deleteLeague`
+deletes drafts first — the existing E2E test even says so in a comment. The
+other is `roster_memberships.member`, which **5.1 added and nobody carried back
+into the delete path**. The league on the box had 39 roster windows (three
+members, thirteen rounds — a completed draft, materialized), so it could not be
+deleted at all.
+
+The loop came before the theory, which is the only reason this took minutes
+rather than an afternoon: a new spec builds the production shape — a board plus
+one roster window — and drives the real delete through the real UI. Red with
+the identical 400 and the identical error boundary, green after the fix. The
+differential is what makes it evidence rather than a story: the *existing*
+delete test uses the same helper and passes, so one `roster_memberships` row is
+the whole difference.
+
+The fix reuses `clearLeagueMemberships`, which the draft-rollback path already
+calls for this exact reason, and the order is now windows → drafts → league.
+
+**The part worth remembering is not the fix.** Each of the two failed attempts
+deleted the drafts *before* hitting the 400 on the league, so the board and its
+39 picks were destroyed by a delete that then reported failure — and the error
+page told the commissioner "The board itself is unchanged" while it had just
+stopped being true. Both are recorded as open debt rather than papered over:
+PocketBase has no transactions and the cascade is the only thing that removes
+members, chat and sheets, so the league record must go last and ordering cannot
+be turned into atomicity. What *can* be done, and is, is to stop the class from
+recurring: `pb:verify` now reads the live schema, enumerates every required
+non-cascading reference to `league_members`, and fails CI unless the set is
+exactly the two `deleteLeague` handles. The next collection to add one breaks a
+build instead of a league.
+
 ## 9.5a — The ground switch becomes a mark, and the alignment was the whole slice
 
 9.5 shipped the switch as a `FilterToggle` reading "Night", and said so in

@@ -141,6 +141,51 @@ try {
       byName.league_members.deleteRule === null,
     "league_members writes are superuser-only",
   );
+  // Which records can block a league delete.
+  //
+  // `deleteLeague` removes the league and lets PocketBase's cascade take the
+  // rest — but PB refuses to delete a record while a **required**,
+  // non-cascading relation still points at it, even when that pointing record
+  // is itself slated for the same cascade. So every such reference to
+  // `league_members` has to be deleted by hand, in order, first; a reference
+  // like that which nobody has taught `deleteLeague` about is a league that
+  // cannot be deleted at all, and it fails *after* the drafts are gone.
+  //
+  // That is not hypothetical: 5.1's `roster_memberships.member` shipped
+  // unhandled and took production's only league with it (see STATUS.md). This
+  // check is here so the next collection to add one fails CI instead.
+  const blockers = (targetId) =>
+    collections
+      .filter((c) => !c.system)
+      .flatMap((c) =>
+        (c.fields ?? [])
+          .filter(
+            (f) =>
+              f.type === "relation" &&
+              f.collectionId === targetId &&
+              f.required === true &&
+              f.cascadeDelete !== true,
+          )
+          .map((f) => `${c.name}.${f.name}`),
+      )
+      .sort();
+
+  // `picks.member` goes with its draft (`picks.draft` cascades), and
+  // `roster_memberships.member` goes through `clearLeagueMemberships`.
+  const HANDLED_BY_DELETE_LEAGUE = ["picks.member", "roster_memberships.member"];
+  const memberBlockers = blockers(byName.league_members.id);
+  check(
+    memberBlockers.join(",") === HANDLED_BY_DELETE_LEAGUE.join(","),
+    `every required non-cascading reference to league_members is handled by deleteLeague ` +
+      `(found ${memberBlockers.join(", ") || "none"}; handled ${HANDLED_BY_DELETE_LEAGUE.join(", ")})`,
+  );
+  const leagueBlockers = blockers(byName.leagues.id);
+  check(
+    leagueBlockers.length === 0,
+    `nothing holds a required non-cascading reference to leagues ` +
+      `(found ${leagueBlockers.join(", ") || "none"})`,
+  );
+
   check(byName.users.authRule === 'id != ""', "users authRule is 'id != \"\"'");
   // Public sign-up is closed. The rule is NOT null on purpose: PocketBase
   // creates the `users` record for a first-time Google sign-in through an
