@@ -138,6 +138,36 @@ it feels right with friends in one room remains human. Nightly backups run on
 the box, and a production archive has been restored and re-verified — so the
 backup is a backup and not a hope.
 
+## Try it on localhost — the order everyone can read
+
+```bash
+npm run dev
+```
+
+Open one league in two browser profiles: the commissioner in one, an ordinary
+member in the other. Press **Roll the order** as the commissioner and watch the
+*member's* window. The thing to look at is the new **The order** Bank — it now
+reads `01`, `02`, `03` downwards for the member too, and it is the same list the
+commissioner reads. No roll button, no reshuffle, no settings, no Start.
+
+```bash
+npx playwright test tests/e2e/draft-setup.spec.ts -g "a member reads the order"
+```
+
+Blueprint §2.3 asks for a roll "revealed live to all clients one slot at a
+time", and 2.3b built that — but the reveal only ever landed numbers onto the
+**member list**, which during `setup` is in *join* order. So a member saw
+`03, 01, 02` scattered down the rows while the readable ordered list sat inside
+the commissioner's own Bank. Everyone watched the roll; only one person could
+read its result. Measured before the fix in a three-member league: the member's
+lobby had **zero** ordered lists.
+
+`DraftSetup` is now two components — `DraftSetup` (the commissioner's format and
+clock) and `DraftOrder` (the league's order, controls gated on `canManage`).
+`DraftOrder` **shares the lobby's `revealed`** rather than calling
+`useRollReveal` again, so the ordered list and the member rows count down
+together instead of the list printing the answer first.
+
 ## Try it on localhost — the roll re-apply fix
 
 ```bash
