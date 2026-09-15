@@ -195,17 +195,25 @@ export function SeasonDashboard({
                   </Slot>
                 ))}
               </Slots>
-              <Slots>
-                <Door
-                  href={`/leagues/${leagueId}/standings?season=${season}`}
-                  testId="enter-standings"
-                  title="The full table"
-                  description="Every round, side by side, with the phase filter."
-                  action="Open"
-                />
-              </Slots>
             </>
           )}
+          {/* Outside the branch above, deliberately. A door is *navigation*,
+              and navigation that vanishes when a panel has no data is how a
+              league loses its way to a surface on the day it most wants to
+              look: the first day of a season, or any time the configured season
+              has nothing ingested yet. The page it opens carries its own season
+              selector, which is exactly how you reach the season this panel
+              could not show. Caught by `recap.spec.ts`, which seeds a different
+              season and lost the door along with the table. */}
+          <Slots>
+            <Door
+              href={`/leagues/${leagueId}/standings?season=${season}`}
+              testId="enter-standings"
+              title="The full table"
+              description="Every round, side by side, with the phase filter."
+              action="Open"
+            />
+          </Slots>
         </Bank>
 
         {/* The conversation, at the top right, where the brief puts it. It is
@@ -347,15 +355,6 @@ export function SeasonDashboard({
                     </Slot>
                   ) : null}
                 </Slots>
-                <Slots>
-                  <Door
-                    href={`/leagues/${leagueId}/recap?season=${season}`}
-                    testId="enter-recap"
-                    title="This round, in full"
-                    description="Every team's night, the best night and the deal that moved most."
-                    action="Open"
-                  />
-                </Slots>
               </>
             ) : (
               <EmptyNotice testId="dashboard-news-empty">
@@ -363,6 +362,17 @@ export function SeasonDashboard({
                 first night this league counts.
               </EmptyNotice>
             )}
+            {/* Same rule as the standings door above: the way to a surface does
+                not depend on this panel having something to say. */}
+            <Slots>
+              <Door
+                href={`/leagues/${leagueId}/recap?season=${season}`}
+                testId="enter-recap"
+                title="This round, in full"
+                description="Every team's night, the best night and the deal that moved most."
+                action="Open"
+              />
+            </Slots>
           </Bank>
 
           <Bank
