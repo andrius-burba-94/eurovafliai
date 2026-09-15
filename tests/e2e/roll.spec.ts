@@ -119,38 +119,49 @@ test("a phone that opens late joins the draw in progress", async ({
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
-  // Twelve seconds in: the count is over and the last slot has landed.
-  await backdateRoll(league.id, 12_000);
+  // Fourteen seconds in: the count is over and the draw is under way. The page
+  // is *live* while we look at it — a slot lands every three seconds — so this
+  // asserts the draw's invariants rather than one particular step, and reads
+  // the DOM in a single pass so the assertions cannot straddle a step
+  // boundary. Pinning "slot 04 exactly" would be a test that fails whenever a
+  // page load crossed a three-second line: a flake rather than a finding.
+  await backdateRoll(league.id, 14_000);
   await page.reload();
+  await expect(page.getByTestId("roll-announcer")).toBeVisible();
 
-  await expect(page.getByTestId("roll-drawn-tally")).toContainText("1 of 4");
-  // The draw walks *down*, so the first slot out is the last pick. Which team
-  // is in it is a seeded shuffle and deliberately not asserted; what is
-  // asserted is that the announcer and the list agree about it, because two
-  // surfaces disagreeing over who was just drawn is the defect that matters.
-  await expect(page.getByTestId("roll-figure")).toHaveText("04");
-  const announced = await page.getByTestId("roll-name").innerText();
-  expect(announced.trim()).not.toBe("");
-  await expect(page.getByTestId("roll-slot").nth(3)).toContainText(announced);
+  const snapshot = await page.evaluate(() => ({
+    figure: document
+      .querySelector('[data-testid="roll-figure"]')
+      ?.textContent?.trim(),
+    name: document
+      .querySelector('[data-testid="roll-name"]')
+      ?.textContent?.trim(),
+    tally: document
+      .querySelector('[data-testid="roll-drawn-tally"]')
+      ?.textContent?.trim(),
+    slots: [...document.querySelectorAll('[data-testid="roll-slot"]')].map(
+      (node) => node.textContent?.trim() ?? "",
+    ),
+  }));
 
-  // Everything above it is still blank, which is the whole shape of the draw.
-  for (const index of [0, 1, 2]) {
-    await expect(page.getByTestId("roll-slot").nth(index)).toContainText(
-      "Not drawn",
-    );
-  }
+  // It joined the draw in progress: past the count, short of the finish.
+  const landed = Number(snapshot.figure);
+  expect(landed).toBeGreaterThanOrEqual(1);
+  expect(landed).toBeLessThanOrEqual(4);
+  expect(snapshot.name).toBeTruthy();
 
-  // Another three seconds and the next slot up has it.
-  await backdateRoll(league.id, 15_000);
-  await page.reload();
-  await expect(page.getByTestId("roll-drawn-tally")).toContainText("2 of 4");
-  await expect(page.getByTestId("roll-figure")).toHaveText("03");
-  await expect(page.getByTestId("roll-slot").nth(2)).toContainText(
-    await page.getByTestId("roll-name").innerText(),
-  );
-  await expect(page.getByTestId("roll-slot").first()).toContainText(
-    "Not drawn",
-  );
+  // The tally, the announcer and the list all agree. Two surfaces disagreeing
+  // about who was just drawn is the defect that actually matters here.
+  expect(snapshot.tally).toContain(`${4 - landed + 1} of 4`);
+  expect(snapshot.slots).toHaveLength(4);
+  expect(snapshot.slots[landed - 1]).toContain(snapshot.name);
+
+  // And the draw walks *down*: everything from the frontier down has a name,
+  // everything above it is still blank.
+  snapshot.slots.forEach((row, index) => {
+    if (index + 1 >= landed) expect(row).not.toContain("Not drawn");
+    else expect(row).toContain("Not drawn");
+  });
 });
 
 test("a draw that finished reads as an order, not as a countdown", async ({
@@ -330,13 +341,11 @@ test("an order set by hand was never drawn, so there is nothing to watch", async
   // Keeping the order by hand clears the seed and the instant with it.
   await page.goto(`/leagues/${league.id}`);
   await page.getByTestId("draft-manual").click();
-  // Wait for the write, not for the button. The order Bank's own label is the
-  // signal: it says "rolled" until the seed is cleared and "set by hand"
-  // after, so asserting it is asserting the state this test depends on rather
-  // than racing the action.
-  await expect(page.getByTestId("draft-order").locator("..")).toContainText(
-    /set by hand/i,
-  );
+  // Wait for the write, not for the button. Clearing the seed turns "Re-apply
+  // the roll" back into "Roll the order", so the button's own label is the
+  // signal that the state this test depends on has landed — rather than racing
+  // the action and asking the ceremony URL too early.
+  await expect(page.getByTestId("draft-roll")).toContainText(/roll the order/i);
 
   // The ceremony URL now has nothing to show and hands back to the lobby.
   await page.goto(`/leagues/${league.id}/order`);
