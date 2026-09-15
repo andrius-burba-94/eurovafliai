@@ -96,9 +96,7 @@ function byWhen(a: PlayerGameLine, b: PlayerGameLine): number {
 export function projectPlayer(
   lines: readonly PlayerGameLine[],
 ): PlayerProjection {
-  const played = [...lines]
-    .filter((line) => line.timePlayed > 0)
-    .sort(byWhen);
+  const played = [...lines].filter((line) => line.timePlayed > 0).sort(byWhen);
   if (played.length === 0) return EMPTY;
 
   const last5 = played.slice(-LAST5);
@@ -149,7 +147,8 @@ export function last5SeriesOf(record: ProjectionFields): number[] {
   const raw = record.proj_last5_pirs;
   if (!Array.isArray(raw)) return [];
   const out = raw.filter(
-    (value): value is number => typeof value === "number" && Number.isFinite(value),
+    (value): value is number =>
+      typeof value === "number" && Number.isFinite(value),
   );
   return out.length === raw.length ? out : [];
 }
@@ -213,7 +212,9 @@ export function averagePirOf(record: ProjectionFields): AveragePir | undefined {
  * Kept separate from `averagePirOf` so the engine adapters have one obvious
  * call and cannot accidentally rank on the games count.
  */
-export function rankPirFromRecord(record: ProjectionFields): number | undefined {
+export function rankPirFromRecord(
+  record: ProjectionFields,
+): number | undefined {
   return averagePirOf(record)?.tenths;
 }
 
@@ -223,12 +224,32 @@ export function rankPirFromRecord(record: ProjectionFields): number | undefined 
  * Follows whichever season `averagePirOf` chose, so the two numbers on one row
  * are never from different seasons.
  */
-export function averageFantasyOf(
-  record: ProjectionFields,
-): number | undefined {
+export function averageFantasyOf(record: ProjectionFields): number | undefined {
   const average = averagePirOf(record);
   if (!average) return undefined;
-  return average.source === "last5"
-    ? (record.proj_last5_fantasy ?? 0)
-    : (record.prev_season_fantasy ?? 0);
+
+  if (average.source === "last5") {
+    // Computed from real per-game lines by `projectPlayer`, so a zero here is
+    // a genuine zero: somebody played and scored nothing.
+    return record.proj_last5_fantasy ?? 0;
+  }
+
+  // The previous-season path has **no fantasy figure to give**, and a zero
+  // there means "not known" rather than "scored nothing".
+  //
+  // The official season table publishes PIR, points, rebounds, assists,
+  // minutes and shooting percentages — and no fantasy number. This app's
+  // fantasy points are PIR plus 10% on a win, which a *season average* cannot
+  // reconstruct: you would need to know which games were won. So
+  // `applyPreviousSeason` never writes `prev_season_fantasy`, PocketBase
+  // returns 0 for an unset number field, and `?? 0` turned that into a
+  // published average.
+  //
+  // It was on the draft page for every one of the 222 players with a real
+  // last-season PIR: "PIR 22.1 · FP 0.0" beside Vezenkov's name, which is not
+  // a missing number but a wrong one. DESIGN.md's Fixture-Or-Nothing Rule is
+  // the same instinct — render nothing rather than a placeholder that claims
+  // the app looked and found zero.
+  const fantasy = record.prev_season_fantasy ?? 0;
+  return fantasy > 0 ? fantasy : undefined;
 }

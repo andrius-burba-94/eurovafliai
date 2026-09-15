@@ -156,8 +156,10 @@ describe("projectPlayer", () => {
 
     // 10 + 11 = 21, /2 = 10.5 → 105 tenths, not 100 and not 110.
     expect(
-      projectPlayer([line({ gameCode: 1, pir: 10 }), line({ gameCode: 2, pir: 11 })])
-        .seasonPir,
+      projectPlayer([
+        line({ gameCode: 1, pir: 10 }),
+        line({ gameCode: 2, pir: 11 }),
+      ]).seasonPir,
     ).toBe(105);
   });
 
@@ -204,9 +206,9 @@ describe("averagePirOf", () => {
       season: "E2025",
     });
     // Draft night: nobody has current-season games, so this is every player.
-    expect(rankPirFromRecord({ prev_season_games: 39, prev_season_pir: 221 })).toBe(
-      221,
-    );
+    expect(
+      rankPirFromRecord({ prev_season_games: 39, prev_season_pir: 221 }),
+    ).toBe(221);
   });
 
   it("prefers current form the moment there is any", () => {
@@ -228,7 +230,9 @@ describe("averagePirOf", () => {
   });
 
   it("returns a genuine zero average when the player has played", () => {
-    expect(rankPirFromRecord({ proj_last5_pir: 0, proj_last5_games: 3 })).toBe(0);
+    expect(rankPirFromRecord({ proj_last5_pir: 0, proj_last5_games: 3 })).toBe(
+      0,
+    );
   });
 
   it("takes the fantasy average from the same season as the PIR one", () => {
@@ -245,6 +249,43 @@ describe("averagePirOf", () => {
     expect(averageFantasyOf(record)).toBe(110);
     expect(averageFantasyOf({ ...record, proj_last5_games: 0 })).toBe(243);
     expect(averageFantasyOf({})).toBeUndefined();
+  });
+
+  /**
+   * The one that was on the draft page for a whole pool.
+   *
+   * `applyPreviousSeason` never writes `prev_season_fantasy` — the official
+   * season table has no fantasy column, and this app's fantasy number is PIR
+   * plus 10% on a win, which a season average cannot reconstruct. PocketBase
+   * returns 0 for an unset number field, so `?? 0` published that as an
+   * average: "PIR 22.1 · FP 0.0" beside Vezenkov, for all 222 players who had
+   * a real last-season PIR.
+   */
+  it("gives no fantasy average when last season has none to give", () => {
+    const record = {
+      prev_season_games: 39,
+      prev_season_pir: 221,
+      // Unset, which PocketBase hands back as 0.
+      prev_season_fantasy: 0,
+    };
+    expect(averagePirOf(record)?.tenths).toBe(221);
+    expect(averageFantasyOf(record)).toBeUndefined();
+    // And with the field genuinely absent rather than zero.
+    expect(
+      averageFantasyOf({ prev_season_games: 39, prev_season_pir: 221 }),
+    ).toBeUndefined();
+  });
+
+  // The asymmetry is the point: one source computes fantasy from real lines,
+  // the other cannot compute it at all. A zero from the first is a fact.
+  it("keeps a genuine zero from the last-five projection", () => {
+    expect(
+      averageFantasyOf({
+        proj_last5_games: 5,
+        proj_last5_pir: 30,
+        proj_last5_fantasy: 0,
+      }),
+    ).toBe(0);
   });
 });
 
