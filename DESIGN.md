@@ -490,6 +490,16 @@ the live slot (`live-sunk`). Hover and active states use 5–10% ink washes.
 `aria-hidden="true"`. There is no icon library in this project. New icons follow
 the same recipe — a single stroke, no fill, no icon font, no package.
 
+`SunIcon` and `MoonIcon` are the other two, and the only ones that carry a
+whole label's meaning rather than decorating one. They are drawn on 16 units
+and rendered at 18px, a size chosen twice: the arrow's 12x8 box is too small to
+read a crescent in, and at 18px the stroke lands a shade over 1px, which is
+what sits the mark with the 500-weight caps beside it on the rail instead of
+under them. The pair is sized against *each other*, not to a shared box — the
+sun is a small disc whose rays make it read wide, the moon is one thin arc, so
+the crescent is drawn nearer the edge of its box than the rays are. Matched
+geometrically they look like two different sizes on the same rail.
+
 ## Components
 
 The vocabulary lives in `src/components/board.tsx` (server-safe, no client
@@ -522,11 +532,20 @@ contains another, and the sticky band itself remains unframed.
 
 The board's top rail. Character: a label on the frame, not a navigation bar.
 
-- **Structure:** wordmark + season on the left, one optional `action` slot on the
-  right, baseline-aligned. Bottom border 1px rail blue at 40% opacity.
+- **Structure:** wordmark + season on the left, the ground switch and one
+  optional `action` slot on the right, baseline-aligned. Bottom border 1px rail
+  blue at 40% opacity.
 - **Padding:** `1.25rem / 1rem` on a phone, `2rem / 1rem` from `sm`.
 - **The action slot** is a slot label — "Sign out · Name", or a `BackArrow` plus
   "Leagues". Never a filled button.
+- **The rail has one line of controls, and everything that is a control sits in
+  it.** The switch is `self-end` against the action group at `gap-1`, not on the
+  rail's baseline. The case that decides this is an action of two lines — the
+  account stack on `/`, a name over its own nav: an icon centred against that
+  stack sits *between* its two lines, level with nothing, and reads as a stray
+  mark. Bottom-aligned it lands in the nav's own 44px band as one more control
+  in a row of them, and on the single-line surfaces (a `BackLink`, the same 44px
+  box) it is the same result.
 - **States:** rail links transition colour to full ink on hover and take a 2px
   marker outline at `focus-visible` with 2px offset.
 
@@ -717,6 +736,24 @@ component for exactly one reason: `useFormStatus`.
 
 **The Pending-Label Rule.** Every `SubmitButton` gets a `pendingLabel` written in
 the domain's words. "Loading" is not one of the domain's words.
+
+### Ground switch — `ThemeControl`
+
+Which ground the board is drawn on, and it rides in the rail so every surface
+has it without any page knowing. An `aria-pressed` button on a 44px target, the
+same contract `FilterToggle` carries — and the one control in this system whose
+**state is the picture, not a rule**. A sun means the day board and a moon means
+the night board, so the dashed/solid underline a filter uses would be the same
+fact stated twice. It rests at `ink-soft`, which is the slot label's own colour,
+and goes to full ink on hover: the resting weight of the nav items it now sits
+beside.
+
+The accessible name stays the fixed string "Night board" rather than swapping
+with the picture, so a screen reader hears one control changing position instead
+of two controls trading places. `aria-pressed` is what says which way it is.
+Icon-only is legal here for the same reason `RosterRadar`'s marks are: the
+*state* is never colour alone, and pressing it changes the whole surface, which
+is the loudest confirmation a control can have.
 
 ### Filter toggle — `FilterToggle`
 
