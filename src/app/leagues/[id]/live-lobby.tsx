@@ -186,7 +186,12 @@ export function LiveLobby({
    */
   const departed = useRef(false);
   useEffect(() => {
-    if (departed.current || !settings.rolled_at) return;
+    // The status as well as the instant: a league that is drafting or playing
+    // a season has no draw to attend, and `startDraft` clears the instant
+    // anyway. Both, because this is the one effect in the app that navigates
+    // for you, and it should need two independent reasons to do it.
+    if (departed.current || leagueStatus !== "setup" || !settings.rolled_at)
+      return;
     const rolledAt = Date.parse(settings.rolled_at);
     if (Number.isNaN(rolledAt)) return;
 
@@ -208,7 +213,7 @@ export function LiveLobby({
     }
     departed.current = true;
     router.push(`/leagues/${leagueId}/order`);
-  }, [settings.rolled_at, members.length, leagueId, router]);
+  }, [settings.rolled_at, members.length, leagueId, router, leagueStatus]);
 
   const you = members.find((member) => member.isYou);
   const readyCount = members.filter((member) => member.isReady).length;

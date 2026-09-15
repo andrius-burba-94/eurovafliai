@@ -298,6 +298,52 @@ test("a slot rises as it is drawn, and simply appears under reduced motion", asy
   await movingContext.close();
 });
 
+test("starting the draft ends the draw, even inside its own window", async ({
+  page,
+  context,
+}) => {
+  // Found by the full suite rather than by reasoning, and it was a real defect
+  // rather than a test artifact. `sessionStorage` is per *tab*, so a second tab
+  // carries no record of having attended; when a start-over sent that tab back
+  // to the lobby while a four-team ceremony was still inside its ~22 seconds,
+  // the tab was yanked to the draw — for a draft that had just been thrown
+  // away. `draft.spec.ts`'s "a room whose draft was reset follows it back to
+  // the lobby" failed on both projects, consistently.
+  //
+  // The fix is a statement rather than a guard: starting the draft ends the
+  // draw, whatever the clock says, because at that point the order is not a
+  // plan any more — the same line `reshuffleDraftOrder` draws.
+  const { commissioner, league } = await ceremonyLeague("Window League");
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("draft-roll").click();
+  await page.waitForURL(/\/order$/);
+
+  // Straight back and on with it, well inside the ceremony's own window.
+  await page.goto(`/leagues/${league.id}`);
+  await page.getByTestId("start-draft").click();
+  await expect(page.getByTestId("enter-draft")).toBeVisible();
+
+  // A tab that never attended the draw. It must not be summoned to one.
+  const fresh = await context.newPage();
+  await fresh.goto(`/leagues/${league.id}`);
+  await expect(fresh.getByTestId("member-list")).toBeVisible();
+  await fresh.waitForTimeout(2_000);
+  expect(new URL(fresh.url()).pathname).toBe(`/leagues/${league.id}`);
+
+  // And the ceremony URL has nothing left to show. Waited for by its
+  // destination rather than by reading the URL straight after `goto`: the page
+  // redirects from a server component after the shell has already flushed, so
+  // the browser performs it as a client-side navigation a beat later. Asserting
+  // the URL immediately passed on desktop and failed on the emulated phone
+  // every time, which is a slower hydration rather than a different outcome.
+  await fresh.goto(`/leagues/${league.id}/order`);
+  await expect(fresh.getByTestId("lobby")).toBeVisible();
+  expect(new URL(fresh.url()).pathname).toBe(`/leagues/${league.id}`);
+  await fresh.close();
+});
+
 test("a reshuffle changes the order without summoning the league again", async ({
   page,
   context,
