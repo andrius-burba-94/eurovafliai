@@ -3,6 +3,141 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## The season dashboard — four panels, and three that had to tell the truth
+
+The ask came with a rendered reference and a panel-by-panel brief: a 2-column
+dashboard for after the draft, with standings, chat, roster and news, plus a
+clickable wordmark. Precisely specified, so it was shaped directly — the
+playbook's own instruction is not to run a concept round on a pinned brief.
+
+**What it replaced is the interesting part.** The season lobby was four `Door`
+blocks: Standings, Your lineup, This round, Record a transaction. Every one was
+a *promise of a surface* rather than a surface. So the page a league opens most
+often across thirty-eight rounds answered nothing — you had to pick a door to
+find out whether you were winning. The doors are still there, inside the panels,
+as the way in to each; what changed is that the page now says something before
+you touch it.
+
+### Three panels described a different game
+
+Recorded as **D26**, in the lineage of D19 (purple head coaches) and D23 (the
+double round): a brief item that needs data the competition does not produce is
+dropped on the measurement, with the measurement written down.
+
+- **A W-L column.** This league has no head-to-head. Standings are cumulative
+  fantasy points with per-round snapshots (4.5), so there is no opponent to have
+  beaten and the column would read `0-0` for thirty-eight rounds. It is `PTS`
+  and the round's signed movement instead — which is what the league is actually
+  playing for.
+- **"Matchup of the week."** The same fact, larger. There is no matchup format
+  anywhere in the blueprint, PRODUCT.md or CONTEXT.md; checked before building
+  rather than assumed. Inventing one would be inventing a game. What a round
+  genuinely has is 5.4's recap, so the card shows that.
+- **Player headshots.** `players` carries name, club, position, status, person
+  code and dorsal — and no image. A photo would have to be invented per player,
+  which PRODUCT.md forbids outright. The position patch is this app's own mark,
+  it is colour-coded, and it always prints its letter.
+
+The guard is a spec asserting the page says neither "W-L", "matchup" nor
+"final", and that the roster panel contains no `<img>`. Without it, all three
+are exactly the kind of gap a later reader *fixes*.
+
+### What the measure cost, and what it did not
+
+A 2-column desktop grid needs width, and DESIGN.md allows two measures with the
+wide one reserved for the draft room. Rather than adding a third, the existing
+one gained a second caller on the identical argument: the room is pool, board,
+radar and console, the dashboard is standings, chat, roster and news — both are
+*four surfaces at once*, on a page a league sits on rather than passes through.
+The `MEASURE` key was renamed `room` → `wide` in the same change, because a key
+named after one of its two callers is a lie a reviewer has to open the map to
+catch.
+
+### Four defects a render caught that the markup did not
+
+Worth listing, because every one of them type-checked and passed lint:
+
+1. **The season printed as `26`.** A regex stripped the century, and `E2026`
+   came out as half the name of the competition. A Euroleague season is named
+   for both its years; `seasonLabel` now says `26-27`, with the century wrapped
+   so a 2099 season reads `99-00` rather than `99-100`.
+2. **The viewer's own row used `Slot`'s `current`.** That is the *keyboard
+   cursor* — a 2px ink outline plus `aria-current` — and "this row is mine" is
+   not a cursor position. The word "you" carries it, as it already does in the
+   lobby's member list.
+3. **A sentence set in the mono face.** "you finished 1 of 5" was rendered with
+   `stat`, which DESIGN.md reserves for figures read *down a column*; a sentence
+   with a number in it stays in Space Grotesk by that document's own rule.
+4. **A best night of `0.0`.** Before any box score lands, the recap still ranks
+   whoever it has — which is somebody with nothing — so the panel headlined a
+   performance that had not happened. It renders only above zero now.
+
+### Two smaller things
+
+`formatTenths` and `formatSignedTenths` were written a second time in the first
+draft of the pure module and deleted before commit: tenths become a decimal in
+exactly one place in this app, and a second rounding rule is how a codebase
+starts disagreeing with itself. And `readRecentTransactions` borrows the chat's
+own `announceTrade` / `announceAdd` / `announceDrop` verbatim, so a deal is
+described identically in the panel and in the transcript six inches to its
+right.
+
+The `depth-scale.test.ts` guard also earned its keep: a stray `rounded-none` on
+the new wordmark link failed it immediately. The class was redundant anyway,
+which is the point — the test caught a radius that did nothing rather than one
+that did something wrong.
+
+## "The commissioner always gets 1st" — measured, and the answer was #119
+
+Reported from production: *"it seems that the commissioner always gets better
+pick (nearly all the time 1st). Are there any hidden better odds?"*
+
+**There is no bias, and that is a measurement rather than a defence.** 200,000
+rolls per league size through the real `rollOrder`, seeded with real
+`crypto.randomUUID()` values, with the commissioner passed as index 0 of the
+input the way `loadSetupContext` reads them (`sort: "created"`):
+
+| League | Commissioner's slot spread | χ² (who goes first) | Critical at p=.05 |
+|---|---|---|---|
+| 2 | 50.06% / 49.94% | 0.33 (df 1) | 3.84 |
+| 4 | 24.92–25.05% | 4.77 (df 3) | 7.81 |
+| 8 | 12.44–12.66% | 11.88 (df 7) | 14.07 |
+| 12 | 8.25–8.44% (expect 8.33%) | 12.00 (df 11) | 19.68 |
+
+The algorithm is a correct Fisher-Yates over a **lexicographically sorted** id
+list, driven by mulberry32 over an FNV-1a hash of the seed. Two details make a
+commissioner edge structurally impossible rather than merely unobserved: the
+input is sorted before shuffling, so join order cannot leak into the outcome
+(that sort exists so a commissioner cannot re-roll by kicking and re-inviting
+somebody); and PocketBase ids are random rather than time-ordered, so the
+commissioner's position in the sorted array is itself arbitrary.
+
+**What the report actually was: #119, seen from the outside.** The production
+chat had ~52 identical `The draft order was rolled: 1. Andrius · 2. Virtuozas.`
+lines — one roll, re-applied fifty-two times, announcing itself as a fresh draw
+each time. Andrius is the commissioner. So the league was told, fifty-two
+times, that the commissioner had drawn first. Of course it looked rigged.
+
+The recorded **reshuffles** — the ten that genuinely redrew — put the
+commissioner first **4 times out of 10**, and the live order at the time of
+asking had the commissioner **second**. Both point the other way.
+
+This is worth keeping because it is the second time #119's replay produced a
+false belief about the product, and the first one ("rolling doesn't work") was
+the easier of the two to diagnose. A button that reports a fresh result while
+replaying an old one does not merely confuse — it manufactures evidence.
+
+**What it left behind.** Two tests named after the suspicion, in
+`roll.test.ts`: one asserting the first-created member has no positional edge
+across 12,000 rolls, and one asserting the first-slot distribution for seeds
+shaped like the real ones. The existing distribution test used `s0`, `s1`,
+`s2` — short counters, which a string hash can spread well while clumping on
+36-character UUIDs with fixed hyphens and 16 symbols, so the real seed shape is
+now asserted rather than assumed. Both were mutation-checked: a one-character
+change making the shuffle unable to move slot 1 — the reported symptom exactly
+— fails four tests. Deterministic UUID-shaped seeds, because a fairness test
+that can flake is one people learn to re-run.
+
 ## The roll ceremony — the one page in this app built to be watched
 
 The ask, precisely specified: on the first roll take everyone to a page, count
