@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   NO_FILTERS,
   clubsIn,
+  narrowedBy,
   normalizePoolQuery,
   selectPool,
   type PoolFilters,
@@ -290,12 +291,94 @@ describe("selectPool — legality", () => {
 });
 
 describe("clubsIn", () => {
-  it("lists every club once, sorted", () => {
-    expect(clubsIn(POOL)).toEqual(["BAR", "EFS", "OLY", "PAN", "ZAL"]);
+  it("lists every club once, with its code", () => {
+    expect(clubsIn(POOL).map((club) => club.code)).toEqual([
+      "BAR",
+      "EFS",
+      "OLY",
+      "PAN",
+      "ZAL",
+    ]);
+  });
+
+  // The point of the change: a dropdown is read cold, so it is ordered and
+  // labelled by the name a human knows, not by the three-letter code a row
+  // shows. Code order put OLY between MIL and PAN and asked the reader to
+  // know what OLY meant.
+  it("is sorted and labelled by club name, not by code", () => {
+    const pool = [
+      { ...POOL[0]!, club: "ZAL", clubName: "Zalgiris Kaunas" },
+      { ...POOL[1]!, club: "BAR", clubName: "FC Barcelona" },
+      { ...POOL[2]!, club: "OLY", clubName: "Olympiacos Piraeus" },
+    ];
+    expect(clubsIn(pool)).toEqual([
+      { code: "BAR", name: "FC Barcelona" },
+      { code: "OLY", name: "Olympiacos Piraeus" },
+      { code: "ZAL", name: "Zalgiris Kaunas" },
+    ]);
+  });
+
+  // Ingestion has always filled `club_name`, but the pool payload only started
+  // carrying it here — so a row without one must still be pickable.
+  it("falls back to the code when a row has no club name", () => {
+    const pool = [{ ...POOL[0]!, club: "NEW", clubName: undefined }];
+    expect(clubsIn(pool)).toEqual([{ code: "NEW", name: "NEW" }]);
+  });
+
+  it("ignores a row with no club at all rather than offering a blank option", () => {
+    const pool = [{ ...POOL[0]!, club: "", clubName: "" }];
+    expect(clubsIn(pool)).toEqual([]);
   });
 
   it("is empty for an empty pool", () => {
     expect(clubsIn([])).toEqual([]);
+  });
+});
+
+/**
+ * Why an empty pool is empty — the sentence a manager reads with a clock on.
+ */
+describe("narrowedBy", () => {
+  it("says nothing when nothing is narrowing the list", () => {
+    expect(narrowedBy({ ...NO_FILTERS, hideDrafted: true })).toEqual([]);
+  });
+
+  // The reported case: every Olympiacos center gone, the club filter still set
+  // from a search several picks earlier, and "0 matches" telling the truth
+  // without naming the cause.
+  it("names the club by name, and the legality filter with it", () => {
+    expect(
+      narrowedBy(
+        { ...NO_FILTERS, club: "OLY", legalOnly: true, positions: ["C"] },
+        "Olympiacos Piraeus",
+      ),
+    ).toEqual(["C", "Olympiacos Piraeus", "legal for me"]);
+  });
+
+  it("falls back to the club code when the name is not to hand", () => {
+    expect(narrowedBy({ ...NO_FILTERS, club: "OLY" })).toEqual(["OLY"]);
+  });
+
+  it("reports the PIR floor in PIR, not in tenths", () => {
+    expect(narrowedBy({ ...NO_FILTERS, minProjection: 150 })).toEqual([
+      "PIR 15+",
+    ]);
+  });
+
+  it("names the sheet filters", () => {
+    expect(narrowedBy({ ...NO_FILTERS, sheetOnly: true, tier: 2 })).toEqual([
+      "on my sheet",
+      "tier 2",
+    ]);
+  });
+
+  // `hideDrafted` is on by default, so naming it would put a filter in every
+  // sentence and teach the reader to skip all of them.
+  it("does not name the default hide-drafted filter", () => {
+    expect(narrowedBy({ ...NO_FILTERS, hideDrafted: true })).toEqual([]);
+    expect(narrowedBy({ ...NO_FILTERS, hideUnavailable: true })).toEqual([
+      "fit to play",
+    ]);
   });
 });
 

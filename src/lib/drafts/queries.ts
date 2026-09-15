@@ -222,6 +222,7 @@ export async function getDraftView(
       name: string;
       name_normalized: string;
       club_code: string;
+      club_name: string;
       position: Position;
       status: string;
       proj_last5_fantasy?: number;
@@ -435,6 +436,12 @@ export async function getDraftView(
         // implementation. Never displayed — ingestion sorts its tokens.
         normalized: player.name_normalized ?? "",
         club: player.club_code,
+        // The club's full name, for the filter's own list. The code is what a
+        // row shows — three characters beside a name is the whole point of a
+        // code — but a *dropdown* of bare codes asks the reader to know that
+        // OLY is Olympiacos, and 20 of those is a memory test rather than a
+        // filter.
+        clubName: player.club_name ?? player.club_code,
         position: player.position,
         status: player.status,
         takenBy: held?.by ?? null,
