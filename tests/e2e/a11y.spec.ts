@@ -139,6 +139,55 @@ test("the standings table has no serious axe findings", async ({
   await assertNoSerious(page, "standings table");
 });
 
+test("the export picker has no serious axe findings", async ({
+  page,
+  context,
+}) => {
+  // The one surface in the app whose body is a form of checkboxes, so the
+  // labels-and-names rules this suite exists for have something to say about
+  // it that no other page exercises.
+  const user = await createTestUser("a11yexport");
+  const league = await createLeagueFor(user, "A11y Export");
+  const pb = await superuser();
+  const seats = await pb
+    .collection("league_members")
+    .getFullList<{ id: string; user: string }>({
+      filter: `league = '${league.id}'`,
+      requestKey: null,
+    });
+  const seat = seats.find((row) => row.user === user.id);
+  if (!seat) throw new Error("membership missing");
+  const player = await createPlayer("A11yExported");
+  const draft = await pb.collection("drafts").create(
+    {
+      league: league.id,
+      format: "snake",
+      status: "complete",
+      order: [seat.id],
+      rounds: 1,
+      seed: "a11y-export",
+    },
+    { requestKey: null },
+  );
+  await pb.collection("picks").create(
+    {
+      draft: draft.id,
+      overall_no: 1,
+      round: 1,
+      slot: 1,
+      member: seat.id,
+      player: player.id,
+      is_auto: false,
+    },
+    { requestKey: null },
+  );
+
+  await signIn(context, user);
+  await page.goto(`/leagues/${league.id}/export`);
+  await expect(page.getByTestId("export-form")).toBeVisible();
+  await assertNoSerious(page, "export picker");
+});
+
 test("the skip link reaches main content", async ({ page }) => {
   await page.goto("/login");
   await page.keyboard.press("Tab");

@@ -855,6 +855,21 @@ still runs the previous `deploy.sh` (it has no re-exec). The **next** deploy's
 log must show `Deploy script after re-exec` and must **not** warn that the
 nginx vhost differs from git.
 
+## Try it on localhost — export
+
+```bash
+npm run dev
+```
+
+Open a league that has drafted, then **Export the draft** on the lobby. All
+four boxes start ticked; untick everything but *Rosters as drafted*, leave the
+format on CSV and press Download. The file is named for the league and the day,
+and the rows are grouped by team and then G/F/C — the centre appears below the
+guards even when the centre was picked first. Every player name is quoted,
+because they are all "Surname, Firstname". Then export two things at once and
+open the file: two labelled sections, one blank line between them. A league
+still in setup says there is nothing to export instead of offering a button.
+
 ## Try it on localhost — U4
 
 ```bash
@@ -1125,6 +1140,57 @@ Sign in as a commissioner and open **`/stats/import`**. Then:
   a game the standings have already counted.
 - **Check the arithmetic yourself**: a line worth PIR 3 on a win stores
   `fantasy_pts: 33` — tenths, not 3.3 — and the same line on a loss stores 30.
+
+## Export — take the draft away with you
+
+**Done, and out of phase.** Not a blueprint slice: it was asked for directly,
+so it is recorded here as its own section rather than fitted into a phase table
+it does not belong to.
+
+Any member of a league can export its draft from a door on the lobby, in **CSV
+or JSON**, choosing any of four things: the **results** (every pick in order),
+the **rosters as drafted**, the **draft order**, and the **player pool**. The
+picker is `/leagues/[id]/export` and the file comes from
+`/leagues/[id]/export/download`, one segment lower because Next refuses a
+`page.tsx` and a `route.ts` in the same segment.
+
+Four decisions worth knowing before changing it:
+
+- **A plain `method="get"` form.** No JavaScript on this surface at all: the
+  checkboxes become query parameters and the handler answers with a file. That
+  also makes the result a **URL somebody can paste into the league chat**, which
+  is where the file is actually going.
+- **Any member, not the commissioner.** The board is already readable by
+  everyone in the league, so a file of what it says is not a new permission —
+  and one person owning a spreadsheet everybody wants is a bottleneck for ten
+  friends. The route still authenticates *itself*: `proxy.ts` is optimistic, so
+  `readDraftExport` calls `getSession()` and then checks membership, and a
+  non-member gets the same `404` as a league that does not exist.
+- **Reads go through `getDraftView`**, the room's own query, rather than
+  fetching picks again. It costs an extra read the export does not need (the
+  chat) and buys the thing that matters: the board and the file resolve a team
+  name, a player's club and who holds whom through **one** code path, so a name
+  cannot read one way on the board and another in the file somebody keeps.
+- **CSV has no second sheet.** One selected kind is a plain sheet with no
+  preamble — the case a spreadsheet import expects. Two or more are written as
+  labelled sections separated by a blank line, because the alternative is a zip
+  dependency for a league of ten. Anything that will be *parsed* should ask for
+  JSON, which always keys every kind plus the league and the timestamp.
+
+`"Rosters as drafted"` is named that way on purpose: a trade moves a player
+without moving the pick that took them, so this is the draft and **not**
+today's squads. The label, the page's own note and the module header all say so
+together, because that is the one reading of this file that would be wrong.
+
+Also new: `src/lib/csv/write.ts`, the writer half of `split.ts`. Its test
+round-trips through `splitCsvLine`, so the two halves are checked against each
+other rather than each against its author's idea of the format.
+
+**One gap, stated rather than left to be discovered:** the door is on the
+lobby, and a member of a league in **season** sees the dashboard, which replaces
+the lobby's body. The door is rendered in its own run gated on membership alone
+so it survives that replacement — but if the dashboard ever grows its own run
+of doors, the export belongs in it.
 
 ## Legend
 
