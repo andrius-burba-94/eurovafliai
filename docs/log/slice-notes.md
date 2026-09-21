@@ -2254,3 +2254,111 @@ so a genuine signing sorts beneath a fringe player who logged garbage minutes in
 May. Nothing is broken; this is what ranking a new season on an old one means.
 It is the strongest argument this project has for writing a cheat sheet before
 draft night, because the sheet is read before any projection is.
+
+## Export — take the draft away with you
+
+Out of phase and asked for directly, so there was no blueprint section to read
+and no ADR to cite. What follows is the reasoning, since the decisions were
+mine to make rather than looked up.
+
+### The shape was a question, not an inference
+
+"Export the draft" had four plausible readings and they were not the same
+amount of work: the picks in order, the squads they produced, the rolled order,
+or the pool they were picked from. Asked rather than guessed, and the answer was
+**all four, selectable** — which is why `ExportKind` is a union of four and the
+page is a picker rather than a button.
+
+A fact worth surfacing before any of it was written: **the league that asked
+for this has not drafted yet.** Status `setup`, no `drafts` row, no picks. So
+the first thing this feature does for its own requester is say there is nothing
+to export. That is the honest behaviour and it is tested; the alternative — a
+button that downloads an empty file — is the one that wastes somebody's draft
+night wondering whether it worked.
+
+### Why a route handler, and why one segment down
+
+The result *is* a response: a body, a content type, and a `Content-Disposition`
+that makes a phone save a file. A server action returns data to a React tree
+and cannot hand anybody a file, so this is the first surface in the repo that
+genuinely needs a route handler rather than an action.
+
+It lives at `export/download` rather than `export` because Next refuses a
+`page.tsx` and a `route.ts` in the same segment — found by writing them in the
+same folder first and reading the typecheck.
+
+The form is `method="get"`, which was a choice and not laziness. It buys three
+things: the surface needs no JavaScript, the selection survives in a URL
+somebody can paste into the league chat, and there is nothing to get wrong about
+a pending state on a navigation the browser is already good at. The one thing
+plain HTML cannot express is "at least one checkbox", so the empty selection is
+answered by the handler with a `400` and a sentence — deliberately *not* by
+defaulting to everything, which would silently give somebody a 340-row pool they
+did not ask for.
+
+### The authentication note that was already written down
+
+`api/time/route.ts` carries a long comment ending "**any route handler that
+returns something worth protecting must call `getSession()` itself**", because
+`proxy.ts` is optimistic by design and a forged cookie reaches the handler. A
+league's draft is worth protecting, so `readDraftExport` calls `getSession()`
+and then checks membership, and a non-member gets the same `404` as a league
+that does not exist — the lobby's rule, so nobody can probe which leagues exist.
+That comment did its job: it is the reason this was right the first time rather
+than after a review.
+
+### Reading through the room's own query
+
+`readDraftExport` goes through `getDraftView`, which is more than it needs — it
+also reads the chat. The cheaper version reads `picks` and `players` directly
+and resolves names here. That version is wrong, and the repo already says why
+about a different pair of callers: one pipeline, so a human pick and an
+autodraft cannot diverge. The same argument applies to a name. `getDraftView`
+resolves a team as `team_name || user.name || user.email` and a player's club
+off the expanded record; a second resolver here would eventually disagree with
+the board, and the file is the artefact somebody keeps.
+
+### CSV has no second sheet
+
+The genuinely awkward decision. Two selected kinds cannot both be a CSV sheet,
+and the options were two files in a zip (a dependency and a second failure mode,
+for ten people) or one file with sections. Sections won, with the split stated
+in `serialize.ts` and on the page: **one kind is a plain sheet with no
+preamble** — the case that will be used most and the one a spreadsheet import
+expects — and two or more get a label row each and a blank line between. A naive
+parser pointed at a multi-kind CSV will see the label rows, which is exactly why
+the single-kind case is kept clean and why the page says to ask for JSON if
+something is going to parse it.
+
+`src/lib/csv/write.ts` came out of this. The repo had a splitter and no writer,
+and the splitter's own header argues that one shared module beats two sets of
+quoting bugs — so the writer sits next to it and its test round-trips through
+`splitCsvLine` rather than asserting against my own idea of RFC 4180. Every
+player name in this app contains a comma, so a writer that forgot to quote would
+corrupt the first row of every export rather than an edge case; the e2e spec
+plants a name with a comma in it for that reason.
+
+### The naming that carries the only wrong reading
+
+`"Rosters as drafted"`, not "Rosters". A trade moves a player without moving the
+pick that took them, so these rows are the draft and not today's squads. The
+label, the page's note and the `rostersTable` header all say so, because it is
+the one way somebody could read this file wrongly and not notice.
+
+### What was verified, and how
+
+Unit: 42 assertions across the writer, the four table builders and the
+serializer — including that an unknown average stays **empty rather than 0**,
+which the pool's own type is emphatic about, and that a genuine `0.0` survives.
+E2E: three specs (a member downloads the rosters and the CSV is checked
+line by line, a non-member gets `404`, an undrafted league says so) plus an axe
+sweep of the picker, which is the only surface in the app whose body is a form
+of checkboxes.
+
+Beyond the suites, the real route was exercised against the local database's
+complete 39-pick draft: `Content-Disposition` and filename, 40 CSV lines grouped
+by team then G/F/C, JSON keyed by kind, the `400` on an empty selection, the
+`404` for an outsider. One thing that looked like a bug and was not — the page
+returns `200` to a non-member before streaming the not-found body — is
+documented in `tests/e2e/helpers/not-found.ts` and behaves identically on the
+lobby and the cheat sheet.

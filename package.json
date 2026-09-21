@@ -6,7 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "concurrently -n next,pb -c cyan,magenta \"npm:dev:next\" \"npm:pb:serve\"",
+    "dev": "concurrently -n next,pb,worker -c cyan,magenta,yellow \"npm:dev:next\" \"npm:pb:serve\" \"npm:worker:dev\"",
     "dev:next": "next dev -p 3007",
     "dev:clean": "rm -rf .next && npm run dev",
     "build": "next build",

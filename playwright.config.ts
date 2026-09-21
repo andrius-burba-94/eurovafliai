@@ -35,6 +35,12 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
+  // Sweep leftovers before the suite and after it. The `afterEach` helper
+  // cleans the run it belongs to; these two clean the runs that never got to
+  // one — see `tests/e2e/helpers/sweep.ts`.
+  globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
+
   webServer: {
     command: process.env.CI ? `next start -p ${PORT}` : `next dev -p ${PORT}`,
     url: BASE_URL,

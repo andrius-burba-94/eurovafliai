@@ -296,6 +296,26 @@ export default async function LobbyPage({
           />
         )}
 
+        {/* Take the draft away with you. Gated on membership alone, so it is
+            reachable in *season* as well as from the lobby — a league wants
+            the spreadsheet after the draft, not only before it, and the
+            dashboard replaces the lobby's body without replacing this run. */}
+        {viewerIsMember ? (
+          <Slots>
+            <Door
+              href={`/leagues/${league.id}/export`}
+              testId="lobby-export"
+              title="Export the draft"
+              description={
+                league.status === "setup"
+                  ? "Results, rosters, order and pool — as CSV or JSON, once you have drafted."
+                  : "Results, rosters, order and pool — as CSV or JSON."
+              }
+              action="Open"
+            />
+          </Slots>
+        ) : null}
+
         {/* The cheat sheet, from the lobby — the hours before a draft are when
             somebody actually writes one. A member's own row only: a
             commissioner without a membership has no roster to rank for, and a

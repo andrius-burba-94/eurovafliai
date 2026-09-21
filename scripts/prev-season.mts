@@ -25,23 +25,21 @@ import PocketBase from "pocketbase";
 
 import { parseServerEnv } from "../src/lib/config/schema";
 import { fetchSeasonAverages } from "../src/lib/stats/euroleague";
+import { previousSeasonOf } from "../src/lib/stats/seasons";
 import { applyPreviousSeason } from "../src/lib/stats/store";
 
 const env = parseServerEnv(process.env);
 const checkOnly = process.argv.includes("--check");
 
-/**
- * `E2026` → `E2025`. The season code is a letter and a year, and the previous
- * season is the previous year — there is no gap year in this competition.
- */
+/** The script refuses an unreadable code rather than guessing a year. */
 function previousSeason(code: string): string {
-  const match = /^([A-Za-z]+)(\d{4})$/.exec(code.trim());
-  if (!match) {
+  const previous = previousSeasonOf(code);
+  if (!previous) {
     throw new Error(
       `Cannot work out the season before ${JSON.stringify(code)}. Pass --season=E2025 explicitly.`,
     );
   }
-  return `${match[1]}${Number(match[2]) - 1}`;
+  return previous;
 }
 
 const season =
