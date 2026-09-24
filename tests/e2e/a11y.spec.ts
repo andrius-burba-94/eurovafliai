@@ -139,6 +139,63 @@ test("the standings table has no serious axe findings", async ({
   await assertNoSerious(page, "standings table");
 });
 
+test("the lineup court and the side panel have no serious axe findings", async ({
+  page,
+  context,
+}) => {
+  // 11.2 and 11.3 in one page: a tablist beside the content from `xl`, and a
+  // court of toggle buttons over tiers of cards that each still carry a
+  // select and a radio. Populated, with one player already on the court, so
+  // axe reads a token, an open place and a tier heading rather than none.
+  const user = await createTestUser("courtaxe");
+  const league = await createLeagueFor(user, "Axe Court");
+  const pb = await superuser();
+  const [mine] = await pb.collection("league_members").getFullList<{
+    id: string;
+  }>({ filter: `league = '${league.id}'`, requestKey: null });
+  await pb.collection("drafts").create(
+    {
+      league: league.id,
+      format: "linear",
+      status: "complete",
+      order: [mine!.id],
+      rounds: 2,
+      seed: "court-axe",
+    },
+    { requestKey: null },
+  );
+  const players = [
+    await createPlayer("Courtg", { position: "G" }),
+    await createPlayer("Courtc", { position: "C" }),
+  ];
+  for (const player of players) {
+    await pb.collection("roster_memberships").create(
+      {
+        league: league.id,
+        member: mine!.id,
+        player: player.id,
+        from_date: "2026-09-08 12:00:00.000Z",
+        to_date: "",
+        from_round: 1,
+        to_round: 0,
+        acquired_via: "draft",
+      },
+      { requestKey: null },
+    );
+  }
+  await pb
+    .collection("leagues")
+    .update(league.id, { status: "season" }, { requestKey: null });
+
+  await signIn(context, user);
+  await page.goto(`/leagues/${league.id}/lineup?season=E2099&round=1`);
+  await page.getByLabel(`${players[0]!.name} role`).selectOption("starter");
+  await expect(
+    page.getByTestId("lineup-court").getByTestId("court-player"),
+  ).toHaveCount(1);
+  await assertNoSerious(page, "lineup court");
+});
+
 test("the export picker has no serious axe findings", async ({
   page,
   context,

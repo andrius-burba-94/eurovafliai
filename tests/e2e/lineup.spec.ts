@@ -310,6 +310,55 @@ test("there is only ever one captain, and moving them off the five clears it", a
   );
 });
 
+test("a tap picks a player up and a second tap puts them down — on the court or in a tier", async ({
+  page,
+  context,
+}) => {
+  const owner = await createTestUser("courtowner");
+  const mate = await createTestUser("courtmate");
+  const planted = await plantSeason(owner, mate, "Court Taps");
+
+  await signIn(context, owner);
+  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+
+  const court = page.getByTestId("lineup-court");
+  await expect(court).toBeVisible();
+  await expect(court.getByTestId("court-player")).toHaveCount(0);
+  await expect(court.getByTestId("court-open")).toHaveCount(5);
+  await expect(court.getByTestId("court-open").first()).toBeDisabled();
+
+  const guard = planted.players[0]!;
+  const roleOf = (player: { name: string }) =>
+    page.getByLabel(`${player.name} role`);
+  const moveButton = (player: { name: string }) =>
+    page.getByRole("button", { name: `Move ${player.name}` });
+
+  // Into the five, by the court.
+  await moveButton(guard).click();
+  await expect(moveButton(guard)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("lineup-in-hand")).toContainText(guard.name);
+  await court.getByTestId("court-open").first().click();
+  await expect(roleOf(guard)).toHaveValue("starter");
+  await expect(court.getByTestId("court-player")).toHaveCount(1);
+  await expect(court.getByTestId("court-open")).toHaveCount(4);
+  await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
+
+  // Out of it again, by a tier — and the court token is the handle too.
+  await court.getByTestId("court-player").click();
+  await page.getByTestId("lineup-to-bench").click();
+  await expect(roleOf(guard)).toHaveValue("bench");
+  await expect(court.getByTestId("court-player")).toHaveCount(0);
+  await expect(page.getByTestId("lineup-tier-bench")).toContainText(
+    guard.name,
+  );
+
+  // The select still drives the same state, and the court follows it.
+  await roleOf(planted.players[6]!).selectOption("starter");
+  await expect(court.getByTestId("court-player")).toContainText(
+    planted.players[6]!.name.split(",")[0]!,
+  );
+});
+
 test("the commissioner sets anyone's lineup and a plain member sets only their own", async ({
   page,
   context,
