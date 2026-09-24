@@ -16,7 +16,8 @@ import {
  * and one sign-out form, and `role="menu"` would promise arrow-key roving and
  * menuitem semantics that a list of links does not need and a screen reader
  * would then announce wrongly. Tab walks it; Escape closes it and puts focus
- * back on the button; a click outside closes it; following a link closes it.
+ * back on the button; a click outside closes it (and only closes it);
+ * following a link closes it.
  *
  * The contents render only while open, so a closed menu contributes nothing to
  * the page — no second "Sign out" in the accessibility tree, no duplicate test
@@ -44,8 +45,22 @@ export function Menu({
 
   useEffect(() => {
     if (!open) return;
+    // A tap outside closes and does nothing else. The More sheet covers most
+    // of a phone, so the finger that dismisses it lands on a link, and that
+    // tap must not also follow it.
     const onPointer = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (root.current?.contains(event.target as Node)) return;
+      setOpen(false);
+      const swallow = (click: MouseEvent) => {
+        click.preventDefault();
+        click.stopPropagation();
+      };
+      document.addEventListener("click", swallow, { capture: true, once: true });
+      // A tap that turns into a scroll never clicks; the next real tap must.
+      window.setTimeout(
+        () => document.removeEventListener("click", swallow, { capture: true }),
+        600,
+      );
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;

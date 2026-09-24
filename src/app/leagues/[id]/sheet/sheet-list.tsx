@@ -330,7 +330,7 @@ export function SheetList({
     setHeldId(row.id);
     // Bring it out from under the bar.
     //
-    // The bar is `sticky bottom-0`, so while the page is scrolled short of the
+    // The bar is sticky, so while the page is scrolled short of the
     // end it paints over whatever is at the foot of the viewport — which, for a
     // row near the bottom of the sheet, is that row. Measured on a Pixel 7: the
     // bar ran 621–839 and the row picked up sat at 625, so the first touch of
@@ -757,7 +757,7 @@ export function SheetList({
 
       {/* The verbs, where the thumb is.
           
-          `sticky bottom-0` rather than `fixed`: it follows you down a long sheet
+          Sticky rather than `fixed`: it follows you down a long sheet
           and then rests at its natural place at the end of the list, so it
           cannot cover the last row — which a fixed bar would, and which would
           need a global padding hack to undo. */}
@@ -771,7 +771,7 @@ export function SheetList({
               putDown();
             }
           }}
-          className="slot-transit sticky bottom-0 z-30 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3"
+          className="slot-transit sticky bottom-(--tabs-height) z-30 lg:bottom-0 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3"
         >
           {/* A failed edit says so where it happened. */}
           {error ? (

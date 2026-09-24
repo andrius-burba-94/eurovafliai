@@ -2429,3 +2429,30 @@ three of them on one line. So the court draws tokens — patch, surname, captain
 — and every card lives once in a tier below it. Tap-to-place goes through the
 same `place` the select calls, so the validator mirror and the posted fields
 are unchanged, and the lineup spec's selectors all still hold.
+
+### What the critique found, and what it changed
+
+`/impeccable critique` scored the shell 25/40 on Nielsen's heuristics and found
+no AI tells. Its one probable bug, read from the code and then confirmed by a
+spec, is that the tab bar is `fixed bottom-0 z-30` and comes later in the page
+than three `sticky bottom-0 z-30` bars (the lineup's Record, the cheat sheet's
+verbs, the trade builder's). So on a phone, mid-scroll, the tabs painted over
+the one button each page exists for. The bars now stand on `--tabs-height` in
+`globals.css`, which the More sheet uses too, so the numbers cannot drift apart.
+A mobile spec asserts the Record button clears the tabs mid-page.
+
+Four more were fixed on the way past:
+
+- **A swap.** "He starts, he sits" took four taps and passed through a six-man
+  five the validator refused. With a player in hand, tapping a player in
+  another tier now trades their places, and the live region says who went where.
+- **The Players tab stopped at 40, in alphabetical order.** With no search it
+  now sorts by average PIR and has a "Show more" button.
+- **A tap outside a menu closed it and also followed the link underneath.**
+  The More sheet covers most of a phone, so that was the usual dismiss gesture.
+  `Menu` now swallows that one click.
+- **The lineup's refusal was silent to a screen reader.** It now sits in a
+  status region that stays mounted.
+
+The rest is carried as one debt row in STATUS.md rather than fixed here,
+because each item is a design decision rather than a defect.

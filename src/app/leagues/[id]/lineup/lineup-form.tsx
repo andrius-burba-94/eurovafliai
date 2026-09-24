@@ -183,15 +183,41 @@ export function LineupForm({
   // the select calls, so the validator above sees one kind of change.
   const [armed, setArmed] = useState<string | null>(null);
   const armedPlayer = players.find((player) => player.id === armed) ?? null;
+  const [lastMove, setLastMove] = useState("");
 
+  /**
+   * With somebody in hand, tapping a player in another tier swaps the two.
+   * The usual edit of a round is "he starts, he sits"; without a swap that
+   * took four taps and passed through a six-man five the validator refused.
+   * Tapping somebody in the same tier just changes who is in hand.
+   */
   function arm(playerId: string): void {
-    setArmed((current) => (current === playerId ? null : playerId));
+    setLastMove("");
+    if (armed === null || armed === playerId) {
+      setArmed(armed === playerId ? null : playerId);
+      return;
+    }
+    const held = places[armed] ?? "";
+    const target = places[playerId] ?? "";
+    if (held === target) {
+      setArmed(playerId);
+      return;
+    }
+    place(armed, target);
+    place(playerId, held);
+    setArmed(null);
+    const name = (id: string) =>
+      players.find((player) => player.id === id)?.name ?? "";
+    setLastMove(
+      `${name(armed)} to ${PLACE_WORDS[target]}, ${name(playerId)} to ${PLACE_WORDS[held]}.`,
+    );
   }
 
   function moveTo(role: PlacementRole | ""): void {
     if (armed === null) return;
     place(armed, role);
     setArmed(null);
+    setLastMove("");
   }
 
   const groups = useMemo(() => {
@@ -351,9 +377,14 @@ export function LineupForm({
                   Cancel
                 </button>
               </>
+            ) : lastMove ? (
+              <p className="text-sm text-ink" data-testid="lineup-swapped">
+                {lastMove}
+              </p>
             ) : (
               <p className="text-sm text-ink-soft">
-                Tap Move on a player, then tap where they go.
+                Tap Move on a player, then tap where they go — or another
+                player to swap them.
               </p>
             )}
           </div>
@@ -419,21 +450,24 @@ export function LineupForm({
         <Correction testId="lineup-error">{result.error}</Correction>
       ) : null}
 
-      <div className="slot-filled sticky bottom-0 z-30 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3">
+      <div className="slot-filled sticky bottom-(--tabs-height) z-30 lg:bottom-0 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3">
         <p className="text-sm text-ink-soft" data-testid="lineup-summary">
           {counts.captain} captain, {counts.starter} more starters,{" "}
           {counts.sixth} sixth man, {counts.bench} bench, {counts.inactive}{" "}
           inactive — {formationName(five)} as guards-forwards-centers.
         </p>
-        {!verdict.ok ? (
-          <p className="text-sm text-ink" data-testid="lineup-refusal">
-            {verdict.reason}
-          </p>
-        ) : result.saved ? (
-          <p className="text-sm text-ink" data-testid="lineup-saved">
-            Recorded. The table has been recomputed.
-          </p>
-        ) : null}
+        {/* Always mounted, so a reader hears the refusal a move just caused. */}
+        <div role="status" className="empty:hidden">
+          {!verdict.ok ? (
+            <p className="text-sm text-ink" data-testid="lineup-refusal">
+              {verdict.reason}
+            </p>
+          ) : result.saved ? (
+            <p className="text-sm text-ink" data-testid="lineup-saved">
+              Recorded. The table has been recomputed.
+            </p>
+          ) : null}
+        </div>
         <SubmitButton
           testId="record-lineup-submit"
           tone="live"
@@ -445,3 +479,11 @@ export function LineupForm({
     </form>
   );
 }
+
+const PLACE_WORDS: Readonly<Record<PlacementRole | "", string>> = {
+  starter: "the five",
+  sixth: "sixth man",
+  bench: "the bench",
+  inactive: "inactive",
+  "": "not placed",
+};

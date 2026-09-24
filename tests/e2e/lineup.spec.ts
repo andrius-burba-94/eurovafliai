@@ -357,6 +357,38 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   await expect(court.getByTestId("court-player")).toContainText(
     planted.players[6]!.name.split(",")[0]!,
   );
+
+  // A bench player in hand, a starter tapped: the two trade places.
+  await moveButton(guard).click();
+  await court.getByTestId("court-player").click();
+  await expect(roleOf(guard)).toHaveValue("starter");
+  await expect(roleOf(planted.players[6]!)).toHaveValue("bench");
+  await expect(page.getByTestId("lineup-swapped")).toContainText(
+    `${guard.name} to the five`,
+  );
+  await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
+});
+
+test("on a phone the record bar stands above the tab bar, not under it", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "the tab bar is below lg");
+  const owner = await createTestUser("courtbar");
+  const mate = await createTestUser("courtbarmate");
+  const planted = await plantSeason(owner, mate, "Bar Above Tabs");
+
+  await signIn(context, owner);
+  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await expect(page.getByTestId("lineup-court")).toBeVisible();
+
+  // Mid-page, where the bar is stuck rather than resting at the form's end.
+  await page.getByTestId("lineup-court").scrollIntoViewIfNeeded();
+  const submit = await page.getByTestId("record-lineup-submit").boundingBox();
+  const tabs = await page.getByTestId("bottom-tabs").boundingBox();
+  expect(submit).not.toBeNull();
+  expect(tabs).not.toBeNull();
+  expect(submit!.y + submit!.height).toBeLessThanOrEqual(tabs!.y);
 });
 
 test("the commissioner sets anyone's lineup and a plain member sets only their own", async ({

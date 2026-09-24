@@ -145,6 +145,15 @@ test("the phone gets a tab bar, and More holds the rest", async ({
   await expect(sheet).toHaveCount(0);
   await expect(more).toBeFocused();
 
+  // A tap outside closes it and does nothing else: the tab under the finger
+  // is not followed.
+  await more.click();
+  await tabs.getByRole("link").nth(1).click();
+  await expect(sheet).toHaveCount(0);
+  // Proving an absence: long enough for a client navigation to have begun.
+  await page.waitForTimeout(750);
+  expect(new URL(page.url()).pathname).toBe(`/leagues/${id}`);
+
   // Following a link closes it.
   await more.click();
   await page.getByTestId("more-pool").click();

@@ -8,7 +8,8 @@ import type { Position } from "@/lib/engine";
  * their card in the tiers below, where the form reads them. What the court adds
  * is the formation you can see — guards at the top of the key, the center at
  * the post — and a tap target per place, so a player armed with Move can be
- * put into the five by tapping where they go.
+ * put into the five by tapping where they go, or swapped for a starter by
+ * tapping that starter.
  *
  * Rows by position letter rather than fixed spots, because the five legal
  * formations put between one and three players on each line and a fixed spot
@@ -87,7 +88,11 @@ export function LineupCourt({
                     ) : null}
                   </span>
                   <span className="sr-only">
-                    {armed === player.id ? ", in hand" : ", tap to move"}
+                    {armed === player.id
+                      ? ", in hand"
+                      : canPlace
+                        ? ", tap to swap"
+                        : ", tap to move"}
                   </span>
                 </button>
               </li>

@@ -33,8 +33,10 @@ import { formatTenths } from "@/lib/stats/scoring";
  * lists never disagree about who matches "valanciunas". It is a reading
  * surface — a row links to the player, and nothing here picks anybody.
  *
- * Capped at `SHOWN` cards. The panel is a place to look somebody up, not to
- * scroll 324 rows, and the count under the search says how many matched.
+ * Shown `SHOWN` cards at a time, with a button for the next batch. With no
+ * search the order is average PIR, best first. Alphabetical browsing never got
+ * past the Bs, and the panel sits beside a lineup, where the question is who is
+ * producing. A search keeps `selectPool`'s own ranking by match.
  */
 const SHOWN = 40;
 
@@ -54,19 +56,23 @@ export function PlayerPoolList({
   const [query, setQuery] = useState("");
   const [positions, setPositions] = useState<Position[]>([]);
   const [freeOnly, setFreeOnly] = useState(false);
+  const [limit, setLimit] = useState(SHOWN);
   const index = useMemo(() => poolIndex(players), [players]);
 
   const filters = { ...NO_FILTERS, positions, hideDrafted: freeOnly };
-  const rows = selectPool({ pool: players, filters, query, needs: null, index });
-  const shown = rows.slice(0, SHOWN);
+  const matched = selectPool({ pool: players, filters, query, needs: null, index });
+  const rows = query.trim() ? matched : byPir(matched);
+  const shown = rows.slice(0, limit);
   const narrowing = narrowedBy(filters);
 
-  const toggle = (position: Position) =>
+  const toggle = (position: Position) => {
+    setLimit(SHOWN);
     setPositions((current) =>
       current.includes(position)
         ? current.filter((entry) => entry !== position)
         : [...current, position],
     );
+  };
 
   return (
     <div className="flex flex-col gap-3" data-testid="panel-players">
@@ -75,7 +81,10 @@ export function PlayerPoolList({
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setLimit(SHOWN);
+          }}
           placeholder="Search a name or a club code"
           data-testid="panel-search"
           className={inputStyles}
@@ -99,7 +108,10 @@ export function PlayerPoolList({
         ))}
         <FilterToggle
           pressed={freeOnly}
-          onPressedChange={setFreeOnly}
+          onPressedChange={(pressed) => {
+            setFreeOnly(pressed);
+            setLimit(SHOWN);
+          }}
           testId="panel-filter-free"
         >
           Free agents
@@ -108,8 +120,8 @@ export function PlayerPoolList({
       <p className="slot-label" data-testid="panel-count">
         {rows.length === 0
           ? "No matches"
-          : rows.length > SHOWN
-            ? `${SHOWN} of ${rows.length} shown`
+          : rows.length > shown.length
+            ? `${shown.length} of ${rows.length} shown`
             : `${rows.length} ${rows.length === 1 ? "player" : "players"}`}
       </p>
 
@@ -162,6 +174,22 @@ export function PlayerPoolList({
           ))}
         </CardBlocks>
       )}
+      {rows.length > shown.length ? (
+        <button
+          type="button"
+          onClick={() => setLimit((current) => current + SHOWN)}
+          data-testid="panel-more"
+          className="slot-label inline-flex min-h-11 items-center justify-center border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+        >
+          Show {Math.min(SHOWN, rows.length - shown.length)} more
+        </button>
+      ) : null}
     </div>
+  );
+}
+
+function byPir(rows: readonly PoolPlayer[]): PoolPlayer[] {
+  return [...rows].sort(
+    (a, b) => (b.averagePir ?? -Infinity) - (a.averagePir ?? -Infinity),
   );
 }

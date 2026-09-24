@@ -365,7 +365,7 @@ function BottomTabs({
               </>
             }
             buttonClassName={tabClass(false)}
-            panelClassName="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-50 flex max-h-[75dvh] flex-col gap-6 overflow-y-auto border-t border-rule-strong bg-stock-panel px-4 py-4"
+            panelClassName="fixed inset-x-0 bottom-(--tabs-height) z-50 flex max-h-[75dvh] flex-col gap-6 overflow-y-auto border-t border-rule-strong bg-stock-panel px-4 py-4"
           >
             <NavGroups groups={groups} current={current} prefix="more" />
             <div className="flex flex-col gap-1 border-t border-rail/40 pt-3">
