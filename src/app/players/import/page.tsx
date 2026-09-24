@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Sheet, TopRail } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { canManageRosters, readRosterAuthority } from "@/lib/rosters/actions";
 import { getSuperuserClient } from "@/lib/pb/superuser";
@@ -24,21 +24,18 @@ export default async function ImportPage() {
   const authority = await readRosterAuthority(await getSuperuserClient());
 
   return (
-    <>
-      <TopRail action={<BackLink href="/players">The pool</BackLink>} />
-      <Sheet testId="roster-import">
-        <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Upload a roster
-          </h1>
-          <p className="text-ink-soft">
-            Paste the sheet, read what it would change, then apply it. Nothing
-            is written until you say so.
-          </p>
-        </div>
+    <AppShell current="import-players" testId="roster-import">
+      <div className="flex max-w-xl flex-col gap-3">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Upload a roster
+        </h1>
+        <p className="text-ink-soft">
+          Paste the sheet, read what it would change, then apply it. Nothing
+          is written until you say so.
+        </p>
+      </div>
 
-        <ImportForm authority={authority} />
-      </Sheet>
-    </>
+      <ImportForm authority={authority} />
+    </AppShell>
   );
 }

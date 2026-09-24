@@ -2,15 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import {
-  BackLink,
   Bank,
   Correction,
   Door,
   EmptyNotice,
-  Sheet,
   Slots,
-  TopRail,
 } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import {
   resolveSeason,
   SeasonControl,
@@ -18,6 +16,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
 import { readProvisionalRounds } from "@/lib/lineups/queries";
 import { readStandingsSnapshots } from "@/lib/stats/queries";
 
@@ -86,78 +85,77 @@ export default async function StandingsPage({
   const emptyScores = !emptyDraft && snapshots.length === 0;
 
   return (
-    <>
-      <TopRail
-        action={<BackLink href={`/leagues/${id}`}>The lobby</BackLink>}
+    <AppShell
+      current="standings"
+      league={navLeagueFrom(data)}
+      testId="standings"
+    >
+      <div className="flex flex-col gap-4">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Standings
+        </h1>
+        <p className="slot-label">{data.league.name}</p>
+      </div>
+
+      <SeasonControl
+        action={`/leagues/${id}/standings`}
+        season={season}
+        currentSeason={currentSeason}
       />
-      <Sheet testId="standings">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Standings
-          </h1>
-          <p className="slot-label">{data.league.name}</p>
-        </div>
 
-        <SeasonControl
-          action={`/leagues/${id}/standings`}
-          season={season}
-          currentSeason={currentSeason}
-        />
-
-        {emptyDraft ? (
-          <Bank framed label="The table">
-            <EmptyNotice testId="standings-empty">
-              The draft is not complete, so there is no table yet. Rank lands
-              after the last pick, from real Euroleague nights.
-            </EmptyNotice>
-            <Slots>
-              <Door
-                href={`/leagues/${id}`}
-                title="The lobby"
-                description="Finish the draft, then come back for the table."
-                action="Open"
-                testId="standings-empty-lobby"
-              />
-            </Slots>
-          </Bank>
-        ) : emptyScores ? (
-          <Bank framed label="The table">
-            <EmptyNotice testId="standings-empty">
-              No box scores counted for {season} yet. The table fills after a
-              counted round.
-            </EmptyNotice>
-            <Slots>
-              <Door
-                href={`/leagues/${id}`}
-                title="The lobby"
-                description="The season board is already open. Nights land on their own."
-                action="Open"
-                testId="standings-empty-lobby"
-              />
-            </Slots>
-          </Bank>
-        ) : (
-          <>
-            {provisional.length > 0 ? (
-              <Correction testId="standings-provisional">
-                {provisional.length === 1
-                  ? `Round ${provisional[0]} counted every player at 100%: no lineup has been recorded for it.`
-                  : `Rounds ${provisional.join(", ")} counted every player at 100%: no lineup has been recorded for them.`}{" "}
-                <Link href={`/leagues/${id}/lineup`} className="underline">
-                  Set a lineup
-                </Link>{" "}
-                and the table is recomputed.
-              </Correction>
-            ) : null}
-            <StandingsTable
-              snapshots={snapshots}
-              names={names}
-              leagueId={id}
-              season={season}
+      {emptyDraft ? (
+        <Bank framed label="The table">
+          <EmptyNotice testId="standings-empty">
+            The draft is not complete, so there is no table yet. Rank lands
+            after the last pick, from real Euroleague nights.
+          </EmptyNotice>
+          <Slots>
+            <Door
+              href={`/leagues/${id}`}
+              title="The lobby"
+              description="Finish the draft, then come back for the table."
+              action="Open"
+              testId="standings-empty-lobby"
             />
-          </>
-        )}
-      </Sheet>
-    </>
+          </Slots>
+        </Bank>
+      ) : emptyScores ? (
+        <Bank framed label="The table">
+          <EmptyNotice testId="standings-empty">
+            No box scores counted for {season} yet. The table fills after a
+            counted round.
+          </EmptyNotice>
+          <Slots>
+            <Door
+              href={`/leagues/${id}`}
+              title="The lobby"
+              description="The season board is already open. Nights land on their own."
+              action="Open"
+              testId="standings-empty-lobby"
+            />
+          </Slots>
+        </Bank>
+      ) : (
+        <>
+          {provisional.length > 0 ? (
+            <Correction testId="standings-provisional">
+              {provisional.length === 1
+                ? `Round ${provisional[0]} counted every player at 100%: no lineup has been recorded for it.`
+                : `Rounds ${provisional.join(", ")} counted every player at 100%: no lineup has been recorded for them.`}{" "}
+              <Link href={`/leagues/${id}/lineup`} className="underline">
+                Set a lineup
+              </Link>{" "}
+              and the table is recomputed.
+            </Correction>
+          ) : null}
+          <StandingsTable
+            snapshots={snapshots}
+            names={names}
+            leagueId={id}
+            season={season}
+          />
+        </>
+      )}
+    </AppShell>
   );
 }

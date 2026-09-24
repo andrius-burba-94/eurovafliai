@@ -131,7 +131,7 @@ test("a member marks themselves ready, and can take it back", async ({
 
   const order = await page
     .locator(
-      "h1, [data-testid='invite-code'], [data-testid='team-name-input'], [data-testid='member-list'], [data-testid='chat-toggle'], [data-testid='lobby-sheet'], [data-testid='delete-league-toggle']",
+      "h1, [data-testid='invite-code'], [data-testid='team-name-input'], [data-testid='member-list'], [data-testid='chat-toggle'], [data-testid='delete-league-toggle']",
     )
     .evaluateAll((nodes) =>
       nodes.map((node) =>
@@ -146,7 +146,6 @@ test("a member marks themselves ready, and can take it back", async ({
     "team-name-input",
     "member-list",
     "chat-toggle",
-    "lobby-sheet",
     "delete-league-toggle",
   ]);
   for (const name of ["Invite code", "Members", "League chat"]) {

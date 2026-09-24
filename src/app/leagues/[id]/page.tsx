@@ -3,16 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 
 import {
-  BackLink,
   Bank,
   BoardPlan,
   Correction,
   Door,
   PositionPatch,
-  Sheet,
   Slots,
-  TopRail,
 } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
+import { ContextPanel } from "@/components/context-panel";
 import { getSession } from "@/lib/auth/session";
 import { LeagueChat } from "@/components/league-chat";
 import { readMessages } from "@/lib/chat/store";
@@ -20,6 +19,8 @@ import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueSentence } from "@/lib/mapping/queue";
 import { createUserClient } from "@/lib/pb/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
+import { readPanel } from "@/lib/panel/queries";
 import {
   readMemberRoster,
   readRecentTransactions,
@@ -108,7 +109,7 @@ export default async function LobbyPage({
   // query that already existed for the page the dashboard is replacing a door
   // to (4.5, 5.4, 5.1, 5.2). In parallel because they are independent, and at
   // ~10 users the cost that matters is the round trip rather than the work.
-  const [snapshots, recap, roster, transactions] = isSeasonDashboard
+  const [snapshots, recap, roster, transactions, panel] = isSeasonDashboard
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
         readLeagueRecap(id, season, null).catch(() => null),
@@ -116,237 +117,218 @@ export default async function LobbyPage({
           ? readMemberRoster(id, youMemberId, season).catch(() => [])
           : Promise.resolve([]),
         readRecentTransactions(id, teamNames).catch(() => []),
+        readPanel({ leagueId: id, season, teamNames }),
       ])
-    : [[], null, [], []];
+    : [[], null, [], [], null];
 
   return (
-    <>
-      <TopRail
-        action={<BackLink href="/">Leagues</BackLink>}
-        measure={isSeasonDashboard ? "wide" : "column"}
-      />
-      <Sheet testId="lobby" measure={isSeasonDashboard ? "wide" : "column"}>
-        {/* One display headline per surface (DESIGN.md). On the dashboard that
-            one belongs to the season, so the league's name steps down to a
-            slot label above it and the `h1` lives in `SeasonDashboard`. Two
-            elements at display size, one of them the same size as the other,
-            is the hierarchy 10.9 spent a whole slice fixing. */}
-        <div className="flex flex-col gap-4">
-          {isSeasonDashboard ? (
-            <span className="slot-label text-ink">{league.name}</span>
-          ) : (
-            <h1 className="text-3xl font-semibold tracking-[0.04em] uppercase sm:text-4xl">
-              {league.name}
-            </h1>
-          )}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <span className="slot-label">
-              {league.season} &middot; {league.status}
-            </span>
-            <span className="slot-label">{rosterSize(template)} players</span>
-            <span className="flex items-center gap-1.5">
-              <PositionPatch position="G" count={template.G} />
-              <PositionPatch position="F" count={template.F} />
-              <PositionPatch position="C" count={template.C} />
-            </span>
-          </div>
-        </div>
-
-        {league.status === "drafting" ? (
-          <Bank label="Draft room" framed>
-            <Slots>
-              <Door
-                href={`/leagues/${league.id}/draft`}
-                testId="enter-draft"
-                title="The draft is live"
-                description="The board, clock and player pool are in the room."
-                action="Enter the room"
-                actionTone="live"
-              />
-            </Slots>
-          </Bank>
-        ) : null}
-
+    <AppShell
+      current="league-home"
+      league={navLeagueFrom(data)}
+      testId="lobby"
+      measure={isSeasonDashboard ? "wide" : "column"}
+      panel={panel ? <ContextPanel data={panel} /> : undefined}
+    >
+      {/* One display headline per surface (DESIGN.md). On the dashboard that
+          one belongs to the season, so the league's name steps down to a
+          slot label above it and the `h1` lives in `SeasonDashboard`. Two
+          elements at display size, one of them the same size as the other,
+          is the hierarchy 10.9 spent a whole slice fixing. */}
+      <div className="flex flex-col gap-4">
         {isSeasonDashboard ? (
-          <SeasonDashboard
-            leagueId={league.id}
-            season={season}
-            snapshots={snapshots}
-            recap={recap?.recap ?? null}
-            playerNames={recap?.playerNames ?? {}}
-            roster={roster}
-            rosterTemplate={template}
-            transactions={transactions}
-            teamNames={teamNames}
-            youMemberId={youMemberId}
-            viewerIsManager={viewerIsManager}
-            chat={
-              <LeagueChat
-                leagueId={id}
-                authToken={session.token}
-                initial={chat}
-                myMemberId={youMemberId}
-                initiallyOpen
-                authorNames={teamNames}
-              />
-            }
-          />
-        ) : null}
-
-        {league.status === "setup" ? (
-          <Bank
-            label="Invite code"
-            aside={
-              slotsLeft > 0
-                ? `${slotsLeft} of ${settings.max_members} free`
-                : `full · ${settings.max_members}`
-            }
-            framed
-          >
-            {/* Ruled, not struck. The marker means one thing on this board —
-                who is on the clock — so the code is written in it rather than
-                sitting in its field. */}
-            <div className="slot-filled border-b border-rule-strong px-3 py-5">
-              <p
-                data-testid="invite-code"
-                className="text-3xl font-semibold uppercase tracking-[0.36em] text-live sm:text-4xl"
-              >
-                {league.invite_code}
-              </p>
-              <p className="mt-2 text-sm text-ink-soft">
-                {slotsLeft > 0
-                  ? "Read it out. Anyone with the code takes the next slot."
-                  : "Every slot is taken."}
-              </p>
-            </div>
-          </Bank>
-        ) : null}
-
-        {/* The doorbell on 4.2's queue. Below the league's own act, because a
-            live draft outranks a stale spelling, and above the member list,
-            because further down is where it was already being missed. Renders
-            only when something is genuinely standing — a notice that also
-            appears when there is nothing to do is the one people stop reading. */}
-        {mappingSentence ? (
-          <Correction testId="mapping-queue">
-            {mappingSentence}{" "}
-            <Link
-              href="/players/mapping"
-              className="inline-flex min-h-11 min-w-11 items-center text-ink underline decoration-ink/40 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-            >
-              Open player mapping
-            </Link>
-          </Correction>
-        ) : null}
-
-        {/* From here down the surface is live. The server render above is what
-            makes the page correct before any JavaScript runs; the subscription
-            keeps it correct afterwards. */}
-        <LiveLobby
-          leagueId={league.id}
-          authToken={session.token}
-          commissionerUserId={league.commissioner}
-          viewerUserId={session.user.id}
-          leagueStatus={league.status}
-          maxMembers={settings.max_members}
-          initialMembers={members}
-          justArrived={justArrived}
-          isCommissioner={isCommissioner}
-          settings={settings}
-        />
-
-        {/* Setup apparatus stays together. From chat onward the order is
-            conversation, private sheet, then the folded way out. */}
-        {league.status === "setup" ? (
-          <div className="hidden sm:block">
-            <BoardPlan
-              slots={settings.max_members}
-              caption={`13 rounds × ${settings.max_members} slots`}
-            />
-          </div>
-        ) : null}
-
-        {isCommissioner && league.status === "setup" ? (
-          <p className="text-sm text-ink-soft">
-            You run this league. Open <em>Manage</em> on any row to rename or
-            remove a member, and roll the draft order when everyone is in.
-          </p>
-        ) : null}
-
-        {/* The lobby half of league chat. The roll announces itself here,
-            which is where people are looking when it happens, and it is the
-            same thread the room shows.
-
-            Not on the dashboard: that surface renders the same conversation in
-            its own top-right panel, and two transcripts of one thread on one
-            page is two unread counts for the same messages. */}
-        {isSeasonDashboard ? null : (
-          <LeagueChat
-            leagueId={id}
-            authToken={session.token}
-            initial={chat}
-            myMemberId={members.find((member) => member.isYou)?.id ?? null}
-            initiallyOpen
-            authorNames={Object.fromEntries(
-              members.map((member) => [
-                member.id,
-                member.teamName || member.name,
-              ]),
-            )}
-          />
+          <span className="slot-label text-ink">{league.name}</span>
+        ) : (
+          <h1 className="text-3xl font-semibold tracking-[0.04em] uppercase sm:text-4xl">
+            {league.name}
+          </h1>
         )}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <span className="slot-label">
+            {league.season} &middot; {league.status}
+          </span>
+          <span className="slot-label">{rosterSize(template)} players</span>
+          <span className="flex items-center gap-1.5">
+            <PositionPatch position="G" count={template.G} />
+            <PositionPatch position="F" count={template.F} />
+            <PositionPatch position="C" count={template.C} />
+          </span>
+        </div>
+      </div>
 
-        {/* Take the draft away with you. Gated on membership alone, so it is
-            reachable in *season* as well as from the lobby — a league wants
-            the spreadsheet after the draft, not only before it, and the
-            dashboard replaces the lobby's body without replacing this run. */}
-        {viewerIsMember ? (
+      {league.status === "drafting" ? (
+        <Bank label="Draft room" framed>
           <Slots>
             <Door
-              href={`/leagues/${league.id}/export`}
-              testId="lobby-export"
-              title="Export the draft"
-              description={
-                league.status === "setup"
-                  ? "Results, rosters, order and pool — as CSV or JSON, once you have drafted."
-                  : "Results, rosters, order and pool — as CSV or JSON."
-              }
-              action="Open"
+              href={`/leagues/${league.id}/draft`}
+              testId="enter-draft"
+              title="The draft is live"
+              description="The board, clock and player pool are in the room."
+              action="Enter the room"
+              actionTone="live"
             />
           </Slots>
-        ) : null}
+        </Bank>
+      ) : null}
 
-        {/* The cheat sheet, from the lobby — the hours before a draft are when
-            somebody actually writes one. A member's own row only: a
-            commissioner without a membership has no roster to rank for, and a
-            sheet is private to the member who owns it. */}
-        {viewerIsMember && !isSeasonDashboard ? (
-          <Slots>
-            <Door
-              href={`/leagues/${league.id}/sheet`}
-              testId="lobby-sheet"
-              title="Your cheat sheet"
-              description={
-                league.status === "season"
-                  ? "Private to you. Review the list you took into draft night."
-                  : "Private to you. Autodraft picks from it."
-              }
-              action="Open"
+      {isSeasonDashboard ? (
+        <SeasonDashboard
+          leagueId={league.id}
+          season={season}
+          snapshots={snapshots}
+          recap={recap?.recap ?? null}
+          playerNames={recap?.playerNames ?? {}}
+          roster={roster}
+          rosterTemplate={template}
+          transactions={transactions}
+          teamNames={teamNames}
+          youMemberId={youMemberId}
+          viewerIsManager={viewerIsManager}
+          chat={
+            <LeagueChat
+              leagueId={id}
+              authToken={session.token}
+              initial={chat}
+              myMemberId={youMemberId}
+              initiallyOpen
+              authorNames={teamNames}
             />
-          </Slots>
-        ) : null}
+          }
+        />
+      ) : null}
 
-        {/* Last on the page, and folded: the way out of a league should be
-            findable and never in the way. */}
-        {isCommissioner ? (
-          <DeleteLeague
-            leagueId={league.id}
-            leagueName={league.name}
-            memberCount={members.length}
-            hasDrafted={league.status !== "setup"}
+      {league.status === "setup" ? (
+        <Bank
+          label="Invite code"
+          aside={
+            slotsLeft > 0
+              ? `${slotsLeft} of ${settings.max_members} free`
+              : `full · ${settings.max_members}`
+          }
+          framed
+        >
+          {/* Ruled, not struck. The marker means one thing on this board —
+              who is on the clock — so the code is written in it rather than
+              sitting in its field. */}
+          <div className="slot-filled border-b border-rule-strong px-3 py-5">
+            <p
+              data-testid="invite-code"
+              className="text-3xl font-semibold uppercase tracking-[0.36em] text-live sm:text-4xl"
+            >
+              {league.invite_code}
+            </p>
+            <p className="mt-2 text-sm text-ink-soft">
+              {slotsLeft > 0
+                ? "Read it out. Anyone with the code takes the next slot."
+                : "Every slot is taken."}
+            </p>
+          </div>
+        </Bank>
+      ) : null}
+
+      {/* The doorbell on 4.2's queue. Below the league's own act, because a
+          live draft outranks a stale spelling, and above the member list,
+          because further down is where it was already being missed. Renders
+          only when something is genuinely standing — a notice that also
+          appears when there is nothing to do is the one people stop reading. */}
+      {mappingSentence ? (
+        <Correction testId="mapping-queue">
+          {mappingSentence}{" "}
+          <Link
+            href="/players/mapping"
+            className="inline-flex min-h-11 min-w-11 items-center text-ink underline decoration-ink/40 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          >
+            Open player mapping
+          </Link>
+        </Correction>
+      ) : null}
+
+      {/* From here down the surface is live. The server render above is what
+          makes the page correct before any JavaScript runs; the subscription
+          keeps it correct afterwards. */}
+      <LiveLobby
+        leagueId={league.id}
+        authToken={session.token}
+        commissionerUserId={league.commissioner}
+        viewerUserId={session.user.id}
+        leagueStatus={league.status}
+        maxMembers={settings.max_members}
+        initialMembers={members}
+        justArrived={justArrived}
+        isCommissioner={isCommissioner}
+        settings={settings}
+      />
+
+      {/* Setup apparatus stays together. From chat onward the order is
+          conversation, private sheet, then the folded way out. */}
+      {league.status === "setup" ? (
+        <div className="hidden sm:block">
+          <BoardPlan
+            slots={settings.max_members}
+            caption={`13 rounds × ${settings.max_members} slots`}
           />
-        ) : null}
-      </Sheet>
-    </>
+        </div>
+      ) : null}
+
+      {isCommissioner && league.status === "setup" ? (
+        <p className="text-sm text-ink-soft">
+          You run this league. Open <em>Manage</em> on any row to rename or
+          remove a member, and roll the draft order when everyone is in.
+        </p>
+      ) : null}
+
+      {/* The lobby half of league chat. The roll announces itself here,
+          which is where people are looking when it happens, and it is the
+          same thread the room shows.
+
+          Not on the dashboard: that surface renders the same conversation in
+          its own top-right panel, and two transcripts of one thread on one
+          page is two unread counts for the same messages. */}
+      {isSeasonDashboard ? null : (
+        <LeagueChat
+          leagueId={id}
+          authToken={session.token}
+          initial={chat}
+          myMemberId={members.find((member) => member.isYou)?.id ?? null}
+          initiallyOpen
+          authorNames={Object.fromEntries(
+            members.map((member) => [
+              member.id,
+              member.teamName || member.name,
+            ]),
+          )}
+        />
+      )}
+
+      {/* Take the draft away with you. Gated on membership alone, so it is
+          reachable in *season* as well as from the lobby — a league wants
+          the spreadsheet after the draft, not only before it, and the
+          dashboard replaces the lobby's body without replacing this run. */}
+      {viewerIsMember ? (
+        <Slots>
+          <Door
+            href={`/leagues/${league.id}/export`}
+            testId="lobby-export"
+            title="Export the draft"
+            description={
+              league.status === "setup"
+                ? "Results, rosters, order and pool — as CSV or JSON, once you have drafted."
+                : "Results, rosters, order and pool — as CSV or JSON."
+            }
+            action="Open"
+          />
+        </Slots>
+      ) : null}
+
+      {/* Last on the page, and folded: the way out of a league should be
+          findable and never in the way. */}
+      {isCommissioner ? (
+        <DeleteLeague
+          leagueId={league.id}
+          leagueName={league.name}
+          memberCount={members.length}
+          hasDrafted={league.status !== "setup"}
+        />
+      ) : null}
+    </AppShell>
   );
 }

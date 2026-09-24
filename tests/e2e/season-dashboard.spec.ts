@@ -210,7 +210,14 @@ test("the setup lobby is untouched by any of this", async ({
   await page.goto(`/leagues/${league.id}`);
 
   await expect(page.getByTestId("invite-code")).toBeVisible();
-  await expect(page.getByTestId("lobby-sheet")).toBeVisible();
+  // The sheet is a destination in the shell's nav since 11.1, not a door in
+  // the body — the sidebar on a laptop, a tab on a phone.
+  await expect(
+    page
+      .locator(`a[href="/leagues/${league.id}/sheet"]`)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
   await expect(page.getByTestId("dashboard-standings")).toHaveCount(0);
   // The league's own name keeps the headline while it is being set up.
   await expect(page.getByRole("heading", { level: 1 })).toContainText(

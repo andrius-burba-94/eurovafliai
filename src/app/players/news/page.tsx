@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { BackLink, Bank, EmptyNotice, Sheet, TopRail } from "@/components/board";
+import { Bank, EmptyNotice } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import { readNews } from "@/lib/news/queries";
 import { canManageRosters } from "@/lib/rosters/actions";
 
@@ -29,32 +30,29 @@ export default async function NewsPage() {
   const canManage = await canManageRosters();
 
   return (
-    <>
-      <TopRail action={<BackLink href="/players">The pool</BackLink>} />
-      <Sheet testId="player-news">
-        <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Injuries and moves
-          </h1>
-          <p className="text-ink-soft">
-            What RotoWire has published about Euroleague players, newest first.
-            An injury item marks that player unavailable in the pool; every item
-            links back to the people who wrote it.
-          </p>
-        </div>
+    <AppShell current="news" testId="player-news">
+      <div className="flex max-w-xl flex-col gap-3">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Injuries and moves
+        </h1>
+        <p className="text-ink-soft">
+          What RotoWire has published about Euroleague players, newest first.
+          An injury item marks that player unavailable in the pool; every item
+          links back to the people who wrote it.
+        </p>
+      </div>
 
-        {items.length === 0 ? (
-          <Bank framed label="The board">
-            <EmptyNotice testId="news-empty">
-              Nothing has been read yet. The worker reads the pages every hour —
-              or run <code className="text-ink">npm run news:sync</code> to do
-              it now.
-            </EmptyNotice>
-          </Bank>
-        ) : (
-          <NewsBoard items={items} canManage={canManage} />
-        )}
-      </Sheet>
-    </>
+      {items.length === 0 ? (
+        <Bank framed label="The board">
+          <EmptyNotice testId="news-empty">
+            Nothing has been read yet. The worker reads the pages every hour —
+            or run <code className="text-ink">npm run news:sync</code> to do
+            it now.
+          </EmptyNotice>
+        </Bank>
+      ) : (
+        <NewsBoard items={items} canManage={canManage} />
+      )}
+    </AppShell>
   );
 }

@@ -48,10 +48,16 @@ const DIRECTION_CONTRACT = `<!--
   STORY: this is a real competition instrument, readable at a glance in a loud
   room; you create or join a league and take your slot.
 
-  FIRST VIEWPORT: top rail with wordmark and season in 11px caps, on every
-  device; below it, slots at full width, dashed while waiting and solid once
+  FIRST VIEWPORT: wordmark and season in 11px caps, on every device; beside
+  or below it, slots at full width, dashed while waiting and solid once
   filled; the primary action sits inside a slot, never in a floating card, and
   carries the marker.
+
+  LAYOUT (Phase 11, ADR-0008): one app shell — a sidebar from lg, a header on
+  every width, a Players / Schedule / News panel that is a column from xl and
+  a sheet below it, a bottom tab bar below lg. Layout, not skin: no new token,
+  no floating layer, no shadow or scrim under the sheet. The current nav item
+  is ruled in ink; orange never marks navigation.
 
   FORM: the draft board, first on the ordered list of grounded candidates.
 
@@ -82,8 +88,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-stock text-ink">
         <div hidden dangerouslySetInnerHTML={{ __html: DIRECTION_CONTRACT }} />
         {/* First focusable control in the document. Off-screen until focused,
-            so Tab from the top of any page can jump the TopRail. Sheet's
-            <main id="main"> is the landing. */}
+            so Tab from the top of any page can jump the shell's sidebar and
+            header. The shell's (or Sheet's) <main id="main"> is the landing. */}
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:border-2 focus:border-live focus:bg-stock focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:uppercase focus:tracking-[0.14em] focus:text-live focus:outline-none"

@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Sheet, TopRail } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
 import { serverRollCeremony } from "@/lib/roll/snapshot";
 
 import { RollCeremony } from "./roll-ceremony";
@@ -74,19 +75,14 @@ export default async function RollPage({ params }: PageProps<"/leagues/[id]">) {
   });
 
   return (
-    <>
-      <TopRail
-        action={<BackLink href={`/leagues/${league.id}`}>Lobby</BackLink>}
+    <AppShell current="order" league={navLeagueFrom(data)} testId="roll">
+      <RollCeremony
+        leagueId={league.id}
+        leagueName={league.name}
+        order={inOrder}
+        rolledAt={rolledAt}
+        initial={initial}
       />
-      <Sheet testId="roll">
-        <RollCeremony
-          leagueId={league.id}
-          leagueName={league.name}
-          order={inOrder}
-          rolledAt={rolledAt}
-          initial={initial}
-        />
-      </Sheet>
-    </>
+    </AppShell>
   );
 }

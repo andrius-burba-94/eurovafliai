@@ -54,6 +54,9 @@ src/lib/stats/    box scores and scoring; `scoring.ts` is pure; golden fixtures.
 src/lib/pb/browser.ts  the page's ONE shared realtime client
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
 src/lib/positions.ts  position words and the one list-join
+src/lib/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
+                  drives the sidebar, the tab bar and More alike
+src/lib/panel/    the side panel's one read (11.2): pool, a round's games, news
 src/worker/       PM2 worker: ~1s sweep, autodraft, stats ingest
 pb/VERSION        pinned PocketBase version — the download script reads it
 pb/pb_migrations/ schema as code, COMMITTED

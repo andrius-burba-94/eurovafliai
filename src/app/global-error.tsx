@@ -8,7 +8,7 @@ import {
   Correction,
   retryButtonStyles,
   Sheet,
-  TopRail,
+  BareRail,
 } from "@/components/board";
 
 export default function GlobalError({
@@ -32,7 +32,7 @@ export default function GlobalError({
       className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-stock text-ink">
-        <TopRail />
+        <BareRail />
         <Sheet testId="root-error">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em]">
             The board could not load

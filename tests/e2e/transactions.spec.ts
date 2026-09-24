@@ -211,7 +211,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   );
   await expect(page.getByTestId("impact-deal")).toContainText("R2 -4.3");
 
-  await page.getByRole("link", { name: "The lobby" }).click();
+  await page.goto(`/leagues/${league.id}`);
   await page
     .getByTestId("enter-roster")
     .filter({ hasText: "Other FC" })

@@ -49,21 +49,19 @@ const SLOT_RULE: Record<SlotState, string> = {
 };
 
 /**
- * The two measures this app has — slice 10.9, and the second one is new.
+ * The two measures this app has — slice 10.9, re-seated by 11.1.
  *
  * `column` is the one every reading surface uses and has used since 1.4: 48rem,
- * centred, one column, no sidebar. DESIGN.md open question 4 answered "no second
- * container width" in 3.1 and the answer held for six phases.
+ * centred. Since ADR-0008 it sizes the content region *beside* the shell's
+ * sidebar rather than the viewport.
  *
- * `room` is the exception, and it is one surface rather than a size for
- * whoever wants it: the draft room is the only place in this app where two
- * things have to be **seen at once** — the pool you are picking from and the
- * board the picks land on — and that is a fact about the night rather than a
- * preference about laptops. Below `lg` it is the column, unchanged, because the
+ * `wide` is the exception, and it is two surfaces rather than a size for
+ * whoever wants it: the draft room and the season dashboard are each four
+ * surfaces at once. Below `lg` it is the column, unchanged, because the
  * side-by-side cannot happen on a 390px phone and the phone is the primary
  * device. See DESIGN.md's Layout section.
  */
-const MEASURE = {
+export const MEASURE = {
   column: "max-w-3xl",
   /**
    * 48rem up to `lg`, then 80rem. Blueprint **D24**, widened to a second
@@ -85,74 +83,68 @@ const MEASURE = {
 export type Measure = keyof typeof MEASURE;
 
 /**
- * The board's top rail. Carries the wordmark and the season, and takes one
- * slot on the right for whatever action the surface owns.
+ * The wordmark and the season: the way home, which is what a masthead is for.
  *
- * It carried the ground switch for eight days (9.5, 9.5a). Phase 10 removed it
- * with the second ground — there is one ground now, so there is nothing to
- * switch. See ADR-0006 for what that costs.
+ * One link over both clauses rather than two: "Eurovafliai" and the season are
+ * one identity, and two adjacent links to the same place give a screen-reader
+ * rotor the destination twice. The season stays on the phone — hiding it once
+ * made the primary device the one place the masthead was incomplete.
  *
- * `measure` exists so the rail can widen with the surface under it. The
- * wordmark aligns with the first slot below it, which is a promise DESIGN.md
- * makes explicitly — a room at 80rem under a rail at 48rem would break it on
- * the one surface the league stares at for two hours.
+ * It was the whole of `TopRail` until ADR-0008 moved navigation into the app
+ * shell; the shell draws it in the sidebar and the phone header, and the
+ * surfaces outside the shell draw it in `BareRail`.
  */
-export function TopRail({
-  action,
-  measure = "column",
-}: {
-  action?: ReactNode;
-  measure?: Measure;
-}) {
+export function Masthead({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link
+      href="/"
+      className="-mx-2 flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-3 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+    >
+      <span className="whitespace-nowrap text-base font-semibold tracking-[0.16em] uppercase">
+        Eurovafliai
+      </span>
+      {/* The phone header shares its line with the switcher and the panel
+          button, and a 390px screen has no room left for the season. */}
+      <span
+        className={`slot-label whitespace-nowrap ${compact ? "max-sm:hidden" : ""}`}
+      >
+        Euroleague 2026&ndash;27
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * The masthead alone, on the surfaces that stand outside the shell: sign-in,
+ * not-found and the two error pages. They have no session to build a nav from,
+ * or no guarantee that one can be read.
+ */
+export function BareRail() {
   return (
     <header className="border-b border-rail/40">
-      <div
-        className={`mx-auto flex w-full ${MEASURE[measure]} items-baseline justify-between gap-3 px-5 py-4 sm:px-8`}
-      >
-        {/* The wordmark is the way home, which is what a masthead is for. One
-            link over both clauses rather than two: "Eurovafliai" and the
-            season are one identity, and a rail with two adjacent links to the
-            same place gives a screen-reader rotor the destination twice. The
-            44px floor is the rail's own padding, so the target is the height
-            of the rail rather than of the text. */}
-        <Link
-          href="/"
-          className="-mx-2 flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-3 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-        >
-          <span className="whitespace-nowrap text-base font-semibold tracking-[0.16em] uppercase">
-            Eurovafliai
-          </span>
-          {/* The season stays on the phone. It is the first clause of the
-              contracted rail, it fits, and hiding it made the primary device
-              the one place the rail was incomplete. */}
-          <span className="slot-label whitespace-nowrap">
-            Euroleague 2026&ndash;27
-          </span>
-        </Link>
-        <div className="flex shrink-0 items-baseline gap-1">{action}</div>
+      <div className="mx-auto flex w-full max-w-3xl items-baseline px-5 py-4 sm:px-8">
+        <Masthead />
       </div>
     </header>
   );
 }
 
 /**
- * The page's own column, at one of the two named measures — `column` for almost
- * everything, `wide` for the two surfaces that are four surfaces at once.
+ * The page's own column, for the surfaces outside the app shell. Inside it,
+ * `AppShell` draws the same `<main>` at one of the two `MEASURE`s.
  */
 export function Sheet({
   children,
   testId,
-  measure = "column",
 }: {
   children: ReactNode;
   testId?: string;
-  measure?: Measure;
 }) {
   return (
     <main
       id="main"
       data-testid={testId}
-      className={`mx-auto flex w-full ${MEASURE[measure]} flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12`}
+      className={`mx-auto flex w-full ${MEASURE.column} flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12`}
     >
       {children}
     </main>
@@ -166,14 +158,28 @@ export function Sheet({
  * Deliberately **not** a `Sheet`/`<main>`: the App Router streams this beside
  * the resolving page, and two `<main id="main">` would break the skip link
  * (slice 8.4). Same column measure, no landmark.
+ *
+ * Since 11.1 it also draws the app shell's frame — an empty sidebar column and
+ * header band, no data — because the shell is rendered by each page, and a
+ * fallback without it made the sidebar vanish for the length of every
+ * navigation.
  */
 export function LoadingSheet({ label }: { label: string }) {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12">
-      <p className="text-sm text-ink-soft" role="status">
-        {label}
-      </p>
-      <div className="slot-waiting min-h-16" aria-hidden="true" />
+    <div className="flex min-h-0 flex-1">
+      <div
+        aria-hidden="true"
+        className="hidden w-60 shrink-0 border-r border-rail/40 lg:block"
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div aria-hidden="true" className="min-h-14 border-b border-rail/40" />
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-5 py-8 sm:gap-slot sm:px-8 sm:py-12">
+          <p className="text-sm text-ink-soft" role="status">
+            {label}
+          </p>
+          <div className="slot-waiting min-h-16" aria-hidden="true" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -961,55 +967,7 @@ export function BoardPlan({
   );
 }
 
-/** A short arrow drawn in the board's own grammar: one stroke, no icon font. */
-/**
- * The way back, at a real tap target.
- *
- * Every surface hand-rolled this link, and every one of them was **16px tall**
- * — 32px on a phone only because the label wrapped to two lines. DESIGN.md's
- * own Do says 44px on *both* axes and records `FilterToggle` learning it the
- * hard way; the rail's back links fell straight through the same gap, and
- * 3.4a's critique measured them (`The room` 83.8×32 mobile, 90.3×16 desktop).
- *
- * `items-center` with `min-h-11` rather than padding, so the label keeps its
- * position on the rail and only the box grows. `whitespace-nowrap` because the
- * two-line wrap was the only reason the mobile number was not 16 either.
- */
-export function BackLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="slot-label inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-    >
-      <BackArrow />
-      {children}
-    </Link>
-  );
-}
-
-export function BackArrow() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 12 8"
-      className="h-2 w-3"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-    >
-      <path d="M11.5 4H1M4 1L1 4l3 3" />
-    </svg>
-  );
-}
-
 /* `SunIcon` and `MoonIcon` stood here for the ground switch and went with it in
- * Phase 10. The recipe they established survives in DESIGN.md: draw on 16 units
- * and render at 18px so the stroke lands a shade over 1px, and size a set
- * against each other rather than to a shared box. 10.6's sparkline is the next
- * thing to follow it. */
+ * Phase 10, and `BackArrow` went with the back links in 11.1. The recipe they
+ * established survives in DESIGN.md and in `nav-icons.tsx`: draw on 16 units
+ * and render at 18px so the stroke lands a shade over 1px. */

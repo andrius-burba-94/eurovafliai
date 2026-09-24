@@ -122,6 +122,54 @@ export async function listMyLeagues(): Promise<LeagueCard[]> {
   );
 }
 
+export type LeagueLink = { id: string; name: string };
+
+/**
+ * What the shell needs on every render: the switcher's names and ids, newest
+ * first, and whether to draw the Manage group.
+ *
+ * Not `listMyLeagues`, which reads every league's roster to draw its patches —
+ * a query per league on every page render, for a menu that shows a name. And
+ * not `canManageRosters`, which signs in as the superuser: a password check on
+ * every render, and the draft room re-renders for every viewer on every pick.
+ * The viewer's own token can see the leagues they commission and their own
+ * memberships, which is the whole question. The actions behind the Manage
+ * links still gate on `canManageRosters`; this only decides what is drawn.
+ */
+export async function readShellLeagues(): Promise<{
+  leagues: LeagueLink[];
+  isRosterManager: boolean;
+}> {
+  const session = await getSession();
+  if (!session) return { leagues: [], isRosterManager: false };
+
+  const pb = createUserClient(session.token);
+  try {
+    const [leagues, deputies] = await Promise.all([
+      pb.collection("leagues").getFullList<LeagueRecord>({
+        sort: "-created",
+        fields: "id,name,commissioner",
+        requestKey: null,
+      }),
+      pb.collection("league_members").getFullList({
+        filter: pb.filter("user = {:user} && can_manage = true", {
+          user: session.user.id,
+        }),
+        fields: "id",
+        requestKey: null,
+      }),
+    ]);
+    return {
+      leagues: leagues.map((league) => ({ id: league.id, name: league.name })),
+      isRosterManager:
+        deputies.length > 0 ||
+        leagues.some((league) => league.commissioner === session.user.id),
+    };
+  } catch {
+    return { leagues: [], isRosterManager: false };
+  }
+}
+
 /**
  * One league with its members, or null when the viewer may not see it.
  *

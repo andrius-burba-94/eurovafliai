@@ -5,7 +5,7 @@ import {
   BoardPlan,
   Correction,
   Sheet,
-  TopRail,
+  BareRail,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { startGoogleLogin } from "@/lib/auth/actions";
@@ -60,7 +60,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <>
-      <TopRail />
+      <BareRail />
       <Sheet testId="login">
         <div className="flex max-w-md flex-col gap-3">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">

@@ -1,13 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Sheet, TopRail } from "@/components/board";
 import {
   resolveSeason,
   SeasonControl,
 } from "@/components/season-control";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
 import { readTransactionBoard } from "@/lib/memberships/queries";
 
 import { TransactionBuilder } from "./transaction-builder";
@@ -47,32 +48,31 @@ export default async function NewTransactionPage({
   }));
 
   return (
-    <>
-      <TopRail
-        action={<BackLink href={`/leagues/${id}`}>The lobby</BackLink>}
+    <AppShell
+      current="trades"
+      league={navLeagueFrom(data)}
+      testId="transaction-builder"
+    >
+      <div className="flex flex-col gap-4">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Record a transaction
+        </h1>
+        <p className="text-ink-soft">
+          {data.league.name}. The room already agreed. The season sets the
+          scoring context; the roster change applies now.
+        </p>
+      </div>
+      <SeasonControl
+        action={`/leagues/${id}/transactions/new`}
+        season={season}
+        currentSeason={currentSeason}
       />
-      <Sheet testId="transaction-builder">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Record a transaction
-          </h1>
-          <p className="text-ink-soft">
-            {data.league.name}. The room already agreed. The season sets the
-            scoring context; the roster change applies now.
-          </p>
-        </div>
-        <SeasonControl
-          action={`/leagues/${id}/transactions/new`}
-          season={season}
-          currentSeason={currentSeason}
-        />
-        <TransactionBuilder
-          leagueId={id}
-          members={people}
-          seats={board.seats}
-          freeAgents={board.freeAgents}
-        />
-      </Sheet>
-    </>
+      <TransactionBuilder
+        leagueId={id}
+        members={people}
+        seats={board.seats}
+        freeAgents={board.freeAgents}
+      />
+    </AppShell>
   );
 }

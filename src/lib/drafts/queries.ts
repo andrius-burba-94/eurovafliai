@@ -14,14 +14,11 @@ import {
   radarSize,
 } from "@/lib/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
+import type { NavLeague } from "@/lib/nav/items";
 import { createUserClient } from "@/lib/pb/server";
+import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
 import type { PoolPlayer } from "@/lib/pool/search";
-import {
-  averageFantasyOf,
-  averagePirOf,
-  last5SeriesOf,
-  rankPirFromRecord,
-} from "@/lib/stats/project";
+import { rankPirFromRecord } from "@/lib/stats/project";
 import { tierOfRank } from "@/lib/sheets/ranking";
 import { readSheet } from "@/lib/sheets/store";
 
@@ -82,6 +79,11 @@ export type DraftView = {
    * offer it rather than leaving it reachable only by a crafted request.
    */
   canManage: boolean;
+  /**
+   * The shell's view of this league, from the reads above. The room refreshes
+   * on every pick for every viewer, so it does not pay for the lobby's read too.
+   */
+  nav: NavLeague;
   /**
    * Every member of the league, with the switch that decides whether the sweep
    * picks for them.
@@ -181,16 +183,17 @@ export async function getDraftView(
   const draft = drafts[0];
   if (!draft) return null;
 
-  const league = await pb
-    .collection("leagues")
-    .getOne<{ settings: unknown; commissioner: string; status: string }>(
-      leagueId,
-      { requestKey: null },
-    );
+  const league = await pb.collection("leagues").getOne<{
+    id: string;
+    name: string;
+    settings: unknown;
+    commissioner: string;
+    status: string;
+  }>(leagueId, { requestKey: null });
   const settings = parseLeagueSettings(league.settings);
 
   // Before the picks are read, not after — see the note in `repair.ts`.
-  await reconcileLeagueStatus(leagueId, league.status);
+  const status = await reconcileLeagueStatus(leagueId, league.status);
 
   const [memberRecords, pickRecords, players, chat] = await Promise.all([
     pb.collection("league_members").getFullList<{
@@ -217,23 +220,7 @@ export async function getDraftView(
       expand: "player",
       requestKey: null,
     }),
-    pb.collection("players").getFullList<{
-      id: string;
-      name: string;
-      name_normalized: string;
-      club_code: string;
-      club_name: string;
-      position: Position;
-      status: string;
-      proj_last5_fantasy?: number;
-      proj_last5_games?: number;
-      proj_last5_pir?: number;
-      proj_last5_pirs?: unknown;
-      prev_season_games?: number;
-      prev_season_pir?: number;
-      prev_season_fantasy?: number;
-      prev_season_code?: string;
-    }>({
+    pb.collection("players").getFullList<PoolPlayerRecord>({
       filter: DRAFTABLE_PLAYERS_FILTER,
       sort: "name",
       requestKey: null,
@@ -418,6 +405,16 @@ export async function getDraftView(
     chat,
     canManage:
       league.commissioner === session.user.id || Boolean(you?.can_manage),
+    nav: {
+      id: league.id,
+      name: league.name,
+      status: status as NavLeague["status"],
+      youMemberId: youId ?? null,
+      isCommissioner: league.commissioner === session.user.id,
+      canManage:
+        league.commissioner === session.user.id || Boolean(you?.can_manage),
+      rolled: Boolean(settings.rolled_at),
+    },
     members: memberRecords.map((record) => ({
       id: record.id,
       name: nameOf.get(record.id) ?? "Unknown member",
@@ -425,38 +422,9 @@ export async function getDraftView(
       autodraftEnabled: Boolean(record.autodraft_enabled),
     })),
     yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
-    pool: players.map((player) => {
-      const held = heldBy.get(player.id);
-      const average = averagePirOf(player);
-      return {
-        id: player.id,
-        name: player.name,
-        // The ingestion match key, carried so the browser can match
-        // "valanciunas" against "Valančiūnas" without owning a second folding
-        // implementation. Never displayed — ingestion sorts its tokens.
-        normalized: player.name_normalized ?? "",
-        club: player.club_code,
-        // The club's full name, for the filter's own list. The code is what a
-        // row shows — three characters beside a name is the whole point of a
-        // code — but a *dropdown* of bare codes asks the reader to know that
-        // OLY is Olympiacos, and 20 of those is a memory test rather than a
-        // filter.
-        clubName: player.club_name ?? player.club_code,
-        position: player.position,
-        status: player.status,
-        takenBy: held?.by ?? null,
-        takenAt: held?.at ?? null,
-        averagePir: average?.tenths ?? null,
-        averageGames: average?.games ?? 0,
-        averageSource: average?.source ?? null,
-        // Only when the average is this season's form. A `prev` average has no
-        // per-game lines behind it — it is imported already averaged — so a
-        // series there would be five marks we invented.
-        last5Pirs: average?.source === "last5" ? last5SeriesOf(player) : [],
-        averageSeason: average?.season ?? null,
-        averageFantasy: averageFantasyOf(player) ?? null,
-      };
-    }),
+    pool: players.map((player) =>
+      toPoolPlayer(player, heldBy.get(player.id)),
+    ),
     availableCount: players.filter((player) => !heldBy.has(player.id)).length,
     radar: buildRadar(
       // Draft order, not the order PocketBase returned the memberships in.

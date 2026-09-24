@@ -1,15 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 
 import {
-  BackLink,
   Bank,
   Correction,
   Door,
   EmptyNotice,
-  Sheet,
   Slots,
-  TopRail,
 } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import {
   resolveSeason,
   SeasonControl,
@@ -17,6 +15,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
 import { readLeagueRecap } from "@/lib/stats/queries";
 
 import { RecapBody } from "./recap-body";
@@ -65,83 +64,78 @@ export default async function RecapPage({
   const emptyScores = !emptyDraft && page === null;
 
   return (
-    <>
-      <TopRail
-        action={<BackLink href={`/leagues/${id}`}>The lobby</BackLink>}
+    <AppShell current="recap" league={navLeagueFrom(data)} testId="recap">
+      <div className="flex flex-col gap-4">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          This round
+        </h1>
+        <p className="slot-label">{data.league.name}</p>
+      </div>
+
+      <SeasonControl
+        action={`/leagues/${id}/recap`}
+        season={season}
+        currentSeason={currentSeason}
       />
-      <Sheet testId="recap">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            This round
-          </h1>
-          <p className="slot-label">{data.league.name}</p>
-        </div>
 
-        <SeasonControl
-          action={`/leagues/${id}/recap`}
-          season={season}
-          currentSeason={currentSeason}
-        />
+      {requestedRound !== null &&
+      page &&
+      page.recap.round !== requestedRound ? (
+        <Correction testId="recap-round-fallback">
+          Round {requestedRound} is not counted. Showing round{" "}
+          {page.recap.round}.
+        </Correction>
+      ) : null}
 
-        {requestedRound !== null &&
-        page &&
-        page.recap.round !== requestedRound ? (
-          <Correction testId="recap-round-fallback">
-            Round {requestedRound} is not counted. Showing round{" "}
-            {page.recap.round}.
-          </Correction>
-        ) : null}
-
-        {emptyDraft ? (
-          <Bank framed label="The night">
-            <EmptyNotice testId="recap-empty">
-              The draft is not complete, so there is no recap yet. This page is
-              one Euroleague night after the board is full.
-            </EmptyNotice>
-            <Slots>
-              <Door
-                href={`/leagues/${id}`}
-                title="The lobby"
-                description="Finish the draft, then come back for the night."
-                action="Open"
-                testId="recap-empty-lobby"
-              />
-            </Slots>
-          </Bank>
-        ) : emptyScores ? (
-          <Bank framed label="The night">
-            <EmptyNotice testId="recap-empty">
-              No box scores counted for {season} yet. Rank, best night and swing
-              wait on a counted round.
-            </EmptyNotice>
-            <Slots>
-              <Door
-                href={`/leagues/${id}`}
-                title="The lobby"
-                description="The season board is already open. Nights land on their own."
-                action="Open"
-                testId="recap-empty-lobby"
-              />
-            </Slots>
-          </Bank>
-        ) : page ? (
-          <>
-            <RoundPicker
-              leagueId={id}
-              season={season}
-              round={page.recap.round}
-              rounds={page.countedRounds}
+      {emptyDraft ? (
+        <Bank framed label="The night">
+          <EmptyNotice testId="recap-empty">
+            The draft is not complete, so there is no recap yet. This page is
+            one Euroleague night after the board is full.
+          </EmptyNotice>
+          <Slots>
+            <Door
+              href={`/leagues/${id}`}
+              title="The lobby"
+              description="Finish the draft, then come back for the night."
+              action="Open"
+              testId="recap-empty-lobby"
             />
-            <RecapBody
-              recap={page.recap}
-              names={names}
-              playerNames={page.playerNames}
-              leagueId={id}
-              season={season}
+          </Slots>
+        </Bank>
+      ) : emptyScores ? (
+        <Bank framed label="The night">
+          <EmptyNotice testId="recap-empty">
+            No box scores counted for {season} yet. Rank, best night and swing
+            wait on a counted round.
+          </EmptyNotice>
+          <Slots>
+            <Door
+              href={`/leagues/${id}`}
+              title="The lobby"
+              description="The season board is already open. Nights land on their own."
+              action="Open"
+              testId="recap-empty-lobby"
             />
-          </>
-        ) : null}
-      </Sheet>
-    </>
+          </Slots>
+        </Bank>
+      ) : page ? (
+        <>
+          <RoundPicker
+            leagueId={id}
+            season={season}
+            round={page.recap.round}
+            rounds={page.countedRounds}
+          />
+          <RecapBody
+            recap={page.recap}
+            names={names}
+            playerNames={page.playerNames}
+            leagueId={id}
+            season={season}
+          />
+        </>
+      ) : null}
+    </AppShell>
   );
 }

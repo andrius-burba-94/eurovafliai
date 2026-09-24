@@ -6,7 +6,7 @@ import {
   Correction,
   retryButtonStyles,
   Sheet,
-  TopRail,
+  BareRail,
 } from "@/components/board";
 
 export default function ErrorBoundary({
@@ -22,7 +22,7 @@ export default function ErrorBoundary({
 
   return (
     <>
-      <TopRail />
+      <BareRail />
       <Sheet testId="route-error">
         <Correction testId="route-error-message">
           Something on this page broke. The board itself is unchanged.

@@ -8,6 +8,7 @@ import {
   nextFixture,
   nextFixturesByClub,
   roundFixturesByClub,
+  roundSchedule,
   type ScheduleRow,
 } from "./schedule";
 
@@ -251,5 +252,46 @@ describe("the maps a page reads", () => {
     ];
     const map = roundFixturesByClub(rows, 4);
     expect([...map.keys()].sort()).toEqual(["AAA", "BBB"]);
+  });
+});
+
+describe("roundSchedule", () => {
+  it("is null for a season with no stored games", () => {
+    expect(roundSchedule([])).toBeNull();
+  });
+
+  it("defaults to the earliest round with a game still to play", () => {
+    const rows = [
+      game({ round: 1, played: true }),
+      game({ round: 2, played: true }),
+      game({ round: 3 }),
+      game({ round: 4 }),
+    ];
+    expect(roundSchedule(rows)?.round).toBe(3);
+  });
+
+  it("falls back to the last round once everything is played", () => {
+    const rows = [game({ round: 1, played: true }), game({ round: 2, played: true })];
+    expect(roundSchedule(rows)?.round).toBe(2);
+  });
+
+  it("honours an asked-for round, even one with nothing in it", () => {
+    const rows = [game({ round: 1 }), game({ round: 2 })];
+    expect(roundSchedule(rows, 2)?.games).toHaveLength(1);
+    expect(roundSchedule(rows, 9)).toEqual({ round: 9, games: [] });
+  });
+
+  it("orders by tip-off, untimed games last and stable by code", () => {
+    const late = game({ round: 5, utcDate: "2026-10-02T19:00:00Z" });
+    const early = game({ round: 5, utcDate: "2026-10-01T18:00:00Z" });
+    const untimedA = game({ round: 5 });
+    const untimedB = game({ round: 5 });
+    const order = roundSchedule([untimedB, late, untimedA, early], 5)!.games;
+    expect(order.map((row) => row.gameCode)).toEqual([
+      early.gameCode,
+      late.gameCode,
+      untimedA.gameCode,
+      untimedB.gameCode,
+    ]);
   });
 });
