@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Sheet as Card, TopRail } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
+import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
 import { getCheatSheetView } from "@/lib/sheets/queries";
 
 import { SheetForm } from "./sheet-form";
@@ -30,58 +32,51 @@ export default async function CheatSheetPage({
   if (!session) redirect("/login?error=unauthorized");
 
   const { id } = await params;
-  const view = await getCheatSheetView(id);
+  const [view, leagueData] = await Promise.all([
+    getCheatSheetView(id),
+    getLeagueWithMembers(id),
+  ]);
   // Not a member of this league, or no such league. `notFound` rather than a
   // refusal, so the page does not confirm the league exists to somebody with
   // no business here — the same line `/players/import` draws.
   if (!view) notFound();
+  const league = leagueData ? navLeagueFrom(leagueData) : null;
 
   return (
-    <>
-      <TopRail
-        action={
-          <BackLink
-            href={view.drafting ? `/leagues/${id}/draft` : `/leagues/${id}`}
-          >
-            {view.drafting ? "The room" : "Lobby"}
-          </BackLink>
-        }
+    <AppShell current="sheet" league={league} testId="cheat-sheet">
+      <div className="flex max-w-xl flex-col gap-3">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Your cheat sheet
+        </h1>
+        <p className="text-ink-soft">
+          {view.leagueName} &middot; nobody else in the league can see this.
+          Autodraft picks from it, top down, taking the first player who is
+          still there and still fits your roster.
+        </p>
+      </div>
+
+      <SheetList
+        leagueId={id}
+        rows={view.rows}
+        tiers={view.tiers}
+        poolSize={view.poolSize}
+        cover={view.cover}
       />
-      <Card testId="cheat-sheet">
-        <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Your cheat sheet
-          </h1>
-          <p className="text-ink-soft">
-            {view.leagueName} &middot; nobody else in the league can see this.
-            Autodraft picks from it, top down, taking the first player who is
-            still there and still fits your roster.
-          </p>
-        </div>
 
-        <SheetList
-          leagueId={id}
-          rows={view.rows}
-          tiers={view.tiers}
-          poolSize={view.poolSize}
-          cover={view.cover}
-        />
-
-        {/* `initialText` moves now — a reorder above rewrites it — and
-            `SheetForm` re-seeds its box from it. Deliberately *not* a `key`:
-            remounting the form was the first attempt and it threw away the
-            `useActionState` result with the rest of the component, so a save
-            re-rendered the page and its own "Saved" confirmation vanished.
-            3.4a's critique fixed that confirmation into existence; a `key`
-            here would have quietly un-fixed it. Caught by that slice's own
-            spec. */}
-        <SheetForm
-          leagueId={id}
-          rankedCount={view.rows.length}
-          poolSize={view.poolSize}
-          initialText={view.asText}
-        />
-      </Card>
-    </>
+      {/* `initialText` moves now — a reorder above rewrites it — and
+          `SheetForm` re-seeds its box from it. Deliberately *not* a `key`:
+          remounting the form was the first attempt and it threw away the
+          `useActionState` result with the rest of the component, so a save
+          re-rendered the page and its own "Saved" confirmation vanished.
+          3.4a's critique fixed that confirmation into existence; a `key`
+          here would have quietly un-fixed it. Caught by that slice's own
+          spec. */}
+      <SheetForm
+        leagueId={id}
+        rankedCount={view.rows.length}
+        poolSize={view.poolSize}
+        initialText={view.asText}
+      />
+    </AppShell>
   );
 }

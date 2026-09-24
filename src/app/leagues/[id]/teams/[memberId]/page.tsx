@@ -2,20 +2,17 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import {
-  BackLink,
   Bank,
   CardBlock,
   CardBlocks,
   CardName,
-  Door,
   EmptyNotice,
   FixtureNote,
   PositionPatch,
-  Sheet,
-  Slots,
   Sparkline,
-  TopRail,
 } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
+import { ContextPanel } from "@/components/context-panel";
 import { RosterRadar } from "@/components/roster-radar";
 import {
   resolveSeason,
@@ -25,6 +22,8 @@ import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { buildRadar, radarSize } from "@/lib/engine";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { navLeagueFrom } from "@/lib/nav/items";
+import { readPanel } from "@/lib/panel/queries";
 import { readMemberDeals, readMemberRoster } from "@/lib/memberships/queries";
 
 import { ImpactList } from "./impact-list";
@@ -62,9 +61,10 @@ export default async function TeamPage({
       row.teamName.trim() ? row.teamName : row.name,
     ]),
   );
-  const [roster, deals] = await Promise.all([
+  const [roster, deals, panel] = await Promise.all([
     readMemberRoster(id, memberId, season),
     readMemberDeals(id, memberId, season, teamNames),
+    readPanel({ leagueId: id, season, teamNames }),
   ]);
   const template = data.settings.roster_template;
   const radarPicks = roster.map((player, index) => ({
@@ -84,121 +84,112 @@ export default async function TeamPage({
     data.members.some((row) => row.isYou && row.canManage);
 
   return (
-    <>
-      <TopRail
-        action={<BackLink href={`/leagues/${id}`}>The lobby</BackLink>}
+    <AppShell
+      current={member.isYou ? "team" : undefined}
+      league={navLeagueFrom(data)}
+      testId="roster"
+      panel={<ContextPanel data={panel} />}
+    >
+      <div className="flex flex-col gap-4">
+        <h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">
+          {displayName}
+        </h1>
+        <p className="slot-label">
+          {data.league.name}
+          {member.isYou ? " · you" : ""}
+        </p>
+      </div>
+
+      <SeasonControl
+        action={`/leagues/${id}/teams/${memberId}`}
+        season={season}
+        currentSeason={currentSeason}
       />
-      <Sheet testId="roster">
-        <div className="flex flex-col gap-4">
-          <h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">
-            {displayName}
-          </h1>
-          <p className="slot-label">
-            {data.league.name}
-            {member.isYou ? " · you" : ""}
-          </p>
-        </div>
 
-        <SeasonControl
-          action={`/leagues/${id}/teams/${memberId}`}
-          season={season}
-          currentSeason={currentSeason}
-        />
-
-        {roster.length === 0 ? (
-          <Bank framed label="The roster" aside={`0 of ${rosterSize}`}>
-            <EmptyNotice testId="roster-empty">
-              No players are on this roster yet. Slots fill from the draft, then
-              from recorded trades.
-            </EmptyNotice>
-            <Slots>
-              <Door
-                href={`/leagues/${id}`}
-                title="The lobby"
-                description="Open the board when the room is drafting, or wait for a recorded swap."
-                action="Open"
-                testId="roster-empty-lobby"
-              />
-            </Slots>
-          </Bank>
-        ) : (
-          <Bank
-            framed
-            label="The roster"
-            aside={`${roster.length} of ${rosterSize}`}
-          >
-            <CardBlocks
-              testId="roster-list"
-              label={`${displayName} roster`}
-              columns
-            >
-              {roster.map((player) => (
-                <CardBlock
-                  key={player.id}
-                  testId="roster-player"
-                  state="filled"
-                  position={player.position}
-                >
-                  <Link
-                    href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
-                    className="-mx-3 -my-3 flex min-h-11 min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
-                  >
-                    <PositionPatch position={player.position} />
-                    <span className="flex min-w-0 flex-1 flex-col gap-1">
-                      <CardName>{player.name}</CardName>
-                      <span className="text-sm text-ink-soft">
-                        {player.clubName || player.clubCode}
-                      </span>
-                    </span>
-                    {player.overallNo ? (
-                      <span className="stat slot-label">
-                        #{player.overallNo}
-                      </span>
-                    ) : null}
-                  </Link>
-                  {/* Drawn at every width here, unlike the pool row: a block has
-                      vertical room where a 390px ledger row has none, which is
-                      most of the argument for blocks on this surface. */}
-                  <Sparkline
-                    values={player.last5Pirs}
-                    what="PIR"
-                    className="flex h-4 w-[3.125rem] text-ink-soft"
-                    testId="roster-spark"
-                  />
-                  <FixtureNote fixture={player.fixture} />
-                </CardBlock>
-              ))}
-              {Array.from({ length: waiting }, (_, index) => (
-                <CardBlock key={`waiting-${index}`} state="waiting">
-                  <span className="slot-label text-ink-faint">
-                    Open roster slot{" "}
-                    {String(roster.length + index + 1).padStart(2, "0")}
-                  </span>
-                </CardBlock>
-              ))}
-            </CardBlocks>
-          </Bank>
-        )}
-
-        <ImpactList
-          deals={deals}
-          teamName={displayName}
-          leagueId={id}
-          canManage={viewerCanManage}
-          season={data.league.status === "season"}
-        />
-
-        <Bank framed label="Roster shape">
-          <RosterRadar
-            rows={radar}
-            columns={[
-              { memberId: member.id, name: displayName, isYou: member.isYou },
-            ]}
-            total={rosterSize}
-            onClockMemberId={null}
-          />
+      {roster.length === 0 ? (
+        <Bank framed label="The roster" aside={`0 of ${rosterSize}`}>
+          <EmptyNotice testId="roster-empty">
+            No players are on this roster yet. Slots fill from the draft, then
+            from recorded trades.
+          </EmptyNotice>
         </Bank>
-      </Sheet>
-    </>
+      ) : (
+        <Bank
+          framed
+          label="The roster"
+          aside={`${roster.length} of ${rosterSize}`}
+        >
+          <CardBlocks
+            testId="roster-list"
+            label={`${displayName} roster`}
+            columns
+          >
+            {roster.map((player) => (
+              <CardBlock
+                key={player.id}
+                testId="roster-player"
+                state="filled"
+                position={player.position}
+              >
+                <Link
+                  href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
+                  className="-mx-3 -my-3 flex min-h-11 min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+                >
+                  <PositionPatch position={player.position} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <CardName>{player.name}</CardName>
+                    <span className="text-sm text-ink-soft">
+                      {player.clubName || player.clubCode}
+                    </span>
+                  </span>
+                  {player.overallNo ? (
+                    <span className="stat slot-label">
+                      #{player.overallNo}
+                    </span>
+                  ) : null}
+                </Link>
+                {/* Drawn at every width here, unlike the pool row: a block has
+                    vertical room where a 390px ledger row has none, which is
+                    most of the argument for blocks on this surface. */}
+                <Sparkline
+                  values={player.last5Pirs}
+                  what="PIR"
+                  className="flex h-4 w-[3.125rem] text-ink-soft"
+                  testId="roster-spark"
+                />
+                <FixtureNote fixture={player.fixture} />
+              </CardBlock>
+            ))}
+            {Array.from({ length: waiting }, (_, index) => (
+              <CardBlock key={`waiting-${index}`} state="waiting">
+                <span className="slot-label text-ink-faint">
+                  Open roster slot{" "}
+                  {String(roster.length + index + 1).padStart(2, "0")}
+                </span>
+              </CardBlock>
+            ))}
+          </CardBlocks>
+        </Bank>
+      )}
+
+      <ImpactList
+        deals={deals}
+        teamName={displayName}
+        leagueId={id}
+        canManage={viewerCanManage}
+        season={data.league.status === "season"}
+      />
+
+      <Bank framed label="Roster shape">
+        <RosterRadar
+          rows={radar}
+          columns={[
+            { memberId: member.id, name: displayName, isYou: member.isYou },
+          ]}
+          total={rosterSize}
+          onClockMemberId={null}
+        />
+      </Bank>
+    </AppShell>
   );
 }

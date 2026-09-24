@@ -425,7 +425,7 @@ export function TransactionBuilder({
         <Correction testId="transaction-error">{result.error}</Correction>
       ) : null}
 
-      <div className="slot-filled sticky bottom-0 z-30 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3">
+      <div className="slot-filled sticky bottom-(--tabs-height) z-30 lg:bottom-0 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3">
         <p className="text-sm text-ink-soft" data-testid="confirm-sentence">
           {sentence}
         </p>

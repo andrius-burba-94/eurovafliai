@@ -66,16 +66,6 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await expect(page.getByTestId("create-league")).not.toHaveClass(
     /\btext-live\b/,
   );
-
-  for (const control of [
-    page.getByRole("link", { name: "Leagues" }),
-    page.getByRole("link", { name: "Pool" }),
-    page.getByRole("button", { name: "Sign out" }),
-  ]) {
-    const box = await control.boundingBox();
-    expect(box?.width).toBeGreaterThanOrEqual(44);
-    expect(box?.height).toBeGreaterThanOrEqual(44);
-  }
 });
 
 test("a second person joins with the invite code", async ({

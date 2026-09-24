@@ -7,10 +7,8 @@ import {
   CardBlocks,
   CardName,
   PositionPatch,
-  Sheet,
-  TopRail,
 } from "@/components/board";
-import { logout } from "@/lib/auth/actions";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { listMyLeagues } from "@/lib/leagues/queries";
 
@@ -39,117 +37,82 @@ export default async function Home() {
   const leagues = await listMyLeagues();
 
   return (
-    <>
-      <TopRail
-        action={
-          <div className="flex flex-col items-end gap-1">
-            <span className="slot-label max-w-40 truncate text-ink">
-              {session.user.name || session.user.email}
-            </span>
-            <nav aria-label="Account" className="flex items-center gap-1">
-              <Link
-                href="/"
-                aria-current="page"
-                className="slot-label inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-              >
-                Leagues
-              </Link>
-              <Link
-                href="/players"
-                className="slot-label inline-flex min-h-11 min-w-11 items-center justify-center px-2 whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-              >
-                Pool
-              </Link>
-              <form action={logout}>
-                <button
-                  type="submit"
-                  data-testid="logout"
-                  className="slot-label inline-flex min-h-11 min-w-11 items-center justify-center px-2 whitespace-nowrap transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                >
-                  Sign out
-                </button>
-              </form>
-            </nav>
-          </div>
+    <AppShell current="leagues" testId="app-shell">
+      <div className="flex max-w-xl flex-col gap-3">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Your leagues
+        </h1>
+        <p className="text-ink-soft">
+          Open the board for draft night, or check where the season stands.
+        </p>
+      </div>
+
+      <Bank
+        label="Open a league"
+        framed
+        aside={
+          leagues.length > 0
+            ? `${leagues.length} league${leagues.length === 1 ? "" : "s"}`
+            : "none yet"
         }
-      />
-      <Sheet testId="app-shell">
-        <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Your leagues
-          </h1>
-          <p className="text-ink-soft">
-            Open the board for draft night, or check where the season stands.
-          </p>
-        </div>
-
-        <Bank
-          label="Open a league"
-          framed
-          aside={
-            leagues.length > 0
-              ? `${leagues.length} league${leagues.length === 1 ? "" : "s"}`
-              : "none yet"
-          }
-        >
-          <CardBlocks testId="leagues-list" label="Your leagues" columns>
-            {leagues.map((league) => (
-              <CardBlock
-                key={league.id}
-                state={league.status === "setup" ? "waiting" : "filled"}
+      >
+        <CardBlocks testId="leagues-list" label="Your leagues" columns>
+          {leagues.map((league) => (
+            <CardBlock
+              key={league.id}
+              state={league.status === "setup" ? "waiting" : "filled"}
+            >
+              {/* The same negative-margin link a `Door` block uses, for the
+                  same reason: the target is the whole card, not the words. */}
+              <Link
+                href={`/leagues/${league.id}`}
+                className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 flex-col gap-2 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
               >
-                {/* The same negative-margin link a `Door` block uses, for the
-                    same reason: the target is the whole card, not the words. */}
-                <Link
-                  href={`/leagues/${league.id}`}
-                  className="-mx-3 -my-3 flex min-h-11 min-w-0 flex-1 flex-col gap-2 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
-                >
-                  <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <CardName>{league.name}</CardName>
-                    <span className="slot-label">
-                      {league.season} &middot; {league.status}
-                    </span>
+                <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <CardName>{league.name}</CardName>
+                  <span className="slot-label">
+                    {league.season} &middot; {league.status}
                   </span>
-                  <span className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="slot-label">Your roster</span>
-                      {(["G", "F", "C"] as const).map((position) => (
-                        <PositionPatch
-                          key={position}
-                          position={position}
-                          count={`${league.positionCounts[position]}/${league.rosterTemplate[position]}`}
-                          label={`${league.positionCounts[position]} of ${league.rosterTemplate[position]} ${
-                            position === "G"
-                              ? "guards"
-                              : position === "F"
-                                ? "forwards"
-                                : "centers"
-                          }`}
-                        />
-                      ))}
-                    </span>
-                    <span className="slot-label text-ink">Open league</span>
-                  </span>
-                </Link>
-              </CardBlock>
-            ))}
-            {leagues.length === 0 ? (
-              <CardBlock state="waiting">
-                <span
-                  data-testid="leagues-empty"
-                  className="min-w-0 text-sm break-words text-ink-soft"
-                >
-                  No leagues yet. A league is the board you draft on and the
-                  table you keep score on. Start one below, or join a
-                  friend&rsquo;s with their invite code.
                 </span>
-              </CardBlock>
-            ) : null}
-          </CardBlocks>
-        </Bank>
+                <span className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="slot-label">Your roster</span>
+                    {(["G", "F", "C"] as const).map((position) => (
+                      <PositionPatch
+                        key={position}
+                        position={position}
+                        count={`${league.positionCounts[position]}/${league.rosterTemplate[position]}`}
+                        label={`${league.positionCounts[position]} of ${league.rosterTemplate[position]} ${
+                          position === "G"
+                            ? "guards"
+                            : position === "F"
+                              ? "forwards"
+                              : "centers"
+                        }`}
+                      />
+                    ))}
+                  </span>
+                  <span className="slot-label text-ink">Open league</span>
+                </span>
+              </Link>
+            </CardBlock>
+          ))}
+          {leagues.length === 0 ? (
+            <CardBlock state="waiting">
+              <span
+                data-testid="leagues-empty"
+                className="min-w-0 text-sm break-words text-ink-soft"
+              >
+                No leagues yet. A league is the board you draft on and the
+                table you keep score on. Start one below, or join a
+                friend&rsquo;s with their invite code.
+              </span>
+            </CardBlock>
+          ) : null}
+        </CardBlocks>
+      </Bank>
 
-        <LeagueForms hasLeagues={leagues.length > 0} />
-      </Sheet>
-    </>
+      <LeagueForms hasLeagues={leagues.length > 0} />
+    </AppShell>
   );
 }

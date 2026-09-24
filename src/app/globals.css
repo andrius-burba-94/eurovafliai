@@ -166,6 +166,10 @@
  * measurement that rules one out is `#FF5500` at 2.76:1 on card stock. */
 :root {
   color-scheme: dark;
+  /* The phone tab bar: its row, its top rule, the home indicator. Every bar
+   * that sticks to the bottom of a page stands on this, or it hides under the
+   * tabs mid-scroll. */
+  --tabs-height: calc(3.5rem + 1px + env(safe-area-inset-bottom));
 }
 
 ::selection {

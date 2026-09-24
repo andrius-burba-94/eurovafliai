@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Sheet, TopRail } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import {
   readLatestCheck,
@@ -56,28 +56,25 @@ export default async function MappingPage({
   ]);
 
   return (
-    <>
-      <TopRail action={<BackLink href="/players">The pool</BackLink>} />
-      <Sheet testId="player-mapping">
-        <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Player mapping
-          </h1>
-          <p className="text-ink-soft">
-            Three things end up here: a player the feed now calls something
-            else, a person code from a box score that matches nobody, and a name
-            in the injury news the pool does not answer to. All three are
-            questions about whether two records are one person, and none is
-            answered without you.
-          </p>
-        </div>
+    <AppShell current="mapping" testId="player-mapping">
+      <div className="flex max-w-xl flex-col gap-3">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Player mapping
+        </h1>
+        <p className="text-ink-soft">
+          Three things end up here: a player the feed now calls something
+          else, a person code from a box score that matches nobody, and a name
+          in the injury news the pool does not answer to. All three are
+          questions about whether two records are one person, and none is
+          answered without you.
+        </p>
+      </div>
 
-        <MappingSurface
-          unmatched={unmatched}
-          lastCheck={lastCheck}
-          news={news}
-        />
-      </Sheet>
-    </>
+      <MappingSurface
+        unmatched={unmatched}
+        lastCheck={lastCheck}
+        news={news}
+      />
+    </AppShell>
   );
 }

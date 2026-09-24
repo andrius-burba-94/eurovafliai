@@ -4,7 +4,7 @@ import {
   EmptyNotice,
   Sheet,
   Slots,
-  TopRail,
+  BareRail,
 } from "@/components/board";
 
 /**
@@ -15,7 +15,7 @@ import {
 export default function NotFound() {
   return (
     <>
-      <TopRail />
+      <BareRail />
       <Sheet testId="not-found">
         <div className="flex max-w-xl flex-col gap-3">
           <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">

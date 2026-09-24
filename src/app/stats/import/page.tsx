@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
-import { BackLink, Bank, Sheet, Slot, Slots, TopRail } from "@/components/board";
+import { Bank, Slot, Slots } from "@/components/board";
+import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { canManageRosters } from "@/lib/rosters/actions";
 import { readStatsOverview } from "@/lib/stats/actions";
@@ -34,56 +35,53 @@ export default async function StatImportPage() {
         : `Rounds ${overview.rounds[0]}–${overview.rounds[overview.rounds.length - 1]}`;
 
   return (
-    <>
-      <TopRail action={<BackLink href="/players">The pool</BackLink>} />
-      <Sheet testId="stat-import">
-        <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-            Import box scores
-          </h1>
-          <p className="text-ink-soft">
-            Paste a round&apos;s player lines, read what it would store, then
-            apply it. Nothing is written until you say so, and importing the
-            same sheet twice stores it once.
-          </p>
-        </div>
+    <AppShell current="import-stats" testId="stat-import">
+      <div className="flex max-w-xl flex-col gap-3">
+        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          Import box scores
+        </h1>
+        <p className="text-ink-soft">
+          Paste a round&apos;s player lines, read what it would store, then
+          apply it. Nothing is written until you say so, and importing the
+          same sheet twice stores it once.
+        </p>
+      </div>
 
-        <Bank label={`Stored for ${overview.season}`} aside={roundsSaid}>
-          <Slots testId="stats-stored">
-            <Slot state={overview.rows > 0 ? "filled" : "waiting"}>
-              <span className="slot-label">Game lines</span>
-              <span className="stat text-sm">{overview.rows}</span>
-            </Slot>
-            <Slot state={overview.rounds.length > 0 ? "filled" : "waiting"}>
-              <span className="slot-label">Rounds</span>
-              <span className="stat text-sm">
-                {overview.rounds.length}
-              </span>
-            </Slot>
+      <Bank label={`Stored for ${overview.season}`} aside={roundsSaid}>
+        <Slots testId="stats-stored">
+          <Slot state={overview.rows > 0 ? "filled" : "waiting"}>
+            <span className="slot-label">Game lines</span>
+            <span className="stat text-sm">{overview.rows}</span>
+          </Slot>
+          <Slot state={overview.rounds.length > 0 ? "filled" : "waiting"}>
+            <span className="slot-label">Rounds</span>
+            <span className="stat text-sm">
+              {overview.rounds.length}
+            </span>
+          </Slot>
+        </Slots>
+        {overview.batches.length > 0 ? (
+          <Slots testId="stats-batches">
+            {overview.batches.map((batch) => (
+              <Slot key={batch.id} state={batch.applied ? "filled" : "waiting"}>
+                <span className="slot-label">
+                  {batch.applied ? batch.source : `${batch.source}, not applied`}
+                </span>
+                <span className="stat text-sm">
+                  {batch.createdRows} new · {batch.updatedRows} corrected
+                </span>
+              </Slot>
+            ))}
           </Slots>
-          {overview.batches.length > 0 ? (
-            <Slots testId="stats-batches">
-              {overview.batches.map((batch) => (
-                <Slot key={batch.id} state={batch.applied ? "filled" : "waiting"}>
-                  <span className="slot-label">
-                    {batch.applied ? batch.source : `${batch.source}, not applied`}
-                  </span>
-                  <span className="stat text-sm">
-                    {batch.createdRows} new · {batch.updatedRows} corrected
-                  </span>
-                </Slot>
-              ))}
-            </Slots>
-          ) : (
-            <p className="text-sm text-ink-soft">
-              Nothing has been imported yet. The 2026-27 season tips off on 24
-              September 2026.
-            </p>
-          )}
-        </Bank>
+        ) : (
+          <p className="text-sm text-ink-soft">
+            Nothing has been imported yet. The 2026-27 season tips off on 24
+            September 2026.
+          </p>
+        )}
+      </Bank>
 
-        <StatImportForm season={overview.season} />
-      </Sheet>
-    </>
+      <StatImportForm season={overview.season} />
+    </AppShell>
   );
 }

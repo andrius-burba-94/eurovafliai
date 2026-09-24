@@ -114,7 +114,7 @@ test("a member opens a roster from the season lobby", async ({
 
   await page.getByTestId("roster-player").getByRole("link").click();
   await expect(page.getByTestId("player-log")).toBeVisible();
-  await page.getByRole("link", { name: "The roster" }).click();
+  await page.getByTestId("player-back-to-roster").click();
   await expect(page.getByTestId("roster")).toBeVisible();
 });
 

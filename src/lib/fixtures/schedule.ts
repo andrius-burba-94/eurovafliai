@@ -245,6 +245,35 @@ export function roundFixturesByClub(
   return out;
 }
 
+/**
+ * One round's games, for the side panel's Schedule tab — slice 11.2.
+ *
+ * With no round asked for, the round a member is thinking about: the earliest
+ * one that still has a game to play, or the last round once everything has
+ * been played. Games in tip-off order; an untimed game sorts last, by code, so
+ * the order is stable while the feed has not published a time.
+ */
+export function roundSchedule(
+  rows: readonly ScheduleRow[],
+  round?: number,
+): { round: number; games: ScheduleRow[] } | null {
+  if (rows.length === 0) return null;
+  const unplayed = rows.filter((row) => !row.played).map((row) => row.round);
+  const chosen =
+    round ??
+    (unplayed.length > 0
+      ? Math.min(...unplayed)
+      : Math.max(...rows.map((row) => row.round)));
+  const games = rows
+    .filter((row) => row.round === chosen)
+    .sort(
+      (a, b) =>
+        (a.utcDate ?? "\uffff").localeCompare(b.utcDate ?? "\uffff") ||
+        a.gameCode - b.gameCode,
+    );
+  return { round: chosen, games };
+}
+
 function clubsIn(rows: readonly ScheduleRow[]): Set<string> {
   const clubs = new Set<string>();
   for (const row of rows) {

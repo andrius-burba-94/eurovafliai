@@ -480,11 +480,29 @@ because two families can only drift apart if something measures both.
 
 ## Layout
 
-**One column, two measures.** Every surface is a `TopRail` followed by a
-`Sheet`, and both take the same `measure` prop so the rail's wordmark aligns
-with the first slot below it on every page. There are exactly two:
+**The app shell** (ADR-0008, blueprint **D27**). Every signed-in surface is
+rendered inside `AppShell`: a **sidebar from `lg`** (15rem — wordmark, league
+switcher, the league's destinations, the global ones, a manage group, the
+account), a **header** on every width, an optional **side panel** that is a
+third column (22rem) **from `xl`** and a full-height sheet below it, and a
+**bottom tab bar below `lg`** (four destinations and *More*). What the nav
+holds is one pure function, `navFor`, so the three places it is drawn cannot
+disagree. Sign-in, not-found and the error pages stand outside the shell and
+draw the masthead alone (`BareRail`).
 
-- **`column`** — `max-w-3xl` (48rem) centred. Every surface in the app but one.
+The shell is layout, not skin: it adds no token, no material and no depth. The
+sidebar and header are separated from the content by the rail rule the old
+`TopRail` used; the panel sheet is `stock-panel` with a `rule-strong` edge and
+**no shadow, scrim or blur**. The current destination is `aria-current="page"`
+with a 2px **ink** rule — left in the sidebar, top in the tab bar — never
+marker: a nav item is neither the slot on the clock nor the act a surface
+exists for.
+
+**Two measures, inside the shell.** The content region is centred at one of
+two measures, which since 11.1 size the region *beside* the sidebar rather than
+the viewport:
+
+- **`column`** — `max-w-3xl` (48rem) centred. Every surface in the app but two.
 - **`wide`** — 48rem up to `lg`, then 80rem. **Two surfaces**, and the
   argument is in 10.9 and in open question 4 below: the room is the one surface
   that is four surfaces at once (pool, board, radar, console) and the one a
@@ -499,9 +517,10 @@ passes through. The map's key was renamed `room` → `wide` when the second one
 arrived, because a key named after one of its two callers is a lie a reviewer
 has to open the map to catch.
 
-There is still no sidebar, no full-bleed region, and **no third measure**. A
-surface that wants to be wider than `column` is the draft room, the season
-dashboard, or wrong.
+There is still no full-bleed region and **no third measure**. A surface that
+wants to be wider than `column` is the draft room, the season dashboard, or
+wrong. The side panel is not a measure: it is a region of the shell, and the
+content beside it keeps its own.
 
 **Three surfaces, three shapes.** 10.9's differentiation is layout, not skin —
 one design system, three shapes, each one the shape of its own question:
@@ -531,10 +550,12 @@ and its action. Slot rows are padded `0.75rem` horizontally, `0.75rem` verticall
 when filled and `0.5rem` when waiting — an empty slot is deliberately shorter
 than a filled one.
 
-**Responsive behaviour: two breakpoints, and the second one is the room.**
-Tailwind's `sm` (40rem / 640px) is the app's layout breakpoint; since 10.9 `lg`
-(64rem / 1024px) appears too, **only in the draft room**, and there is still no
-`md` or `xl` and no custom breakpoint. Everything below 40rem is the phone
+**Responsive behaviour: three breakpoints.** Tailwind's `sm` (40rem / 640px)
+is the content's layout breakpoint. `lg` (64rem / 1024px) is the shell's — the
+sidebar replaces the tab bar — and the room's and dashboard's second column.
+`xl` (80rem / 1280px) exists for one thing, the side panel's column: at 1024px
+a 15rem sidebar and a 22rem panel would leave the content about 26rem. There is
+still no `md` and no custom breakpoint. Everything below 40rem is the phone
 layout, everything above is the wide layout, and above the sheet's measure it
 simply centres. What changes at `sm`:
 
@@ -542,7 +563,6 @@ simply centres. What changes at `sm`:
 - "Start a league" and "Join a league" go from stacked to a two-column grid.
 - Buttons go from full-width to auto-width.
 - The signed-in dashboard lays its league blocks two across.
-- The signed-out user's name appears next to "Sign out" in the rail.
 - The board plan appears on the lobby (it is hidden on phones there).
 
 And at `lg`, in the room and nowhere else: the measure opens to 80rem and the
@@ -550,19 +570,29 @@ room splits into two columns — what you *do* on the left (the pool), what you
 *watch* on the right (radar, board, console, chat). The band above the split
 stays full width, because the clock belongs to the whole room.
 
-**The rail stays complete on the phone.** The season ("Euroleague 2026–27") is
-rendered at every size. It was hidden on small screens once, which made the
-primary device the one place the rail was incomplete. When the rail must
-contract, the *name* beside "Sign out" is what goes.
+**The masthead stays complete on the phone.** The season ("Euroleague
+2026–27") is rendered at every size. It was hidden on small screens once, which
+made the primary device the one place the masthead was incomplete.
+
+**The tab bar costs the phone ~56px, and pages pay it back.** The shell's
+`<main>` reserves bottom padding below `lg` so the last row of a page is never
+under the bar. The header is deliberately **not** sticky, so the draft room's
+sticky clock band still owns the top of the viewport.
 
 ### Named Rules
 
-**The One Measure Rule.** New surfaces use `Sheet` at its default `column`
-measure. The one exception is declared *in the component* — `Sheet` and
-`TopRail` share a `MEASURE` map, and `wide` is a value in it — so widening a
-surface is choosing a named measure that a reviewer can grep, never a per-page
-`max-w` override. A third entry in that map needs the argument 10.9 made for
-the second.
+**The Named Measure Rule.** New surfaces render `AppShell` at its default
+`column` measure. The exception is declared *in the component* — `AppShell`
+reads the `MEASURE` map in `board.tsx`, and `wide` is a value in it — so
+widening a surface is choosing a named measure that a reviewer can grep, never
+a per-page `max-w` override. A third entry in that map needs the argument 10.9
+made for the second.
+
+**The One Nav Rule.** A destination exists in `navFor` or nowhere. A page does
+not grow its own back link, or a lobby door whose only job is to go somewhere
+the nav already goes. A `Door` is for a destination that needs a sentence of
+explanation (the export) or for the one act a surface exists for (entering a
+live room).
 
 **The Slot Grid Rule.** Anything vertical is a multiple of the slot unit or of
 Tailwind's 0.25rem step. Do not introduce a third spacing system.
@@ -656,10 +686,12 @@ reaches a third level.
 **The only filled shapes** are the position patch (a 10% wash of its own hue) and
 the live slot (`live-sunk`). Hover and active states use 5–10% ink washes.
 
-**Iconography is drawn, not imported.** `BackArrow` is a hand-authored inline
-`<svg>`: one 1px stroke, `viewBox="0 0 12 8"`, `currentColor`,
-`aria-hidden="true"`. There is no icon library in this project. New icons follow
-the same recipe — a single stroke, no fill, no icon font, no package.
+**Iconography is drawn, not imported.** The shell's nav marks (`NavIcon`, 11.1)
+are hand-authored inline `<svg>`: one 1px stroke on a 16-unit box, rendered at
+18px, `currentColor`, `aria-hidden="true"`, and always beside their word. There
+is no icon library in this project. New icons follow the same recipe — a single
+stroke, no fill, no icon font, no package. (`BackArrow`, the first of them,
+went with the back links in 11.1.)
 
 `SunIcon` and `MoonIcon` were the other two and were **deleted in Phase 10**
 with the ground switch they belonged to. What they established is kept as the
@@ -701,35 +733,81 @@ server-offset clock. They are not a detached status row between the clock and
 the pool. The pool, radar and board below are three sibling framed Banks; none
 contains another, and the sticky band itself remains unframed.
 
-### Top rail — `TopRail`
+### App shell — `AppShell`
 
-The board's top rail. Character: a label on the frame, not a navigation bar.
+The frame every signed-in surface is rendered in (ADR-0008). Character: the
+board's own margins — a label on the frame, not a navigation bar.
 
-- **Structure:** wordmark + season on the left, the ground switch and one
-  optional `action` slot on the right, baseline-aligned. Bottom border 1px rail
-  blue at 40% opacity.
-- **Padding:** `1.25rem / 1rem` on a phone, `2rem / 1rem` from `sm`.
-- **The action slot** is a slot label — "Sign out · Name", or a `BackArrow` plus
-  "Leagues". Never a filled button.
-- **The rail has one line of controls, and everything that is a control sits in
-  it.** The switch is `self-end` against the action group at `gap-1`, not on the
-  rail's baseline. The case that decides this is an action of two lines — the
-  account stack on `/`, a name over its own nav: an icon centred against that
-  stack sits *between* its two lines, level with nothing, and reads as a stray
-  mark. Bottom-aligned it lands in the nav's own 44px band as one more control
-  in a row of them, and on the single-line surfaces (a `BackLink`, the same 44px
-  box) it is the same result.
-- **States:** rail links transition colour to full ink on hover and take a 2px
-  marker outline at `focus-visible` with 2px offset.
+- **Sidebar** (`lg` and up): `w-60`, sticky, full height, scrolls on its own,
+  right border 1px rail blue at 40%. Masthead, league switcher, then the nav
+  groups (a slot label over a list of 44px rows: drawn mark, word, optional
+  status word), then the account menu at the foot.
+- **Header** (every width): 3.5rem, bottom border like the sidebar's. Below
+  `lg` it carries the masthead and a compact league switcher; from `lg` it names
+  where you are as a slot label ("League · Standings"). On pages with a panel it
+  holds the panel toggle, hidden from `xl` where the panel is always there.
+- **Tab bar** (below `lg`): fixed, opaque `stock`, top border like the header.
+  Five 56px cells — four destinations from `tabsFor`, then *More*, which opens
+  every nav group and the account as a sheet above the bar.
+- **Side panel** (`xl` column, sheet below it): see *Side panel* below.
+- **States:** current is `aria-current="page"` plus a 2px **ink** rule and a 5%
+  ink wash — left edge in the sidebar, top edge in the tab bar. Hover lifts the
+  word to full ink; `focus-visible` is the 2px marker outline. Orange never
+  appears in the nav: *Live* beside the draft room is a word.
+- **Takes** `current` (the page's `NavKey`), `league` (from `navLeagueFrom`),
+  `measure`, `testId`, and optionally `panel` with `panelLabel`, `panelToggle`
+  (the header button's word) and `panelDocked`.
+
+### Menu — `Menu`
+
+The shell's one dropdown: league switcher, account, *More*. A disclosure, not
+an ARIA `menu` — a list of links needs no menuitem roving. The button carries
+`aria-expanded` / `aria-controls`; Escape closes and returns focus to it; a
+click outside or following a link closes it; the contents render only while
+open. The popover is `stock-panel` with a 1px `rule-strong` edge and no corner
+— the side panel's sheet material at menu size. Not `bank-framed`: a Bank
+groups a task on the page and a menu floats over one, and the depth scale has
+no floating layer to give it, so it borrows the sheet's.
+
+### Side panel — `ContextPanel` in `PanelFrame`
+
+Players / Schedule / News as an ARIA tablist with roving tabindex: one tab in
+the Tab order, arrows move, Home and End jump, selection follows focus because
+every tab is already-rendered data. The selected tab carries a 2px **ink**
+under-rule. *Players* is the pool as card blocks — patch and letter, name,
+club, average PIR, next fixture and who holds them — over the draft room's own
+`selectPool`, so the two lists never disagree about who matches a search.
+*Schedule* is a round of games as a slot run; *News* the latest injury items.
+
+`PanelFrame` is rendered once. From `xl` it is the shell's third column on
+stock with a rail-blue left rule; below `xl` it is a sheet the header opens —
+full width on a phone, a 22rem right-edge sheet from `sm` — in `stock-panel`
+with a `rule-strong` edge, no shadow, no scrim, no blur. Escape closes it and
+returns focus to the toggle. `panelDocked={false}` keeps it a sheet at every
+width; the draft room asks for that and shows only Schedule and News, because
+its pool is its own main column.
+
+### Court — `LineupCourt`
+
+A FIBA half court as 1px `rule-strong` line art on the ground (non-scaling
+strokes, no fill), baseline at the bottom. The five starters stand on it in
+one row per position letter — guards furthest from the rim — as opaque tokens:
+patch, surname, and *Captain* in marker when they carry the armband. Open
+places are dashed. The court is a picture and a set of tap targets; the
+editing controls stay on each player's card in the tiers below.
+
+### Masthead — `Masthead`, `BareRail`
+
+The wordmark and season as one link home. Drawn in the sidebar and the phone
+header; `BareRail` draws it alone above the four surfaces outside the shell.
 
 ### Sheet — `Sheet`
 
-The page's own column. Centred, `flex-1`, column flow, at one of the two named
-measures — `column` (`max-w-3xl`) by default, `wide` for the draft room and
-the season dashboard, and
-`TopRail` takes the same prop so the rail and the sheet below it always agree.
-Takes an optional `testId` which lands as `data-testid` — the E2E suite
-identifies surfaces this way (`login`, `app-shell`, `lobby`, `draft-room`).
+The page's own column for the surfaces outside the shell — sign-in, not-found,
+the two error pages — at the `column` measure. Inside the shell, `AppShell`
+draws the same `<main id="main">`. Takes an optional `testId` which lands as
+`data-testid` — the E2E suite identifies surfaces this way (`login`,
+`app-shell`, `lobby`, `draft-room`).
 
 ### Section — `Bank`
 
@@ -1300,9 +1378,11 @@ at all.
   for position. `color-mix(…, stock)` composites once. `tokens.test.ts` reads
   the map in `board.tsx` and fails if the alpha returns.
 
-### Back arrow — `BackArrow`
+### Nav marks — `NavIcon`
 
-See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
+See Shapes. One stroke on a 16-unit box, rendered at 18px, `aria-hidden`,
+always beside its word. `nav-icons.tsx` holds the set; there is no icon
+package.
 
 ## Do's and Don'ts
 
@@ -1376,8 +1456,10 @@ See Shapes. One stroke, inline, `aria-hidden`, `h-2 w-3`.
   crushed to zero width. Let the note wrap onto its own line.
 - **Don't** encode position or status by colour alone. The G / F / C letter is
   always present.
-- **Don't** hide the season from the top rail on small screens. If the rail must
-  contract, drop the user's name.
+- **Don't** hide the season from the masthead on small screens.
+- **Don't** add a back link or a lobby door that only goes somewhere the shell's
+  nav already goes (the One Nav Rule), and don't mark the current nav item in
+  marker.
 - **Don't** introduce a *third* font family, an icon package or an icon font, and
   don't set prose in the mono face.
 - **Don't** write `border-b-solid`. It is **not a Tailwind v4 utility** and
