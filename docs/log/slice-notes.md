@@ -2362,3 +2362,70 @@ by team then G/F/C, JSON keyed by kind, the `400` on an empty selection, the
 returns `200` to a non-member before streaming the not-found body — is
 documented in `tests/e2e/helpers/not-found.ts` and behaves identically on the
 lobby and the cheat sheet.
+
+## 11.1–11.3 — The app shell, the side panel and the court
+
+The brief was "a better accessibility and clarity", pointed at the official
+EuroLeague Fantasy Challenge: a sidebar, a court for the lineup, a floating
+panel of Players / Schedule / News. It was split on purpose into the half that
+is structure and the half that is paint, and only the structure was taken —
+ADR-0008 records why the orange gradient field was declined rather than
+deferred.
+
+### Why the shell is rendered by the page
+
+The plan said route layouts, and checking Next 16's own docs is what reversed
+it: a layout receives no pathname and no search params on the server, and it
+is *kept* across client navigation inside its segment. The nav's contents
+depend on the league's status — the room is offered while drafting and gone in
+season — so a layout would have kept a league's nav from before its draft
+finished. Every page already reads its league, so each passes that and its own
+`NavKey`. The cost is one line per page, and knip would catch a page that
+forgot.
+
+### The superuser sign-in that made everything slow
+
+The first full E2E run after the shell had nineteen failures, all timeouts
+shaped like load. Re-run at two workers it got *worse* — the opposite of data
+contamination — and a single failing test passed alone in eight seconds. The
+cause was `canManageRosters`, called by the shell to decide whether to draw the
+Manage group. It signs in as the superuser with a password, and the per-request
+`cache` means once per render, not once per process. Every signed-in page now
+paid a bcrypt check inside PocketBase, and the draft room — which every viewer
+re-renders on every pick — paid it ten times a pick. The shell now asks the
+same question of the viewer's own token (their commissioned leagues and their
+`can_manage` memberships are both readable to them under the existing rules),
+and the Manage actions still gate on `canManageRosters`. The draft room also
+dropped the lobby's `getLeagueWithMembers`, which it had gained for the nav:
+`getDraftView` already reads the league, the viewer's membership and the
+settings, so it returns the nav's view itself.
+
+### Two dev-only overlays over the new controls
+
+Every corner of the viewport now holds a shell control, and Next's dev badge
+sits bottom-left — exactly the sidebar's account menu and the phone's first
+tab. Hiding it was not enough: the app's CSP refused React's development-only
+`eval`, React logged an error, and the dev overlay pinned an issue toast in the
+same corner. `'unsafe-eval'` is now allowed when `NODE_ENV` is `development`,
+which is Next's own CSP guidance; production's header is unchanged.
+
+### The panel, and why the draft room's is different
+
+The plan asked to extract the pool list out of `pick-form`. Reading it said
+otherwise: its row is the pick — the armed state the sticky band shares, the
+sheet's ranks, needs-muting, two live regions — and a reading list needs none
+of it. What the two share is the layer underneath, `selectPool` and
+`toPoolPlayer`, so the panel and the room cannot disagree about who matches
+"valanciunas" or what someone averages. The room's own panel leaves Players out
+(a second pool that cannot pick is the same list twice) and never docks,
+because at 1280px a 22rem column beside a 15rem sidebar leaves the room's pool
+and board about 340px each on the one page that matters most.
+
+### The court is a picture
+
+The plan put each starter's card on the court. Measured against a 390px phone,
+a card with a select and a captain radio is about 170px wide, and a 3-1-1 puts
+three of them on one line. So the court draws tokens — patch, surname, captain
+— and every card lives once in a tier below it. Tap-to-place goes through the
+same `place` the select calls, so the validator mirror and the posted fields
+are unchanged, and the lineup spec's selectors all still hold.
