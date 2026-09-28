@@ -135,6 +135,40 @@ describe("impactForMember", () => {
     });
   });
 
+  it("adds a round's bench halves before rounding, like the table", () => {
+    const twoIn: ImpactTransaction = {
+      id: "tx-2",
+      type: "add",
+      fromRound: 1,
+      playersIn: { "m-a": ["b1", "b2"] },
+      playersOut: {},
+    };
+    const weights = lineupWeights([
+      {
+        memberId: "m-a",
+        round: 1,
+        source: "recorded",
+        slots: {
+          starters: [],
+          captain: "",
+          sixth: [],
+          bench: ["b1", "b2"],
+          inactive: [],
+        },
+      },
+    ]);
+    const [deal] = impactForMember(
+      "m-a",
+      [twoIn],
+      [
+        { playerId: "b1", round: 1, fantasyTenths: 187, pir: 17 },
+        { playerId: "b2", round: 1, fantasyTenths: 77, pir: 7 },
+      ],
+      weights,
+    );
+    expect(deal.inTenths).toBe(132);
+  });
+
   it("leaves PIR raw, because nobody played half a game", () => {
     const weights = lineupWeights([
       {

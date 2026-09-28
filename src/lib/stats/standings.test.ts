@@ -193,6 +193,36 @@ describe("computeStandings with a lineup", () => {
     expect(table[0].byRound[1]).toBe(-17);
   });
 
+  it("adds two bench halves before rounding, not after", () => {
+    const twoBench = lineupWeights([
+      {
+        memberId: "m1",
+        round: 1,
+        source: "recorded",
+        slots: {
+          starters: [],
+          captain: "",
+          sixth: [],
+          bench: ["b1", "b2"],
+          inactive: [],
+        },
+      },
+    ]);
+    const table = computeStandings(
+      [
+        { memberId: "m1", playerId: "b1" },
+        { memberId: "m1", playerId: "b2" },
+      ],
+      [
+        line({ playerId: "b1", fantasyTenths: 187 }),
+        line({ playerId: "b2", fantasyTenths: 77 }),
+      ],
+      ["RS"],
+      twoBench,
+    );
+    expect(table[0].byRound[1]).toBe(132);
+  });
+
   it("scores a round the lineup does not cover at 100%", () => {
     const table = computeStandings(
       squad,
@@ -206,6 +236,50 @@ describe("computeStandings with a lineup", () => {
   it("is the same table as before lineups when none is passed", () => {
     const lines = [line({ playerId: "cap", fantasyTenths: 200 })];
     expect(computeStandings(squad, lines, ["RS"])[0].totalTenths).toBe(200);
+  });
+});
+
+describe("computeStandings against an official Euroleague Fantasy round", () => {
+  const players = {
+    tavares: 50,
+    bacon: 341,
+    francisco: 198,
+    dorsey: 319,
+    montero: 209,
+    clyburn: 110,
+    taylor: 187,
+    baugh: 90,
+    melli: 88,
+    diakite: 77,
+    reserve1: 140,
+    reserve2: 60,
+    reserve3: 25,
+  } as const;
+  const weights = lineupWeights([
+    {
+      memberId: "m1",
+      round: 1,
+      source: "recorded",
+      slots: {
+        starters: ["francisco", "dorsey", "montero", "bacon", "tavares"],
+        captain: "francisco",
+        sixth: ["clyburn"],
+        bench: ["taylor", "baugh", "melli", "diakite"],
+        inactive: ["reserve1", "reserve2", "reserve3"],
+      },
+    },
+  ]);
+
+  it("totals 164.6 FPT, the figure the official game printed", () => {
+    const table = computeStandings(
+      Object.keys(players).map((playerId) => ({ memberId: "m1", playerId })),
+      Object.entries(players).map(([playerId, fantasyTenths]) =>
+        line({ playerId, fantasyTenths }),
+      ),
+      ["RS"],
+      weights,
+    );
+    expect(table[0].byRound[1]).toBe(1646);
   });
 });
 

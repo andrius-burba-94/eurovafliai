@@ -4,9 +4,11 @@ import {
   type BoxScore,
   OFFICIAL_WEIGHTS,
   formatTenths,
+  hundredthsToTenths,
   scaleTenths,
   scoreGame,
   sumTenths,
+  weighHundredths,
 } from "./scoring";
 
 /**
@@ -226,5 +228,32 @@ describe("scaleTenths", () => {
     const scaled = scaleTenths(tenths, multiplier);
     expect(scaled).toBe(expected);
     expect(Number.isInteger(scaled)).toBe(true);
+  });
+});
+
+describe("weighHundredths", () => {
+  it.each([
+    [198, 2, 3960],
+    [187, 0.5, 935],
+    [-33, 0.5, -165],
+    [999, 0, 0],
+    [142, 1, 1420],
+  ])("weighs %i tenths by %s to %i hundredths", (tenths, multiplier, expected) => {
+    const weighed = weighHundredths(tenths, multiplier);
+    expect(weighed).toBe(expected);
+    expect(Number.isInteger(weighed)).toBe(true);
+  });
+});
+
+describe("hundredthsToTenths", () => {
+  it.each([
+    [16460, 1646],
+    [16465, 1647],
+    [16464, 1646],
+    [-165, -17],
+    [-164, -16],
+    [0, 0],
+  ])("rounds %i hundredths to %i tenths", (hundredths, expected) => {
+    expect(hundredthsToTenths(hundredths)).toBe(expected);
   });
 });

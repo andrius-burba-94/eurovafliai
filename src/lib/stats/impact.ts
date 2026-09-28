@@ -10,7 +10,7 @@
 
 import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
 
-import { scaleTenths } from "./scoring";
+import { hundredthsToTenths, weighHundredths } from "./scoring";
 
 export type ImpactType = "trade" | "add" | "drop";
 
@@ -93,12 +93,13 @@ function sumFor(
   let tenths = 0;
   let pir = 0;
   for (const [round, players] of raw) {
-    let roundTenths = 0;
+    let roundHundredths = 0;
     let roundPir = 0;
     for (const [playerId, slot] of players) {
-      roundTenths += scaleTenths(slot.tenths, weigh(round, playerId));
+      roundHundredths += weighHundredths(slot.tenths, weigh(round, playerId));
       roundPir += slot.pir;
     }
+    const roundTenths = hundredthsToTenths(roundHundredths);
     byRound.set(round, { tenths: roundTenths, pir: roundPir });
     tenths += roundTenths;
     pir += roundPir;
