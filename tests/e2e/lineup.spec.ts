@@ -161,8 +161,9 @@ test("a captain doubles, the bench halves and the inactive score nothing", async
   const mate = await createTestUser("lineupmate");
   const planted = await plantSeason(owner, mate, "Captain Table");
 
-  // 10.0 as captain is 20.0; 3.3 on the bench is 1.7, rounded away from zero;
-  // 50.0 while inactive is nothing at all. 21.7 is the whole rule in one cell.
+  // 10.0 as captain is 20.0; 3.3 on the bench is 1.65, kept to the hundredth
+  // as the official game keeps it; 50.0 while inactive is nothing at all.
+  // 21.65 is the whole rule in one cell.
   await score(planted.players[0]!.id, 1, 100);
   await score(planted.players[5]!.id, 1, 33);
   await score(planted.players[7]!.id, 1, 500);
@@ -183,7 +184,7 @@ test("a captain doubles, the bench halves and the inactive score nothing", async
 
   await page.goto(`/leagues/${planted.leagueId}/standings?season=${SEASON}`);
   const rows = page.getByTestId("standings-row");
-  await expect(rows.first()).toContainText("21.7");
+  await expect(rows.first()).toContainText("21.65");
   await expect(page.getByTestId("standings-provisional")).toHaveCount(0);
 });
 
