@@ -11,7 +11,12 @@ import {
   Slots,
   Sparkline,
 } from "@/components/board";
-import { formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
+import {
+  formatHundredths,
+  formatSignedHundredths,
+  formatSignedTenths,
+  formatTenths,
+} from "@/lib/stats/scoring";
 import type { TransactionLine } from "@/lib/memberships/queries";
 import {
   dashboardRoster,
@@ -92,13 +97,13 @@ export function SeasonDashboard({
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.at(-2) ?? null;
   const totals = Object.fromEntries(
-    (latest?.table ?? []).map((row) => [row.memberId, row.totalTenths]),
+    (latest?.table ?? []).map((row) => [row.memberId, row.totalHundredths]),
   );
   const standings = dashboardStandings({
     totals,
     previous: previous
       ? Object.fromEntries(
-          previous.table.map((row) => [row.memberId, row.totalTenths]),
+          previous.table.map((row) => [row.memberId, row.totalHundredths]),
         )
       : null,
     teamNames,
@@ -181,15 +186,15 @@ export function SeasonDashboard({
                     </span>
                     <span className="flex items-baseline gap-4">
                       <span className="stat text-ink">
-                        {formatTenths(row.totalTenths)}
+                        {formatHundredths(row.totalHundredths)}
                       </span>
                       {/* Null is not zero: no previous round to compare
                           against prints nothing, where a blank round prints
                           +0.0. The distinction is the panel's one real sum. */}
                       <span className="stat w-14 text-right text-ink-soft">
-                        {row.roundTenths === null
+                        {row.roundHundredths === null
                           ? ""
-                          : formatSignedTenths(row.roundTenths)}
+                          : formatSignedHundredths(row.roundHundredths)}
                       </span>
                     </span>
                   </Slot>

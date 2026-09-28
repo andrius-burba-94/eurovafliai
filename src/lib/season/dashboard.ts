@@ -25,7 +25,7 @@ export type DashboardStanding = {
   readonly memberId: string;
   readonly teamName: string;
   readonly position: number;
-  readonly totalTenths: number;
+  readonly totalHundredths: number;
   /**
    * Movement since the previous counted round, in tenths, or null when there is
    * no previous round to compare against.
@@ -34,7 +34,7 @@ export type DashboardStanding = {
    * scored nothing", which is a real and different fact, and a table that drew
    * them the same way would tell every league its opening round was a blank.
    */
-  readonly roundTenths: number | null;
+  readonly roundHundredths: number | null;
   readonly isYou: boolean;
 };
 
@@ -81,23 +81,23 @@ export function dashboardStandings({
   teamNames: Readonly<Record<string, string>>;
   youMemberId: string | null;
 }): DashboardStanding[] {
-  const rows = Object.entries(totals).map(([memberId, totalTenths]) => ({
+  const rows = Object.entries(totals).map(([memberId, totalHundredths]) => ({
     memberId,
     teamName: teamNames[memberId] ?? "Unnamed team",
-    totalTenths,
+    totalHundredths,
     // A member absent from the previous snapshot is *new to the table*, not a
     // member who scored nothing: joining mid-season would otherwise print a
     // delta equal to their whole total.
-    roundTenths:
+    roundHundredths:
       previous && memberId in previous
-        ? totalTenths - previous[memberId]!
+        ? totalHundredths - previous[memberId]!
         : null,
     isYou: memberId === youMemberId,
   }));
 
   rows.sort(
     (a, b) =>
-      b.totalTenths - a.totalTenths || a.teamName.localeCompare(b.teamName),
+      b.totalHundredths - a.totalHundredths || a.teamName.localeCompare(b.teamName),
   );
 
   return rows.map((row, index) => ({ ...row, position: index + 1 }));

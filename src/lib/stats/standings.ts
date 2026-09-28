@@ -1,7 +1,7 @@
 import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
 import { coversRound } from "@/lib/memberships/from";
 import { type Phase, PHASES } from "./csv";
-import { hundredthsToTenths, sumTenths, weighHundredths } from "./scoring";
+import { sumHundredths, weighHundredths } from "./scoring";
 
 /**
  * Standings from rosters × game lines — slice 4.5.
@@ -37,14 +37,14 @@ export type StandingLine = {
 
 export type StandingRow = {
   readonly memberId: string;
-  readonly totalTenths: number;
+  readonly totalHundredths: number;
   readonly byRound: Readonly<Record<number, number>>;
 };
 
 export type SnapshotRow = {
   readonly memberId: string;
-  readonly totalTenths: number;
-  readonly roundTenths: number;
+  readonly totalHundredths: number;
+  readonly roundHundredths: number;
 };
 
 export type RoundSnapshot = {
@@ -54,6 +54,36 @@ export type RoundSnapshot = {
 };
 
 export { PHASES, type Phase };
+
+/**
+ * A snapshot written before totals were hundredths stores `totalTenths` /
+ * `roundTenths`; it reads as ×10 until the next recompute rewrites it.
+ */
+function hundredthsField(
+  rec: Record<string, unknown>,
+  name: "total" | "round",
+): number | null {
+  const hundredths = rec[`${name}Hundredths`];
+  if (typeof hundredths === "number") return hundredths;
+  const tenths = rec[`${name}Tenths`];
+  return typeof tenths === "number" ? tenths * 10 : null;
+}
+
+/** A stored `standings_snapshots.table`, read defensively. */
+export function snapshotRowsFrom(raw: unknown): SnapshotRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: SnapshotRow[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const rec = entry as Record<string, unknown>;
+    if (typeof rec.memberId !== "string") continue;
+    const totalHundredths = hundredthsField(rec, "total");
+    const roundHundredths = hundredthsField(rec, "round");
+    if (totalHundredths === null || roundHundredths === null) continue;
+    rows.push({ memberId: rec.memberId, totalHundredths, roundHundredths });
+  }
+  return rows;
+}
 
 function allowed(phases: readonly Phase[]): ReadonlySet<Phase> {
   return new Set(phases);
@@ -78,7 +108,7 @@ function tenthsByPlayerRound(
 
 function rankRows(rows: StandingRow[]): StandingRow[] {
   return [...rows].sort((a, b) => {
-    if (b.totalTenths !== a.totalTenths) return b.totalTenths - a.totalTenths;
+    if (b.totalHundredths !== a.totalHundredths) return b.totalHundredths - a.totalHundredths;
     return a.memberId < b.memberId ? -1 : a.memberId > b.memberId ? 1 : 0;
   });
 }
@@ -92,12 +122,11 @@ function rankRows(rows: StandingRow[]): StandingRow[] {
  * applied **here** and not at ingest, because `player_game_stats.fantasy_pts`
  * is app-global — one row serves every league — so a per-league multiplier
  * baked into it would be wrong the moment two leagues arrange the same player
- * differently. A member's round is summed in integer hundredths and rounded
- * to tenths **once**, half away from zero — the official game shows a bench
- * 18.7 as 9.35 and only rounds the team's total, so rounding each player
- * first drifts a tenth from the number the league compares against. Omit it
- * and everybody scores at 100%, which is what the app did before lineups
- * existed.
+ * differently. Totals are integer **hundredths** and are never rounded: the
+ * official game prints a bench 18.7 as 9.35 and a team as 121.15, and
+ * tenths × the lineup multipliers is always a whole number of hundredths.
+ * Omit it and everybody scores at 100%, which is what the app did before
+ * lineups existed.
  */
 export function computeStandings(
   windows: readonly StandingWindow[],
@@ -125,13 +154,10 @@ export function computeStandings(
         );
       }
     }
-    const byRound: Record<number, number> = {};
-    for (const [round, hundredths] of hundredthsByRound) {
-      byRound[round] = hundredthsToTenths(hundredths);
-    }
+    const byRound = Object.fromEntries(hundredthsByRound);
     return {
       memberId,
-      totalTenths: sumTenths(Object.values(byRound)),
+      totalHundredths: sumHundredths(Object.values(byRound)),
       byRound,
     };
   });
@@ -141,9 +167,9 @@ export function computeStandings(
 /**
  * Per-round snapshot payloads from a full (unfiltered) table.
  *
- * `totalTenths` is season-to-date through that round, all phases the table
+ * `totalHundredths` is season-to-date through that round, all phases the table
  * already counted. The page that filters by phase ignores it and re-sums
- * `roundTenths` from the snapshots whose `phase` is selected.
+ * `roundHundredths` from the snapshots whose `phase` is selected.
  */
 export function snapshotsFromStandings(
   rows: readonly StandingRow[],
@@ -153,11 +179,11 @@ export function snapshotsFromStandings(
   return rounds.map((round) => {
     const through = rankRows(
       rows.map((row) => {
-        const roundTenths = row.byRound[round] ?? 0;
-        const totalTenths = sumTenths(
+        const roundHundredths = row.byRound[round] ?? 0;
+        const totalHundredths = sumHundredths(
           rounds.filter((r) => r <= round).map((r) => row.byRound[r] ?? 0),
         );
-        return { memberId: row.memberId, totalTenths, byRound: { [round]: roundTenths } };
+        return { memberId: row.memberId, totalHundredths, byRound: { [round]: roundHundredths } };
       }),
     );
     return {
@@ -165,8 +191,8 @@ export function snapshotsFromStandings(
       phase: phaseOfRound.get(round) ?? "RS",
       table: through.map((row) => ({
         memberId: row.memberId,
-        totalTenths: row.totalTenths,
-        roundTenths: row.byRound[round] ?? 0,
+        totalHundredths: row.totalHundredths,
+        roundHundredths: row.byRound[round] ?? 0,
       })),
     };
   });
@@ -205,11 +231,11 @@ export function tableFromSnapshots(
       const byRound: Record<number, number> = {};
       for (const snap of counted) {
         const hit = snap.table.find((row) => row.memberId === memberId);
-        byRound[snap.round] = hit?.roundTenths ?? 0;
+        byRound[snap.round] = hit?.roundHundredths ?? 0;
       }
       return {
         memberId,
-        totalTenths: sumTenths(Object.values(byRound)),
+        totalHundredths: sumHundredths(Object.values(byRound)),
         byRound,
       };
     }),

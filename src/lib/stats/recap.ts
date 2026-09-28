@@ -3,7 +3,7 @@
  *
  * Pure: the page reads snapshots, windows, box scores and deals; this ranks
  * that round, names the best night, and names the deal that moved most.
- * Rank is this round's tenths, not season-to-date. Best night is whoever
+ * Rank is this round's hundredths, not season-to-date. Best night is whoever
  * scored it while covering the round, including a player who arrived in a
  * trade. Swing math is `impactForMember` for that round only.
  */
@@ -30,7 +30,7 @@ export type RecapWindow = {
 
 export type RecapRow = {
   readonly memberId: string;
-  readonly tenths: number;
+  readonly hundredths: number;
 };
 
 export type RecapBestNight = {
@@ -59,9 +59,9 @@ export type Recap = {
 
 function rankRound(table: readonly SnapshotRow[]): RecapRow[] {
   return [...table]
-    .map((row) => ({ memberId: row.memberId, tenths: row.roundTenths }))
+    .map((row) => ({ memberId: row.memberId, hundredths: row.roundHundredths }))
     .sort((a, b) => {
-      if (b.tenths !== a.tenths) return b.tenths - a.tenths;
+      if (b.hundredths !== a.hundredths) return b.hundredths - a.hundredths;
       return a.memberId < b.memberId ? -1 : a.memberId > b.memberId ? 1 : 0;
     });
 }

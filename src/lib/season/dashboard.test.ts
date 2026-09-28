@@ -53,9 +53,9 @@ describe("dashboardStandings", () => {
       teamNames: TEAMS,
       youMemberId: null,
     });
-    expect(rows[0]!.roundTenths).toBe(42);
+    expect(rows[0]!.roundHundredths).toBe(42);
     // Played and scored nothing is a real fact, and it is zero.
-    expect(rows[1]!.roundTenths).toBe(0);
+    expect(rows[1]!.roundHundredths).toBe(0);
   });
 
   // The distinction the panel rests on: no previous round is not a blank round.
@@ -66,7 +66,7 @@ describe("dashboardStandings", () => {
       teamNames: TEAMS,
       youMemberId: null,
     });
-    expect(rows[0]!.roundTenths).toBeNull();
+    expect(rows[0]!.roundHundredths).toBeNull();
   });
 
   it("does not print a whole season as one round's movement for a late arrival", () => {
@@ -78,7 +78,7 @@ describe("dashboardStandings", () => {
       teamNames: TEAMS,
       youMemberId: null,
     });
-    expect(rows.find((row) => row.memberId === "b")!.roundTenths).toBeNull();
+    expect(rows.find((row) => row.memberId === "b")!.roundHundredths).toBeNull();
   });
 
   it("marks the viewer's own row", () => {

@@ -10,7 +10,7 @@ import {
   Sparkline,
 } from "@/components/board";
 import { BoardScroll } from "@/components/board-scroll";
-import { formatTenths } from "@/lib/stats/scoring";
+import { formatHundredths } from "@/lib/stats/scoring";
 import {
   PHASES,
   tableFromSnapshots,
@@ -181,7 +181,7 @@ export function StandingsTable({
                     className="stat px-1.5 py-2 text-right text-sm font-semibold"
                     data-testid="standings-total"
                   >
-                    {formatTenths(row.totalTenths)}
+                    {formatHundredths(row.totalHundredths)}
                   </span>
                   {rounds.map((round) => (
                     <span
@@ -191,7 +191,7 @@ export function StandingsTable({
                       data-round={round}
                       className="stat px-1.5 py-2 text-right text-sm text-ink-soft"
                     >
-                      {formatTenths(row.byRound[round] ?? 0)}
+                      {formatHundredths(row.byRound[round] ?? 0)}
                     </span>
                   ))}
                   <span role="cell" className="px-1.5 py-2">
@@ -200,13 +200,13 @@ export function StandingsTable({
                         Drawn from `byRound` rather than from a second query:
                         the table already has every value, and a chart reading
                         from its own source is how two numbers on one row end up
-                        disagreeing. `formatTenths` is passed for the spoken
+                        disagreeing. `formatHundredths` is passed for the spoken
                         sentence, so a screen reader hears the same 12.0 the row
-                        prints rather than the 120 that is stored. */}
+                        prints rather than the 1200 that is stored. */}
                     <Sparkline
                       values={rounds.map((round) => row.byRound[round] ?? 0)}
                       what="points"
-                      format={formatTenths}
+                      format={formatHundredths}
                       className="h-4 w-[3.125rem] text-ink-soft"
                       testId="standings-spark"
                     />

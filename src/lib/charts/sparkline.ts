@@ -79,10 +79,10 @@ function round(value: number): number {
  * the first, which is what a five-point sparkline actually depicts; a trend line
  * would be a different and more confident claim than five marks support.
  *
- * `format` exists because half this app's figures are stored as **integer
- * tenths**. A standings sparkline drawn from `byRound` would otherwise say
- * "120, 85, 40" to a screen reader while the row beside it showed 12.0, 8.5 and
- * 4.0 — two numbers for one fact, and the spoken one wrong by a factor of ten.
+ * `format` exists because half this app's figures are stored as integer
+ * tenths or hundredths. A standings sparkline drawn from `byRound` would
+ * otherwise say "1200, 850, 400" to a screen reader while the row beside it
+ * showed 12.0, 8.5 and 4.0 — two numbers for one fact, and the spoken one wrong.
  * The default is deliberately `String`, so the callers holding whole PIR need
  * to pass nothing.
  */

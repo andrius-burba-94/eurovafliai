@@ -5,6 +5,7 @@ import { lineupWeights } from "@/lib/lineups/lineup";
 import {
   computeStandings,
   phaseByRound,
+  snapshotRowsFrom,
   snapshotsFromStandings,
   tableFromSnapshots,
   type StandingLine,
@@ -39,10 +40,10 @@ describe("computeStandings", () => {
     );
     expect(table.map((row) => row.memberId)).toEqual(["m-b", "m-a"]);
     expect(table[0]).toMatchObject({
-      totalTenths: 142,
-      byRound: { 1: 142 },
+      totalHundredths: 1420,
+      byRound: { 1: 1420 },
     });
-    expect(table[1].totalTenths).toBe(80);
+    expect(table[1].totalHundredths).toBe(800);
   });
 
   it("counts a missing line as 0, not as a skipped member", () => {
@@ -52,7 +53,7 @@ describe("computeStandings", () => {
       ["RS"],
     );
     const empty = table.find((row) => row.memberId === "m-a");
-    expect(empty?.totalTenths).toBe(0);
+    expect(empty?.totalHundredths).toBe(0);
     expect(empty?.byRound).toEqual({});
   });
 
@@ -66,8 +67,8 @@ describe("computeStandings", () => {
       ],
       ["RS"],
     );
-    expect(table[0]).toMatchObject({ memberId: "m-a", totalTenths: 20 });
-    expect(table[1]).toMatchObject({ memberId: "m-b", totalTenths: 10 });
+    expect(table[0]).toMatchObject({ memberId: "m-a", totalHundredths: 200 });
+    expect(table[1]).toMatchObject({ memberId: "m-b", totalHundredths: 100 });
     expect(table[1].byRound).not.toHaveProperty("41");
   });
 
@@ -80,7 +81,7 @@ describe("computeStandings", () => {
       ],
       ["RS"],
     );
-    expect(table[0].totalTenths).toBe(32);
+    expect(table[0].totalHundredths).toBe(320);
   });
 
   it("breaks a total tie on member id", () => {
@@ -123,12 +124,12 @@ describe("computeStandings", () => {
       ["RS"],
     );
     expect(table.find((row) => row.memberId === "m-a")).toMatchObject({
-      totalTenths: 100,
-      byRound: { 1: 100 },
+      totalHundredths: 1000,
+      byRound: { 1: 1000 },
     });
     expect(table.find((row) => row.memberId === "m-b")).toMatchObject({
-      totalTenths: 40,
-      byRound: { 2: 40 },
+      totalHundredths: 400,
+      byRound: { 2: 400 },
     });
   });
 });
@@ -169,31 +170,31 @@ describe("computeStandings with a lineup", () => {
     );
     expect(table[0]).toMatchObject({
       memberId: "m1",
-      totalTenths: 400 + 100 + 30,
+      totalHundredths: 4000 + 1000 + 300,
     });
   });
 
-  it("rounds a halved odd number of tenths away from zero, once", () => {
+  it("keeps a halved odd number of tenths exact, in hundredths", () => {
     const table = computeStandings(
       squad,
       [line({ playerId: "bench", fantasyTenths: 33 })],
       ["RS"],
       weights,
     );
-    expect(table[0].byRound[1]).toBe(17);
+    expect(table[0].byRound[1]).toBe(165);
   });
 
-  it("halves a negative night away from zero too", () => {
+  it("keeps a halved negative night exact too", () => {
     const table = computeStandings(
       squad,
       [line({ playerId: "bench", fantasyTenths: -33 })],
       ["RS"],
       weights,
     );
-    expect(table[0].byRound[1]).toBe(-17);
+    expect(table[0].byRound[1]).toBe(-165);
   });
 
-  it("adds two bench halves before rounding, not after", () => {
+  it("adds two bench halves without rounding either", () => {
     const twoBench = lineupWeights([
       {
         memberId: "m1",
@@ -220,7 +221,7 @@ describe("computeStandings with a lineup", () => {
       ["RS"],
       twoBench,
     );
-    expect(table[0].byRound[1]).toBe(132);
+    expect(table[0].byRound[1]).toBe(1320);
   });
 
   it("scores a round the lineup does not cover at 100%", () => {
@@ -230,12 +231,12 @@ describe("computeStandings with a lineup", () => {
       ["RS"],
       weights,
     );
-    expect(table[0].byRound[2]).toBe(120);
+    expect(table[0].byRound[2]).toBe(1200);
   });
 
   it("is the same table as before lineups when none is passed", () => {
     const lines = [line({ playerId: "cap", fantasyTenths: 200 })];
-    expect(computeStandings(squad, lines, ["RS"])[0].totalTenths).toBe(200);
+    expect(computeStandings(squad, lines, ["RS"])[0].totalHundredths).toBe(2000);
   });
 });
 
@@ -270,7 +271,7 @@ describe("computeStandings against an official Euroleague Fantasy round", () => 
     },
   ]);
 
-  it("totals 164.6 FPT, the figure the official game printed", () => {
+  it("totals 164.60 FPT, the figure the official game printed", () => {
     const table = computeStandings(
       Object.keys(players).map((playerId) => ({ memberId: "m1", playerId })),
       Object.entries(players).map(([playerId, fantasyTenths]) =>
@@ -279,7 +280,58 @@ describe("computeStandings against an official Euroleague Fantasy round", () => 
       ["RS"],
       weights,
     );
-    expect(table[0].byRound[1]).toBe(1646);
+    expect(table[0].byRound[1]).toBe(16460);
+  });
+});
+
+describe("a round that only hundredths can say", () => {
+  it("keeps Laurynas Birutis' official 121.15 rather than rounding it to 121.2", () => {
+    const players = {
+      baldwin: 143, punter: 242, hoard: 200, reuvers: 33, theis: 90,
+      shields: 154, shengelia: 33, nebo: 0, bryant: 130, jones: 250,
+    };
+    const weights = lineupWeights([
+      {
+        memberId: "m1",
+        round: 1,
+        source: "recorded",
+        slots: {
+          starters: ["baldwin", "punter", "hoard", "reuvers", "theis"],
+          captain: "baldwin",
+          sixth: ["shields"],
+          bench: ["shengelia", "nebo", "bryant", "jones"],
+          inactive: [],
+        },
+      },
+    ]);
+    const table = computeStandings(
+      Object.keys(players).map((playerId) => ({ memberId: "m1", playerId })),
+      Object.entries(players).map(([playerId, fantasyTenths]) =>
+        line({ playerId, fantasyTenths }),
+      ),
+      ["RS"],
+      weights,
+    );
+    expect(table[0].byRound[1]).toBe(12115);
+  });
+});
+
+describe("snapshotRowsFrom", () => {
+  it("reads hundredths as stored", () => {
+    expect(
+      snapshotRowsFrom([{ memberId: "m1", totalHundredths: 12115, roundHundredths: 12115 }]),
+    ).toEqual([{ memberId: "m1", totalHundredths: 12115, roundHundredths: 12115 }]);
+  });
+
+  it("reads a snapshot written in tenths as ×10 until it is recomputed", () => {
+    expect(
+      snapshotRowsFrom([{ memberId: "m1", totalTenths: 1482, roundTenths: 1482 }]),
+    ).toEqual([{ memberId: "m1", totalHundredths: 14820, roundHundredths: 14820 }]);
+  });
+
+  it("drops a row that says neither", () => {
+    expect(snapshotRowsFrom([{ memberId: "m1" }, "nonsense", null])).toEqual([]);
+    expect(snapshotRowsFrom(null)).toEqual([]);
   });
 });
 
@@ -296,9 +348,9 @@ describe("snapshots and the phase filter at read time", () => {
 
     const rs = tableFromSnapshots(snaps, ["RS"]);
     expect(rs.rounds).toEqual([1]);
-    expect(rs.rows[0]).toMatchObject({ memberId: "m-a", totalTenths: 20 });
+    expect(rs.rows[0]).toMatchObject({ memberId: "m-a", totalHundredths: 200 });
 
     const all = tableFromSnapshots(snaps, ["RS", "PO"]);
-    expect(all.rows[0]).toMatchObject({ memberId: "m-b", totalTenths: 60 });
+    expect(all.rows[0]).toMatchObject({ memberId: "m-b", totalHundredths: 600 });
   });
 });

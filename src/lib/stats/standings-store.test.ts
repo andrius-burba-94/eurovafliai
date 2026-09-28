@@ -118,8 +118,8 @@ describe("recomputeStandings", () => {
     expect(snaps).toHaveLength(2);
     const rs = snaps.find((row) => row.round === 1);
     expect(rs?.phase).toBe("RS");
-    const table = rs?.table as { memberId: string; roundTenths: number }[];
-    expect(table[0]).toMatchObject({ memberId: "m-b", roundTenths: 142 });
+    const table = rs?.table as { memberId: string; roundHundredths: number }[];
+    expect(table[0]).toMatchObject({ memberId: "m-b", roundHundredths: 1420 });
     expect(snaps.some((row) => row.league === "lg-setup")).toBe(false);
     expect(rows("roster_memberships")).toHaveLength(2);
   });
@@ -154,9 +154,9 @@ describe("recomputeStandings", () => {
     );
     await recomputeStandings(client, SEASON);
     const rs = rows("standings_snapshots").find((row) => row.round === 1);
-    const table = rs?.table as { memberId: string; roundTenths: number }[];
-    expect(table[0]).toMatchObject({ memberId: "m-a", roundTenths: 142 });
-    expect(table[1]).toMatchObject({ memberId: "m-b", roundTenths: 80 });
+    const table = rs?.table as { memberId: string; roundHundredths: number }[];
+    expect(table[0]).toMatchObject({ memberId: "m-a", roundHundredths: 1420 });
+    expect(table[1]).toMatchObject({ memberId: "m-b", roundHundredths: 800 });
   });
 
   it("does not reopen a closed window from the draft's picks", async () => {
@@ -182,13 +182,13 @@ describe("recomputeStandings", () => {
     await recomputeStandings(client, SEASON);
     expect(rows("roster_memberships")).toHaveLength(2);
     const rs = rows("standings_snapshots").find((row) => row.round === 1);
-    const table = rs?.table as { memberId: string; roundTenths: number }[];
+    const table = rs?.table as { memberId: string; roundHundredths: number }[];
     expect(table).toHaveLength(2);
     expect(table.find((row) => row.memberId === "m-b")).toMatchObject({
-      roundTenths: 142,
+      roundHundredths: 1420,
     });
     expect(table.find((row) => row.memberId === "m-a")).toMatchObject({
-      roundTenths: 0,
+      roundHundredths: 0,
     });
   });
 
@@ -242,10 +242,10 @@ describe("recomputeStandings", () => {
     await recomputeStandings(client, SEASON);
     const r1 = rows("standings_snapshots").find((row) => row.round === 1);
     const r2 = rows("standings_snapshots").find((row) => row.round === 2);
-    const t1 = r1?.table as { memberId: string; roundTenths: number }[];
-    const t2 = r2?.table as { memberId: string; roundTenths: number }[];
-    expect(t1.find((row) => row.memberId === "m-b")?.roundTenths).toBe(142);
-    expect(t2.find((row) => row.memberId === "m-a")?.roundTenths).toBe(30);
+    const t1 = r1?.table as { memberId: string; roundHundredths: number }[];
+    const t2 = r2?.table as { memberId: string; roundHundredths: number }[];
+    expect(t1.find((row) => row.memberId === "m-b")?.roundHundredths).toBe(1420);
+    expect(t2.find((row) => row.memberId === "m-a")?.roundHundredths).toBe(300);
   });
 
 
