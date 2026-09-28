@@ -8,30 +8,12 @@ import { type Phase, PHASES } from "./csv";
 import type { ImpactLine, ImpactTransaction } from "./impact";
 import { last5SeriesOf } from "./project";
 import { recapForRound, type Recap } from "./recap";
-import type { RoundSnapshot, SnapshotRow } from "./standings";
+import { type RoundSnapshot, snapshotRowsFrom } from "./standings";
 
 /**
  * Reads the standings cache and a player's game log with the viewer's token,
  * so PocketBase's list rules are the thing that scopes them.
  */
-
-function asRows(raw: unknown): SnapshotRow[] {
-  if (!Array.isArray(raw)) return [];
-  const rows: SnapshotRow[] = [];
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object") continue;
-    const rec = entry as Record<string, unknown>;
-    if (typeof rec.memberId !== "string") continue;
-    if (typeof rec.totalTenths !== "number") continue;
-    if (typeof rec.roundTenths !== "number") continue;
-    rows.push({
-      memberId: rec.memberId,
-      totalTenths: rec.totalTenths,
-      roundTenths: rec.roundTenths,
-    });
-  }
-  return rows;
-}
 
 function asPhase(raw: unknown): Phase {
   return PHASES.includes(raw as Phase) ? (raw as Phase) : "RS";
@@ -61,7 +43,7 @@ export async function readStandingsSnapshots(
   return records.map((record) => ({
     round: record.round,
     phase: asPhase(record.phase),
-    table: asRows(record.table),
+    table: snapshotRowsFrom(record.table),
   }));
 }
 

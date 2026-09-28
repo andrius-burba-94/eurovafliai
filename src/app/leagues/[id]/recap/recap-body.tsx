@@ -3,7 +3,11 @@ import Link from "next/link";
 import { Bank, CardName, Slot, Slots } from "@/components/board";
 import { announceAdd, announceDrop, announceTrade } from "@/lib/chat/messages";
 import type { Recap } from "@/lib/stats/recap";
-import { formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
+import {
+  formatHundredths,
+  formatSignedTenths,
+  formatTenths,
+} from "@/lib/stats/scoring";
 
 export function RecapBody({
   recap,
@@ -69,7 +73,7 @@ export function RecapBody({
                     className="stat text-sm"
                     data-testid="recap-tenths"
                   >
-                    {formatTenths(row.tenths)}
+                    {formatHundredths(row.hundredths)}
                   </span>
                 </Link>
               </Slot>

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   type BoxScore,
   OFFICIAL_WEIGHTS,
+  formatHundredths,
+  formatSignedHundredths,
   formatTenths,
   hundredthsToTenths,
   scaleTenths,
@@ -242,6 +244,26 @@ describe("weighHundredths", () => {
     const weighed = weighHundredths(tenths, multiplier);
     expect(weighed).toBe(expected);
     expect(Number.isInteger(weighed)).toBe(true);
+  });
+});
+
+describe("formatHundredths", () => {
+  it.each([
+    [16460, "164.6"],
+    [12115, "121.15"],
+    [14300, "143.0"],
+    [165, "1.65"],
+    [5, "0.05"],
+    [-150, "-1.5"],
+    [-165, "-1.65"],
+    [0, "0.0"],
+  ])("prints %i hundredths as %s", (hundredths, expected) => {
+    expect(formatHundredths(hundredths)).toBe(expected);
+  });
+
+  it("signs a delta with a hyphen, never an em dash", () => {
+    expect(formatSignedHundredths(1235)).toBe("+12.35");
+    expect(formatSignedHundredths(-430)).toBe("-4.3");
   });
 });
 

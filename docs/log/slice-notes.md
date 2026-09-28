@@ -2517,3 +2517,26 @@ refusal, and a member is refused by the rule whatever the payload says — so it
 could not tell a forbidden write from an invalid one. A negative check needs a
 positive twin with the same shape, so the script now also saves a one-sided add
 and drop as the superuser.
+
+## 9.3b — Standings in hundredths, because the league compares to the cent
+
+9.3a stopped rounding each player, but still rounded each **round** to tenths.
+The rest of E2026 round 1 showed that was not enough: the official game printed
+eight totals and five of them end in 5 — 121.15, 123.55, 133.05, 136.25,
+142.75 — which a tenths column can only show as 0.05 more. The ranking was
+right; the numbers the league reads off each other's phones were not.
+
+So a team total is integer **hundredths** end to end and is never rounded:
+`computeStandings` returns them, `standings_snapshots.table` stores
+`totalHundredths` / `roundHundredths`, and `formatHundredths` prints them,
+adding the second decimal only when it is not zero, so a table of whole tenths
+reads exactly as it did. No migration, because `table` is JSON: the reader
+(`snapshotRowsFrom`, pure so it is tested) takes an old `totalTenths` row as ×10,
+and the next recompute rewrites every snapshot anyway, since the stored JSON
+no longer matches.
+
+Single-player figures — the recap's best night, a deal's impact — stay in
+tenths. That is a known gap, not an equivalence: a benched 18.7 still reads
+9.4 there where the official game prints 9.35. It was left because those
+figures are not what anyone ranks by, and widening them touches a second set
+of surfaces.

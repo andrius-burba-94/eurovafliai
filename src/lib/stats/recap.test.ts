@@ -22,8 +22,8 @@ const lines: ImpactLine[] = [
 ];
 
 const round2Table: SnapshotRow[] = [
-  { memberId: "m-a", totalTenths: 149, roundTenths: 7 },
-  { memberId: "m-b", totalTenths: 130, roundTenths: 50 },
+  { memberId: "m-a", totalHundredths: 149, roundHundredths: 7 },
+  { memberId: "m-b", totalHundredths: 130, roundHundredths: 50 },
 ];
 
 const windowsAfterTrade = [
@@ -61,16 +61,16 @@ describe("recapForRound", () => {
   it("ranks this round's tenths, not season-to-date", () => {
     const recap = recapForRound(2, round2Table, [], [], []);
     expect(recap.rows.map((row) => row.memberId)).toEqual(["m-b", "m-a"]);
-    expect(recap.rows[0]?.tenths).toBe(50);
-    expect(recap.rows[1]?.tenths).toBe(7);
+    expect(recap.rows[0]?.hundredths).toBe(50);
+    expect(recap.rows[1]?.hundredths).toBe(7);
   });
 
   it("breaks a round-tenths tie on memberId", () => {
     const recap = recapForRound(
       1,
       [
-        { memberId: "m-z", totalTenths: 10, roundTenths: 10 },
-        { memberId: "m-a", totalTenths: 10, roundTenths: 10 },
+        { memberId: "m-z", totalHundredths: 10, roundHundredths: 10 },
+        { memberId: "m-a", totalHundredths: 10, roundHundredths: 10 },
       ],
       [],
       [],
