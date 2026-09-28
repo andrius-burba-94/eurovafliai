@@ -222,6 +222,8 @@ test("a signed-in member reads a player's stored game log", async ({
   await page.goto("/players");
   await page.getByTestId("pool-search").fill(planted.name);
   await page.getByRole("link", { name: planted.name, exact: true }).click();
+  await expect(page.getByTestId("player-stats-modal")).toBeVisible();
+  await page.getByTestId("player-stats-modal").getByRole("link", { name: /Full profile/ }).click();
 
   await expect(page.getByTestId("player-log")).toBeVisible();
   const row = page.getByTestId("player-game");

@@ -42,6 +42,7 @@ export type PoolPlayer = {
    */
   readonly normalized: string;
   readonly club: string;
+  readonly personCode?: string;
   /** The club's full name, for the club filter's list. */
   readonly clubName?: string;
   readonly position: Position;

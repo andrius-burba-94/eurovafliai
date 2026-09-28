@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { useMemo, useState, type KeyboardEvent } from "react";
 
 import {
@@ -593,10 +594,11 @@ export function PickForm({
                     <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
                       #{player.rank}
                     </span>
+                    <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden sm:inline-grid !h-8 !w-7" />
                     <span className="min-w-0 truncate" title={player.name}>
                       <CardName scale="slot">{player.name}</CardName>
                     </span>
-                    <span className="slot-label">{player.club}</span>
+                    <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
                     <PositionPatch position={player.position} />
                   </span>
                   {canPick ? (
@@ -942,7 +944,8 @@ export function PickForm({
                 >
                   <CardName scale="slot">{player.name}</CardName>
                 </span>
-                <span className="slot-label">{player.club}</span>
+                <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden sm:inline-grid !h-8 !w-7" />
+                <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
                 {/* Fantasy points are what the standings actually sum, so they
                     stay on the row rather than being hidden — named, quiet,
                     and behind PIR. Held back below `sm` because the row cannot

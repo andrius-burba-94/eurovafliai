@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useActionState } from "react";
 
 import { Bank, CardName, Correction, Slot, Slots } from "@/components/board";
@@ -107,12 +107,13 @@ export function NewsBoard({
               {[...unavailable.values()].map((player) => (
                 <Slot key={player.id} state="live" testId={`unfit-${player.id}`}>
                   <span className="flex min-w-0 flex-1 items-baseline gap-3">
-                    <Link
-                      href={`/players/${player.id}`}
+                    <PlayerStatsLink
+                      id={player.id}
+                      name={player.name}
                       className="min-w-0 text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                     >
                       <CardName scale="slot">{player.name}</CardName>
-                    </Link>
+                    </PlayerStatsLink>
                     <span className="slot-label shrink-0">{player.status}</span>
                   </span>
                   <form action={fitAction}>
@@ -159,12 +160,13 @@ export function NewsBoard({
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     {item.player ? (
-                      <Link
-                        href={`/players/${item.player.id}`}
+                      <PlayerStatsLink
+                        id={item.player.id}
+                        name={item.player.name}
                         className="min-w-0 text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                       >
                         <CardName scale="slot">{item.player.name}</CardName>
-                      </Link>
+                      </PlayerStatsLink>
                     ) : (
                       <CardName scale="slot">{item.name}</CardName>
                     )}

@@ -176,6 +176,48 @@ body {
   font-size: .875rem;
   font-weight: 800;
 }
+.player-portrait {
+  position: relative;
+  display: inline-grid;
+  width: 2.4rem;
+  height: 2.65rem;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #6f858a;
+  border-radius: .35rem .35rem .2rem .2rem;
+  background: #263f44;
+  color: #cbd5d9;
+  vertical-align: middle;
+}
+.player-portrait-fallback { font-size: .85rem; font-weight: 700; }
+.player-portrait img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+.club-crest {
+  position: relative;
+  display: inline-grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: none;
+  place-items: center;
+  vertical-align: middle;
+}
+.club-crest-fallback { color: #a9b9c1; font-size: .53rem; font-weight: 700; letter-spacing: -.03em; }
+.club-crest img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+.lineup-court-disc .player-portrait {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
 .lineup-court-player[data-captain] .lineup-court-disc { border-color: #d5b16e; }
 .lineup-court-player[data-valid] .lineup-court-disc { border-color: #67bfcb; outline: 2px solid #67bfcb; outline-offset: 2px; }
 .lineup-court-player[aria-pressed="true"] .lineup-court-disc { background: #286170; }

@@ -9,11 +9,11 @@ import {
   CardName,
   Correction,
   FixtureNote,
-  PositionPatch,
   selectStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { PlayerComparison } from "@/components/player-comparison";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { recordLineup, type LineupResult } from "@/lib/lineups/actions";
 import { arrangeFormation } from "@/lib/lineups/formation";
 import {
@@ -336,10 +336,10 @@ export function LineupForm({
         position={player.position}
       >
         <span className="flex min-w-0 items-center gap-3">
-          <PositionPatch position={player.position} />
+          <PlayerPortrait personCode={player.personCode} name={player.name} />
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <CardName scale="slot">{player.name}</CardName>
-            <span className="text-sm text-ink-soft">{player.clubName}</span>
+            <span className="flex items-center gap-1 text-sm text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubName}</span>
           </span>
           <button
             type="button"
@@ -460,6 +460,7 @@ export function LineupForm({
             starters={groups.starter.map((player) => ({
               id: player.id,
               name: player.name,
+              personCode: player.personCode,
               position: player.position,
               isCaptain: captainId === player.id,
             }))}

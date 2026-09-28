@@ -21,3 +21,5 @@ The draft engine and season scoring work, but the midnight board reads like a st
 The common shell, tokens, lineup, player pool, trade builder, standings, recap and draft room share one visual language. A stale feed is visible as stale, and the last derived snapshot survives a worker interruption. The unique season/game index and idempotent upsert repair partial polling writes without a PocketBase transaction. When the live feed or subscription is unavailable, matchday still shows stored fixtures and finished scores.
 
 The new `DESIGN.md` current contract supersedes conflicting visual rules in ADR-0006 and the earlier body of that document. ADR-0008's sidebar decision remains in force. The E2025 fantasy change does not remove historical statistics.
+
+The later [ADR-0010](ADR-0010-official-media.md) adds permitted official player portraits and club marks without changing this interface's game rules or palette.

@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useMemo, useState } from "react";
 
 import {
@@ -139,15 +140,17 @@ export function PlayerPoolList({
               position={player.position}
               testId="panel-player"
             >
-              <Link
-                href={`/players/${player.id}`}
+              <PlayerStatsLink
+                id={player.id}
+                name={player.name}
                 className="-mx-3 -my-3 flex min-h-11 min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
               >
                 <PositionPatch position={player.position} />
+                <PlayerPortrait personCode={player.personCode} name={player.name} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <CardName scale="slot">{player.name}</CardName>
                   <span className="text-sm text-ink-soft">
-                    {player.club}
+                    <ClubCrest clubCode={player.club} /> {player.club}
                     {player.status !== "active" ? ` · ${player.status}` : ""}
                   </span>
                 </span>
@@ -163,7 +166,7 @@ export function PlayerPoolList({
                   </span>
                   <span className="slot-label">PIR</span>
                 </span>
-              </Link>
+              </PlayerStatsLink>
               <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <FixtureNote fixture={fixtures[player.club]} />
                 <span className="slot-label" data-testid="panel-player-held">

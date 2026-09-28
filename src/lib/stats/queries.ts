@@ -208,6 +208,7 @@ export async function readLeagueRecap(
 export type PlayerProfile = {
   id: string;
   name: string;
+  personCode?: string;
   clubCode: string;
   clubName: string;
   position: Position;
@@ -313,6 +314,7 @@ export async function readPlayerProfile(
     const record = await pb.collection("players").getOne<{
       id: string;
       name: string;
+      person_code?: string;
       club_code: string;
       club_name: string;
       position: Position;
@@ -374,6 +376,7 @@ export async function readPlayerProfile(
       player: {
         id: record.id,
         name: record.name,
+        personCode: record.person_code,
         clubCode: record.club_code,
         clubName: record.club_name,
         position: record.position,
