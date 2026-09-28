@@ -2484,3 +2484,20 @@ raw points, the recorded lineup, **1646 tenths**. The old code gave 1647.
 Recovery is a recompute and nothing else: no schema moved, box scores are
 untouched, and `npm run standings:recompute` rewrites only the snapshots whose
 numbers changed.
+
+## CI — the e2e job is sharded four ways
+
+By late September the CI run took 13–14 minutes, up from 7–8 in early
+September, and all but about a minute of it was `npm run test:e2e`: 504 test
+runs (every spec on both `chromium` and `mobile`) at two workers on a
+two-core runner, about 1,470 seconds of test time. The tests are not slow,
+at 2.9s on average. There are just a lot of them, and each new spec runs twice.
+
+The job is now a matrix of four `--shard=N/4` runs, 126 tests each. Every shard
+does its own `npm ci`, Chromium install, PocketBase boot and `next build`
+(about a minute), so shards share no database and the sweep in
+`global-setup.ts` cannot see another shard's rows. The mobile project was
+kept whole rather than thinned to layout-only specs, because phones are
+draft night. `e2e` is not a required check in the `main` ruleset (only
+`verify` and `pocketbase`), so renaming it per shard breaks no merge gate.
+Failure reports upload as `playwright-report-N`.
