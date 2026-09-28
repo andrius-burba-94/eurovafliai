@@ -2501,3 +2501,19 @@ kept whole rather than thinned to layout-only specs, because phones are
 draft night. `e2e` is not a required check in the `main` ruleset (only
 `verify` and `pocketbase`), so renaming it per shard breaks no merge gate.
 Failure reports upload as `playwright-report-N`.
+
+## 5.2a — Adds and drops could never be saved
+
+Found on production, recording the first free-agent swaps after E2026 round 1:
+the drop half was refused with `players_in: Cannot be blank`. A drop names
+nobody arriving and an add names nobody leaving, so each writes `{}` on one
+side, and PocketBase counts `{}` as blank for a **required** JSON field. The
+5.2 migration had required both. Trades always fill both sides, so trades
+worked and nothing else ever had.
+
+`pb:verify` should have caught it and did not, for a reason worth keeping: its
+one write with an empty side was the *member-token* create, which asserts a
+refusal, and a member is refused by the rule whatever the payload says — so it
+could not tell a forbidden write from an invalid one. A negative check needs a
+positive twin with the same shape, so the script now also saves a one-sided add
+and drop as the superuser.
