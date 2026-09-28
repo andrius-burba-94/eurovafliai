@@ -117,8 +117,18 @@ jobs:
     # unattended; now a slice that breaks the lobby, the room or chat fails
     # the PR rather than the next person's rehearsal. `next start` over a
     # fresh build, not `next dev` — see playwright.config.ts.
+    #
+    # Sharded because one two-core runner is the bottleneck: ~500 test runs
+    # (both projects) at two workers took 12+ minutes and grew with every
+    # slice. Each shard boots its own PocketBase, so shards share no data.
+    # Not a required check, so the per-shard names ("e2e (1/4)") are safe.
+    name: e2e (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       CI: "true"
       PB_INTERNAL_URL: http://127.0.0.1:8095
@@ -162,12 +172,12 @@ jobs:
           exit 1
 
       - run: npm run build
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
 
