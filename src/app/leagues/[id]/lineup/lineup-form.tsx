@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 import {
   Bank,
@@ -13,9 +13,12 @@ import {
   selectStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
+import { PlayerComparison } from "@/components/player-comparison";
 import { recordLineup, type LineupResult } from "@/lib/lineups/actions";
+import { arrangeFormation } from "@/lib/lineups/formation";
 import {
   assignmentsWithCaptain,
+  FORMATIONS,
   formationName,
   type LineupRole,
   type LineupSource,
@@ -28,7 +31,9 @@ import {
   validateLineup,
 } from "@/lib/lineups/lineup";
 import type { LineupPlayer } from "@/lib/lineups/queries";
+import { optimizeLineup, type Optimization } from "@/lib/lineups/optimize";
 import type { Position } from "@/lib/engine";
+import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 
 import { LineupCourt } from "./lineup-court";
 
@@ -76,6 +81,7 @@ export function LineupForm({
   season,
   round,
   players,
+  comparison,
   source,
   carriedFrom,
   template,
@@ -86,6 +92,7 @@ export function LineupForm({
   season: string;
   round: number;
   players: readonly LineupPlayer[];
+  comparison: readonly ComparisonPlayer[];
   source: LineupSource;
   carriedFrom: number | null;
   template: LineupTemplate;
@@ -107,6 +114,49 @@ export function LineupForm({
   const [captainId, setCaptainId] = useState<string>(
     () => players.find((player) => player.role === "captain")?.id ?? "",
   );
+  const [view, setView] = useState<"court" | "grid">("court");
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [preview, setPreview] = useState<Optimization | null>(null);
+  const draftKey = `eurovafliai:lineup:${leagueId}:${memberId}:${season}:${round}`;
+  const originalPlaces = useMemo<Record<string, PlacementRole | "">>(() => Object.fromEntries(players.map((player) => [player.id, player.role === "captain" ? "starter" : (player.role ?? "")])), [players]);
+  const originalCaptain = players.find((player) => player.role === "captain")?.id ?? "";
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      const draft = parsed as { places?: Record<string, unknown>; captainId?: unknown };
+      if (!draft.places || typeof draft.captainId !== "string") return;
+      const ids = new Set(players.map((player) => player.id));
+      if (Object.keys(draft.places).some((id) => !ids.has(id))) return;
+      if (Object.values(draft.places).some((role) => role !== "" && !PLACEMENT_ROLES.includes(role as PlacementRole))) return;
+      if (draft.captainId && draft.places[draft.captainId] !== "starter") return;
+      queueMicrotask(() => {
+        setPlaces(draft.places as Record<string, PlacementRole | "">);
+        setCaptainId(draft.captainId as string);
+        setDirty(true);
+      });
+    } catch {
+      // An unavailable or malformed browser store must not block recording.
+    }
+  }, [draftKey, players]);
+
+  useEffect(() => {
+    try {
+      if (dirty) window.localStorage.setItem(draftKey, JSON.stringify({ places, captainId }));
+    } catch {
+      // The server action remains available when storage is disabled.
+    }
+  }, [draftKey, places, captainId, dirty]);
+
+  useEffect(() => {
+    if (!result.saved) return;
+    try { window.localStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
+    queueMicrotask(() => setDirty(false));
+  }, [draftKey, result.saved]);
 
   /**
    * Marking a captain also *places* them, because the captaincy is only ever a
@@ -116,12 +166,14 @@ export function LineupForm({
   function markCaptain(playerId: string): void {
     setCaptainId(playerId);
     setPlaces((current) => ({ ...current, [playerId]: "starter" }));
+    setDirty(true);
   }
 
   /** Moving the captain off the five gives up the armband with the place. */
   function place(playerId: string, role: PlacementRole | ""): void {
     setPlaces((current) => ({ ...current, [playerId]: role }));
     if (role !== "starter" && captainId === playerId) setCaptainId("");
+    setDirty(true);
   }
 
   const assignments = useMemo(
@@ -176,7 +228,45 @@ export function LineupForm({
     return shape;
   }, [assignments, players]);
 
+  function chooseFormation(shape: readonly [number, number, number]): void {
+    const arranged = arrangeFormation(players.map((player) => ({ id: player.id, position: player.position, place: places[player.id] ?? "" })), shape, template, captainId);
+    if (!arranged) return;
+    setPlaces({ ...arranged.places });
+    setCaptainId(arranged.captainId);
+    setDirty(true);
+    setArmed(null);
+  }
+
   const placed = assignments.length;
+
+  function showOptimization(): void {
+    setPreview(optimizeLineup(players.map((player) => ({
+      id: player.id,
+      position: player.position,
+      estimateTenths: player.estimateTenths,
+      currentRole: assignments.find((entry) => entry.playerId === player.id)?.role ?? null,
+    })), template));
+  }
+
+  function applyOptimization(): void {
+    if (!preview) return;
+    setPlaces(Object.fromEntries(players.map((player) => {
+      const role = preview.roles[player.id];
+      return [player.id, role === "captain" ? "starter" : (role ?? "")];
+    })) as Record<string, PlacementRole | "">);
+    setCaptainId(Object.entries(preview.roles).find(([, role]) => role === "captain")?.[0] ?? "");
+    setPreview(null);
+    setDirty(true);
+  }
+
+  function resetDraft(): void {
+    setPlaces(originalPlaces);
+    setCaptainId(originalCaptain);
+    setArmed(null);
+    setPreview(null);
+    setDirty(false);
+    try { window.localStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
+  }
 
   // Tap to place — 11.3. One player in hand at a time; the next tap on a tier
   // or an open court place puts them there through `place`, the same function
@@ -339,24 +429,54 @@ export function LineupForm({
 
       <Bank
         framed
-        label="The thirteen"
+        label="The court"
         aside={`${placed}/${players.length} placed`}
         testId="lineup-board"
       >
         <div className="flex flex-col gap-6">
-          <LineupCourt
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div role="group" aria-label="Lineup view" className="flex gap-1 rounded-md border border-rule-strong bg-stock p-1">
+              {(["court", "grid"] as const).map((option) => (
+                <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)} className={`min-h-11 rounded px-4 text-sm font-semibold capitalize ${view === option ? "bg-rule-strong text-stock" : "text-ink-soft hover:text-ink"}`}>
+                  {option}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-ink-soft">Five official formations</span>
+          </div>
+          <div role="group" aria-label="Formation, guards forwards centers" className="flex flex-wrap gap-2">
+            {FORMATIONS.map((shape) => {
+              const name = formationName(shape);
+              return <button key={name} type="button" aria-pressed={formationName(five) === name} onClick={() => chooseFormation(shape)} className={`min-h-11 rounded-md border px-3 text-sm font-semibold tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-live ${formationName(five) === name ? "border-pos-g bg-pos-g/10 text-pos-g" : "border-rule-strong bg-stock text-ink-soft hover:text-ink"}`}>{name}</button>;
+            })}
+            <span className="self-center text-xs text-ink-soft">G / F / C</span>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-panel-border pb-3 text-sm">
+            <button type="button" onClick={resetDraft} className="min-h-11 text-ink-soft hover:text-ink">Reset changes</button>
+            <button type="button" onClick={() => setCompareOpen(true)} className="min-h-11 text-live hover:underline">Compare players</button>
+            <button type="button" onClick={showOptimization} className="min-h-11 text-live hover:underline">Auto-Optimize preview</button>
+          </div>
+          {view === "court" ? <LineupCourt
             starters={groups.starter.map((player) => ({
               id: player.id,
               name: player.name,
               position: player.position,
               isCaptain: captainId === player.id,
             }))}
-            openPlaces={Math.max(0, template.starters - groups.starter.length)}
+            openPlaces={(() => {
+              const shape = FORMATIONS.find((candidate) => candidate.every((count, index) => count >= five[index]!)) ?? FORMATIONS[0]!;
+              return { G: Math.max(0, shape[0] - five[0]), F: Math.max(0, shape[1] - five[1]), C: Math.max(0, shape[2] - five[2]) };
+            })()}
             armed={armed}
             armedIsStarter={armed !== null && places[armed] === "starter"}
             onArm={arm}
             onPlace={() => moveTo("starter")}
-          />
+          /> : <div className="overflow-x-auto rounded-md border border-rule-strong" role="region" aria-label="Starting five grid" tabIndex={0}>
+            <table className="w-full min-w-96 text-left text-sm">
+              <thead className="bg-stock text-xs uppercase tracking-wider text-ink-soft"><tr><th className="p-3">Role</th><th className="p-3">Player</th><th className="p-3">Fixture</th><th className="p-3">Captain</th></tr></thead>
+              <tbody>{groups.starter.map((player) => <tr key={player.id} className="border-t border-rule/50"><td className="p-3 text-pos-g">{player.position}</td><td className="p-3">{player.name}</td><td className="p-3"><FixtureNote fixture={player.fixture} /></td><td className="p-3"><button type="button" onClick={() => markCaptain(player.id)} className="min-h-11 text-gold hover:underline">{captainId === player.id ? "Captain ×2" : "Make captain"}</button></td></tr>)}</tbody>
+            </table>
+          </div>}
 
           {/* Said once, where the next tap lands, and to a screen reader as it
               changes: which player is in hand and how to put them down. */}
@@ -369,6 +489,7 @@ export function LineupForm({
                 <p className="text-sm text-ink" data-testid="lineup-in-hand">
                   Moving {armedPlayer.name}. Choose where they go.
                 </p>
+                {places[armedPlayer.id] === "starter" ? <button type="button" onClick={() => { markCaptain(armedPlayer.id); setArmed(null); }} className="min-h-11 rounded border border-gold/60 px-3 text-sm text-gold">Make captain ×2</button> : null}
                 <button
                   type="button"
                   onClick={() => setArmed(null)}
@@ -450,31 +571,44 @@ export function LineupForm({
         <Correction testId="lineup-error">{result.error}</Correction>
       ) : null}
 
-      <div className="slot-filled sticky bottom-(--tabs-height) z-30 lg:bottom-0 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3">
-        <p className="text-sm text-ink-soft" data-testid="lineup-summary">
-          {counts.captain} captain, {counts.starter} more starters,{" "}
-          {counts.sixth} sixth man, {counts.bench} bench, {counts.inactive}{" "}
-          inactive — {formationName(five)} as guards-forwards-centers.
-        </p>
+      {preview ? <Bank framed label="Auto-Optimize preview" testId="lineup-optimize-preview">
+        <p className="text-sm text-ink-soft">Proposed {preview.formation} G/F/C · estimated {(preview.scoreHalfTenths / 20).toFixed(2)} fantasy points. Nothing is recorded until you save.</p>
+        <p className="text-sm">Captain: {players.find((player) => preview.roles[player.id] === "captain")?.name ?? "—"}</p>
+        {preview.unknownIds.length > 0 ? <p className="text-sm text-gold">No estimate: {preview.unknownIds.map((id) => players.find((player) => player.id === id)?.name ?? id).join(", ")}. Counted as zero in this preview.</p> : null}
+        <div className="flex flex-wrap gap-2"><button type="button" onClick={applyOptimization} className="min-h-11 rounded border border-live px-4 text-sm font-semibold text-live">Apply preview</button><button type="button" onClick={() => setPreview(null)} className="min-h-11 px-4 text-sm text-ink-soft">Cancel</button></div>
+      </Bank> : null}
+      {compareOpen ? <PlayerComparison players={comparison} onClose={() => setCompareOpen(false)} /> : null}
+
+      <div className="sticky bottom-(--tabs-height) z-30 flex flex-col gap-2 border-t border-panel-border bg-stock px-3 py-2 lg:bottom-0">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-ink" data-testid="lineup-summary">
+              <span className="sm:hidden">{formationName(five)} · {counts.captain} captain · {placed}/{players.length} placed</span>
+              <span className="hidden sm:inline">{formationName(five)} G/F/C · {counts.captain} captain · {counts.starter} other starters · {counts.sixth} sixth · {counts.bench} bench · {counts.inactive} inactive</span>
+            </p>
+            <p className={`mt-0.5 text-xs ${dirty ? "text-gold" : "text-gain"}`}>{dirty ? "Unsaved · saved on this device" : source === "recorded" || result.saved ? "Lineup recorded" : "No lineup recorded for this round"}</p>
+          </div>
+          <SubmitButton
+            testId="record-lineup-submit"
+            tone="live"
+            pendingLabel="Recording…"
+            compact
+          >
+            Record lineup
+          </SubmitButton>
+        </div>
         {/* Always mounted, so a reader hears the refusal a move just caused. */}
         <div role="status" className="empty:hidden">
           {!verdict.ok ? (
             <p className="text-sm text-ink" data-testid="lineup-refusal">
               {verdict.reason}
             </p>
-          ) : result.saved ? (
+          ) : result.saved && !dirty ? (
             <p className="text-sm text-ink" data-testid="lineup-saved">
               Recorded. The table has been recomputed.
             </p>
           ) : null}
         </div>
-        <SubmitButton
-          testId="record-lineup-submit"
-          tone="live"
-          pendingLabel="Recording…"
-        >
-          Record this lineup
-        </SubmitButton>
       </div>
     </form>
   );

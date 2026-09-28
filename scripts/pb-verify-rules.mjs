@@ -52,6 +52,7 @@ const created = {
   round_lineups: [],
   player_news: [],
   fixtures: [],
+  live_game_snapshots: [],
 };
 
 const su = new PocketBase(url);
@@ -1521,8 +1522,40 @@ try {
   created.fixtures.push(otherSeason.id);
   check(!!otherSeason.id, "the same game code in another season is allowed");
 
+  check(!!byName.live_game_snapshots, "live_game_snapshots collection exists");
+  check(
+    byName.live_game_snapshots.createRule === null &&
+      byName.live_game_snapshots.updateRule === null &&
+      byName.live_game_snapshots.deleteRule === null,
+    "live snapshots are worker-write-only",
+  );
+  check(
+    byName.live_game_snapshots.indexes.some((index) => index.includes("idx_live_game") && index.includes("UNIQUE")),
+    "live snapshots have a unique season/game index",
+  );
+  const liveSnapshot = {
+    season: `V${String(stamp).slice(-6)}`,
+    game_code: 1,
+    round: 1,
+    live: false,
+    local_score: 0,
+    road_score: 0,
+    players: [],
+    checked_at: new Date().toISOString(),
+  };
+  const storedLive = await su.collection("live_game_snapshots").create(liveSnapshot, { requestKey: null });
+  created.live_game_snapshots.push(storedLive.id);
+  check((await aliceClient.collection("live_game_snapshots").getFullList({ filter: `season = '${liveSnapshot.season}'`, requestKey: null })).length === 1,
+    "a signed-in member reads the derived live snapshot");
+  check(await rejects(() => aliceClient.collection("live_game_snapshots").create({ ...liveSnapshot, game_code: 2 }, { requestKey: null })),
+    "a signed-in member cannot invent a live snapshot");
+  check(await rejects(() => su.collection("live_game_snapshots").create(liveSnapshot, { requestKey: null })),
+    "a duplicate season/game snapshot is refused");
+
 } finally {
   // Leave the database as we found it, in reverse dependency order.
+  for (const id of created.live_game_snapshots)
+    await su.collection("live_game_snapshots").delete(id, { requestKey: null }).catch(() => {});
   for (const id of created.fixtures)
     await su
       .collection("fixtures")

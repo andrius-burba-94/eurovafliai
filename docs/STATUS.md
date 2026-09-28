@@ -21,6 +21,21 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
+## In review: arena visual redesign
+
+The user approved the interactive site concept on 28 September 2026. The implementation branch is **not production**. [ADR-0009](adr/ADR-0009-arena-redesign.md) records the new design and the product boundaries; earlier ADRs remain available.
+
+| Slice | State | What to review |
+|---|---|---|
+| Shell and navigation | In review | Separate League, Drafts, EuroLeague and Manage groups; phone tabs use Lineup, Players, Matchday, League and More. The selected fantasy season cannot be E2025, while prior-season player stats remain. |
+| Lineup and player research | In review | Fixed-ratio court with non-overlapping G/F/C rows, five formation choices, grid view, tap swap, captain action, locally recovered unsaved edits, optimizer preview and comparison drawer. The existing record action still validates. |
+| Other league surfaces | In review | Searchable player pool, accessible Trades history and split trade builder, wider team, standings and recap layouts. |
+| Matchday | In review, live poll gated | Provisional scores/ranks, fixture states, last-updated and stale status, realtime snapshot reads. `LIVE_FETCH=off` remains the default until an official box score changes during an actual game. Finished-game standings are authoritative. |
+
+Try the branch locally with `npm run dev`, then open a league in season at `/leagues/<id>/lineup`, `/matchday`, `/standings`, `/recap`, and `/transactions`. At 390px and desktop width, check the court after selecting each formation, the save bar above phone tabs, the five phone destinations and the separate Drafts sidebar section. The matchday page intentionally shows unavailable or scheduled data until the live feed gate is cleared.
+
+The phase notes below describe what had landed before this review. ADR-0009 and the in-review table above supersede their older visual descriptions once this branch lands.
+
 **Phase 11 — the app shell — has landed: 11.1, 11.2 and 11.3.** Layout and
 information architecture only; the midnight board's palette, materials and
 motion are untouched. Every signed-in page now renders one shell — a sidebar

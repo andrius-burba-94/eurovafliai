@@ -45,6 +45,7 @@ export default async function StandingsPage({
   if (!data) notFound();
 
   const viewerIsMember = data.members.some((member) => member.isYou);
+  const you = data.members.find((member) => member.isYou);
   if (!viewerIsMember) notFound();
 
   const snapshots =
@@ -88,13 +89,13 @@ export default async function StandingsPage({
     <AppShell
       current="standings"
       league={navLeagueFrom(data)}
+      measure="wide"
       testId="standings"
     >
-      <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-          Standings
-        </h1>
-        <p className="slot-label">{data.league.name}</p>
+      <div className="flex flex-col gap-2">
+        <p className="slot-label text-live">{data.league.name} / League</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Standings</h1>
+        <p className="text-sm text-ink-soft">Every counted round, with each team&apos;s season total and recent movement.</p>
       </div>
 
       <SeasonControl
@@ -153,6 +154,7 @@ export default async function StandingsPage({
             names={names}
             leagueId={id}
             season={season}
+            viewerMemberId={you?.id ?? null}
           />
         </>
       )}

@@ -37,20 +37,22 @@ describe("navFor", () => {
     ]);
   });
 
-  it("names the league group after the league", () => {
+  it("keeps League and Drafts as separate labelled sections", () => {
     const groups = navFor({ league: league(), isRosterManager: false });
-    expect(groups[0]).toMatchObject({ id: "league", label: "Couch League" });
+    expect(groups[0]).toMatchObject({ id: "league", label: "League" });
+    expect(groups[1]).toMatchObject({ id: "drafts", label: "Drafts" });
   });
 
-  it("in setup, a member sees home, sheet and export", () => {
+  it("in setup, a member sees home and draft resources in their own section", () => {
     expect(keysOf({ league: league(), isRosterManager: false }, "league")).toEqual(
-      ["league-home", "sheet", "export"],
+      ["league-home"],
     );
+    expect(keysOf({ league: league(), isRosterManager: false }, "drafts")).toEqual(["sheet", "export"]);
   });
 
   it("offers the order only once it has been drawn", () => {
     expect(
-      keysOf({ league: league({ rolled: true }), isRosterManager: false }, "league"),
+      keysOf({ league: league({ rolled: true }), isRosterManager: false }, "drafts"),
     ).toContain("order");
   });
 
@@ -58,10 +60,10 @@ describe("navFor", () => {
     const item = navFor({
       league: league({ status: "drafting", rolled: true }),
       isRosterManager: false,
-    })[0]!.items.find((entry) => entry.key === "draft");
+    }).find((group) => group.id === "drafts")!.items.find((entry) => entry.key === "draft");
     expect(item).toMatchObject({
       href: "/leagues/L1/draft",
-      label: "Draft room",
+      label: "Draft Room",
       note: "Live",
     });
   });
@@ -73,15 +75,14 @@ describe("navFor", () => {
     );
     expect(keys).toEqual([
       "league-home",
-      "draft",
       "team",
       "lineup",
+      "matchday",
       "standings",
       "recap",
-      "order",
-      "sheet",
-      "export",
+      "trades",
     ]);
+    expect(keysOf({ league: league({ status: "season", rolled: true }), isRosterManager: false }, "drafts")).toEqual(["draft", "order", "sheet", "export"]);
     const team = navFor({
       league: league({ status: "season" }),
       isRosterManager: false,
@@ -89,16 +90,16 @@ describe("navFor", () => {
     expect(team?.href).toBe("/leagues/L1/teams/M1");
   });
 
-  it("the season's draft item is the board, not a live room", () => {
+  it("the season's draft room remains available without a live badge", () => {
     const item = navFor({
       league: league({ status: "season" }),
       isRosterManager: false,
-    })[0]!.items.find((entry) => entry.key === "draft");
-    expect(item?.label).toBe("Draft board");
+    }).find((group) => group.id === "drafts")!.items.find((entry) => entry.key === "draft");
+    expect(item?.label).toBe("Draft Room");
     expect(item?.note).toBeUndefined();
   });
 
-  it("records a trade only for a manager, and only in season", () => {
+  it("shows trade history to members, with the recording action still manager gated", () => {
     const managed = (status: NavLeague["status"]) =>
       keysOf(
         { league: league({ status, canManage: true }), isRosterManager: true },
@@ -106,10 +107,10 @@ describe("navFor", () => {
       );
     expect(managed("season")).toContain("trades");
     expect(managed("drafting")).not.toContain("trades");
-    expect(managed("complete")).not.toContain("trades");
+    expect(managed("complete")).toContain("trades");
     expect(
       keysOf({ league: league({ status: "season" }), isRosterManager: false }, "league"),
-    ).not.toContain("trades");
+    ).toContain("trades");
   });
 
   it("a commissioner without a membership sees no member-only surface", () => {
@@ -125,7 +126,8 @@ describe("navFor", () => {
       },
       "league",
     );
-    expect(keys).toEqual(["league-home", "draft", "trades"]);
+    expect(keys).toEqual(["league-home", "trades"]);
+    expect(keysOf({ league: league({ status: "season", youMemberId: null, isCommissioner: true, canManage: true }), isRosterManager: true }, "drafts")).toContain("draft");
   });
 });
 
@@ -150,13 +152,13 @@ describe("tabsFor", () => {
   it("while drafting, the live room takes the second tab", () => {
     expect(
       tabKeys({ league: league({ status: "drafting" }), isRosterManager: false }),
-    ).toEqual(["league-home", "draft", "sheet", "export"]);
+    ).toEqual(["draft", "pool", "league-home", "sheet"]);
   });
 
   it("in season, the lineup replaces the room", () => {
     expect(
       tabKeys({ league: league({ status: "season" }), isRosterManager: false }),
-    ).toEqual(["league-home", "lineup", "standings", "team"]);
+    ).toEqual(["lineup", "pool", "matchday", "standings"]);
   });
 
   it("always four tabs or fewer, never a duplicate", () => {

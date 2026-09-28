@@ -16,14 +16,12 @@ test("the direction contract survives into the emitted markup", async ({
   await page.goto("/login");
   const html = await page.content();
   expect(html).toContain("DIRECTION CONTRACT");
-  expect(html).toContain("seed 32792572");
-  // The motion budget is a number somebody will want to raise by one, and the
-  // contract is where it is spent. 10.8 spent the third and last.
-  expect(html).toContain("budget of THREE animations");
-  expect(html).toContain("FINISH: unreviewed and undocumented is unfinished");
+  expect(html).toContain("arena interface, ADR-0009");
+  expect(html).toContain("League, Drafts, EuroLeague and Manage");
+  expect(html).toMatch(/Finished-game\s+standings are authoritative/);
 });
 
-test("the ground is the midnight board, from CSS rather than from a script", async ({
+test("the slate ground arrives from CSS rather than a script", async ({
   page,
 }) => {
   // Phase 10 removed the second ground, the `<head>` override script and the

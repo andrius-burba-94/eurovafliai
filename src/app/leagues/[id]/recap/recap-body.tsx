@@ -49,8 +49,8 @@ export function RecapBody({
     : null;
 
   return (
-    <>
-      <Bank framed label="The night" aside={`Round ${recap.round}`}>
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(16rem,1fr)]">
+      <div className="lg:row-span-2"><Bank framed label="The night" aside={`Round ${recap.round}`}>
         {recap.rows.length === 0 ? (
           <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="recap-table-empty">
             No teams scored this round. Rank appears once a counted box score
@@ -80,7 +80,7 @@ export function RecapBody({
             ))}
           </Slots>
         )}
-      </Bank>
+      </Bank></div>
 
       <Bank framed label="Best night">
         {night ? (
@@ -132,6 +132,6 @@ export function RecapBody({
           </p>
         )}
       </Bank>
-    </>
+    </div>
   );
 }

@@ -30,11 +30,13 @@ export function StandingsTable({
   names,
   leagueId,
   season,
+  viewerMemberId,
 }: {
   snapshots: RoundSnapshot[];
   names: Record<string, string>;
   leagueId: string;
   season: string;
+  viewerMemberId: string | null;
 }) {
   const [on, setOn] = useState<Record<Phase, boolean>>({
     RS: true,
@@ -49,6 +51,9 @@ export function StandingsTable({
   }, [on]);
 
   const { rounds, rows } = tableFromSnapshots(snapshots, phases);
+  const latestRound = rounds.at(-1);
+  const latestBest = latestRound === undefined ? null : [...rows].sort((a, b) => (b.byRound[latestRound] ?? 0) - (a.byRound[latestRound] ?? 0) || a.memberId.localeCompare(b.memberId))[0];
+  const previousOrder = latestRound === undefined || rounds.length < 2 ? [] : [...rows].sort((a, b) => (b.totalHundredths - (b.byRound[latestRound] ?? 0)) - (a.totalHundredths - (a.byRound[latestRound] ?? 0)) || a.memberId.localeCompare(b.memberId)).map((row) => row.memberId);
 
   // The team block, the total, one track per counted round, then the trend.
   // `minmax` on the name is what makes this scroll rather than squeeze, exactly
@@ -78,6 +83,11 @@ export function StandingsTable({
         ))}
       </div>
 
+      {rows.length > 0 ? <div className="flex flex-wrap items-center gap-x-10 gap-y-3 border-y border-panel-border py-4">
+        <div><p className="slot-label text-ink-soft">League leader</p><p className="mt-1 text-xl font-semibold text-ink">{names[rows[0]!.memberId] ?? rows[0]!.memberId}</p><p className="text-sm tabular-nums text-live">{formatHundredths(rows[0]!.totalHundredths)} points</p></div>
+        {latestRound !== undefined && latestBest ? <div><p className="slot-label text-ink-soft">Round {latestRound} best</p><p className="mt-1 text-base font-semibold text-ink">{names[latestBest.memberId] ?? latestBest.memberId}</p><p className="text-sm tabular-nums text-gain">{formatHundredths(latestBest.byRound[latestRound] ?? 0)} points</p></div> : null}
+      </div> : null}
+
       <Bank
         framed
         label="The table"
@@ -100,6 +110,8 @@ export function StandingsTable({
              that one now takes a label. Identity and the headline number stay
              in the sticky left block, because those are the answer and the
              rounds are the evidence. */
+          <>
+          <p className="text-xs text-ink-soft sm:hidden">Swipe sideways to compare rounds.</p>
           <BoardScroll testId="standings-table" label="The standings table">
             <div
               role="table"
@@ -147,7 +159,7 @@ export function StandingsTable({
                   role="row"
                   key={row.memberId}
                   data-testid="standings-row"
-                  className="grid items-baseline border-b border-rule"
+                  className={`grid items-baseline border-b border-rule ${row.memberId === viewerMemberId ? "bg-live-sunk/25" : ""}`}
                   style={{ gridTemplateColumns: template }}
                 >
                   {/* The one cell that is a link, and a `rowheader` because it
@@ -169,6 +181,7 @@ export function StandingsTable({
                       <span className="stat slot-label shrink-0">
                         #{index + 1}
                       </span>
+                      {previousOrder.length > 0 ? <span className={`shrink-0 text-xs ${previousOrder.indexOf(row.memberId) > index ? "text-gain" : previousOrder.indexOf(row.memberId) < index ? "text-loss" : "text-ink-soft"}`} aria-label={previousOrder.indexOf(row.memberId) > index ? `Up ${previousOrder.indexOf(row.memberId) - index} places` : previousOrder.indexOf(row.memberId) < index ? `Down ${index - previousOrder.indexOf(row.memberId)} places` : "No rank change"}>{previousOrder.indexOf(row.memberId) > index ? `↑${previousOrder.indexOf(row.memberId) - index}` : previousOrder.indexOf(row.memberId) < index ? `↓${index - previousOrder.indexOf(row.memberId)}` : "·"}</span> : null}
                       <span className="min-w-0 truncate">
                         <CardName scale="slot">
                           {names[row.memberId] ?? row.memberId}
@@ -207,7 +220,7 @@ export function StandingsTable({
                       values={rounds.map((round) => row.byRound[round] ?? 0)}
                       what="points"
                       format={formatHundredths}
-                      className="h-4 w-[3.125rem] text-ink-soft"
+                      className="inline-flex h-4 w-[3.125rem] text-ink-soft"
                       testId="standings-spark"
                     />
                   </span>
@@ -215,6 +228,7 @@ export function StandingsTable({
               ))}
             </div>
           </BoardScroll>
+          </>
         )}
       </Bank>
     </>

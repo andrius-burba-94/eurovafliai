@@ -41,6 +41,9 @@
 import PocketBase from "pocketbase";
 
 import { parseServerEnv, type ServerEnv } from "@/lib/config/schema";
+import { readStoredFixtures } from "@/lib/fixtures/store";
+import { fetchLiveBoxscore } from "@/lib/live/boxscore";
+import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
 
@@ -105,6 +108,8 @@ const STATS_FIRST_AFTER_MS = 60_000;
  */
 const NEWS_EVERY_MS = 60 * 60_000;
 const NEWS_FIRST_AFTER_MS = 90_000;
+const LIVE_EVERY_MS = 60_000;
+const LIVE_FIRST_AFTER_MS = 95_000;
 
 function log(message: string, level: "info" | "warn" | "error" = "info"): void {
   const line = JSON.stringify({
@@ -346,6 +351,63 @@ function main(): void {
     }, NEWS_FIRST_AFTER_MS).unref?.();
   }
 
+  let liveInFlight: Promise<void> | null = null;
+  let liveTimer: ReturnType<typeof setInterval> | null = null;
+
+  async function livePass(): Promise<void> {
+    try {
+      await ensureAuth(pb, env);
+      const now = Date.now();
+      const fixtures = await readStoredFixtures(pb, env.EUROLEAGUE_SEASON);
+      const candidates = fixtures.filter((fixture) => {
+        const tip = Date.parse(fixture.utc_date ?? "");
+        return !fixture.played && Number.isFinite(tip) && now >= tip - 5 * 60_000 && now <= tip + 4 * 60 * 60_000;
+      });
+      if (candidates.length === 0) return;
+      const previous = await pb.collection("live_game_snapshots").getFullList<{ game_code: number; live: boolean }>({
+        filter: `season = '${env.EUROLEAGUE_SEASON}'`,
+        fields: "game_code,live",
+        requestKey: null,
+      });
+      const finished = new Set(previous.filter((row) => !row.live).map((row) => row.game_code));
+      for (const fixture of candidates) {
+        if (finished.has(fixture.game_code)) continue;
+        try {
+          const game = await fetchLiveBoxscore(fixture.game_code, env.EUROLEAGUE_SEASON, fixture.local_club, fixture.road_club);
+          if (!game) continue;
+          const outcome = await upsertLiveSnapshot(pb, {
+            season: env.EUROLEAGUE_SEASON,
+            gameCode: fixture.game_code,
+            round: fixture.round,
+            checkedAt: new Date().toISOString(),
+            game,
+          });
+          if (outcome !== "unchanged") log(`live · game ${fixture.game_code} · ${outcome} · ${game.live ? "provisional" : "finished"}`);
+        } catch (error) {
+          log(`live · game ${fixture.game_code} failed: ${describeError(error)}`, "warn");
+        }
+      }
+    } catch (error) {
+      log(`live pass failed: ${describeError(error)}`, "error");
+      pb.authStore.clear();
+    }
+  }
+
+  function scheduleLive(): void {
+    if (env.LIVE_FETCH === "off") {
+      log("live box-score polling is off pending an in-game feed check");
+      return;
+    }
+    const run = () => {
+      if (stopping || liveInFlight) return;
+      liveInFlight = livePass().finally(() => { liveInFlight = null; });
+    };
+    setTimeout(() => {
+      run();
+      liveTimer = setInterval(run, LIVE_EVERY_MS);
+    }, LIVE_FIRST_AFTER_MS).unref?.();
+  }
+
   let statsTimer: ReturnType<typeof setInterval> | null = null;
   let newsTimer: ReturnType<typeof setInterval> | null = null;
   /**
@@ -403,6 +465,7 @@ function main(): void {
 
   scheduleStats();
   scheduleNews();
+  scheduleLive();
   // After the schedulers, so a slow feed cannot delay the sweep starting.
   void previousSeasonOnce();
 
@@ -450,6 +513,7 @@ function main(): void {
     clearInterval(timer);
     if (statsTimer) clearInterval(statsTimer);
     if (newsTimer) clearInterval(newsTimer);
+    if (liveTimer) clearInterval(liveTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

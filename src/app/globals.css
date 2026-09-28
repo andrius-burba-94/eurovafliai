@@ -1,104 +1,25 @@
 @import "tailwindcss";
 
-/*
- * The Midnight Board — design tokens.
- *
- * The world is the physical draft board, lit for a night game: the board itself
- * is the ground, the marks on it are chalk, and one Euroleague orange marks the
- * two things that are live. Euroleague tips at 20:00 and 21:00 CET and this app
- * is read on a phone in a dim lounge, so the board is drawn for that room.
- *
- * Phase 10 (ADR-0006, blueprint D22) and a REVERSAL of what stood here since
- * 1.4 — card stock as the ground, argued from a lit room — and of 9.5's night
- * board, which was a second ground beside it. What the old direction refused,
- * and what is still refused, is a dark ground doing the work structure should do
- * and one accent glowing decoratively. The structure is unchanged: four rule
- * weights carry state, the marker has two jobs, every pair is measured.
- *
- * Every value below the two anchors is SOLVED against a floor in
- * `tokens.test.ts`, not picked. Three of them are worth reading before editing
- * any of them — see the comments on `stock-panel`, `rule` and `live-sunk`.
- *
- * DESIGN.md is the prose record; this file is the source of truth for values.
- */
-
+/* Approved 2026-27 arena palette. State colors have named jobs; neutral
+ * surfaces and type carry the hierarchy on every signed-in page. */
 @theme {
-  /* --- Ground and ink -----------------------------------------------------
-   * `#0B1120` exactly, as the brief named it. Neutrals are tinted toward the
-   * ground's own blue so nothing is a dead grey, and neither end of the ramp is
-   * pure black or white.
-   */
-  --color-stock: oklch(0.18 0.032 266.6);
-  /* A panel is LIGHTER than the ground, not deeper — and that is forced rather
-   * than chosen. On a near-black board "deeper stock" is unavailable, because
-   * depth on a dark ground is lightness. It is why this token is no longer
-   * called `stock-deep`: the name would say the opposite of what it does.
-   * 1.12:1 against the ground, and the surface every framed Bank is drawn on. */
-  --color-stock-panel: oklch(0.232 0.028 265);
-  /* Chalk stops well short of the 18.8:1 that pure white would reach here.
-   * 9.5's halation argument is the part of it that outlived the night board: a
-   * ramp whose top shouts leaves the quiet inks nothing to be quiet against,
-   * and full white in a dark room is harder to read, not easier. 13.89:1. */
-  --color-ink: oklch(0.898 0.008 265);
-  /* Solved against its WORST pairing rather than against the ground: soft chalk
-   * is written on a position wash that itself sits on a panel (4.57:1), and the
-   * Ink-on-Blush Rule needs it stronger than the marker on the live bay (5.36:1
-   * against 5.05:1). Taking 9.5's 5.79:1 target instead failed both. 6.24:1. */
-  --color-ink-soft: oklch(0.668 0.014 265);
-  /* 5.36:1, and the token that fixes `live-sunk` below — a muted pool row is
-   * written in this, and that row can be the armed one. */
-  --color-ink-faint: oklch(0.629 0.014 265);
-
-  /* --- The board's structure ---------------------------------------------
-   * The ruling IS the state language — dashed means waiting, solid means
-   * filled — so it has to be seen from across a dim room, with the major/minor
-   * hierarchy a real board has: an empty slot is ruled, a filled slot harder.
-   *
-   * `rule` is solved against the PANEL (3.15:1), not the ground, and that is
-   * the reverse of the card-stock board. The panel is the lighter of the two
-   * surfaces here, so it is the harder one for a mid-grey rule to sit on;
-   * solved the old way round this came out at 2.46:1 on the surface the board
-   * is actually drawn inside. It clears 3.52:1 on the ground as a by-product.
-   */
-  --color-rule: oklch(0.527 0.018 262);
-  --color-rule-strong: oklch(0.601 0.02 262);
-  --color-rail: oklch(0.64 0.05 258);
-
-  /* --- The one accent ----------------------------------------------------
-   * Euroleague orange, `#FF5500` exactly. It marks exactly two things — who is
-   * on the clock, and the one act on a surface — and is never decoration.
-   *
-   * FOUR decimal places on purpose: at three it round-trips to `#ff5502`, which
-   * is invisible and still not the colour the brief named. 5.88:1.
-   */
-  --color-live: oklch(0.6759 0.2175 38.8);
-  /* The live field locates the slot; the 2px marker rule above it is what
-   * carries the state. Its lightness is DERIVED, not chosen: it is the lightest
-   * warm bay on which `ink-faint` still clears 4.5:1 (it lands at 4.61:1).
-   * Lift it for looks and the quietest row in the pool goes under the floor on
-   * the one surface where that row is the armed one. 1.16:1 on the ground. */
-  --color-live-sunk: oklch(0.254 0.075 38.8);
-
-  /* --- Position coding --------------------------------------------------
-   * Guards cyan, Forwards emerald, Centers amber — at full strength, because
-   * since Phase 10 colour is MEANT to be scanned down a 323-row pool rather
-   * than to reinforce a form distinction. 9.86 / 10.34 / 10.63:1 on the ground,
-   * and each letter clears 8.36–8.99:1 on its own 10% wash.
-   *
-   * Colour NEVER carries position alone, and that matters MORE here than it did
-   * with the muted twill it replaces: 3.2's critique measured the old guard and
-   * center washes as pixel-identical under severity-1.0 deuteranopia, and
-   * saturation does not fix that — it makes the colour look more informative
-   * while staying unavailable to the same readers. The letter is always present
-   * (PRODUCT.md), and it is now the actual carrier rather than a redundancy.
-   *
-   * There is no fourth hue. The brief asked for purple head coaches; Draft Mode
-   * is Classic Mode without the head coach (D19) and the roster sync filters
-   * coaches out at ingest, so it would badge an entity the game does not have.
-   */
-  --color-pos-g: oklch(0.78 0.13 205);
-  --color-pos-f: oklch(0.79 0.15 155);
-  --color-pos-c: oklch(0.82 0.15 80);
+  --color-stock: oklch(0.16828 0.01806 263.904);
+  --color-stock-panel: oklch(0.23944 0.03538 262.586);
+  --color-ink: oklch(0.94392 0.00591 239.822);
+  --color-ink-soft: oklch(0.77437 0.01702 245.146);
+  --color-ink-faint: oklch(0.74407 0.01579 251.202);
+  --color-rule: oklch(0.53597 0.03508 245.524);
+  --color-rule-strong: oklch(0.60640 0.03369 242.335);
+  --color-panel-border: oklch(0.34478 0.02653 255.110);
+  --color-rail: oklch(0.77811 0.02977 238.366);
+  --color-live: oklch(0.75428 0.08630 207.019);
+  --color-live-sunk: oklch(0.33303 0.04280 212.130);
+  --color-gain: oklch(0.73544 0.10996 161.936);
+  --color-loss: oklch(0.69863 0.12641 14.661);
+  --color-gold: oklch(0.77767 0.09508 82.098);
+  --color-pos-g: oklch(0.75428 0.08630 207.019);
+  --color-pos-f: oklch(0.73544 0.10996 161.936);
+  --color-pos-c: oklch(0.77767 0.09508 82.098);
 
   /* --- Type -------------------------------------------------------------
    * Two families with one job each: words in Space Grotesk, figures that live
@@ -129,20 +50,8 @@
   --text-roll--line-height: 1;
   --text-roll--letter-spacing: -0.03em;
 
-  /* --- The depth scale --------------------------------------------------
-   * Phase 10, replacing "zero radius, everywhere". ONE radius, and it belongs
-   * to level 1 of the scale — a framed Bank and a card block. A ruled slot, a
-   * button, an input and a position patch stay right-angled, because a ruled
-   * slot with a rounded corner is not a ruled slot.
-   *
-   * There is no shadow token, and that is a decision rather than an omission.
-   * A shadow works by darkening the surface under it, and on a ground at L 0.18
-   * there is nothing left to darken — a "shadow" here is either invisible or a
-   * black smear, and the version that reads as elevation is a glow, which is
-   * the thing ADR-0006 kept refusing while it gave up the light ground. So
-   * depth on this board is exactly three things: a lighter fill, a rule, and
-   * this corner.
-   */
+  /* Framed panels and controls use restrained small corners. Circular player
+   * marks are a court affordance. Depth comes from fill and border, not glow. */
   --radius-block: 0.375rem;
 
   /* --- Spacing rhythm ---------------------------------------------------
@@ -152,18 +61,7 @@
   --spacing-slot: 2.75rem;
 }
 
-/* One ground, so there is nothing to switch and nothing to resolve.
- *
- * 9.5 declared a second palette as `--night-*` and pointed `--color-*` at it
- * from two blocks (the system preference, and an explicit override written by a
- * script in `<head>`). Phase 10 removed all of it along with the control, the
- * `localStorage` key and `src/lib/theme.ts`.
- *
- * The cost is real and is recorded in ADR-0006 and Open debt rather than left
- * to be found as a bug: `prefers-color-scheme` is no longer honoured at all, so
- * a reader who asks their phone for a light interface gets this one anyway. The
- * fix is not "put the switch back" — it is a second palette, and the
- * measurement that rules one out is `#FF5500` at 2.76:1 on card stock. */
+/* The app has one dark ground. */
 :root {
   color-scheme: dark;
   /* The phone tab bar: its row, its top rule, the home indicator. Every bar
@@ -185,6 +83,133 @@ body {
    * counts down makes a clock jitter, and a draft has a clock on it. */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+/* A fixed-ratio half court keeps the five legible at every shell width. */
+.lineup-court {
+  position: relative;
+  width: min(100%, 38rem);
+  aspect-ratio: 1.18;
+  min-height: 18rem;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid #718e90;
+  border-radius: 0.375rem;
+  background: #193236;
+  box-shadow: inset 0 0 0 5px #11272d;
+}
+.lineup-court-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #91aaaa;
+  stroke-width: 2;
+  opacity: .7;
+  pointer-events: none;
+}
+.lineup-court-name {
+  position: absolute;
+  top: .8rem;
+  left: .9rem;
+  color: #bfcecc;
+  font-size: .625rem;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.lineup-court-row {
+  position: absolute;
+  left: 2.2rem;
+  right: .7rem;
+  height: 26%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lineup-court-row-c { top: 11%; }
+.lineup-court-row-f { top: 38%; }
+.lineup-court-row-g { top: 65%; }
+.lineup-court-role {
+  position: absolute;
+  left: -1.5rem;
+  color: #a8c9c9;
+  font-size: .55rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.lineup-court-players {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  gap: .25rem;
+}
+.lineup-court-players li { width: min(31%, 6.5rem); min-width: 0; }
+.lineup-court-player {
+  display: grid;
+  width: 100%;
+  min-height: 4.75rem;
+  justify-items: center;
+  align-content: center;
+  gap: .25rem;
+  border: 0;
+  background: transparent;
+  color: #e9edf0;
+  text-align: center;
+  cursor: pointer;
+}
+.lineup-court-player:focus-visible,
+.lineup-court-open:focus-visible { outline: 2px solid #67bfcb; outline-offset: 2px; }
+.lineup-court-disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.85rem;
+  height: 2.85rem;
+  border: 2px solid #b8cfce;
+  border-radius: 50%;
+  background: #263f44;
+  font-size: .875rem;
+  font-weight: 800;
+}
+.lineup-court-player[data-captain] .lineup-court-disc { border-color: #d5b16e; }
+.lineup-court-player[data-valid] .lineup-court-disc { border-color: #67bfcb; outline: 2px solid #67bfcb; outline-offset: 2px; }
+.lineup-court-player[aria-pressed="true"] .lineup-court-disc { background: #286170; }
+.lineup-court-position,
+.lineup-court-captain {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: .2rem;
+  font-size: .58rem;
+  line-height: 1;
+}
+.lineup-court-position { right: -.5rem; bottom: -.25rem; background: #67bfcb; color: #10252c; }
+.lineup-court-captain { left: -.5rem; top: -.3rem; background: #d5b16e; color: #2b2317; }
+.lineup-court-player strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: .68rem;
+  line-height: 1.15;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lineup-court-open { min-height: 3rem; width: 100%; border: 1px dashed #8ca9a8; background: #183136; color: #e9edf0; font-size: .6rem; }
+.lineup-court-open:disabled { opacity: .7; }
+@media (max-width: 400px) {
+  .lineup-court-row { left: 1.8rem; right: .4rem; }
+  .lineup-court-role { left: -1.2rem; font-size: .48rem; }
+  .lineup-court-disc { width: 2.3rem; height: 2.3rem; }
+  .lineup-court-player { min-height: 4rem; }
+  .lineup-court-player strong { font-size: .58rem; }
 }
 
 /* The board's ruling, in three weights. A slot that is waiting is ruled thin
@@ -273,7 +298,7 @@ body {
  * structural rule, at the one radius. The frame groups a TASK; a card block
  * (below) groups a SUBJECT. Both are level 1 and there is nothing below them. */
 @utility bank-framed {
-  border: 1px solid var(--color-rule-strong);
+  border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-block);
   background-color: var(--color-stock-panel);
   padding: 1rem;
@@ -294,7 +319,7 @@ body {
  * content rather than a section's, and on a 390px phone thirteen of them at
  * 1rem is a lot of scrolling for the same information. */
 @utility card-block {
-  border: 1px solid var(--color-rule);
+  border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-block);
   background-color: var(--color-stock-panel);
   padding: 0.75rem;

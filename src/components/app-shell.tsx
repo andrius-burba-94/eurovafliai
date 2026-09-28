@@ -80,18 +80,18 @@ export async function AppShell({
       <div className="flex min-h-0 flex-1">
         <aside
           data-testid="sidebar"
-          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-rail/40 px-4 py-4 lg:flex"
+          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#303a47] bg-[#111824] px-4 py-4 lg:flex"
         >
           <Masthead />
           <LeagueSwitcher leagues={leagues} league={league} testId="league-switcher" />
-          <nav aria-label="Main" className="flex flex-1 flex-col gap-6">
+          <nav aria-label="Main" className="flex flex-1 flex-col gap-2">
             <NavGroups groups={groups} current={current} prefix="nav" />
           </nav>
           <AccountMenu account={account} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="border-b border-rail/40">
+          <header className="border-b border-[#303a47] bg-[#111a28]">
             <div className="flex min-h-14 items-center justify-between gap-3 px-5 py-2 sm:px-8">
               <div className="min-w-0 lg:hidden">
                 <Masthead compact />
@@ -127,7 +127,7 @@ export async function AppShell({
             <main
               id="main"
               data-testid={testId}
-              className={`mx-auto flex w-full min-w-0 ${MEASURE[measure]} flex-1 flex-col gap-8 px-5 pt-8 pb-28 sm:gap-slot sm:px-8 sm:pt-12 lg:pb-12`}
+              className={`mx-auto flex w-full min-w-0 ${MEASURE[measure]} flex-1 flex-col gap-6 px-5 pt-7 pb-28 sm:gap-7 sm:px-8 sm:pt-9 lg:pb-12`}
             >
               {children}
             </main>
@@ -167,10 +167,10 @@ function NavLink({
       href={item.href}
       data-testid={`${prefix}-${item.key}`}
       aria-current={isHere ? "page" : undefined}
-      className={`flex min-h-11 items-center gap-3 border-l-2 px-3 text-sm transition-colors ${focusRing} ${
+      className={`flex min-h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors ${focusRing} ${
         isHere
-          ? "border-ink bg-ink/5 text-ink"
-          : "border-transparent text-ink-soft hover:bg-ink/5 hover:text-ink"
+          ? "bg-[#253542] font-semibold text-ink"
+          : "text-ink-soft hover:bg-[#1c2c3e] hover:text-ink"
       }`}
     >
       <NavIcon name={item.icon} />
@@ -200,8 +200,8 @@ function NavGroups({
   return (
     <>
       {groups.map((group) => (
-        <div key={group.id} className="flex flex-col gap-1">
-          <p id={`${prefix}-group-${group.id}`} className="slot-label truncate px-3">
+        <div key={group.id} className="flex flex-col gap-1 border-t border-[#26313d] pt-3 first:border-0 first:pt-0">
+          <p id={`${prefix}-group-${group.id}`} className="slot-label truncate px-3 text-ink-soft">
             {group.label}
           </p>
           <ul
@@ -336,7 +336,7 @@ function BottomTabs({
     <nav
       aria-label="Tabs"
       data-testid="bottom-tabs"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-rail/40 bg-stock pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-[#303a47] bg-[#111824] pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       <ul role="list" className="grid grid-cols-5">
         {tabs.map((item) => (
@@ -391,7 +391,11 @@ function shortLabel(item: NavItem): string {
     case "leagues":
       return "Leagues";
     case "pool":
-      return "Pool";
+      return "Players";
+    case "matchday":
+      return "Matchday";
+    case "standings":
+      return "League";
     case "news":
       return "News";
     case "mapping":

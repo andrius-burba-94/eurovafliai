@@ -142,6 +142,9 @@ export function TransactionBuilder({
             players: namesOf(picked, seats, freeAgents),
             fromRound: round,
           });
+  const ready = mode === "trade"
+    ? outA.length > 0 && outA.length === outB.length
+    : picked.length > 0;
 
   const roster = (memberId: string) =>
     seats.filter((seat) => seat.member === memberId);
@@ -199,7 +202,7 @@ export function TransactionBuilder({
       </Field>
 
       {mode === "trade" ? (
-        <>
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           <Bank framed label="This side">
             <div className="flex flex-wrap gap-2 px-3 py-2">
               {members.map((member) => (
@@ -304,7 +307,7 @@ export function TransactionBuilder({
               )}
             </Slots>
           </Bank>
-        </>
+        </div>
       ) : (
         <>
           <Bank framed label="Whose roster">
@@ -425,14 +428,16 @@ export function TransactionBuilder({
         <Correction testId="transaction-error">{result.error}</Correction>
       ) : null}
 
-      <div className="slot-filled sticky bottom-(--tabs-height) z-30 lg:bottom-0 flex flex-col gap-3 bg-stock px-3 pb-3 pt-3">
-        <p className="text-sm text-ink-soft" data-testid="confirm-sentence">
-          {sentence}
+      <div className="sticky bottom-(--tabs-height) z-30 flex flex-wrap items-center justify-between gap-3 border-t border-panel-border bg-stock px-3 py-3 lg:bottom-0">
+        <p className="max-w-[65ch] flex-1 text-sm text-ink-soft" data-testid="confirm-sentence">
+          {ready ? sentence : mode === "trade" ? "Choose the same number of players on each side to preview the trade." : "Choose at least one player to preview this roster change."}
         </p>
         <SubmitButton
           testId="record-transaction-submit"
           tone="live"
           pendingLabel="Recording…"
+          compact
+          disabled={!ready}
         >
           Record this
         </SubmitButton>

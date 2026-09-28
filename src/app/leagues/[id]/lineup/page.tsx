@@ -10,6 +10,7 @@ import { AppShell } from "@/components/app-shell";
 import { ContextPanel } from "@/components/context-panel";
 import { resolveSeason, SeasonControl } from "@/components/season-control";
 import { SubmitButton } from "@/components/submit-button";
+import { readComparisonPlayers } from "@/lib/stats/comparison-queries";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -74,22 +75,20 @@ export default async function LineupPage({
       : Promise.resolve(null),
     readPanel({ leagueId: id, season, teamNames, round }),
   ]);
+  const comparison = board ? await readComparisonPlayers(board.players, season, session.token) : [];
 
   return (
     <AppShell
       current="lineup"
       league={navLeagueFrom(data)}
+      measure="wide"
       testId="lineup"
       panel={<ContextPanel data={panel} />}
     >
-      <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-          Lineup
-        </h1>
-        <p className="text-ink-soft">
-          {teamName}, round {round}. The captain scores double, the bench
-          scores half, the inactive three score nothing.
-        </p>
+      <div className="flex flex-col gap-2">
+        <p className="slot-label text-live">{data.league.name} / My team</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Lineup</h1>
+        <p className="text-sm text-ink-soft">{teamName}, round {round}. Set the five, captain and rotation before recording.</p>
       </div>
 
       <SeasonControl
@@ -158,12 +157,14 @@ export default async function LineupPage({
         </Bank>
       ) : (
         <LineupForm
+          key={`${id}:${memberId}:${season}:${round}`}
           leagueId={id}
           memberId={memberId}
           teamName={teamName}
           season={season}
           round={round}
           players={board.players}
+          comparison={comparison}
           source={board.source}
           carriedFrom={board.carriedFrom}
           template={data.settings.lineup_template}

@@ -1,20 +1,24 @@
 ---
 name: Eurovafliai
-description: A draft board lit for a night game — midnight ground, ruled slots, one Euroleague orange.
+description: A slate arena for preparing a five, following games and reviewing the league.
 colors:
-  stock: "oklch(0.18 0.032 266.6)"
-  stock-panel: "oklch(0.232 0.028 265)"
-  ink: "oklch(0.898 0.008 265)"
-  ink-soft: "oklch(0.668 0.014 265)"
-  ink-faint: "oklch(0.629 0.014 265)"
-  rule: "oklch(0.527 0.018 262)"
-  rule-strong: "oklch(0.601 0.02 262)"
-  rail: "oklch(0.64 0.05 258)"
-  live: "oklch(0.6759 0.2175 38.8)"
-  live-sunk: "oklch(0.254 0.075 38.8)"
-  pos-g: "oklch(0.78 0.13 205)"
-  pos-f: "oklch(0.79 0.15 155)"
-  pos-c: "oklch(0.82 0.15 80)"
+  stock: "oklch(0.16828 0.01806 263.904)"
+  stock-panel: "oklch(0.23944 0.03538 262.586)"
+  ink: "oklch(0.94392 0.00591 239.822)"
+  ink-soft: "oklch(0.77437 0.01702 245.146)"
+  ink-faint: "oklch(0.74407 0.01579 251.202)"
+  rule: "oklch(0.53597 0.03508 245.524)"
+  rule-strong: "oklch(0.60640 0.03369 242.335)"
+  panel-border: "oklch(0.34478 0.02653 255.110)"
+  rail: "oklch(0.77811 0.02977 238.366)"
+  live: "oklch(0.75428 0.08630 207.019)"
+  live-sunk: "oklch(0.33303 0.04280 212.130)"
+  gain: "oklch(0.73544 0.10996 161.936)"
+  loss: "oklch(0.69863 0.12641 14.661)"
+  gold: "oklch(0.77767 0.09508 82.098)"
+  pos-g: "oklch(0.75428 0.08630 207.019)"
+  pos-f: "oklch(0.73544 0.10996 161.936)"
+  pos-c: "oklch(0.77767 0.09508 82.098)"
 typography:
   display:
     fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif"
@@ -188,6 +192,21 @@ components:
 ---
 
 # Design System: Eurovafliai
+
+## Current contract: the arena interface
+
+The site-wide concept approved on 28 September 2026 and [ADR-0009](docs/adr/ADR-0009-arena-redesign.md) supersede conflicting guidance below. `src/app/globals.css` remains the source of truth for rendered tokens. The older direction is retained after this section as a record of why the board was built as it was; its orange marker, one-radius and no-sidebar rules are historical.
+
+- **Scene.** Friends set a basketball five on a phone before tip-off, check the same five as games unfold, then review the league at night. The visual weight belongs to the court, current action and score status. Neutral slate carries the rest.
+- **Navigation.** Desktop keeps a sidebar with separate League, Drafts, EuroLeague and Manage groups. League has League Home, My Team, Lineup, Matchday, Standing, Recap and Trades where permitted. Drafts owns Draft Room, Draft Order, Cheat Sheet and Export. During a season, phone tabs are Lineup, Players, Matchday, League and More. No top navigation row duplicates them.
+- **Color.** Canvas is near `#0B0F17`, panels near `#161F30`, borders near `#1E293B`. `live` cyan is for selection, active play and the main action; `gain` emerald marks improvement; `loss` crimson marks injury or loss; `gold` marks captaincy and caution. Position G/F/C shares cyan/emerald/gold with a printed letter. A color always has a word, shape or number beside it.
+- **Surface and shape.** Framed panels use a subtle fill and one border. Controls may have small corners, player markers are circles, and court lines use a fixed-ratio canvas with no stretched labels. Avoid glows, decorative gradients, deep shadows and nested cards. The court keeps C/F/G rows separate at phone and desktop widths.
+- **Hierarchy.** Page names use title case and strong weight; narrow labels identify context. Keep the first useful action or fact before ingest metadata. Use a wide measure for lineup, matchday, team, pool, trade, standings, recap and draft; the sidebar remains separate. Long tables scroll rather than shrinking columns below legibility.
+- **Interaction.** Tap-to-swap, captain selection and the court/grid switch operate on one lineup state. Show all five official formations as G/F/C counts. Draft edits survive refresh locally and are visibly unsaved until the server records them. Auto-Optimize presents a review step. Comparison appears as a keyboard-accessible drawer with explicit blanks for missing data.
+- **Live honesty.** Scheduled, in-play, stale, unavailable and final states are named. Provisional rank and score never masquerade as final. A snapshot states when the official feed was checked. The completed-game pipeline owns final standings.
+- **Access and motion.** Minimum interactive target is 44px; keyboard focus is visible. Respect reduced motion. Keep motion to state changes that help someone understand a pick, placement or update. Text contrast and meaningful boundaries are measured on both the canvas and panel fill.
+
+## Earlier board direction (superseded where it conflicts)
 
 Written from the code as built at the end of Phase 1.4, and **re-grounded in
 Phase 10** ([ADR-0006](docs/adr/ADR-0006-midnight-board.md), blueprint D22):

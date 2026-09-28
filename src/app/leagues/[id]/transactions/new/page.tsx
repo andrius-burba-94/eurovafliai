@@ -51,16 +51,13 @@ export default async function NewTransactionPage({
     <AppShell
       current="trades"
       league={navLeagueFrom(data)}
+      measure="wide"
       testId="transaction-builder"
     >
-      <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-          Record a transaction
-        </h1>
-        <p className="text-ink-soft">
-          {data.league.name}. The room already agreed. The season sets the
-          scoring context; the roster change applies now.
-        </p>
+      <div className="flex flex-col gap-2">
+        <p className="slot-label text-live">{data.league.name} / Trades</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Record a trade</h1>
+        <p className="text-sm text-ink-soft">Review who sends each player and the effective round before recording the agreement.</p>
       </div>
       <SeasonControl
         action={`/leagues/${id}/transactions/new`}

@@ -4,11 +4,9 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * The depth scale, enforced rather than described — Phase 10.
+ * The depth scale, enforced rather than described.
  *
- * 10.1 replaced "zero radius, zero shadows, zero gradients, anywhere" with a
- * two-level depth scale and one radius token, and recorded in Open debt that
- * nothing enforced either half. This file is that enforcement, and it exists
+ * This source guard exists
  * because of how the failure looks: **Tailwind emits an unknown utility as
  * nothing at all.** A stray `rounded-lg` on a button renders a rounded button;
  * a hand-rolled `card-block-2` renders a plain `<li>` with no border, no fill
@@ -38,21 +36,19 @@ const files = sourceFiles(SRC).map((path) => ({
   text: readFileSync(path, "utf8"),
 }));
 
-describe("the depth scale has one radius", () => {
+describe("the board's restrained corner scale", () => {
   it("finds source files to check", () => {
     // If the walk breaks, every assertion below passes vacuously.
     expect(files.length).toBeGreaterThan(50);
   });
 
-  it("no component sets a corner radius of its own", () => {
-    // Radius belongs to level 1 of the scale and is applied by the
-    // `bank-framed` and `card-block` utilities, in CSS, once. A ruled slot, a
-    // button, an input and a position patch are right-angled — a ruled slot
-    // with a rounded corner is not a ruled slot.
-    const offenders = files.filter(({ text }) => /\brounded-(?!block\b)[a-z0-9[]/.test(text));
+  it("uses only small corners for controls and full circles for marks", () => {
+    // The arena treatment introduces small control corners and circular player
+    // marks. Large floating cards still do not belong in this board.
+    const offenders = files.filter(({ text }) => /\brounded-(?!(?:block|md|lg|full)\b)[a-z0-9[]/.test(text));
     expect(
       offenders.map((f) => f.path),
-      "radius is one token at one level of the depth scale (DESIGN.md, Shapes)",
+      "use the approved small corner scale (DESIGN.md, Shapes)",
     ).toEqual([]);
   });
 });

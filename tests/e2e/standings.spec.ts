@@ -152,6 +152,19 @@ test("a counted round ranks the members who scored it", async ({
     },
     { requestKey: null },
   );
+  await pb.collection("standings_snapshots").create(
+    {
+      league: league.id,
+      season: "E2099",
+      round: 2,
+      phase: "RS",
+      table: [
+        { memberId: chief.id, totalTenths: 200, roundTenths: 58 },
+        { memberId: mate.id, totalTenths: 140, roundTenths: 60 },
+      ],
+    },
+    { requestKey: null },
+  );
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}/standings?season=E2099`);
@@ -164,6 +177,9 @@ test("a counted round ranks the members who scored it", async ({
   );
   const rows = page.getByTestId("standings-row");
   await expect(rows).toHaveCount(2);
+  const firstRowHeight = await rows.first().evaluate((row) => row.getBoundingClientRect().height);
+  expect(firstRowHeight).toBeLessThan(80);
+  await expect(rows.first().getByTestId("standings-spark")).toBeVisible();
   await expect(rows.first()).toContainText("14.2");
   await expect(rows.nth(1)).toContainText("8.0");
 
@@ -176,9 +192,9 @@ test("a counted round ranks the members who scored it", async ({
   await expect(page).toHaveURL(/season=E2099/);
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
 
-  await page.getByTestId("season-select").selectOption("E2025");
-  await page.getByTestId("season-submit").click();
-  await expect(page).toHaveURL(/season=E2025/);
+  await expect(page.getByTestId("season-select").locator('option[value="E2025"]')).toHaveCount(0);
+  await page.goto(`/leagues/${league.id}/standings?season=E2025`);
+  await expect(page.getByTestId("season-select")).toHaveValue("E2026");
 });
 
 test("a signed-in member reads a player's stored game log", async ({
@@ -204,9 +220,8 @@ test("a signed-in member reads a player's stored game log", async ({
   await signIn(context, user);
 
   await page.goto("/players");
-  const club = page.locator("details", { hasText: TEST_CLUB });
-  await club.locator("summary").click();
-  await page.getByRole("link", { name: planted.name }).click();
+  await page.getByTestId("pool-search").fill(planted.name);
+  await page.getByRole("link", { name: planted.name, exact: true }).click();
 
   await expect(page.getByTestId("player-log")).toBeVisible();
   const row = page.getByTestId("player-game");

@@ -56,6 +56,8 @@ export const serverEnvSchema = z.object({
    * deadlines.
    */
   STATS_FETCH: z.enum(["on", "off"]).default("on"),
+  /** Gated until the official Boxscore is observed changing during a game. */
+  LIVE_FETCH: z.enum(["on", "off"]).default("off"),
   /**
    * Whether the worker reads the injury and transfer pages — slice 9.4.
    *
