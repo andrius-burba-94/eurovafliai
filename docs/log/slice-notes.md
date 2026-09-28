@@ -2456,3 +2456,31 @@ Four more were fixed on the way past:
 
 The rest is carried as one debt row in STATUS.md rather than fixed here,
 because each item is a design decision rather than a defect.
+
+## 9.3a — A team's round is rounded once, because the official game does
+
+9.3 rounded **per player-round**: weigh each player, round half away from
+zero, then add. That was a defensible reading of "no float reaches a sum", and
+it was wrong against the one number the league actually compares with. The
+first real round (E2026 round 1) showed it: Monikutės Naktys' official lineup
+prints Taylor on the bench at **9.35** and Diakite at **3.85**, and the team at
+**164.6**. Rounding each half first makes them 9.4 and 3.9, and the team 164.7.
+The official game keeps two decimals per player and rounds nothing until the
+total.
+
+So `computeStandings` now adds a member's round in integer **hundredths**
+(`weighHundredths`: tenths × multiplier × 10, which is a whole number for
+every multiplier the lineup has — ×2, ×1, ×0.5, ×0) and rounds to tenths once
+per round (`hundredthsToTenths`, still half away from zero). The season total
+is the sum of the rounded rounds, which is what a reader adds up down the
+table. `impactForMember` takes the same path, so a deal's delta cannot tell a
+different story than the table it moved. The recap's team figures come from
+the snapshots and changed with them; its best-night figure is one player on
+their own and still uses `scaleTenths`.
+
+`standings.test.ts` carries that round verbatim: thirteen players, the official
+raw points, the recorded lineup, **1646 tenths**. The old code gave 1647.
+
+Recovery is a recompute and nothing else: no schema moved, box scores are
+untouched, and `npm run standings:recompute` rewrites only the snapshots whose
+numbers changed.

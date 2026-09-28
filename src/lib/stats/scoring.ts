@@ -132,12 +132,35 @@ export type GameScore = {
  *
  * The one rounding convention in the app: half **away from zero**, so a -0.5
  * does not become -0 and a bench player's 3.3 halves to 1.7 rather than to a
- * float nobody can sum. Lineup multipliers (9.3) are the caller that needs it
- * most — 50% of an odd number of tenths is never an integer.
+ * float nobody can sum. A team's round does not round per player — see
+ * `weighHundredths` — so this is for a single figure shown on its own.
  */
 export function scaleTenths(tenths: number, multiplier: number): number {
   const scaled = tenths * multiplier;
   return scaled < 0 ? -Math.round(-scaled) : Math.round(scaled);
+}
+
+/**
+ * A player-round's weighted share of a team's round, in integer
+ * **hundredths**.
+ *
+ * Euroleague Fantasy adds a bench half at two decimals — 18.7 on the bench
+ * is 9.35, not 9.4 — and rounds nothing until the team's total. Tenths × the
+ * lineup multipliers (×2, ×1, ×0.5, ×0) is always a whole number of
+ * hundredths, so summing these is exact; the rounding is only for a
+ * multiplier finer than a half, which nothing sets today.
+ */
+export function weighHundredths(tenths: number, multiplier: number): number {
+  return scaleTenths(tenths, multiplier * 10);
+}
+
+/**
+ * A team's round total back to tenths: rounded once, half away from zero, at
+ * the end — the step the official game takes after adding 164.60 up.
+ */
+export function hundredthsToTenths(hundredths: number): number {
+  const tenths = Math.abs(hundredths) / 10;
+  return hundredths < 0 ? -Math.round(tenths) : Math.round(tenths);
 }
 
 /**

@@ -1,7 +1,7 @@
 import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
 import { coversRound } from "@/lib/memberships/from";
 import { type Phase, PHASES } from "./csv";
-import { scaleTenths, sumTenths } from "./scoring";
+import { hundredthsToTenths, sumTenths, weighHundredths } from "./scoring";
 
 /**
  * Standings from rosters × game lines — slice 4.5.
@@ -92,9 +92,12 @@ function rankRows(rows: StandingRow[]): StandingRow[] {
  * applied **here** and not at ingest, because `player_game_stats.fantasy_pts`
  * is app-global — one row serves every league — so a per-league multiplier
  * baked into it would be wrong the moment two leagues arrange the same player
- * differently. Multiplying per player-round and rounding once, half away from
- * zero, means no float ever reaches a sum. Omit it and everybody scores at
- * 100%, which is what the app did before lineups existed.
+ * differently. A member's round is summed in integer hundredths and rounded
+ * to tenths **once**, half away from zero — the official game shows a bench
+ * 18.7 as 9.35 and only rounds the team's total, so rounding each player
+ * first drifts a tenth from the number the league compares against. Omit it
+ * and everybody scores at 100%, which is what the app did before lineups
+ * existed.
  */
 export function computeStandings(
   windows: readonly StandingWindow[],
@@ -105,19 +108,26 @@ export function computeStandings(
   const byPlayer = tenthsByPlayerRound(lines, allowed(phases));
   const memberIds = [...new Set(windows.map((window) => window.memberId))];
   const rows: StandingRow[] = memberIds.map((memberId) => {
-    const byRound: Record<number, number> = {};
+    const hundredthsByRound = new Map<number, number>();
     for (const window of windows) {
       if (window.memberId !== memberId) continue;
       const scored = byPlayer.get(window.playerId);
       if (!scored) continue;
       for (const [round, tenths] of scored) {
         if (!coversRound(window, round)) continue;
-        const weighed = scaleTenths(
+        const weighed = weighHundredths(
           tenths,
           weights.multiplierFor(memberId, round, window.playerId),
         );
-        byRound[round] = (byRound[round] ?? 0) + weighed;
+        hundredthsByRound.set(
+          round,
+          (hundredthsByRound.get(round) ?? 0) + weighed,
+        );
       }
+    }
+    const byRound: Record<number, number> = {};
+    for (const [round, hundredths] of hundredthsByRound) {
+      byRound[round] = hundredthsToTenths(hundredths);
     }
     return {
       memberId,
