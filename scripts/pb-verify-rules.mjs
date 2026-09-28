@@ -1250,8 +1250,32 @@ try {
   );
   created.transactions.push(recorded.id);
 
+  for (const [type, players_in, players_out] of [
+    ["drop", {}, { [aliceMember.id]: [playerOne.id] }],
+    ["add", { [aliceMember.id]: [playerOne.id] }, {}],
+  ]) {
+    const oneSided = await su
+      .collection("transactions")
+      .create(
+        {
+          league: league.id,
+          type,
+          date: "2026-09-08 12:00:00.000Z",
+          from_round: 2,
+          members: [aliceMember.id],
+          players_in,
+          players_out,
+          note: "",
+        },
+        { requestKey: null },
+      )
+      .catch(() => null);
+    check(!!oneSided, `a superuser can record ${type === "drop" ? "a drop" : "an add"}, with one side empty`);
+    if (oneSided) created.transactions.push(oneSided.id);
+  }
+
   check(
-    (await listCount(aliceClient, "transactions")) === 1,
+    (await listCount(aliceClient, "transactions")) === 3,
     "a member reads their league's transactions",
   );
   check(
