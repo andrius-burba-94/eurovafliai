@@ -23,6 +23,7 @@ type ExpandedPlayer = {
   name: string;
   club_code: string;
   club_name: string;
+  person_code?: string;
   position: Position;
   proj_last5_games?: number;
   proj_last5_pirs?: unknown;
@@ -47,6 +48,7 @@ export type RosterPlayer = {
   readonly name: string;
   readonly clubCode: string;
   readonly clubName: string;
+  readonly personCode?: string;
   readonly position: Position;
   readonly overallNo: number | null;
   /**
@@ -105,6 +107,7 @@ export async function readMemberRoster(
         name: player.name,
         clubCode: player.club_code,
         clubName: player.club_name,
+        personCode: player.person_code,
         position: player.position,
         overallNo: overallByPlayer.get(player.id) ?? null,
         last5Pirs: last5SeriesOf(player),

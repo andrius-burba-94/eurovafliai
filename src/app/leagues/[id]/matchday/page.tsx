@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -86,7 +87,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                   const points = matchday.scoresByPlayer[player.id];
                   const progress = points != null && player.estimateTenths && player.estimateTenths > 0 ? Math.max(0, Math.min(100, Math.round(points / player.estimateTenths * 100))) : null;
                   return <li key={player.id} className="rounded-md border border-panel-border bg-stock p-3" data-testid="matchday-player">
-                    <div className="flex items-start gap-2"><PositionPatch position={player.position} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{player.name}</p><p className="text-xs text-ink-soft">{player.role ?? "Unassigned"} · {player.clubCode}</p></div><strong className="text-lg tabular-nums">{points != null ? (points / 10).toFixed(1) : "—"}</strong></div>
+                    <div className="flex items-start gap-2"><PlayerPortrait personCode={player.personCode} name={player.name} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{player.name}</p><p className="flex items-center gap-1 text-xs text-ink-soft"><PositionPatch position={player.position} />{player.role ?? "Unassigned"} · <ClubCrest clubCode={player.clubCode} />{player.clubCode}</p></div><strong className="text-lg tabular-nums">{points != null ? (points / 10).toFixed(1) : "—"}</strong></div>
                     <div className="mt-3 flex justify-between gap-2 text-xs"><span className={status === "In play" ? "text-gain" : "text-ink-soft"}>{status}</span><span className="text-ink-soft">{fixture ? `${fixture.local_club} vs ${fixture.road_club}` : "No fixture"}</span></div>
                     {progress !== null ? <div className="mt-2" aria-label={`${progress}% of recent fantasy average`}><div className="h-1.5 overflow-hidden rounded-full bg-[#303a47]"><div className="h-full bg-live" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-[10px] text-ink-soft">Score vs recent average</p></div> : null}
                   </li>;

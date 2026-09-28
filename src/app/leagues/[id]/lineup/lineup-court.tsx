@@ -1,8 +1,10 @@
 import type { Position } from "@/lib/engine";
+import { PlayerPortrait } from "@/components/official-media";
 
 export type CourtPlayer = {
   readonly id: string;
   readonly name: string;
+  readonly personCode?: string;
   readonly position: Position;
   readonly isCaptain: boolean;
 };
@@ -50,7 +52,7 @@ export function LineupCourt({
                   className="lineup-court-player"
                 >
                   <span className="lineup-court-disc">
-                    <span>{initial(player.name)}</span>
+                    <PlayerPortrait personCode={player.personCode} name={player.name} />
                     <span className="lineup-court-position" aria-hidden="true">{position}</span>
                     {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C</span> : null}
                   </span>
@@ -74,8 +76,4 @@ export function LineupCourt({
 
 function surname(name: string): string {
   return name.split(",")[0]!.trim();
-}
-
-function initial(name: string): string {
-  return surname(name).charAt(0).toUpperCase();
 }

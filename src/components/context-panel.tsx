@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useRef, useState, type KeyboardEvent } from "react";
 
 import { EmptyNotice, Slot, Slots } from "@/components/board";
@@ -197,12 +198,13 @@ function News({ items }: { items: PanelData["news"] }) {
             <span className="flex min-w-0 flex-col gap-1">
               <span className="flex flex-wrap items-baseline gap-x-2">
                 {item.playerId ? (
-                  <Link
-                    href={`/players/${item.playerId}`}
+                  <PlayerStatsLink
+                    id={item.playerId}
+                    name={item.name}
                     className="text-sm font-semibold uppercase tracking-[0.06em] underline decoration-ink/50 underline-offset-4 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                   >
                     {item.name}
-                  </Link>
+                  </PlayerStatsLink>
                 ) : (
                   <span className="text-sm font-semibold uppercase tracking-[0.06em]">
                     {item.name}

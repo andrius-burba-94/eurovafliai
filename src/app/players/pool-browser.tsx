@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Bank, PositionPatch } from "@/components/board";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { PlayerStatsLink } from "@/components/player-stats-link";
 import type { Position } from "@/lib/engine";
 import type { PoolPlayer } from "@/lib/rosters/queries";
 
@@ -46,9 +47,10 @@ export function PoolBrowser({ players, clubs }: {
     <div aria-live="polite" className="text-xs text-ink-soft">Showing {Math.min(limit, filtered.length)} of {filtered.length} players</div>
     {filtered.length ? <ul className="divide-y divide-panel-border" data-testid="pool-results">{filtered.slice(0, limit).map((player) => <li key={player.id} className="flex min-h-14 items-center gap-3 py-2" data-testid="pool-player">
       <PositionPatch position={player.position} />
-      <div className="min-w-0 flex-1"><Link href={`/players/${player.id}`} className="block truncate text-sm font-semibold text-ink hover:text-live focus-visible:outline-2 focus-visible:outline-live">{player.name}</Link><p className="truncate text-xs text-ink-soft">{player.club_name || player.club_code} · {player.source}{player.manual_lock ? " · locked" : ""}{!player.person_code ? " · no code" : ""}</p></div>
+      <PlayerPortrait personCode={player.person_code} name={player.name} />
+      <div className="min-w-0 flex-1"><PlayerStatsLink id={player.id} name={player.name} className="block truncate text-sm font-semibold text-ink hover:text-live focus-visible:outline-2 focus-visible:outline-live">{player.name}</PlayerStatsLink><p className="flex items-center gap-1 truncate text-xs text-ink-soft"><ClubCrest clubCode={player.club_code} />{player.club_name || player.club_code} · {player.source}{player.manual_lock ? " · locked" : ""}{!player.person_code ? " · no code" : ""}</p></div>
       {player.status !== "active" ? <span className={`text-xs ${player.status === "injured" || player.status === "doubtful" ? "text-loss" : "text-ink-soft"}`}>{player.status}</span> : null}
-      <Link href={`/players/${player.id}`} aria-label={`View ${player.name}`} className="grid size-11 place-items-center text-live focus-visible:outline-2 focus-visible:outline-live">→</Link>
+      <PlayerStatsLink id={player.id} name={player.name} ariaLabel={`View ${player.name} stats`} className="grid size-11 place-items-center text-live focus-visible:outline-2 focus-visible:outline-live">→</PlayerStatsLink>
     </li>)}</ul> : <p className="py-4 text-sm text-ink-soft">No players match these filters.</p>}
     {limit < filtered.length ? <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="min-h-11 self-start rounded border border-rule-strong px-4 text-sm font-semibold text-ink hover:border-live">Show more players</button> : null}
   </Bank>;

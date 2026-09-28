@@ -50,6 +50,7 @@ export type DashboardRosterPlayer = {
   readonly id: string;
   readonly name: string;
   readonly clubCode: string;
+  readonly personCode?: string;
   readonly position: Position;
   /** Last five PIRs, oldest first. Empty before the season is under way. */
   readonly last5Pirs: readonly number[];

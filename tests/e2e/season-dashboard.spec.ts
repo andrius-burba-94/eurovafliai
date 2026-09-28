@@ -147,9 +147,8 @@ test("nothing on the dashboard claims a fact this product does not have", async 
 }) => {
   // The brief asked for a W-L column, a "matchup of the week" and player
   // headshots. This league has no head-to-head (standings are cumulative
-  // fantasy points), no matchup format anywhere in the blueprint, and no image
-  // field on `players`. Each was substituted rather than faked, and this is the
-  // test that stops one being "finished" later.
+  // fantasy points) or matchup format. Official portraits are permitted now;
+  // the other two claims are still false and must stay out of the page.
   const { chief, league } = await seasonLeague("Truthful League");
 
   await signIn(context, chief);
@@ -161,10 +160,8 @@ test("nothing on the dashboard claims a fact this product does not have", async 
   expect(body).not.toMatch(/matchup/i);
   expect(body).not.toMatch(/\bfinal\b/i);
 
-  // No image anywhere in the roster panel: the position patch is the mark.
-  await expect(
-    page.getByTestId("dashboard-roster-group").locator("img"),
-  ).toHaveCount(0);
+  // The local fixture has no official photo, so the roster keeps its fallback.
+  await expect(page.getByTestId("dashboard-roster-group").locator(".player-portrait-fallback").first()).toBeVisible();
 
   // And the brief's other instruction: no cheat-sheet panel on this screen.
   await expect(page.getByTestId("lobby-sheet")).toHaveCount(0);

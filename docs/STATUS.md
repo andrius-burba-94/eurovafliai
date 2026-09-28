@@ -28,9 +28,10 @@ The user approved the interactive site concept on 28 September 2026. The impleme
 | Slice | State | What to review |
 |---|---|---|
 | Shell and navigation | In review | Separate League, Drafts, EuroLeague and Manage groups; phone tabs use Lineup, Players, Matchday, League and More. The selected fantasy season cannot be E2025, while prior-season player stats remain. |
-| Lineup and player research | In review | Fixed-ratio court with non-overlapping G/F/C rows, five formation choices, grid view, tap swap, captain action, locally recovered unsaved edits, optimizer preview and comparison drawer. The existing record action still validates. |
+| Lineup and player research | In review | Fixed-ratio court with non-overlapping G/F/C rows, five formation choices, grid view, tap swap, captain action, locally recovered unsaved edits, optimizer preview and comparison drawer. Player stats open in an in-window dialog from player links, with the full profile retained for deep links. The existing record action still validates. |
 | Other league surfaces | In review | Searchable player pool, accessible Trades history and split trade builder, wider team, standings and recap layouts. |
 | Matchday | In review, live poll gated | Provisional scores/ranks, fixture states, last-updated and stale status, realtime snapshot reads. `LIVE_FETCH=off` remains the default until an official box score changes during an actual game. Finished-game standings are authoritative. |
+| Official imagery | In review, VPS files installed | 318 official E2026 player portraits and 20 club marks are on the personal VPS. Players whose official profile still uses placeholder art use the letter fallback. The repository contains only source URLs and an installer; the interactive local preview returns to fictional players and illustrative marks. See [ADR-0010](adr/ADR-0010-official-media.md). |
 
 Try the branch locally with `npm run dev`, then open a league in season at `/leagues/<id>/lineup`, `/matchday`, `/standings`, `/recap`, and `/transactions`. At 390px and desktop width, check the court after selecting each formation, the save bar above phone tabs, the five phone destinations and the separate Drafts sidebar section. The matchday page intentionally shows unavailable or scheduled data until the live feed gate is cleared.
 
@@ -350,11 +351,11 @@ and D23):
 |---|---|---|
 | A **W-L** column | No head-to-head. Standings are cumulative fantasy points with per-round snapshots (4.5), so there is no opponent to have beaten and the column reads `0-0` forever | `PTS`, and the round's signed movement |
 | **Matchup of the week** | No matchup format exists in the blueprint, PRODUCT.md or CONTEXT.md. Inventing one would invent a game | 5.4's recap: the night's ranking, the best night, the deal that moved most |
-| Player **headshots** | `players` has no image field — name, club, position, status, person code, dorsal. A photo would have to be invented per player, which PRODUCT.md forbids | The position patch, this app's own colour-coded mark, which always prints its letter |
+| Player **headshots** | At the time, `players` had no image field and permission for official portraits had not been supplied | Superseded by [ADR-0010](adr/ADR-0010-official-media.md): official portraits match stored person codes, with a letter fallback where no portrait exists |
 
-A spec asserts the page says neither "W-L", "matchup" nor "final", and that the
-roster panel contains no `<img>` at all — so none of the three can be quietly
-"finished" later.
+A spec asserts the page says neither "W-L", "matchup" nor "final". The
+earlier no-image assertion is superseded by the permitted official media in
+ADR-0010.
 
 **The `wide` measure now has two callers**, and the `MEASURE` key was renamed
 `room` → `wide` to say so. That is D24's argument reused rather than a new one:

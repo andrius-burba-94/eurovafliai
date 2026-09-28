@@ -17,6 +17,7 @@ export type PoolPlayerRecord = {
   name: string;
   name_normalized: string;
   club_code: string;
+  person_code?: string;
   club_name: string;
   position: Position;
   status: string;
@@ -43,6 +44,7 @@ export function toPoolPlayer(
     // implementation. Never displayed — ingestion sorts its tokens.
     normalized: player.name_normalized ?? "",
     club: player.club_code,
+    personCode: player.person_code,
     // The club's full name, for the filter's own list. A dropdown of bare
     // codes asks the reader to know that OLY is Olympiacos.
     clubName: player.club_name ?? player.club_code,

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { PlayerStatsLink } from "@/components/player-stats-link";
 
 import {
   Bank,
@@ -57,10 +59,9 @@ import type { Position } from "@/lib/engine";
  *   one would be inventing a game. What a round genuinely has is 5.4's recap —
  *   the night's ranking, the best night, and the deal that moved most — so the
  *   card shows that.
- * - **Player headshots.** `players` has no image field: name, club, position,
- *   status, person code, dorsal. A circular photo would have to be invented per
- *   player, which PRODUCT.md forbids outright. The position patch is this app's
- *   own mark for a player, it is colour-coded G/F/C, and it carries its letter.
+ * - **Player headshots.** The official roster now supplies the permitted
+ *   portraits and club marks via the player's person code. Players absent
+ *   from the official roster keep a letter fallback.
  *
  * This is the same discipline as **D19** (purple head coaches) and **D23** (the
  * double round): a brief item that describes data the competition does not
@@ -268,22 +269,19 @@ export function SeasonDashboard({
                         testId="dashboard-roster-player"
                         position={player.position}
                       >
-                        <span className="flex min-w-0 items-baseline justify-between gap-3">
-                          <Link
-                            href={`/players/${player.id}`}
+                        <span className="flex min-w-0 items-center justify-between gap-3">
+                          <PlayerPortrait personCode={player.personCode} name={player.name} />
+                          <PlayerStatsLink
+                            id={player.id}
+                            name={player.name}
                             className="min-w-0 truncate text-sm text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                           >
                             {player.name}
-                          </Link>
-                          {/* This app's own mark for a player, and the reason
-                              there is no headshot: the patch is colour-coded
-                              and always prints its letter. */}
+                          </PlayerStatsLink>
                           <PositionPatch position={player.position} />
                         </span>
                         <span className="flex items-baseline justify-between gap-3">
-                          <span className="slot-label text-ink-soft">
-                            {player.clubCode}
-                          </span>
+                          <span className="slot-label flex items-center gap-1 text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubCode}</span>
                           <Sparkline
                             values={player.last5Pirs}
                             what={`${player.name} last five PIRs`}

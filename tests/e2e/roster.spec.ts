@@ -112,8 +112,12 @@ test("a member opens a roster from the season lobby", async ({
     page.locator('[data-framed="true"] [data-framed="true"]'),
   ).toHaveCount(0);
 
+  const rosterUrl = page.url();
   await page.getByTestId("roster-player").getByRole("link").click();
-  await expect(page.getByTestId("player-log")).toBeVisible();
+  await expect(page.getByTestId("player-stats-modal")).toBeVisible();
+  await expect(page).toHaveURL(rosterUrl);
+  await page.getByTestId("player-stats-modal").getByRole("link", { name: /Full profile/ }).click();
+  await expect(page.getByTestId("player-log")).toBeVisible({ timeout: 15_000 });
   await page.getByTestId("player-back-to-roster").click();
   await expect(page.getByTestId("roster")).toBeVisible();
 });

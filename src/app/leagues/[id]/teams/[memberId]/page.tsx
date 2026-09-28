@@ -12,6 +12,8 @@ import {
   Sparkline,
 } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { PlayerStatsLink } from "@/components/player-stats-link";
 import { ContextPanel } from "@/components/context-panel";
 import { RosterRadar } from "@/components/roster-radar";
 import {
@@ -131,23 +133,24 @@ export default async function TeamPage({
                 state="filled"
                 position={player.position}
               >
-                <Link
+                <PlayerStatsLink
+                  id={player.id}
+                  name={player.name}
                   href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
                   className="-mx-3 -my-3 flex min-h-11 min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
                 >
                   <PositionPatch position={player.position} />
+                  <PlayerPortrait personCode={player.personCode} name={player.name} />
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <CardName>{player.name}</CardName>
-                    <span className="text-sm text-ink-soft">
-                      {player.clubName || player.clubCode}
-                    </span>
+                    <span className="flex items-center gap-1 text-sm text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubName || player.clubCode}</span>
                   </span>
                   {player.overallNo ? (
                     <span className="stat slot-label">
                       #{player.overallNo}
                     </span>
                   ) : null}
-                </Link>
+                </PlayerStatsLink>
                 {/* Drawn at every width here, unlike the pool row: a block has
                     vertical room where a 390px ledger row has none, which is
                     most of the argument for blocks on this surface. */}

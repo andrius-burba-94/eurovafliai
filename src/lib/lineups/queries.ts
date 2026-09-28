@@ -41,6 +41,7 @@ type MembershipRow = {
       name: string;
       club_code: string;
       club_name: string;
+      person_code?: string;
       position: Position;
       proj_last5_fantasy?: number;
       proj_last5_games?: number;
@@ -57,6 +58,7 @@ export type LineupPlayer = {
   readonly name: string;
   readonly clubCode: string;
   readonly clubName: string;
+  readonly personCode?: string;
   readonly position: Position;
   /** What the round's lineup says today. Null when nobody has said. */
   readonly role: LineupRole | null;
@@ -132,6 +134,7 @@ export async function readLineupBoard(input: {
       name: player.name,
       clubCode: player.club_code,
       clubName: player.club_name,
+      personCode: player.person_code,
       position: player.position,
       estimateTenths: (player.proj_last5_games ?? 0) > 0
         ? (player.proj_last5_fantasy ?? 0)
