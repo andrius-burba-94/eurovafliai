@@ -7,7 +7,6 @@ import {
   createTestUser,
   signIn,
   superuser,
-  TEST_CLUB,
 } from "./helpers/session";
 
 /**
@@ -128,7 +127,7 @@ test("an injury item marks the player in the pool, and links back to who said it
   // The pool says the word on the player it applies to, which is the whole
   // point of feeding `players.status` rather than building a parallel flag.
   await page.goto("/players");
-  await page.locator("details", { hasText: TEST_CLUB }).locator("summary").click();
+  await page.getByTestId("pool-search").fill(player.name);
   await expect(
     page.getByTestId("pool-player").filter({ hasText: player.name }),
   ).toContainText("injured");

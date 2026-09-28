@@ -88,16 +88,16 @@ export default async function TeamPage({
       current={member.isYou ? "team" : undefined}
       league={navLeagueFrom(data)}
       testId="roster"
+      measure="wide"
       panel={<ContextPanel data={panel} />}
     >
-      <div className="flex flex-col gap-4">
-        <h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">
-          {displayName}
-        </h1>
-        <p className="slot-label">
-          {data.league.name}
-          {member.isYou ? " · you" : ""}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="slot-label text-live">{data.league.name} / {member.isYou ? "My team" : "Team"}</p>
+          <h1 className="mt-1 min-w-0 text-3xl font-semibold tracking-tight break-words sm:text-4xl">{displayName}</h1>
+          <p className="mt-2 text-sm text-ink-soft">{roster.length} of {rosterSize} players · {template.G} guards, {template.F} forwards, {template.C} centers</p>
+        </div>
+        {member.isYou && data.league.status === "season" ? <Link href={`/leagues/${id}/lineup`} className="inline-flex min-h-11 items-center rounded border border-live px-4 text-sm font-semibold text-live hover:bg-live-sunk/50">Set lineup →</Link> : null}
       </div>
 
       <SeasonControl

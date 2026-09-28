@@ -22,6 +22,7 @@ export function SubmitButton({
   pendingLabel,
   compact = false,
   ariaLabel,
+  disabled = false,
 }: {
   children: ReactNode;
   testId?: string;
@@ -42,6 +43,7 @@ export function SubmitButton({
   compact?: boolean;
   /** An accessible name, when the visible label is not distinguishing enough. */
   ariaLabel?: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
 
@@ -69,7 +71,7 @@ export function SubmitButton({
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending}
       data-testid={testId}
       data-pending={pending ? "true" : undefined}
@@ -77,7 +79,7 @@ export function SubmitButton({
       // rotor read "Pick, Pick, Pick…" with the player's name in a sibling
       // span it had no way to connect.
       aria-label={ariaLabel}
-      className={`${tones[tone]} min-h-11 border px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-progress disabled:opacity-60 ${compact ? "" : "w-full sm:w-auto"}`}
+      className={`${tones[tone]} min-h-11 border px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-not-allowed disabled:opacity-60 ${compact ? "" : "w-full sm:w-auto"}`}
     >
       {pending ? (pendingLabel ?? "Working…") : children}
     </button>

@@ -8,71 +8,40 @@ export const metadata: Metadata = {
   description: "Euroleague fantasy draft platform for one small, loud league.",
 };
 
-/**
- * The direction contract for the visual world — Phase 1.4, re-grounded in
- * Phase 10 (ADR-0006, blueprint D22).
- *
- * It ships as a real HTML comment in the emitted markup, not as a JSX comment:
- * `{/* … *\/}` is a JavaScript comment and never reaches the browser — it turns
- * up only in a sourcemap, which is a contract nobody can audit. React has no
- * comment node, so the only way to emit one is this wrapper. Verify with:
- *   curl -s http://localhost:3007/login | grep 'DIRECTION CONTRACT'
- */
+/** The current design contract is emitted for browser-level design checks. */
 const DIRECTION_CONTRACT = `<!--
-  DIRECTION CONTRACT — Phase 10 (seed 32792572)
+  DIRECTION CONTRACT — arena interface, ADR-0009
 
-  THESIS: the app is the draft board, a grid of ruled slots that picks get
-  slotted into, lit for a night game. The board itself is the ground and the
-  marks on it are chalk.
+  SCENE: a small EuroLeague draft league sets its five on a phone before tip-off,
+  follows the same lineup through a match, then reads the finished league table.
 
-  WHAT THIS REVERSES, AND WHAT IT DOES NOT: Phase 1.4 refused "the near-black
-  surface with one glowing accent" and argued a light ground from the room.
-  Phase 10 takes the ground dark (#0B1120) with one Euroleague orange
-  (#FF5500), because Euroleague tips at 20:00 CET and the room is dim. What the
-  original refusal protected is KEPT: a dark ground must not do the work that
-  structure should do, and one accent must not glow decoratively. No gradient,
-  no glow, no coloured halo, no blurred backdrop, no metric-tile hero.
+  STRUCTURE: a persistent sidebar groups League, Drafts, EuroLeague and Manage
+  separately. The phone uses Lineup, Players, Matchday, League and More.
+  Permissions decide which destinations appear. The live draft remains prominent
+  while a league is drafting.
 
-  OWN-WORLD: the midnight board as the ground; panel stock LIGHTER than it
-  (depth on a dark ground is lightness) at one level, with one radius step and
-  no level below it; the board's ruling as the ink in four weights (1px dashed
-  waiting, 1px solid filled, 2px marker live, 2px ink correction); vibrant
-  cyan/emerald/amber G/F/C coding that ALWAYS prints its letter, because the
-  letter is the carrier and the colour is the convenience; Space Grotesk for
-  words and JetBrains Mono for figures in a column, tabular throughout. Orange
-  has two jobs and no others: state (the slot on the clock) and the one act (a
-  surface's single primary action, with the focus and caret affordances of
-  acting). The double-weight marker rule means one thing only — this slot is on
-  the clock.
+  PALETTE: slate canvas and quiet panels. Cyan names the active choice or play,
+  emerald a gain, crimson an injury or loss, and gold a captain or caution.
+  State never relies on color alone. A position always prints G, F or C.
 
-  STORY: this is a real competition instrument, readable at a glance in a loud
-  room; you create or join a league and take your slot.
+  CENTERPIECE: the fixed-ratio half court separates center, forward and guard
+  rows and supports the five official G/F/C formations. Tap-to-swap, captain,
+  grid and formation controls share one draft state. Recording is a distinct
+  server action; an optimizer only previews.
 
-  FIRST VIEWPORT: wordmark and season in 11px caps, on every device; beside
-  or below it, slots at full width, dashed while waiting and solid once
-  filled; the primary action sits inside a slot, never in a floating card, and
-  carries the marker.
+  LIVE HONESTY: matchday calls live values provisional, says when the official
+  feed was checked and names stale or unavailable data plainly. Finished-game
+  standings are authoritative. Live polling remains gated until an actual
+  in-game response is observed changing.
 
-  LAYOUT (Phase 11, ADR-0008): one app shell — a sidebar from lg, a header on
-  every width, a Players / Schedule / News panel that is a column from xl and
-  a sheet below it, a bottom tab bar below lg. Layout, not skin: no new token,
-  no floating layer, no shadow or scrim under the sheet. The current nav item
-  is ruled in ink; orange never marks navigation.
+  MATERIAL: small corners on controls, circular player marks, one border on a
+  framed panel. No decorative gradient or glow. Strong type and spacing carry
+  hierarchy. Touch targets are at least 44px, focus is visible, and reduced
+  motion is respected.
 
-  FORM: the draft board, first on the ordered list of grounded candidates.
-
-  SIGNATURE INTERACTION: a card landing in its slot — 260ms on an ease-out
-  quart curve, on the row that just arrived, keyed off the ?arrived=1 the
-  create and join actions set; under prefers-reduced-motion the state changes
-  without the travel. This app gets a budget of THREE animations: that, the
-  live rule advancing across the board, and a draft selection springing into
-  place. The budget is spent; a fourth is a change to DESIGN.md.
-
-  VOCABULARY: CONTEXT.md owns the words. A slot is a position on the board.
-  An earlier draft of this design invented "bay" and led a headline with it.
-
-  FINISH: unreviewed and undocumented is unfinished; this build ends with the
-  finish review, the verdict, and DESIGN.md
+  HISTORY: ADR-0006 describes the retired midnight-orange direction. ADR-0008
+  established the sidebar. ADR-0009 and DESIGN.md's current contract govern this
+  interface.
 -->`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

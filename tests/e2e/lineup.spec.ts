@@ -370,6 +370,55 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
 });
 
+test("formation selection fills the court, survives refresh, and stays unrecorded until saved", async ({ page, context }, testInfo) => {
+  const owner = await createTestUser("formationdraft");
+  const mate = await createTestUser("formationdraftmate");
+  const planted = await plantSeason(owner, mate, "Formation Draft");
+  await signIn(context, owner);
+  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+
+  for (const formation of ["2-2-1", "1-2-2", "2-1-2", "1-3-1", "3-1-1"]) {
+    await page.getByRole("button", { name: formation, exact: true }).click();
+    const marks = page.getByTestId("lineup-court").getByTestId("court-player");
+    await expect(marks).toHaveCount(5);
+    const boxes = await marks.evaluateAll((nodes) => nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+    }));
+    for (let i = 0; i < boxes.length; i += 1) for (let j = i + 1; j < boxes.length; j += 1) {
+      expect(Math.min(boxes[i]!.right, boxes[j]!.right) <= Math.max(boxes[i]!.left, boxes[j]!.left)
+        || Math.min(boxes[i]!.bottom, boxes[j]!.bottom) <= Math.max(boxes[i]!.top, boxes[j]!.top), `${formation} court markers ${i} and ${j} overlap`).toBe(true);
+    }
+  }
+  await page.getByRole("button", { name: "1-3-1", exact: true }).click();
+  await expect(page.getByTestId("lineup-court").getByTestId("court-player")).toHaveCount(5);
+  await expect(page.getByTestId("lineup-summary")).toContainText("1-3-1");
+  await expect(page.getByTestId("lineup-refusal")).toHaveCount(0);
+  await expect(page.getByText("Unsaved · saved on this device")).toBeVisible();
+  if (process.env.REDESIGN_CAPTURE) {
+    await page.screenshot({ path: `/tmp/eurovafliai-lineup-${testInfo.project.name}.png` });
+    await page.getByTestId("lineup-court").screenshot({ path: `/tmp/eurovafliai-court-${testInfo.project.name}.png` });
+  }
+
+  await page.reload();
+  await expect(page.getByTestId("lineup-summary")).toContainText("1-3-1");
+  await page.getByRole("button", { name: "grid", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Starting five grid" })).toBeVisible();
+  const compareButton = page.getByRole("button", { name: "Compare players" });
+  await compareButton.focus();
+  await expect(compareButton).toBeFocused();
+  await compareButton.press("Enter");
+  await expect(page.getByTestId("player-comparison")).toBeVisible();
+  await expect(page.getByTestId("player-comparison")).toContainText("No stored games this season.");
+  await expect(page.getByTestId("player-comparison")).toContainText("Fixtures not published.");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("player-comparison")).toHaveCount(0);
+  await page.getByRole("button", { name: "Auto-Optimize preview" }).click();
+  await expect(page.getByTestId("lineup-optimize-preview")).toBeVisible();
+  await expect(page.getByTestId("lineup-optimize-preview")).toContainText("No estimate");
+  await expect(page.getByTestId("lineup-absent")).toBeVisible();
+});
+
 test("on a phone the record bar stands above the tab bar, not under it", async ({
   page,
   context,

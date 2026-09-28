@@ -34,19 +34,24 @@ test("the sidebar names the league and marks where you are", async ({
   await expect(page.getByTestId("bottom-tabs")).toBeHidden();
 
   const nav = sidebar.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByRole("list", { name: "Shell League" })).toBeVisible();
-  const home = nav.getByTestId("nav-league-home");
+  await expect(sidebar.getByTestId("league-switcher")).toContainText("Shell League");
+  const league = nav.getByRole("list", { name: "League", exact: true });
+  const drafts = nav.getByRole("list", { name: "Drafts", exact: true });
+  await expect(league).toBeVisible();
+  await expect(drafts).toBeVisible();
+  await expect(nav.getByRole("list", { name: "EuroLeague", exact: true })).toBeVisible();
+  const home = league.getByTestId("nav-league-home");
   await expect(home).toHaveAttribute("aria-current", "page");
   // Setup: the season's surfaces do not exist yet, so they are not offered.
-  await expect(nav.getByTestId("nav-standings")).toHaveCount(0);
-  await expect(nav.getByTestId("nav-sheet")).toBeVisible();
+  await expect(league.getByTestId("nav-standings")).toHaveCount(0);
+  await expect(drafts.getByTestId("nav-sheet")).toBeVisible();
 
-  await nav.getByTestId("nav-sheet").click();
+  await drafts.getByTestId("nav-sheet").click();
   await page.waitForURL(new RegExp(`/leagues/${id}/sheet$`));
   await expect(
     page.getByTestId("sidebar").getByTestId("nav-sheet"),
   ).toHaveAttribute("aria-current", "page");
-  await expect(page.getByTestId("shell-here")).toContainText("Cheat sheet");
+  await expect(page.getByTestId("shell-here")).toContainText("Cheat Sheet");
 
   // Every nav target is 44px tall; the rows are full-width, so wide enough.
   for (const link of await nav.getByRole("link").all()) {

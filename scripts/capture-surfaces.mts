@@ -244,7 +244,7 @@ try {
    * exists for the season that is twelve rounds deep, so this plants six
    * members and twelve counted rounds on a season of its own.
    */
-  const CAPTURE_SEASON = "E2024";
+  const CAPTURE_SEASON = "E2026";
   const tableMembers = [otherMember, seasonMate];
   for (const label of ["Tomas", "Kestas", "Vytas", "Darius"]) {
     const member = await createTestUser(label);
@@ -341,7 +341,7 @@ try {
       signedIn: true,
       assert: async (page) => {
         await expect(page.getByTestId("invite-code")).toBeVisible();
-        await expect(page.getByTestId("lobby-sheet")).toBeVisible();
+        await expect(page.getByTestId("lobby")).toBeVisible();
       },
     },
     {
@@ -351,14 +351,6 @@ try {
       assert: async (page) => {
         await expect(page.getByTestId("enter-standings")).toBeVisible();
         await expect(page.getByTestId("enter-recap")).toBeVisible();
-      },
-    },
-    {
-      name: "standings-empty",
-      path: `/leagues/${otherLeague.id}/standings?season=E2025`,
-      signedIn: true,
-      assert: async (page) => {
-        await expect(page.getByTestId("standings-empty")).toBeVisible();
       },
     },
     {
@@ -374,15 +366,15 @@ try {
     },
     {
       name: "recap",
-      path: `/leagues/${otherLeague.id}/recap?season=E2025`,
+      path: `/leagues/${otherLeague.id}/recap?season=${CAPTURE_SEASON}`,
       signedIn: true,
       assert: async (page) => {
-        await expect(page.getByTestId("recap-empty")).toBeVisible();
+        await expect(page.getByRole("region", { name: "The night" })).toBeVisible();
       },
     },
     {
       name: "roster",
-      path: `/leagues/${otherLeague.id}/teams/${otherMember.id}?season=E2025`,
+      path: `/leagues/${otherLeague.id}/teams/${otherMember.id}?season=${CAPTURE_SEASON}`,
       signedIn: true,
       assert: async (page) => {
         await expect(page.getByTestId("roster-list")).toBeVisible();
@@ -390,10 +382,26 @@ try {
     },
     {
       name: "transaction",
-      path: `/leagues/${otherLeague.id}/transactions/new?season=E2025`,
+      path: `/leagues/${otherLeague.id}/transactions/new?season=${CAPTURE_SEASON}`,
       signedIn: true,
       assert: async (page) => {
         await expect(page.getByTestId("transaction-builder")).toBeVisible();
+      },
+    },
+    {
+      name: "trades",
+      path: `/leagues/${otherLeague.id}/transactions`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("transactions")).toBeVisible();
+      },
+    },
+    {
+      name: "matchday",
+      path: `/leagues/${otherLeague.id}/matchday`,
+      signedIn: true,
+      assert: async (page) => {
+        await expect(page.getByTestId("matchday")).toBeVisible();
       },
     },
     {

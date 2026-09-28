@@ -23,6 +23,7 @@ export type NavKey =
   | "order"
   | "team"
   | "lineup"
+  | "matchday"
   | "standings"
   | "recap"
   | "trades"
@@ -40,6 +41,7 @@ export type NavIconName =
   | "order"
   | "team"
   | "lineup"
+  | "matchday"
   | "standings"
   | "recap"
   | "trades"
@@ -57,7 +59,7 @@ export type NavItem = {
 };
 
 export type NavGroup = {
-  readonly id: "league" | "global" | "manage";
+  readonly id: "league" | "drafts" | "global" | "manage";
   readonly label: string;
   readonly items: readonly NavItem[];
 };
@@ -100,82 +102,60 @@ function leagueItems(league: NavLeague): NavItem[] {
   const member = league.youMemberId !== null;
   const inSeason = league.status === "season" || league.status === "complete";
   const items: NavItem[] = [
-    { key: "league-home", href: base, label: "League home", icon: "home" },
+    { key: "league-home", href: base, label: "League Home", icon: "home" },
   ];
-
-  if (league.status === "drafting") {
-    items.push({
-      key: "draft",
-      href: `${base}/draft`,
-      label: "Draft room",
-      icon: "draft",
-      note: "Live",
-    });
-  } else if (inSeason) {
-    items.push({
-      key: "draft",
-      href: `${base}/draft`,
-      label: "Draft board",
-      icon: "draft",
-    });
-  }
 
   if (inSeason && member) {
     items.push(
       {
         key: "team",
         href: `${base}/teams/${league.youMemberId}`,
-        label: "My team",
+        label: "My Team",
         icon: "team",
       },
       { key: "lineup", href: `${base}/lineup`, label: "Lineup", icon: "lineup" },
+      { key: "matchday", href: `${base}/matchday`, label: "Matchday", icon: "matchday" },
       {
         key: "standings",
         href: `${base}/standings`,
-        label: "Standings",
+        label: "Standing",
         icon: "standings",
       },
       { key: "recap", href: `${base}/recap`, label: "Recap", icon: "recap" },
+      { key: "trades", href: `${base}/transactions`, label: "Trades", icon: "trades" },
     );
   }
 
-  if (inSeason && league.status === "season" && league.canManage) {
-    items.push({
-      key: "trades",
-      href: `${base}/transactions/new`,
-      label: "Record a trade",
-      icon: "trades",
-    });
-  }
-
-  if (league.rolled) {
-    items.push({
-      key: "order",
-      href: `${base}/order`,
-      label: "Draft order",
-      icon: "order",
-    });
-  }
-
-  if (member) {
-    items.push(
-      {
-        key: "sheet",
-        href: `${base}/sheet`,
-        label: "Cheat sheet",
-        icon: "sheet",
-      },
-      { key: "export", href: `${base}/export`, label: "Export", icon: "export" },
-    );
+  if (inSeason && !member && league.canManage) {
+    items.push({ key: "trades", href: `${base}/transactions`, label: "Trades", icon: "trades" });
   }
 
   return items;
 }
 
+function draftItems(league: NavLeague): NavItem[] {
+  const base = `/leagues/${league.id}`;
+  const items: NavItem[] = [];
+  if (league.status === "drafting" || league.status === "season" || league.status === "complete") {
+    items.push({
+      key: "draft", href: `${base}/draft`, label: "Draft Room", icon: "draft",
+      note: league.status === "drafting" ? "Live" : undefined,
+    });
+  }
+  if (league.rolled) items.push({ key: "order", href: `${base}/order`, label: "Draft Order", icon: "order" });
+  if (league.youMemberId) {
+    items.push(
+      { key: "sheet", href: `${base}/sheet`, label: "Cheat Sheet", icon: "sheet" },
+      { key: "export", href: `${base}/export`, label: "Export", icon: "export" },
+    );
+  }
+  return items;
+}
+
 const GLOBAL_ITEMS: readonly NavItem[] = [
   { key: "leagues", href: "/", label: "Your leagues", icon: "leagues" },
-  { key: "pool", href: "/players", label: "Player pool", icon: "pool" },
-  { key: "news", href: "/players/news", label: "Injury news", icon: "news" },
+  { key: "pool", href: "/players", label: "Player Pool", icon: "pool" },
+  { key: "news", href: "/players/news", label: "Injury News", icon: "news" },
 ];
 
 const MANAGE_ITEMS: readonly NavItem[] = [
@@ -202,9 +182,11 @@ const MANAGE_ITEMS: readonly NavItem[] = [
 export function navFor({ league, isRosterManager }: NavInput): NavGroup[] {
   const groups: NavGroup[] = [];
   if (league) {
-    groups.push({ id: "league", label: league.name, items: leagueItems(league) });
+    groups.push({ id: "league", label: "League", items: leagueItems(league) });
+    const drafts = draftItems(league);
+    if (drafts.length > 0) groups.push({ id: "drafts", label: "Drafts", items: drafts });
   }
-  groups.push({ id: "global", label: "Euroleague", items: GLOBAL_ITEMS });
+  groups.push({ id: "global", label: "EuroLeague", items: GLOBAL_ITEMS });
   if (isRosterManager) {
     groups.push({ id: "manage", label: "Manage", items: MANAGE_ITEMS });
   }
@@ -224,7 +206,9 @@ export function tabsFor(groups: readonly NavGroup[]): NavItem[] {
   const all = groups.flatMap((group) => group.items);
   const byKey = new Map(all.map((item) => [item.key, item]));
   const wanted: NavKey[] = byKey.has("league-home")
-    ? ["league-home", "draft", "lineup", "standings", "team"]
+    ? byKey.get("draft")?.note
+      ? ["draft", "pool", "league-home", "sheet"]
+      : ["lineup", "pool", "matchday", "standings", "league-home", "team"]
     : ["leagues", "pool", "news"];
 
   const tabs: NavItem[] = [];

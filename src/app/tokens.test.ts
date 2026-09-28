@@ -137,19 +137,22 @@ describe("the two anchors are the colours the brief named", () => {
       )
       .join("");
 
-  it("the ground is #0b1120", () => {
-    expect(hexOf("stock")).toBe("#0b1120");
+  it("the ground is the approved slate #0b0f17", () => {
+    expect(hexOf("stock")).toBe("#0b0f17");
   });
 
-  it("the marker is #ff5500, which needs four decimal places", () => {
-    expect(hexOf("live")).toBe("#ff5500");
+  it("the active marker is the approved softened cyan", () => {
+    expect(hexOf("live")).toBe("#67bfcb");
+    expect(hexOf("gain")).toBe("#62bf94");
+    expect(hexOf("loss")).toBe("#e17b85");
+    expect(hexOf("gold")).toBe("#d5b16e");
   });
 });
 
 describe("text on the ground clears AA", () => {
   // 4.5:1 is the floor for body text and for anything that tells a user what to
   // do. Every one of these renders as words on the midnight ground.
-  const bodyText = ["ink", "ink-soft", "ink-faint", "live"];
+  const bodyText = ["ink", "ink-soft", "ink-faint", "live", "gain", "loss", "gold"];
 
   for (const name of bodyText) {
     it(`--color-${name} is at least 4.5:1 on stock`, () => {
@@ -176,12 +179,12 @@ describe("text on the ground clears AA", () => {
     // Without this, "improving" contrast is a one-character change.
     const ratio = contrast("ink", "stock");
     expect(round(ratio), `ink was ${round(ratio)}:1`).toBeGreaterThanOrEqual(12);
-    expect(round(ratio), `ink was ${round(ratio)}:1`).toBeLessThanOrEqual(15);
+    expect(round(ratio), `ink was ${round(ratio)}:1`).toBeLessThanOrEqual(17);
   });
 });
 
 describe("text and rules on panel stock clear AA", () => {
-  for (const name of ["ink", "ink-soft", "ink-faint", "rail", "live", "pos-g", "pos-f", "pos-c"]) {
+  for (const name of ["ink", "ink-soft", "ink-faint", "rail", "live", "gain", "loss", "gold", "pos-g", "pos-f", "pos-c"]) {
     it(`--color-${name} is at least 4.5:1 on stock-panel`, () => {
       const ratio = contrast(name, "stock-panel");
       expect(round(ratio), `${name} was ${round(ratio)}:1`).toBeGreaterThanOrEqual(4.5);
@@ -489,7 +492,7 @@ describe("the live slot is visibly live", () => {
 describe("the board's materials keep their shape", () => {
   it("defines the framed Bank as one panel stock with one structural rule", () => {
     const framed = css.match(/@utility bank-framed \{([^}]*)\}/)?.[1] ?? "";
-    expect(framed).toContain("border: 1px solid var(--color-rule-strong)");
+    expect(framed).toContain("border: 1px solid var(--color-panel-border)");
     expect(framed).toContain("background-color: var(--color-stock-panel)");
     // Radius arrives with the depth scale in 10.4; a glow never does.
     expect(framed).not.toMatch(/shadow|gradient/);

@@ -5,7 +5,6 @@ import {
   createPlayer,
   createTestUser,
   signIn,
-  TEST_CLUB,
 } from "./helpers/session";
 
 /**
@@ -40,13 +39,7 @@ test("a member sees the pool, its clubs and a player's badges", async ({
   await page.goto("/players");
   await expect(page.getByTestId("players")).toBeVisible();
 
-  // The club is a disclosure, closed by default: 324 players flat made an
-  // 18,000px page.
-  const club = page.locator("details", { hasText: TEST_CLUB });
-  await expect(club).toBeVisible();
-  await expect(page.getByText(planted.name)).toBeHidden();
-
-  await club.locator("summary").click();
+  await page.getByTestId("pool-search").fill(planted.name);
   const row = page.getByTestId("pool-player").filter({ hasText: planted.name });
   await expect(row).toBeVisible();
   // The badges slice 2.1 owes: which front door wrote the row, whether a

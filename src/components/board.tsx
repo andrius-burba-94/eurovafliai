@@ -2,11 +2,9 @@
  * The board's own components — the shared vocabulary every surface is built
  * from. See DESIGN.md and the direction contract in `src/app/layout.tsx`.
  *
- * The world is the physical draft board: card stock ruled into slots. A slot is
- * `waiting` (thin dashed rule), `filled` (solid, darker) or `live` (struck in
- * the commissioner's marker at double weight). That is the entire state
- * language, and it is carried by the row's own material — never by a coloured
- * pill parked beside an otherwise normal row.
+ * The arena interface keeps the board's explicit waiting, filled and live
+ * states while using slate surfaces and the approved semantic palette. A
+ * row's state stays on the row, with a word as well as a visual treatment.
  *
  * The words are CONTEXT.md's: a **slot** is a position on the **board**. An
  * earlier draft of this file invented "bay" and put it in a page headline,
@@ -49,34 +47,13 @@ const SLOT_RULE: Record<SlotState, string> = {
 };
 
 /**
- * The two measures this app has — slice 10.9, re-seated by 11.1.
- *
- * `column` is the one every reading surface uses and has used since 1.4: 48rem,
- * centred. Since ADR-0008 it sizes the content region *beside* the shell's
- * sidebar rather than the viewport.
- *
- * `wide` is the exception, and it is two surfaces rather than a size for
- * whoever wants it: the draft room and the season dashboard are each four
- * surfaces at once. Below `lg` it is the column, unchanged, because the
- * side-by-side cannot happen on a 390px phone and the phone is the primary
- * device. See DESIGN.md's Layout section.
+ * `column` is for focused forms and reading; `wide` gives the lineup,
+ * matchday, pool, league analytics and draft room room beside the sidebar.
+ * Below `lg`, both keep a comfortable phone measure. See ADR-0009.
  */
 export const MEASURE = {
   column: "max-w-3xl",
-  /**
-   * 48rem up to `lg`, then 80rem. Blueprint **D24**, widened to a second
-   * surface by **D26**.
-   *
-   * It was `room` — the draft room's private exception — and the key was
-   * renamed when the season dashboard earned the same measure by the same
-   * argument: a surface that is *four surfaces at once*. The room is pool,
-   * board, radar and console; the dashboard is standings, chat, roster and
-   * news. A key named after one of its two callers would have been a lie a
-   * reviewer had to read the map to catch.
-   *
-   * There are still exactly two measures, and a third needs the argument D24
-   * made for this one.
-   */
+  /** 48rem on phones, then up to 80rem for information-rich league views. */
   wide: "max-w-3xl lg:max-w-7xl",
 } as const;
 
@@ -87,8 +64,8 @@ export type Measure = keyof typeof MEASURE;
  *
  * One link over both clauses rather than two: "Eurovafliai" and the season are
  * one identity, and two adjacent links to the same place give a screen-reader
- * rotor the destination twice. The season stays on the phone — hiding it once
- * made the primary device the one place the masthead was incomplete.
+ * rotor the destination twice. The compact phone rail hides the season label
+ * to leave room for the league switcher; the brand mark remains.
  *
  * It was the whole of `TopRail` until ADR-0008 moved navigation into the app
  * shell; the shell draws it in the sidebar and the phone header, and the
@@ -98,15 +75,16 @@ export function Masthead({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       href="/"
-      className="-mx-2 flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-3 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+      className="-mx-2 flex min-h-11 min-w-0 items-center gap-2 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
     >
-      <span className="whitespace-nowrap text-base font-semibold tracking-[0.16em] uppercase">
+      <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded border border-gain text-base font-extrabold text-gain">E</span>
+      <span className="whitespace-nowrap text-sm font-bold tracking-[0.1em] uppercase">
         Eurovafliai
       </span>
       {/* The phone header shares its line with the switcher and the panel
           button, and a 390px screen has no room left for the season. */}
       <span
-        className={`slot-label whitespace-nowrap ${compact ? "max-sm:hidden" : ""}`}
+        className={`slot-label whitespace-nowrap text-ink-soft ${compact ? "hidden" : ""}`}
       >
         Euroleague 2026&ndash;27
       </span>
@@ -242,10 +220,10 @@ export function Bank({
       className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
     >
       <div className="flex items-baseline justify-between gap-4">
-        <h2 id={headingId} className="slot-label">
+        <h2 id={headingId} className="text-base font-semibold tracking-tight text-ink">
           {label}
         </h2>
-        {aside ? <span className="slot-label">{aside}</span> : null}
+        {aside ? <span className="text-xs text-ink-soft">{aside}</span> : null}
       </div>
       {children}
     </section>

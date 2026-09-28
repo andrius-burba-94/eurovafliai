@@ -162,6 +162,8 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   ).toHaveAttribute("data-state", "filled");
   await page.getByTestId("record-transaction").click();
   await expect(page.getByTestId("transaction-builder")).toBeVisible();
+  await expect(page.getByTestId("record-transaction-submit")).toBeDisabled();
+  await expect(page.getByTestId("confirm-sentence")).toContainText("Choose the same number");
   await expect(
     page.getByRole("region", { name: "Season", exact: true }),
   ).toHaveAttribute("data-framed", "true");
@@ -173,9 +175,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(
     page.locator('[data-framed="true"] [data-framed="true"]'),
   ).toHaveCount(0);
-  await page.getByTestId("season-select").selectOption("E2025");
-  await page.getByTestId("season-submit").click();
-  await expect(page).toHaveURL(/season=E2025/);
+  await expect(page.getByTestId("season-select").locator('option[value="E2025"]')).toHaveCount(0);
 
   await page.getByTestId(`pick-a-${chief.id}`).click();
   await page.getByTestId(`pick-b-${mate.id}`).click();
@@ -194,6 +194,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(page.getByTestId("confirm-sentence")).toContainText(
     "counting from round 2",
   );
+  await expect(page.getByTestId("record-transaction-submit")).toBeEnabled();
   await page.getByTestId("record-transaction-submit").click();
 
   await expect(page.getByTestId("lobby")).toBeVisible();

@@ -64,12 +64,11 @@ export default async function RecapPage({
   const emptyScores = !emptyDraft && page === null;
 
   return (
-    <AppShell current="recap" league={navLeagueFrom(data)} testId="recap">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-          This round
-        </h1>
-        <p className="slot-label">{data.league.name}</p>
+    <AppShell current="recap" league={navLeagueFrom(data)} measure="wide" testId="recap">
+      <div className="flex flex-col gap-2">
+        <p className="slot-label text-live">{data.league.name} / Review</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Recap</h1>
+        <p className="text-sm text-ink-soft">The round&apos;s table, standout performance and biggest roster swing.</p>
       </div>
 
       <SeasonControl

@@ -42,6 +42,12 @@ type MembershipRow = {
       club_code: string;
       club_name: string;
       position: Position;
+      proj_last5_fantasy?: number;
+      proj_last5_games?: number;
+      prev_season_fantasy?: number;
+      prev_season_games?: number;
+      proj_last5_pir?: number;
+      prev_season_pir?: number;
     };
   };
 };
@@ -54,6 +60,10 @@ export type LineupPlayer = {
   readonly position: Position;
   /** What the round's lineup says today. Null when nobody has said. */
   readonly role: LineupRole | null;
+  /** Integer tenths; null means neither recent games nor prior-season data. */
+  readonly estimateTenths: number | null;
+  readonly estimateSource: "last five" | "previous season" | null;
+  readonly pirEstimateTenths: number | null;
   /**
    * The club's game **in this round** — not its next one, because a lineup is
    * arranged for a named round and that is the fixture it is arranged against.
@@ -123,6 +133,21 @@ export async function readLineupBoard(input: {
       clubCode: player.club_code,
       clubName: player.club_name,
       position: player.position,
+      estimateTenths: (player.proj_last5_games ?? 0) > 0
+        ? (player.proj_last5_fantasy ?? 0)
+        : (player.prev_season_games ?? 0) > 0
+          ? (player.prev_season_fantasy ?? 0)
+          : null,
+      estimateSource: (player.proj_last5_games ?? 0) > 0
+        ? "last five"
+        : (player.prev_season_games ?? 0) > 0
+          ? "previous season"
+          : null,
+      pirEstimateTenths: (player.proj_last5_games ?? 0) > 0
+        ? (player.proj_last5_pir ?? 0)
+        : (player.prev_season_games ?? 0) > 0
+          ? (player.prev_season_pir ?? 0)
+          : null,
       fixture: fixtures.get(player.club_code) ?? null,
     });
   }

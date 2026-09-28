@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import {
   Bank,
-  CardName,
   PositionPatch,
   Slot,
   Slots,
@@ -13,6 +12,8 @@ import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
 import { canManageRosters } from "@/lib/rosters/actions";
 import { getPool } from "@/lib/rosters/queries";
+
+import { PoolBrowser } from "./pool-browser";
 
 /**
  * The pool: every Euroleague player the draft can choose from.
@@ -41,11 +42,10 @@ export default async function PlayersPage() {
     : 0;
 
   return (
-    <AppShell current="pool" testId="players">
+    <AppShell current="pool" measure="wide" testId="players">
       <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
-          The pool
-        </h1>
+        <p className="slot-label text-live">EuroLeague / Players</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Player pool</h1>
         {counts.total === 0 ? (
           <p className="text-ink-soft">
             No players yet. Run{" "}
@@ -65,6 +65,8 @@ export default async function PlayersPage() {
           </div>
         )}
       </div>
+
+      <PoolBrowser players={pool.players} clubs={clubs.map((club) => ({ code: club.code, name: club.name }))} />
 
       {counts.total > 0 ? (
         <Bank label="Ingest" aside={`${authority} holds authority`}>
@@ -187,81 +189,6 @@ export default async function PlayersPage() {
         </Bank>
       ) : null}
 
-      {/* Clubs are ONE run of slots, not twenty sections. As direct children of
-          the Sheet they picked up its 2.75rem section gap, which broke the
-          board's continuous ruling into twenty floating strips — the same
-          continuity the lobby's slot run depends on. */}
-      <Bank label="Clubs" aside={`${clubs.length}`}>
-        <div className="flex flex-col border-b border-rule-strong">
-          {/* One disclosure per club, closed by default. Listing all 324 players
-          flat made an 18,000px page — forty-odd phone screens of scrolling to
-          reach Zalgiris. Native <details>, so it needs no JavaScript, no
-          animation and no state; Phase 3.3's filters and fuzzy search are what
-          eventually make this browsable rather than merely navigable. */}
-          {clubs.map((club) => (
-            <details key={club.code} className="group">
-              <summary className="slot-waiting flex cursor-pointer list-none items-baseline justify-between gap-4 px-3 py-3 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
-                <span className="flex flex-wrap items-baseline gap-x-3">
-                  <CardName>{club.code}</CardName>
-                  <span className="text-sm text-ink-soft">{club.name}</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="slot-label">{club.players.length}</span>
-                  <span className="slot-label text-ink-faint group-open:hidden">
-                    show
-                  </span>
-                  <span className="slot-label hidden text-ink-faint group-open:inline">
-                    hide
-                  </span>
-                </span>
-              </summary>
-              <Slots testId="club-roster">
-                {club.players.map((player) => (
-                  <Slot
-                    key={player.id}
-                    testId="pool-player"
-                    state={player.status === "left" ? "waiting" : "filled"}
-                  >
-                    <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <Link
-                        href={`/players/${player.id}`}
-                        className="text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                      >
-                        <CardName>{player.name}</CardName>
-                      </Link>
-                      {player.dorsal ? (
-                        <span className="slot-label">#{player.dorsal}</span>
-                      ) : null}
-                    </span>
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <PositionPatch position={player.position} />
-                      {player.status !== "active" ? (
-                        <span className="slot-label">{player.status}</span>
-                      ) : null}
-                      {/* Source and lock badges: which front door wrote this row,
-                      and whether a commissioner has claimed it. */}
-                      <span className="slot-label text-ink-faint">
-                        {player.source}
-                      </span>
-                      {player.manual_lock ? (
-                        <span className="slot-label text-live">locked</span>
-                      ) : null}
-                      {!player.person_code ? (
-                        <span
-                          className="slot-label text-ink-faint"
-                          title="No Euroleague person code yet — matched by name and club"
-                        >
-                          no code
-                        </span>
-                      ) : null}
-                    </span>
-                  </Slot>
-                ))}
-              </Slots>
-            </details>
-          ))}
-        </div>
-      </Bank>
     </AppShell>
   );
 }

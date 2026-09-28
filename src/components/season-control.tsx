@@ -2,12 +2,13 @@ import { Bank, Field, selectStyles } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 
 const SEASON_CODE = /^E\d{4}$/i;
+const FIRST_FANTASY_SEASON = 2026;
 
 export function resolveSeason(
   value: string | string[] | undefined,
   currentSeason: string,
 ): string {
-  return typeof value === "string" && SEASON_CODE.test(value)
+  return typeof value === "string" && SEASON_CODE.test(value) && Number(value.slice(1)) >= FIRST_FANTASY_SEASON
     ? value.toUpperCase()
     : currentSeason;
 }
@@ -18,7 +19,9 @@ export function seasonOptions(
 ): string[] {
   const currentYear = Number(currentSeason.slice(1));
   const previousSeason = `E${currentYear - 1}`;
-  return [...new Set([currentSeason, previousSeason, season])];
+  return [...new Set([currentSeason, ...(currentYear - 1 >= FIRST_FANTASY_SEASON ? [previousSeason] : []), season])].filter(
+    (option) => SEASON_CODE.test(option) && Number(option.slice(1)) >= FIRST_FANTASY_SEASON,
+  );
 }
 
 export function SeasonControl({
