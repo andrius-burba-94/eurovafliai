@@ -32,6 +32,14 @@ test("the sidebar names the league and marks where you are", async ({
   const sidebar = page.getByTestId("sidebar");
   await expect(sidebar).toBeVisible();
   await expect(page.getByTestId("bottom-tabs")).toBeHidden();
+  const brand = await sidebar.getByText("Eurovafliai", { exact: true }).boundingBox();
+  const season = await sidebar.getByText("Euroleague 2026–27", { exact: true }).boundingBox();
+  expect(brand).not.toBeNull();
+  expect(season).not.toBeNull();
+  expect(season!.y).toBeGreaterThan(brand!.y);
+  expect(
+    await sidebar.evaluate((element) => element.scrollWidth - element.clientWidth),
+  ).toBe(0);
 
   const nav = sidebar.getByRole("navigation", { name: "Main" });
   await expect(sidebar.getByTestId("league-switcher")).toContainText("Shell League");
