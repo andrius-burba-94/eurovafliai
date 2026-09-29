@@ -27,13 +27,13 @@ The user approved the interactive site concept on 28 September 2026. The impleme
 
 | Slice | State | What to review |
 |---|---|---|
-| Shell and navigation | In review | Separate League, Drafts, EuroLeague and Manage groups; phone tabs use Lineup, Players, Matchday, League and More. The selected fantasy season cannot be E2025, while prior-season player stats remain. |
+| Shell and navigation | In review | Separate League, Drafts, EuroLeague and Manage groups; phone tabs use Lineup, Players, Matchday, League and More. The masthead puts the Euroleague season below the wordmark so the desktop sidebar fits without horizontal scrolling. The selected fantasy season cannot be E2025, while prior-season player stats remain. |
 | Lineup and player research | In review | Fixed-ratio court with non-overlapping G/F/C rows, five formation choices, grid view, tap swap, captain action, locally recovered unsaved edits, optimizer preview and comparison drawer. Player stats open in an in-window dialog from player links, with the full profile retained for deep links. The existing record action still validates. |
 | Other league surfaces | In review | Searchable player pool, accessible Trades history and split trade builder, wider team, standings and recap layouts. |
 | Matchday | In review, live poll gated | Provisional scores/ranks, fixture states, last-updated and stale status, realtime snapshot reads. `LIVE_FETCH=off` remains the default until an official box score changes during an actual game. Finished-game standings are authoritative. |
 | Official imagery | In review, VPS files installed | 318 official E2026 player portraits and 20 club marks are on the personal VPS. Players whose official profile still uses placeholder art use the letter fallback. The repository contains only source URLs and an installer; the interactive local preview returns to fictional players and illustrative marks. See [ADR-0010](adr/ADR-0010-official-media.md). |
 
-Try the branch locally with `npm run dev`, then open a league in season at `/leagues/<id>/lineup`, `/matchday`, `/standings`, `/recap`, and `/transactions`. At 390px and desktop width, check the court after selecting each formation, the save bar above phone tabs, the five phone destinations and the separate Drafts sidebar section. The matchday page intentionally shows unavailable or scheduled data until the live feed gate is cleared.
+Try the branch locally with `npm run dev`, then open a league in season at `/leagues/<id>/lineup`, `/matchday`, `/standings`, `/recap`, and `/transactions`. At 390px and desktop width, check the court after selecting each formation, the save bar above phone tabs, the five phone destinations and the separate Drafts sidebar section. On desktop, check that the masthead season sits below Eurovafliai and the sidebar has no horizontal scrollbar. The matchday page intentionally shows unavailable or scheduled data until the live feed gate is cleared.
 
 The phase notes below describe what had landed before this review. ADR-0009 and the in-review table above supersede their older visual descriptions once this branch lands.
 

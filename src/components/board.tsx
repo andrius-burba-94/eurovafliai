@@ -78,15 +78,15 @@ export function Masthead({ compact = false }: { compact?: boolean }) {
       className="-mx-2 flex min-h-11 min-w-0 items-center gap-2 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
     >
       <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded border border-gain text-base font-extrabold text-gain">E</span>
-      <span className="whitespace-nowrap text-sm font-bold tracking-[0.1em] uppercase">
-        Eurovafliai
-      </span>
-      {/* The phone header shares its line with the switcher and the panel
-          button, and a 390px screen has no room left for the season. */}
-      <span
-        className={`slot-label whitespace-nowrap text-ink-soft ${compact ? "hidden" : ""}`}
-      >
-        Euroleague 2026&ndash;27
+      <span className="flex min-w-0 flex-col">
+        <span className="whitespace-nowrap text-sm font-bold tracking-[0.1em] uppercase">
+          Eurovafliai
+        </span>
+        {/* The phone header shares its line with the switcher and the panel
+            button, and a 390px screen has no room left for the season. */}
+        <span className={`slot-label text-ink-soft ${compact ? "hidden" : ""}`}>
+          Euroleague 2026&ndash;27
+        </span>
       </span>
     </Link>
   );
