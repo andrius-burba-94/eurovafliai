@@ -80,14 +80,18 @@ export async function AppShell({
       <div className="flex min-h-0 flex-1">
         <aside
           data-testid="sidebar"
-          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#303a47] bg-[#111824] px-4 py-4 lg:flex"
+          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-[#303a47] bg-[#111824] px-4 py-4 lg:flex"
         >
           <Masthead />
-          <LeagueSwitcher leagues={leagues} league={league} testId="league-switcher" />
-          <nav aria-label="Main" className="flex flex-1 flex-col gap-2">
-            <NavGroups groups={groups} current={current} prefix="nav" />
+          <div className="mt-2">
+            <LeagueSwitcher leagues={leagues} league={league} testId="league-switcher" />
+          </div>
+          <nav aria-label="Main" className="mt-3 min-h-0 flex-1 overflow-y-auto" tabIndex={0}>
+            <SidebarNavGroups groups={groups} current={current} />
           </nav>
-          <AccountMenu account={account} />
+          <div className="mt-2">
+            <AccountMenu account={account} />
+          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -180,13 +184,49 @@ function NavLink({
   );
 }
 
+function SidebarNavGroups({
+  groups,
+  current,
+}: {
+  groups: readonly NavGroup[];
+  current: NavKey | undefined;
+}) {
+  return (
+    <>
+      {groups.map((group, index) => (
+        <details
+          key={group.id}
+          name="sidebar-nav"
+          open={group.items.some((item) => item.key === current) || (!current && index === 0)}
+          className="group border-t border-[#26313d] first:border-0"
+        >
+          <summary
+            data-testid={`nav-group-${group.id}`}
+            className={`slot-label flex min-h-11 list-none items-center justify-between px-3 text-ink-soft transition-colors hover:bg-[#1c2c3e] hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
+          >
+            <span id={`nav-group-label-${group.id}`} className="truncate">{group.label}</span>
+            <span aria-hidden="true" className="text-base transition-transform group-open:rotate-90">›</span>
+          </summary>
+          <ul role="list" aria-labelledby={`nav-group-label-${group.id}`}>
+            {group.items.map((item) => (
+              <li key={item.key}>
+                <NavLink item={item} current={current} prefix="nav" />
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </>
+  );
+}
+
 /**
  * The groups as labelled lists. The label is a `<p>` rather than a heading:
  * the nav comes before every page's `h1`, and headings there would open each
  * page's outline with the sidebar instead of the page.
  *
- * `prefix` keeps ids and test ids unique — the sidebar and the phone's More
- * sheet both draw this, and a hidden sidebar is still in the DOM.
+ * `prefix` keeps the More sheet's ids and test ids distinct from the sidebar's
+ * inline disclosures, which remain in the DOM at phone widths.
  */
 function NavGroups({
   groups,
@@ -248,8 +288,8 @@ function LeagueSwitcher({
       buttonClassName={`slot-label flex min-h-11 min-w-11 items-center justify-between gap-2 border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 ${focusRing} ${
         compact ? "max-w-40" : "w-full"
       }`}
-      panelClassName={`${POPOVER} mt-1 w-64 gap-1 ${
-        compact ? "right-0" : "left-0"
+      panelClassName={`${POPOVER} mt-1 gap-1 ${
+        compact ? "right-0 w-64" : "left-0 w-full"
       }`}
     >
       <p className="slot-label px-1">Your leagues</p>
