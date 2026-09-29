@@ -260,7 +260,7 @@ test("a free-agent exchange is one trade and system notices stay out of chat", a
 test("the setup lobby is untouched by any of this", async ({
   page,
   context,
-}) => {
+}, testInfo) => {
   // The dashboard replaces the *season* body only. A league still being set up
   // keeps its invite code, its order and its cheat sheet.
   const chief = await createTestUser("chief");
@@ -271,8 +271,12 @@ test("the setup lobby is untouched by any of this", async ({
   await page.goto(`/leagues/${league.id}`);
 
   await expect(page.getByTestId("invite-code")).toBeVisible();
-  // The sheet is a destination in the shell's nav since 11.1, not a door in
-  // the body — the sidebar on a laptop, a tab on a phone.
+  // The sheet lives in Drafts on a laptop and in More on a phone.
+  if (testInfo.project.name === "chromium") {
+    await page.getByTestId("sidebar").getByTestId("nav-group-drafts").click();
+  } else {
+    await page.getByTestId("more-menu").click();
+  }
   await expect(
     page
       .locator(`a[href="/leagues/${league.id}/sheet"]`)

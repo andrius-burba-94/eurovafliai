@@ -5,6 +5,7 @@ import {
   createLeagueFor,
   createTestUser,
   signIn,
+  superuser,
 } from "./helpers/session";
 
 /**
@@ -40,18 +41,24 @@ test("the sidebar names the league and marks where you are", async ({
   expect(
     await sidebar.evaluate((element) => element.scrollWidth - element.clientWidth),
   ).toBe(0);
+  expect(
+    await sidebar.evaluate((element) => element.scrollHeight - element.clientHeight),
+  ).toBe(0);
 
   const nav = sidebar.getByRole("navigation", { name: "Main" });
   await expect(sidebar.getByTestId("league-switcher")).toContainText("Shell League");
-  const league = nav.getByRole("list", { name: "League", exact: true });
-  const drafts = nav.getByRole("list", { name: "Drafts", exact: true });
+  const league = nav.getByRole("list", { name: "League", exact: true, includeHidden: true });
+  const drafts = nav.getByRole("list", { name: "Drafts", exact: true, includeHidden: true });
   await expect(league).toBeVisible();
-  await expect(drafts).toBeVisible();
-  await expect(nav.getByRole("list", { name: "EuroLeague", exact: true })).toBeVisible();
+  await expect(drafts).toBeHidden();
+  await expect(nav.getByRole("list", { name: "EuroLeague", exact: true, includeHidden: true })).toBeHidden();
   const home = league.getByTestId("nav-league-home");
   await expect(home).toHaveAttribute("aria-current", "page");
   // Setup: the season's surfaces do not exist yet, so they are not offered.
   await expect(league.getByTestId("nav-standings")).toHaveCount(0);
+  await nav.getByTestId("nav-group-drafts").click();
+  await expect(league).toBeHidden();
+  await expect(drafts).toBeVisible();
   await expect(drafts.getByTestId("nav-sheet")).toBeVisible();
 
   await drafts.getByTestId("nav-sheet").click();
@@ -59,6 +66,9 @@ test("the sidebar names the league and marks where you are", async ({
   await expect(
     page.getByTestId("sidebar").getByTestId("nav-sheet"),
   ).toHaveAttribute("aria-current", "page");
+  await expect(
+    page.getByTestId("sidebar").getByTestId("nav-group-drafts").locator(".."),
+  ).toHaveAttribute("open", "");
   await expect(page.getByTestId("shell-here")).toContainText("Cheat Sheet");
 
   // Every nav target is 44px tall; the rows are full-width, so wide enough.
@@ -66,6 +76,27 @@ test("the sidebar names the league and marks where you are", async ({
     const box = await link.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
   }
+});
+
+test("the full season sidebar fits one screen", async ({ page, context }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "the sidebar is lg and up");
+  const owner = await createTestUser("shell-season");
+  const { id } = await createLeagueFor(owner, "Season Shell League");
+  const pb = await superuser();
+  await pb.collection("leagues").update(id, { status: "season" }, { requestKey: null });
+  await signIn(context, owner);
+  await page.setViewportSize({ width: 1280, height: 690 });
+
+  await page.goto(`/leagues/${id}`);
+  const sidebar = page.getByTestId("sidebar");
+  const nav = sidebar.getByRole("navigation", { name: "Main" });
+  for (const group of ["league", "drafts", "global", "manage"]) {
+    await expect(nav.getByTestId(`nav-group-${group}`)).toBeVisible();
+  }
+  await expect(nav.getByTestId("nav-lineup")).toBeVisible();
+  await expect(sidebar.getByTestId("account-menu")).toBeVisible();
+  expect(await sidebar.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0);
+  expect(await nav.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0);
 });
 
 test("the account menu opens, closes on Escape, and signs out", async ({
