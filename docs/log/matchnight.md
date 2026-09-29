@@ -229,3 +229,31 @@ that turns from losing to winning is a new change and stamps again.
 Found by the standings spec while running this slice: the round-winner cell's
 `sr-only` "Round winner," was part of the cell's text, so a reader of the
 number got a sentence. It is the cell's `aria-label` now.
+
+## S10 — League Stats
+
+A new page answers the league's arguments with numbers. Everything is derived
+in the pure `src/lib/stats/league-stats.ts` from what is already stored:
+
+- **Records** from the snapshots (highest and lowest round, the widest winning
+  margin) and from box scores joined to membership windows (the best single
+  night for whoever owned the player that round, and the best captain call at
+  the armband's ×2).
+- **Team profiles** per counted round, with the honours from S7's
+  `memberHonours`.
+- **Lineup efficiency**: points left on the bench and in the stands (raw minus
+  the lineup multiplier), and how often the captain was the night's best
+  starter. Only rounds with a recorded or carried lineup are judged; an absent
+  round counted everyone at 100% and has nothing to say.
+- **Draft value**: a pick is worth what the player scored for the member who
+  drafted them, while they held him. Steals are the best late picks, busts the
+  weakest early ones, and autodraft is compared with picks people made.
+- **Players**: season leaders with their current owner, hot form over the last
+  three rounds (two games minimum), the best unowned players, and leaders by
+  position.
+- **Deals**: S9's ledger.
+
+This is also where "captain of the round" from the recap plan landed, as the
+best captain call record. Adding the Stats item pushed the full season sidebar
+33px past a 690px laptop screen; group headers are 36px now (nav links stay
+44px).

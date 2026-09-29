@@ -85,7 +85,7 @@ export async function AppShell({
       <div className="flex min-h-0 flex-1">
         <aside
           data-testid="sidebar"
-          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-panel-border bg-stock-sunk px-4 py-4 lg:flex"
+          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-panel-border bg-stock-sunk px-4 py-3 lg:flex"
         >
           <Masthead />
           <div className="mt-2">
@@ -211,7 +211,7 @@ function SidebarNavGroups({
         >
           <summary
             data-testid={`nav-group-${group.id}`}
-            className={`slot-label flex min-h-11 list-none items-center justify-between px-3 text-ink-soft transition-colors hover:bg-stock-panel hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
+            className={`slot-label flex min-h-9 list-none items-center justify-between rounded-md px-3 text-ink-soft transition-colors hover:bg-stock-panel hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
           >
             <span id={`nav-group-label-${group.id}`} className="truncate">{group.label}</span>
             <span aria-hidden="true" className="text-base transition-transform group-open:rotate-90">›</span>

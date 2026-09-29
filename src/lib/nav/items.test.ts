@@ -81,6 +81,7 @@ describe("navFor", () => {
       "standings",
       "recap",
       "trades",
+      "stats",
     ]);
     // The sheet has done its job once the board is full, and export is a
     // download on the board rather than a destination.

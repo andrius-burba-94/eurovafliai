@@ -27,6 +27,7 @@ export type NavKey =
   | "standings"
   | "recap"
   | "trades"
+  | "stats"
   | "sheet"
   | "export";
 
@@ -45,6 +46,7 @@ export type NavIconName =
   | "standings"
   | "recap"
   | "trades"
+  | "stats"
   | "sheet"
   | "export"
   | "more";
@@ -125,6 +127,7 @@ function leagueItems(league: NavLeague): NavItem[] {
       },
       { key: "recap", href: `${base}/recap`, label: "Recap", icon: "recap" },
       { key: "trades", href: `${base}/transactions`, label: "Trades", icon: "trades" },
+      { key: "stats", href: `${base}/stats`, label: "Stats", icon: "stats" },
     );
   }
 
