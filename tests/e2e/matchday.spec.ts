@@ -17,11 +17,11 @@ test("matchday shows scheduled games and keeps league access scoped to members",
   await signIn(context, owner);
   await page.goto(`/leagues/${league.id}/matchday?round=38`);
   await expect(page.getByTestId("matchday")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Matchday" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Live", exact: true })).toBeVisible();
   await expect(page.getByText("Scheduled", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("The schedule for this round is not available yet.")).toHaveCount(0);
   if (testInfo.project.name === "mobile") {
-    await expect(page.getByTestId("tab-standings")).toContainText("League");
+    await expect(page.getByTestId("tab-standings")).toContainText("Table");
     await expect(page.getByTestId("tab-matchday")).toHaveAttribute("aria-current", "page");
   }
 

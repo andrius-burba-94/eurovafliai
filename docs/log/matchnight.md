@@ -105,3 +105,18 @@ variables no class uses, and team colours are reached only through inline
 Crests appear in the lobby list, chat author lines, draft board column heads
 (on a team-colour field) and the radar. Standings, recap, trades and Home take
 them in their own slices. New spec: `team-identity.spec.ts`.
+
+## S3 — shell and navigation
+
+The tab bar now answers "what is the league doing tonight": Home first, then
+Lineup, Live and Table in season, or the Draft room and Sheet while drafting.
+The sidebar and the tabs share `navFor`, so "Standing"/"League"/"Standings"
+collapsed into one word, and Matchday is "Live" everywhere including its
+headline. The cheat sheet leaves the nav once the board is full (it only drives
+autodraft), and Export stops being a destination; League Home keeps its door
+until S13 turns it into a download on the board and standings.
+
+A manager sees the mapping queue as a count on the Manage item. It is the same
+`countMappingQueue` the league page already ran for managers, now run by the
+shell for managers only. The phone header shows the waffle mark alone below
+`sm`, so the league switcher and the panel button fit at 390px.

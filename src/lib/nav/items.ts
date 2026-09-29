@@ -95,6 +95,8 @@ export type NavInput = {
   readonly league?: NavLeague | null;
   /** Commissions a league or deputises in one — `canManageRosters`. */
   readonly isRosterManager: boolean;
+  /** Questions waiting in player mapping, said beside it for a manager. */
+  readonly mappingWaiting?: number;
 };
 
 function leagueItems(league: NavLeague): NavItem[] {
@@ -114,11 +116,11 @@ function leagueItems(league: NavLeague): NavItem[] {
         icon: "team",
       },
       { key: "lineup", href: `${base}/lineup`, label: "Lineup", icon: "lineup" },
-      { key: "matchday", href: `${base}/matchday`, label: "Matchday", icon: "matchday" },
+      { key: "matchday", href: `${base}/matchday`, label: "Live", icon: "matchday" },
       {
         key: "standings",
         href: `${base}/standings`,
-        label: "Standing",
+        label: "Standings",
         icon: "standings",
       },
       { key: "recap", href: `${base}/recap`, label: "Recap", icon: "recap" },
@@ -143,11 +145,10 @@ function draftItems(league: NavLeague): NavItem[] {
     });
   }
   if (league.rolled) items.push({ key: "order", href: `${base}/order`, label: "Draft Order", icon: "order" });
-  if (league.youMemberId) {
-    items.push(
-      { key: "sheet", href: `${base}/sheet`, label: "Cheat Sheet", icon: "sheet" },
-      { key: "export", href: `${base}/export`, label: "Export", icon: "export" },
-    );
+  // A cheat sheet drives autodraft, so it earns a place only until the board
+  // is full. Export is a download on the board and standings, not a place.
+  if (league.youMemberId && (league.status === "setup" || league.status === "drafting")) {
+    items.push({ key: "sheet", href: `${base}/sheet`, label: "Cheat Sheet", icon: "sheet" });
   }
   return items;
 }
@@ -179,7 +180,7 @@ const MANAGE_ITEMS: readonly NavItem[] = [
   },
 ];
 
-export function navFor({ league, isRosterManager }: NavInput): NavGroup[] {
+export function navFor({ league, isRosterManager, mappingWaiting = 0 }: NavInput): NavGroup[] {
   const groups: NavGroup[] = [];
   if (league) {
     groups.push({ id: "league", label: "League", items: leagueItems(league) });
@@ -188,7 +189,13 @@ export function navFor({ league, isRosterManager }: NavInput): NavGroup[] {
   }
   groups.push({ id: "global", label: "EuroLeague", items: GLOBAL_ITEMS });
   if (isRosterManager) {
-    groups.push({ id: "manage", label: "Manage", items: MANAGE_ITEMS });
+    groups.push({
+      id: "manage",
+      label: "Manage",
+      items: MANAGE_ITEMS.map((item) =>
+        item.key === "mapping" && mappingWaiting > 0 ? { ...item, note: String(mappingWaiting) } : item,
+      ),
+    });
   }
   return groups;
 }
@@ -197,18 +204,19 @@ export function navFor({ league, isRosterManager }: NavInput): NavGroup[] {
  * The phone's four tabs, in order. *More* is the shell's fifth and is not an
  * item here: it opens the full nav rather than going anywhere.
  *
- * Inside a league the tabs are what a member opens on a match night — home,
- * the one thing the league is doing now (the room while drafting, the lineup
- * in season), the table and their own team. A slot with nothing to hold is
- * filled from the global group so the bar keeps four targets.
+ * Inside a league the tabs are what a member opens on a match night: Home,
+ * then the one thing the league is doing now — while drafting the room and the
+ * sheet, in season the lineup, the live scores and the table (ADR-0011). A
+ * slot with nothing to hold is filled from the global group so the bar keeps
+ * four targets.
  */
 export function tabsFor(groups: readonly NavGroup[]): NavItem[] {
   const all = groups.flatMap((group) => group.items);
   const byKey = new Map(all.map((item) => [item.key, item]));
   const wanted: NavKey[] = byKey.has("league-home")
     ? byKey.get("draft")?.note
-      ? ["draft", "pool", "league-home", "sheet"]
-      : ["lineup", "pool", "matchday", "standings", "league-home", "team"]
+      ? ["league-home", "draft", "sheet", "pool"]
+      : ["league-home", "lineup", "matchday", "standings", "team", "pool"]
     : ["leagues", "pool", "news"];
 
   const tabs: NavItem[] = [];

@@ -47,7 +47,7 @@ describe("navFor", () => {
     expect(keysOf({ league: league(), isRosterManager: false }, "league")).toEqual(
       ["league-home"],
     );
-    expect(keysOf({ league: league(), isRosterManager: false }, "drafts")).toEqual(["sheet", "export"]);
+    expect(keysOf({ league: league(), isRosterManager: false }, "drafts")).toEqual(["sheet"]);
   });
 
   it("offers the order only once it has been drawn", () => {
@@ -82,7 +82,9 @@ describe("navFor", () => {
       "recap",
       "trades",
     ]);
-    expect(keysOf({ league: league({ status: "season", rolled: true }), isRosterManager: false }, "drafts")).toEqual(["draft", "order", "sheet", "export"]);
+    // The sheet has done its job once the board is full, and export is a
+    // download on the board rather than a destination.
+    expect(keysOf({ league: league({ status: "season", rolled: true }), isRosterManager: false }, "drafts")).toEqual(["draft", "order"]);
     const team = navFor({
       league: league({ status: "season" }),
       isRosterManager: false,
@@ -149,16 +151,33 @@ describe("tabsFor", () => {
     ]);
   });
 
-  it("while drafting, the live room takes the second tab", () => {
+  it("while drafting, home then the live room and the sheet", () => {
     expect(
       tabKeys({ league: league({ status: "drafting" }), isRosterManager: false }),
-    ).toEqual(["draft", "pool", "league-home", "sheet"]);
+    ).toEqual(["league-home", "draft", "sheet", "pool"]);
   });
 
-  it("in season, the lineup replaces the room", () => {
+  it("in season: Home, Lineup, Live, Table", () => {
     expect(
       tabKeys({ league: league({ status: "season" }), isRosterManager: false }),
-    ).toEqual(["lineup", "pool", "matchday", "standings"]);
+    ).toEqual(["league-home", "lineup", "matchday", "standings"]);
+  });
+
+  it("names each destination once, the same everywhere", () => {
+    const items = navFor({ league: league({ status: "season" }), isRosterManager: false }).flatMap((group) => group.items);
+    expect(items.find((item) => item.key === "standings")?.label).toBe("Standings");
+    expect(items.find((item) => item.key === "matchday")?.label).toBe("Live");
+  });
+
+  it("says how many mapping questions are waiting", () => {
+    const mapping = navFor({ isRosterManager: true, mappingWaiting: 7 })
+      .find((group) => group.id === "manage")!
+      .items.find((item) => item.key === "mapping");
+    expect(mapping?.note).toBe("7");
+    const quiet = navFor({ isRosterManager: true, mappingWaiting: 0 })
+      .find((group) => group.id === "manage")!
+      .items.find((item) => item.key === "mapping");
+    expect(quiet?.note).toBeUndefined();
   });
 
   it("always four tabs or fewer, never a duplicate", () => {

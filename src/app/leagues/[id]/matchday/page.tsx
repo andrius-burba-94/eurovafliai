@@ -56,7 +56,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="slot-label text-live">League / Round {matchday.round}</p>
-          <h1 className="display mt-1 text-4xl sm:text-5xl">Matchday</h1>
+          <h1 className="display mt-1 text-4xl sm:text-5xl">Live</h1>
           <p className="mt-2 text-sm text-ink-soft">Follow your lineup and the league as games are played.</p>
         </div>
         <form method="get" action={`/leagues/${id}/matchday`} className="flex items-center gap-2">

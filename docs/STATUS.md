@@ -35,6 +35,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S0 Concept gallery | Done | `/concepts` (development only, invented data): fonts, palettes in both grounds, crests, moments with replay, two variants of nine screens. |
 | S1 Foundation | Done | Two measured grounds, display face, restyled board vocabulary, `PageHeader`/`ScoreFigure`/`StatusBadge`/`RoundStepper`/`TeamCrest`/`Moment`, shell colours tokenised, the critique's six bugs fixed, season control hidden while there is one season. |
 | S2 Team identity | Done | Migration `1790100000` adds optional `team_color` / `team_crest` to `league_members`; a member who never chose gets a default from their place. `setTeamIdentity` (own team any time, managers anyone's). Picker in the lobby and on the team page; crests beside names in the lobby, chat, draft board and radar. |
+| S3 Shell and nav | Done | Phone tabs Home, Lineup, Live, Table, More in season (Home, Draft, Sheet, Players while drafting). One name per destination: "Live", "Standings". Cheat Sheet leaves the nav once the draft is done; Export leaves it (still reachable from League Home until S13). Manage shows how many mapping questions wait. Compact phone header, tokenised sidebar and panel toggle. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:

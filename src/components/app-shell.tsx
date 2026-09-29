@@ -12,6 +12,8 @@ import {
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 import { readShellLeagues, type LeagueLink } from "@/lib/leagues/queries";
+import { countMappingQueue } from "@/lib/mapping/queries";
+import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
 import {
   navFor,
   tabsFor,
@@ -68,7 +70,10 @@ export async function AppShell({
     getSession(),
     readShellLeagues(),
   ]);
-  const groups = navFor({ league, isRosterManager: manager });
+  const mappingWaiting = manager
+    ? queueTotal(await countMappingQueue().catch(() => EMPTY_QUEUE))
+    : 0;
+  const groups = navFor({ league, isRosterManager: manager, mappingWaiting });
   const tabs = tabsFor(groups);
   const here = groups
     .flatMap((group) => group.items)
@@ -97,7 +102,7 @@ export async function AppShell({
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="border-b border-panel-border bg-stock">
             <div className="flex min-h-14 items-center justify-between gap-3 px-5 py-2 sm:px-8">
-              <div className="min-w-0 lg:hidden">
+              <div className="min-w-0 shrink-0 lg:hidden">
                 <Masthead compact />
               </div>
               <p
@@ -179,7 +184,11 @@ function NavLink({
     >
       <NavIcon name={item.icon} />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {item.note ? <span className="slot-label text-ink">{item.note}</span> : null}
+      {item.note ? (
+        <span className="rounded-full bg-live px-2 py-0.5 text-[0.6875rem] leading-4 font-bold text-live-ink">
+          {item.note}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -433,9 +442,9 @@ function shortLabel(item: NavItem): string {
     case "pool":
       return "Players";
     case "matchday":
-      return "Matchday";
+      return "Live";
     case "standings":
-      return "League";
+      return "Table";
     case "news":
       return "News";
     case "mapping":
