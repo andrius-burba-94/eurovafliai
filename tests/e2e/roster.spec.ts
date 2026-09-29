@@ -97,13 +97,9 @@ test("a member opens a roster from the season lobby", async ({
   // The fixture line is read with the viewer's own token, so this is also the
   // only place the `fixtures` read rule is exercised the way a member does it.
   await expect(page.getByTestId("roster-player")).toContainText("vs ZAL");
-  await expect(page.getByTestId("roster-radar")).toBeVisible();
-  await expect(
-    page.getByTestId("roster-radar").getByRole("link"),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("region", { name: "Roster shape", exact: true }),
-  ).toHaveAttribute("data-framed", "true");
+  // A full roster's shape says nothing after the draft, so the radar is gone;
+  // the roster itself is grouped by position with each player's season points.
+  await expect(page.getByTestId("roster-radar")).toHaveCount(0);
   await expect(page.getByTestId("impact-empty")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Transactions", exact: true }),

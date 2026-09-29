@@ -27,6 +27,7 @@ type ExpandedPlayer = {
   club_name: string;
   person_code?: string;
   position: Position;
+  status?: string;
   proj_last5_games?: number;
   proj_last5_pirs?: unknown;
 };
@@ -35,6 +36,7 @@ type MembershipRow = {
   id: string;
   player: string;
   member: string;
+  from_round?: number | null;
   to_date?: string | null;
   expand?: { player?: ExpandedPlayer };
 };
@@ -64,6 +66,14 @@ export type RosterPlayer = {
    * over. The block renders no fixture line rather than a "TBD".
    */
   readonly fixture?: PlayerFixture | null;
+  /** Availability as stored: active, injured, doubtful or left. */
+  readonly status?: string;
+  /** Fantasy tenths this season while on this roster; raw, before lineup multipliers. */
+  readonly seasonTenths: number;
+  /** Games counted in `seasonTenths`. */
+  readonly games: number;
+  /** The latest counted round's tenths for this player, or null if they did not play it. */
+  readonly lastTenths: number | null;
 };
 
 export async function readMemberRoster(
@@ -88,6 +98,16 @@ export async function readMemberRoster(
   const fixtures = await readNextFixtures(season, session.token);
 
   const mine = memberships.filter((row) => row.member === memberId);
+  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const lines =
+    mine.length === 0
+      ? []
+      : await pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number }>({
+          filter: `(${mine.map((row) => `player = '${row.player}'`).join(" || ")}) && season = "${code}"`,
+          fields: "player,round,fantasy_pts",
+          requestKey: null,
+        });
+  const latestRound = Math.max(0, ...lines.map((line) => line.round));
   const draftId = drafts[0]?.id;
   const picks = draftId
     ? await pb.collection("picks").getFullList<PickRef>({
@@ -114,6 +134,17 @@ export async function readMemberRoster(
         overallNo: overallByPlayer.get(player.id) ?? null,
         last5Pirs: last5SeriesOf(player),
         fixture: fixtures.get(player.club_code) ?? null,
+        status: player.status,
+        ...(() => {
+          const from = row.from_round && row.from_round > 0 ? row.from_round : 1;
+          const owned = lines.filter((line) => line.player === player.id && line.round >= from);
+          const last = owned.find((line) => line.round === latestRound);
+          return {
+            seasonTenths: owned.reduce((sum, line) => sum + line.fantasy_pts, 0),
+            games: owned.length,
+            lastTenths: last ? last.fantasy_pts : null,
+          };
+        })(),
       },
     ];
   });

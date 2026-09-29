@@ -5,6 +5,7 @@ import { createUserClient } from "@/lib/pb/server";
 
 import type { PlayerSource, PlayerStatus, RosterAuthority } from "./types";
 import type { Position } from "@/lib/engine";
+import { averagePirOf, type ProjectionFields } from "@/lib/stats/project";
 
 /**
  * Reading the pool, as the signed-in member.
@@ -26,6 +27,10 @@ export type PoolPlayer = {
   source: PlayerSource;
   manual_lock: boolean;
   dorsal: string;
+  /** The one average PIR (`averagePirOf`), in tenths, or undefined with no data. */
+  pirTenths?: number;
+  /** Where that average came from: current form, or last season. */
+  pirSource?: "last5" | "prev";
 };
 
 export type Pool = {
@@ -65,10 +70,15 @@ export async function getPool(): Promise<Pool | null> {
 
   const pb = createUserClient(session.token);
 
-  const players = await pb.collection("players").getFullList<PoolPlayer>({
-    // Club, then name: the order a roster is actually read in.
-    sort: "club_code,name",
-    requestKey: null,
+  const players = (
+    await pb.collection("players").getFullList<PoolPlayer & ProjectionFields>({
+      // Club, then name: the order a roster is actually read in.
+      sort: "club_code,name",
+      requestKey: null,
+    })
+  ).map((record) => {
+    const average = averagePirOf(record);
+    return { ...record, pirTenths: average?.tenths, pirSource: average?.source };
   });
 
   const settings = await pb

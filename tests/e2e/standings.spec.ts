@@ -231,6 +231,6 @@ test("a signed-in member reads a player's stored game log", async ({
   const row = page.getByTestId("player-game");
   await expect(row).toContainText("E2099");
   await expect(row).toContainText("R4");
-  await expect(row).toContainText("PIR 12");
-  await expect(row).toContainText("3.3");
+  await expect(row.getByTestId("player-game-pir")).toHaveText("12");
+  await expect(row.getByTestId("player-game-fantasy")).toHaveText("3.3");
 });

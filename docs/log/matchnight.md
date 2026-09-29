@@ -257,3 +257,25 @@ This is also where "captain of the round" from the recap plan landed, as the
 best captain call record. Adding the Stats item pushed the full season sidebar
 33px past a 690px laptop screen; group headers are 36px now (nav links stay
 44px).
+
+## S11 — My Team, player profile, pool, news
+
+`readMemberRoster` now also returns each player's availability, their season
+points while on this roster (from the membership window's `from_round`, raw —
+before lineup multipliers, and labelled so), games counted and the latest
+round's points. My Team uses them for a roster grouped by position and two
+callouts: the top scorer ("Carrying you") and the lowest per-game scorer ("On
+thin ice"). The radar went: once a roster is full its shape says nothing.
+
+The player page opens on a card: portrait, club crest, position, availability
+badge, bio and current PIR. The game log is a table (game, club, PIR, fantasy
+shaded by size); `standings.spec.ts` reads the PIR and fantasy cells directly.
+
+The pool is a scouting board ranked by `averagePirOf` — the same number the
+draft room and the side panel rank on — with Injured and A–Z as choices. The
+ingest summary is folded behind "Where this data comes from" for members and
+open for managers.
+
+Not done, and why: the plan's "Your roster / League-owned / All" filter for
+injury news. `/players/news` is global — it has no league, so it has no owner
+to filter by. The league's side panel already shows news with owners.
