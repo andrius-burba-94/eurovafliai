@@ -18,8 +18,13 @@ import { NextResponse, type NextRequest } from "next/server";
 // The fallback matches the schema default in src/lib/config/schema.ts.
 const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? "eurovafliai_session";
 
-/** Reachable without a session. Everything else needs one. */
-const PUBLIC_PATHS = ["/login", "/auth"];
+/** Reachable without a session. Everything else needs one. The concept
+ * gallery holds invented data only, and its page 404s in production. */
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth",
+  ...(process.env.NODE_ENV === "production" ? [] : ["/concepts"]),
+];
 
 export default function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
