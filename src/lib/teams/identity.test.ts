@@ -7,6 +7,7 @@ import {
   crestMonogram,
   defaultIdentity,
   identityOf,
+  stylesFromRecords,
 } from "./identity";
 
 describe("crestMonogram", () => {
@@ -55,5 +56,15 @@ describe("identityOf", () => {
 describe("TEAM_INK", () => {
   it("names an ink for every colour", () => {
     for (const colour of TEAM_COLORS) expect(["dark", "light"]).toContain(TEAM_INK[colour]);
+  });
+});
+
+describe("stylesFromRecords", () => {
+  it("agrees with the id order toMember is given, whatever order rows arrive in", () => {
+    const rows = [{ id: "c" }, { id: "a", team_color: "lime", team_crest: "hex" }, { id: "b" }];
+    const styles = stylesFromRecords(rows);
+    expect(styles.a).toEqual({ color: "lime", crest: "hex" });
+    expect(styles.b).toEqual({ color: defaultIdentity(1).color, crest: defaultIdentity(1).shape });
+    expect(styles.c).toEqual({ color: defaultIdentity(2).color, crest: defaultIdentity(2).shape });
   });
 });

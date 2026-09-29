@@ -46,7 +46,7 @@ describe("the corner scale", () => {
     // ADR-0011: small corners for controls, a card radius for panels, full
     // circles for marks and pills. An arbitrary radius is how two panels end
     // up almost-but-not-quite matching.
-    const CORNER = /\brounded-(?:[trbl]{1,2}-)?(?!(?:block|card|md|lg|xl|2xl|full)\b)[a-z0-9[]/;
+    const CORNER = /\brounded-(?!(?:(?:[trbl]{1,2}|[se]{1,2})-)?(?:block|card|md|lg|xl|2xl|full)\b)[a-z0-9[]/;
     const offenders = files.filter(({ text }) => CORNER.test(text));
     expect(offenders.map((f) => f.path), "use the named corner scale (DESIGN.md, Shapes)").toEqual([]);
   });

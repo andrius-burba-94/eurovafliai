@@ -28,6 +28,7 @@ import {
   readRecentTransactions,
 } from "@/lib/memberships/queries";
 import { serverConfig } from "@/lib/config/server";
+import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
@@ -199,6 +200,7 @@ export default async function LobbyPage({
                   initiallyOpen
                   channel="members"
                   authorNames={teamNames}
+                  authorStyles={stylesById(members)}
                 />
               }
             />
@@ -306,6 +308,7 @@ export default async function LobbyPage({
               member.teamName || member.name,
             ]),
           )}
+          authorStyles={stylesById(members)}
         />
       )}
 

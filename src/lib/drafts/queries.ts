@@ -27,6 +27,7 @@ import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
 import { reconcileLeagueStatus } from "./repair";
 
 import type { BoardPick, DraftRecord, PickRecord } from "./types";
+import { stylesFromRecords, type TeamStyle } from "@/lib/teams/identity";
 
 /**
  * Reading the draft, as the signed-in member.
@@ -94,7 +95,7 @@ export type DraftView = {
    * shipping the flags to the surface that offers it. A phone dying mid-round
    * is the case that switch exists for.
    */
-  members: { id: string; name: string; isYou: boolean; autodraftEnabled: boolean }[];
+  members: { id: string; name: string; isYou: boolean; autodraftEnabled: boolean; style: TeamStyle }[];
   /**
    * Positions the viewer still has room for — "needs: 1 C, 2 F".
    *
@@ -200,6 +201,8 @@ export async function getDraftView(
       id: string;
       user: string;
       team_name: string;
+      team_color?: string;
+      team_crest?: string;
       can_manage?: boolean;
       autodraft_enabled?: boolean;
       expand?: { user?: { name?: string; email?: string } };
@@ -229,6 +232,7 @@ export async function getDraftView(
     readMessages(pb, leagueId).catch(() => []),
   ]);
 
+  const styles = stylesFromRecords(memberRecords);
   const nameOf = new Map(
     memberRecords.map((record) => [
       record.id,
@@ -420,6 +424,7 @@ export async function getDraftView(
       name: nameOf.get(record.id) ?? "Unknown member",
       isYou: record.id === youId,
       autodraftEnabled: Boolean(record.autodraft_enabled),
+      style: styles[record.id]!,
     })),
     yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
     pool: players.map((player) =>

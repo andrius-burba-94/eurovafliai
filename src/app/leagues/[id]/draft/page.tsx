@@ -77,6 +77,7 @@ export default async function DraftPage({
     memberId,
     name: nameOf.get(memberId)?.name ?? "Unknown member",
     isYou: Boolean(nameOf.get(memberId)?.isYou),
+    style: nameOf.get(memberId)?.style,
   }));
   const entries = new Map<number, BoardEntry>(
     picks.map((pick) => [
@@ -442,6 +443,9 @@ export default async function DraftPage({
             myMemberId={view.you?.memberId ?? null}
             authorNames={Object.fromEntries(
               view.members.map((member) => [member.id, member.name]),
+            )}
+            authorStyles={Object.fromEntries(
+              view.members.map((member) => [member.id, member.style]),
             )}
           />
         </div>

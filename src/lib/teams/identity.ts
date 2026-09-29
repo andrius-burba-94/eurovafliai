@@ -89,3 +89,30 @@ export function identityOf(stored: { color?: unknown; shape?: unknown }, index: 
     shape: isCrestShape(stored.shape) ? stored.shape : fallback.shape,
   };
 }
+
+/** A member's crest, as the components that draw one receive it. */
+export type TeamStyle = { readonly color: TeamColor; readonly crest: CrestShape };
+
+/** Member id → crest, from members that already carry their identity. */
+export function stylesById(
+  members: readonly { readonly id: string; readonly color: TeamColor; readonly crest: CrestShape }[],
+): Record<string, TeamStyle> {
+  return Object.fromEntries(members.map((member) => [member.id, { color: member.color, crest: member.crest }]));
+}
+
+/**
+ * Member id → crest, from raw `league_members` rows. Sorted by id first so a
+ * member who never chose gets the same default here as in `toMember`, which
+ * reads the list in `memberListQuery`'s id order.
+ */
+export function stylesFromRecords(
+  records: readonly { readonly id: string; readonly team_color?: unknown; readonly team_crest?: unknown }[],
+): Record<string, TeamStyle> {
+  const sorted = [...records].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return Object.fromEntries(
+    sorted.map((record, index) => {
+      const identity = identityOf({ color: record.team_color, shape: record.team_crest }, index);
+      return [record.id, { color: identity.color, crest: identity.shape }];
+    }),
+  );
+}

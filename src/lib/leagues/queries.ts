@@ -230,7 +230,7 @@ export async function getLeagueWithMembers(
   return {
     league,
     settings: parseLeagueSettings(league.settings),
-    members: members.map((m) => toMember(m, context)),
+    members: members.map((m, index) => toMember(m, context, index)),
     isCommissioner: league.commissioner === session.user.id,
   };
 }

@@ -1,5 +1,7 @@
 import type { RecordModel } from "pocketbase";
 
+import type { CrestShape, TeamColor } from "@/lib/teams/identity";
+
 import type { LeagueSettings } from "./settings";
 
 /** A `leagues` record as it comes back from PocketBase. */
@@ -17,6 +19,8 @@ export type MemberRecord = RecordModel & {
   league: string;
   user: string;
   team_name: string;
+  team_color?: string;
+  team_crest?: string;
   draft_position?: number;
   can_manage?: boolean;
   autodraft_enabled: boolean;
@@ -40,6 +44,9 @@ export type Member = {
   userId: string;
   name: string;
   teamName: string;
+  /** The member's crest colour and shape — chosen, or the default for their place. */
+  color: TeamColor;
+  crest: CrestShape;
   isCommissioner: boolean;
   isYou: boolean;
   /** Has said they are at their phone and ready to draft. */

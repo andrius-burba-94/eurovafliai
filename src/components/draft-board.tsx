@@ -2,6 +2,8 @@ import type { BoardShape, Position } from "@/lib/engine";
 
 import { CardName } from "./board";
 import { BoardScroll } from "./board-scroll";
+import { TeamCrest, teamFieldStyle } from "@/components/broadcast";
+import type { TeamStyle } from "@/lib/teams/identity";
 
 /**
  * The draft board — slice 3.1, and the surface this whole app is named after.
@@ -49,6 +51,8 @@ export type BoardColumn = {
   readonly memberId: string;
   readonly name: string;
   readonly isYou: boolean;
+  /** The member's crest, drawn above their column in their colour. */
+  readonly style?: TeamStyle;
 };
 
 /** A pick, as the board needs it: who was written into this slot. */
@@ -184,12 +188,18 @@ export function DraftBoard({
               data-testid="board-column"
               tabIndex={-1}
               title={column.name}
-              className={`slot-label scroll-mt-72 scroll-ml-8 truncate border-b border-rule-strong px-1.5 pb-1 focus:outline-2 focus:-outline-offset-2 focus:outline-live ${
-                column.isYou ? "text-ink" : ""
+              style={column.style ? teamFieldStyle(column.style.color) : undefined}
+              className={`${column.style ? "team-field" : ""} flex scroll-mt-72 scroll-ml-8 items-center gap-1.5 rounded-t-md border-b border-rule-strong px-1.5 py-1.5 text-xs font-semibold focus:outline-2 focus:-outline-offset-2 focus:outline-live ${
+                column.isYou ? "text-ink" : "text-ink-soft"
               } ${index === lastColumn ? "border-r-2 border-r-rule-strong" : ""}`}
             >
-              {column.name}
-              {column.isYou ? " · you" : ""}
+              {column.style ? (
+                <TeamCrest name={column.name} color={column.style.color} shape={column.style.crest} size={20} />
+              ) : null}
+              <span className="min-w-0 truncate">
+                {column.name}
+                {column.isYou ? " · you" : ""}
+              </span>
             </span>
           ))}
         </div>

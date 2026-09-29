@@ -84,3 +84,24 @@ than the planted ones (the page shows the newest 40); CI starts empty. Three
 (`cheat-sheet` 317, `pool` 320 and 365, the known pool flake) and one run of the
 light-ground check failed under parallel load and pass alone; the ground check
 now polls. Unit: 1517 passed, lint and typecheck clean.
+
+## S2 — team identity
+
+A crest is a colour (twelve), a shape (waffle, shield, roundel, hex) and a
+monogram taken from the team name. The migration adds two optional selects and
+nothing else: no backfill, because a member who never chose is drawn with a
+deterministic default from their place in the id-ordered member list, and every
+reader (`toMember`, `stylesFromRecords`) uses that same order. Rollback drops
+the two fields and loses only the choices.
+
+One write per save, both values validated against the curated sets first, so
+there is no half-state to repair. Styling is allowed at any league status — a
+crest moves no points — for your own team, or anyone's if you manage the league.
+
+The first screenshot showed monograms on nothing: Tailwind v4 drops theme
+variables no class uses, and team colours are reached only through inline
+`var()`. The theme block is now `@theme static`.
+
+Crests appear in the lobby list, chat author lines, draft board column heads
+(on a team-colour field) and the radar. Standings, recap, trades and Home take
+them in their own slices. New spec: `team-identity.spec.ts`.

@@ -5,7 +5,9 @@ import {
   canKickMember,
   canMarkReady,
   canRenameTeam,
+  canStyleTeam,
   isManager,
+  toMember,
   normalizeTeamName,
   validateTeamName,
 } from "./lobby";
@@ -208,5 +210,52 @@ describe("deputies — the commissioner's delegated powers", () => {
     };
     expect(canRenameTeam(drafting).ok).toBe(false);
     expect(canKickMember(drafting).ok).toBe(false);
+  });
+});
+
+describe("canStyleTeam", () => {
+  it("lets a member style their own team in any league status", () => {
+    for (const leagueStatus of ["setup", "drafting", "season", "complete"]) {
+      expect(canStyleTeam({ ...member, leagueStatus }).ok).toBe(true);
+    }
+  });
+
+  it("lets whoever runs the league style anyone's team", () => {
+    expect(canStyleTeam({ ...boss, targetUserId: "u_member", leagueStatus: "season" }).ok).toBe(true);
+    expect(
+      canStyleTeam({ ...member, targetUserId: "u_other", actorCanManage: true, leagueStatus: "season" }).ok,
+    ).toBe(true);
+  });
+
+  it("refuses a member styling somebody else's team", () => {
+    const verdict = canStyleTeam({ ...member, targetUserId: "u_other" });
+    expect(verdict).toEqual({ ok: false, reason: "You can only style your own team." });
+  });
+});
+
+describe("toMember's crest", () => {
+  const record = (extra: Record<string, unknown>) =>
+    ({
+      id: "m1",
+      league: "l1",
+      user: "u_member",
+      team_name: "Blynų Brigada",
+      autodraft_enabled: false,
+      is_ready: false,
+      collectionId: "c",
+      collectionName: "league_members",
+      ...extra,
+    }) as Parameters<typeof toMember>[0];
+  const context = { commissionerUserId: "u_boss", viewerUserId: "u_member" };
+
+  it("keeps a stored choice", () => {
+    const member = toMember(record({ team_color: "violet", team_crest: "hex" }), context, 5);
+    expect([member.color, member.crest]).toEqual(["violet", "hex"]);
+  });
+
+  it("gives a member who never chose the default for their place", () => {
+    const first = toMember(record({}), context, 0);
+    const second = toMember(record({}), context, 1);
+    expect(first.color).not.toBe(second.color);
   });
 });

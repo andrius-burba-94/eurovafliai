@@ -18,7 +18,7 @@ import { TEAM_COLORS, TEAM_INK } from "@/lib/teams/identity";
 
 const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 
-const themeBlock = /@theme \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+const themeBlock = /@theme(?: static)? \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
 const lightBlock = /@media \(prefers-color-scheme: light\) \{\s*:root \{([\s\S]*?)\n  \}/.exec(css)?.[1] ?? "";
 
 const GROUNDS = { dark: themeBlock, light: lightBlock } as const;

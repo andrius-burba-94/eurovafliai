@@ -19,7 +19,9 @@ import {
   Slots,
   inputStyles,
 } from "@/components/board";
+import { TeamCrest } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
+import { TeamIdentityPicker } from "@/components/team-identity-picker";
 import { useLiveSubscription } from "@/lib/pb/use-live";
 import { rollCeremony } from "@/lib/roll/ceremony";
 import {
@@ -117,8 +119,8 @@ export function LiveLobby({
           return;
         }
         setMembers(
-          records.map((record) =>
-            toMember(record, { commissionerUserId, viewerUserId }),
+          records.map((record, index) =>
+            toMember(record, { commissionerUserId, viewerUserId }, index),
           ),
         );
       } catch {
@@ -328,7 +330,7 @@ function YourTeam({ leagueId, you }: { leagueId: string; you: Member }) {
           <input type="hidden" name="leagueId" value={leagueId} />
           <input type="hidden" name="memberId" value={you.id} />
           <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-slot font-normal uppercase tracking-[0.06em] text-ink-soft">
+            <span className="text-sm font-medium text-ink-soft">
               Team name
             </span>
             <input
@@ -368,6 +370,15 @@ function YourTeam({ leagueId, you }: { leagueId: string; you: Member }) {
         {ready.error ? (
           <Correction testId="ready-error">{ready.error}</Correction>
         ) : null}
+      </div>
+      <div className="px-3 py-4">
+        <TeamIdentityPicker
+          leagueId={leagueId}
+          memberId={you.id}
+          name={you.teamName || you.name}
+          color={you.color}
+          crest={you.crest}
+        />
       </div>
     </Bank>
   );
@@ -413,7 +424,7 @@ function MemberSlot({
       : null;
   const content = (
     <>
-      <span className="flex items-baseline gap-2.5">
+      <span className="flex items-center gap-2.5">
         {/* The slot the roll gave them. Tabular figures, so a column of them
             is a column (DESIGN.md). */}
         {member.draftPosition && positionRevealed ? (
@@ -424,6 +435,7 @@ function MemberSlot({
             {String(member.draftPosition).padStart(2, "0")}
           </span>
         ) : null}
+        <TeamCrest name={name} color={member.color} shape={member.crest} size={28} />
         <CardName>{name}</CardName>
       </span>
       <span className="flex flex-wrap items-baseline gap-x-3">

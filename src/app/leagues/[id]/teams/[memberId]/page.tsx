@@ -12,6 +12,8 @@ import {
   Sparkline,
 } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { TeamCrest } from "@/components/broadcast";
+import { TeamIdentityPicker } from "@/components/team-identity-picker";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import { ContextPanel } from "@/components/context-panel";
@@ -94,13 +96,28 @@ export default async function TeamPage({
       panel={<ContextPanel data={panel} />}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="slot-label text-live">{data.league.name} / {member.isYou ? "My team" : "Team"}</p>
-          <h1 className="display mt-1 min-w-0 text-4xl break-words sm:text-5xl">{displayName}</h1>
-          <p className="mt-2 text-sm text-ink-soft">{roster.length} of {rosterSize} players · {template.G} guards, {template.F} forwards, {template.C} centers</p>
+        <div className="flex min-w-0 items-center gap-4">
+          <TeamCrest name={displayName} color={member.color} shape={member.crest} size={64} />
+          <div className="min-w-0">
+            <p className="slot-label text-live">{data.league.name} / {member.isYou ? "My team" : "Team"}</p>
+            <h1 className="display mt-1 min-w-0 text-4xl break-words sm:text-5xl">{displayName}</h1>
+            <p className="mt-2 text-sm text-ink-soft">{member.name} · {roster.length} of {rosterSize} players</p>
+          </div>
         </div>
         {member.isYou && data.league.status === "season" ? <Link href={`/leagues/${id}/lineup`} className="inline-flex min-h-11 items-center rounded border border-live px-4 text-sm font-semibold text-live hover:bg-live-sunk/50">Set lineup →</Link> : null}
       </div>
+
+      {member.isYou || viewerCanManage ? (
+        <details className="group rounded-xl border border-panel-border bg-stock-panel px-4 py-3" data-testid="edit-crest">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            {member.isYou ? "Your crest" : `${displayName}'s crest`}
+            <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
+          </summary>
+          <div className="pt-3 pb-1">
+            <TeamIdentityPicker leagueId={id} memberId={member.id} name={displayName} color={member.color} crest={member.crest} />
+          </div>
+        </details>
+      ) : null}
 
       <SeasonControl
         action={`/leagues/${id}/teams/${memberId}`}
@@ -187,7 +204,7 @@ export default async function TeamPage({
         <RosterRadar
           rows={radar}
           columns={[
-            { memberId: member.id, name: displayName, isYou: member.isYou },
+            { memberId: member.id, name: displayName, isYou: member.isYou, style: { color: member.color, crest: member.crest } },
           ]}
           total={rosterSize}
           onClockMemberId={null}

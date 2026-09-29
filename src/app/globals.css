@@ -6,11 +6,15 @@
  * Every ratio either ground renders is measured in `tokens.test.ts`, which
  * reads both blocks below, so a value here is never eyeballed.
  *
+ * `static`, because several tokens (the team colours, the court, the wood)
+ * are reached through `var()` in an inline style or a named utility rather
+ * than a class Tailwind can see, and v4 drops a theme variable no class uses.
+ *
  * `live` keeps its name and is the accent: the one act on a surface, the
  * selection, focus and whoever is on the clock. The red "on air" bug for a
  * game in play is `on-air`, always printed with the word LIVE.
  */
-@theme {
+@theme static {
   --color-stock: oklch(0.16 0.022 262);
   --color-stock-panel: oklch(0.205 0.026 262);
   --color-stock-high: oklch(0.25 0.03 262);

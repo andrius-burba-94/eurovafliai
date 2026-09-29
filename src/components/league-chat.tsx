@@ -25,6 +25,8 @@ import {
   toMessage,
   type ChatMessage,
 } from "@/lib/chat/store";
+import { TeamCrest } from "@/components/broadcast";
+import type { TeamStyle } from "@/lib/teams/identity";
 
 /**
  * League chat — slice 3.5.
@@ -135,6 +137,7 @@ export function LeagueChat({
   initiallyOpen = false,
   channel = "all",
   authorNames,
+  authorStyles = {},
 }: {
   leagueId: string;
   /** The viewer's own token, so PB's read rules scope the stream. */
@@ -149,6 +152,8 @@ export function LeagueChat({
   channel?: "all" | "members";
   /** Member id to visible team or account name, for unnamed teams. */
   authorNames: Readonly<Record<string, string>>;
+  /** Each author's crest, drawn beside their team name. */
+  authorStyles?: Readonly<Record<string, TeamStyle>>;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([...initial]);
   /**
@@ -555,7 +560,15 @@ export function LeagueChat({
                       {message.system ? (
                         <span className="sr-only">{CHAT_UI.systemPrefix}</span>
                       ) : (
-                        <span className="slot-label shrink-0">
+                        <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold">
+                          {authorStyles[message.authorId ?? ""] ? (
+                            <TeamCrest
+                              name={message.teamName?.trim() || authorNames[message.authorId ?? ""] || "A member"}
+                              color={authorStyles[message.authorId ?? ""]!.color}
+                              shape={authorStyles[message.authorId ?? ""]!.crest}
+                              size={18}
+                            />
+                          ) : null}
                           {message.teamName?.trim() ||
                             authorNames[message.authorId ?? ""] ||
                             "A member"}

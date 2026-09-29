@@ -34,11 +34,14 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 |---|---|---|
 | S0 Concept gallery | Done | `/concepts` (development only, invented data): fonts, palettes in both grounds, crests, moments with replay, two variants of nine screens. |
 | S1 Foundation | Done | Two measured grounds, display face, restyled board vocabulary, `PageHeader`/`ScoreFigure`/`StatusBadge`/`RoundStepper`/`TeamCrest`/`Moment`, shell colours tokenised, the critique's six bugs fixed, season control hidden while there is one season. |
+| S2 Team identity | Done | Migration `1790100000` adds optional `team_color` / `team_crest` to `league_members`; a member who never chose gets a default from their place. `setTeamIdentity` (own team any time, managers anyone's). Picker in the lobby and on the team page; crests beside names in the lobby, chat, draft board and radar. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:
 the ground, headlines and primary buttons change with it. On a lineup, the grid
-view shows each position in its own colour and the captain reads `C×2`.
+view shows each position in its own colour and the captain reads `C×2`. Open
+your team page, expand **Your crest**, pick a colour and a shape and save: the
+crest appears beside your name in chat and on the draft board.
 
 **Known local-only failure.** `news.spec.ts` plants items dated 13 September; a
 local database that has run the news worker holds newer items, and the page

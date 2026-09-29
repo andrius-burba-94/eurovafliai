@@ -12,6 +12,8 @@
  * the door is shut.
  */
 
+import { identityOf } from "@/lib/teams/identity";
+
 import type { Member, MemberRecord } from "./types";
 
 /** Matches the `team_name` column's `max: 40` — see 1788124600. */
@@ -62,13 +64,18 @@ export type Verdict = { ok: true } | { ok: false; reason: string };
 export function toMember(
   record: MemberRecord,
   context: { commissionerUserId: string; viewerUserId: string },
+  /** The record's place in `memberListQuery`'s order — its default crest. */
+  index = 0,
 ): Member {
   const user = record.expand?.user;
+  const identity = identityOf({ color: record.team_color, shape: record.team_crest }, index);
   return {
     id: record.id,
     userId: record.user,
     name: user?.name || user?.email || "Unknown member",
     teamName: record.team_name || "",
+    color: identity.color,
+    crest: identity.shape,
     isCommissioner: record.user === context.commissionerUserId,
     isYou: record.user === context.viewerUserId,
     isReady: Boolean(record.is_ready),
@@ -228,4 +235,15 @@ export function canMarkReady(actor: LobbyActor): Verdict {
     return { ok: false, reason: "Only you can say you are ready." };
   }
   return { ok: true };
+}
+
+/**
+ * Style a team: your own at any time, anyone's if you run the league. Unlike a
+ * rename it is not limited to the lobby — a crest is how the season looks,
+ * and changing it moves no points.
+ */
+export function canStyleTeam(actor: LobbyActor): Verdict {
+  if (actor.actorUserId === actor.targetUserId) return { ok: true };
+  if (isManager(actor)) return { ok: true };
+  return { ok: false, reason: "You can only style your own team." };
 }
