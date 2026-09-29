@@ -148,3 +148,17 @@ league's directory with crests.
 A bug found by screenshot: a shield crest's `padding-top: 16%` resolved against
 the *parent's* width and stretched every shield to 46px tall. It is now a
 fraction of the crest's own size.
+
+## S5 — Live
+
+Matchday is "Live" and opens on the scoreboard: the round's provisional total
+as the page's figure, the provisional or final rank beside it, and three
+chips counting the viewer's counting players who have finished, are playing
+now, or are still to play. The "provisional until recorded" line stays, once,
+and only final rounds say final.
+
+Each player row now shows what counts: the raw fantasy points times the role
+multiplier from the round's lineup (captain ×2, bench ×0.5, inactive ×0 and
+dimmed), with the captain marked in gold and a LIVE / FINAL / SCHEDULED badge.
+Games are tiles with club crests and Vilnius times. The round is stepped, not
+typed, through `RoundStepper`.
