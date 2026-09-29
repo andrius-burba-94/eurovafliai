@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 export type MomentKind = "overtake" | "crown" | "sweep" | "stamp" | "spoon" | "badge" | "lower-third";
 
@@ -42,6 +42,9 @@ export function Moment({
   as = "div",
   className = "",
   testId,
+  role,
+  style,
+  playing: playable = true,
 }: {
   kind: MomentKind;
   /** What changed, stable across loads: "crown:league:3", "overtake:league:3:1". */
@@ -50,23 +53,34 @@ export function Moment({
   as?: "div" | "span" | "li" | "tr";
   className?: string;
   testId?: string;
+  role?: string;
+  style?: CSSProperties;
+  /** False renders the element still, for a row whose change did not happen. */
+  playing?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
   const done = useRef(false);
 
   useEffect(() => {
-    if (done.current) return;
+    if (done.current || !playable) return;
     done.current = true;
     if (seen().includes(id)) return;
     remember(id);
     // Deferred a frame so the still first paint lands before the motion starts.
     const frame = window.requestAnimationFrame(() => setPlaying(true));
     return () => window.cancelAnimationFrame(frame);
-  }, [id]);
+  }, [id, playable]);
 
   const Tag = as;
   return (
-    <Tag data-moment={kind} data-playing={playing ? "" : undefined} data-testid={testId} className={className}>
+    <Tag
+      data-moment={playable ? kind : undefined}
+      data-playing={playing ? "" : undefined}
+      data-testid={testId}
+      className={className}
+      role={role}
+      style={style}
+    >
       {children}
     </Tag>
   );

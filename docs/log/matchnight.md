@@ -178,3 +178,21 @@ name ("{name} role", "{name} captain", "Move {name}"): a role pill, the captain
 as a gold armband radio, and a Move button, on compact rows instead of
 two-column card blocks. The "not ready" refusal reads in gold, as guidance, not
 in the loss colour.
+
+## S7 — Standings
+
+`src/lib/season/badges.ts` is the league's honours, pure and deterministic:
+`honoursByRound` (a night's winners — all of them on a tie — and its wooden
+spoons; nobody is crowned on a night nobody scored), `memberHonours` (rounds
+won, spoons, the current top-three streak, best round) and `badgesFrom` (On
+fire at three straight top-three nights, Crowned, Spoon collector at two).
+League Stats will read the same module.
+
+The page leads with a podium, then the badges, then the table. Each round's
+winner is gold with a crown and an `sr-only` "Round winner", so the mark is not
+colour alone. Play-in, Playoffs and Final Four filters appear only once those
+phases have counted rounds.
+
+A layout bug older than this slice: every table row is its own CSS grid, and
+`auto` tracks sized to each row's own content, so the Total column drifted by a
+few pixels row to row. The tracks after the name are now fixed widths.
