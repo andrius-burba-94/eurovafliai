@@ -1,11 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
-import {
-  Bank,
-  EmptyNotice,
-  Field,
-  selectStyles,
-} from "@/components/board";
+import { Bank, EmptyNotice, selectStyles } from "@/components/board";
+import { PageHeader, RoundStepper } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
 import { ContextPanel } from "@/components/context-panel";
 import { resolveSeason, SeasonControl } from "@/components/season-control";
@@ -17,6 +13,7 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readPanel } from "@/lib/panel/queries";
+import { formatTipOff } from "@/lib/time/local";
 
 import { LineupForm } from "./lineup-form";
 
@@ -24,7 +21,8 @@ import { LineupForm } from "./lineup-form";
  * Who started, who was captain, who sat — slice 9.3.
  *
  * The league is played on the official site; this is where the result is typed
- * in afterwards, which is why the round is a free choice and not "tonight".
+ * in afterwards, which is why the round is a free choice and not "tonight" —
+ * and why the page names a round's tip-off without claiming it locks anything.
  * The owner sets their own lineup and the commissioner sets anyone's.
  */
 
@@ -76,6 +74,11 @@ export default async function LineupPage({
     readPanel({ leagueId: id, season, teamNames, round }),
   ]);
   const comparison = board ? await readComparisonPlayers(board.players, season, session.token) : [];
+  const firstTip = (panel.schedule?.round === round ? panel.schedule.games : [])
+    .map((game) => game.tipOff)
+    .filter((stamp): stamp is string => Boolean(stamp))
+    .sort()[0];
+  const tipOff = firstTip ? formatTipOff(firstTip) : null;
 
   return (
     <AppShell
@@ -85,11 +88,19 @@ export default async function LineupPage({
       testId="lineup"
       panel={<ContextPanel data={panel} />}
     >
-      <div className="flex flex-col gap-2">
-        <p className="slot-label text-live">{data.league.name} / My team</p>
-        <h1 className="display text-4xl sm:text-5xl">Lineup</h1>
-        <p className="text-sm text-ink-soft">{teamName}, round {round}. Set the five, captain and rotation before recording.</p>
-      </div>
+      <PageHeader
+        eyebrow={`${data.league.name} · ${teamName}`}
+        title="Lineup"
+        lead={tipOff ? `Round ${round} tips off ${tipOff}.` : `Set the five, the captain and the rotation for round ${round}.`}
+        action={
+          <RoundStepper
+            round={round}
+            max={Math.max(38, round)}
+            hrefFor={(next) => `/leagues/${id}/lineup?${new URLSearchParams({ season, round: String(next), member: memberId })}`}
+            testId="lineup-stepper"
+          />
+        }
+      />
 
       <SeasonControl
         action={`/leagues/${id}/lineup`}
@@ -97,49 +108,25 @@ export default async function LineupPage({
         currentSeason={currentSeason}
       />
 
-      <Bank framed label="Which round" testId="lineup-picker">
-        <form
-          method="get"
-          action={`/leagues/${id}/lineup`}
-          className="flex flex-col gap-3 px-3 py-3 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end sm:gap-4"
-        >
+      {canManage ? (
+        <form method="get" action={`/leagues/${id}/lineup`} className="flex flex-wrap items-end gap-2" data-testid="lineup-picker">
           <input type="hidden" name="season" value={season} />
-          <Field label="Euroleague round">
-            <input
-              name="round"
-              inputMode="numeric"
-              defaultValue={String(round)}
-              data-testid="lineup-round"
-              className={selectStyles}
-            />
-          </Field>
-          {canManage ? (
-            <Field label="Whose team">
-              <select
-                name="member"
-                defaultValue={memberId}
-                data-testid="lineup-member"
-                className={selectStyles}
-              >
-                {data.members.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.teamName.trim() ? row.teamName : row.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          ) : (
-            <input type="hidden" name="member" value={memberId} />
-          )}
-          <SubmitButton
-            testId="lineup-show"
-            tone="ink"
-            pendingLabel="Opening round…"
-          >
-            Show round
+          <input type="hidden" name="round" value={String(round)} />
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-xs">
+            <span className="text-sm font-medium text-ink-soft">Whose team</span>
+            <select name="member" defaultValue={memberId} data-testid="lineup-member" className={selectStyles}>
+              {data.members.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.teamName.trim() ? row.teamName : row.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <SubmitButton testId="lineup-show" tone="ink" pendingLabel="Opening…" compact>
+            Show
           </SubmitButton>
         </form>
-      </Bank>
+      ) : null}
 
       {!drafted ? (
         <Bank framed label="The lineup">

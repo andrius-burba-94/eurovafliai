@@ -162,3 +162,19 @@ multiplier from the round's lineup (captain ×2, bench ×0.5, inactive ×0 and
 dimmed), with the captain marked in gold and a LIVE / FINAL / SCHEDULED badge.
 Games are tiles with club crests and Vilnius times. The round is stepped, not
 typed, through `RoundStepper`.
+
+## S6 — Lineup
+
+The court is now what the page opens on after the header, drawn on the
+hardwood utility, with the five formations as pills and the court/grid switch
+beneath it. The typed "Which round" form became a stepper; a manager's "whose
+team" choice is one compact select. The header names the round's first
+tip-off. It deliberately does not say "locks": this league records lineups
+after the official game, and a lock the app does not enforce would be a claim.
+
+The per-player controls stayed, restyled rather than removed. They are what the
+form posts without JavaScript and what `lineup.spec.ts` drives by accessible
+name ("{name} role", "{name} captain", "Move {name}"): a role pill, the captain
+as a gold armband radio, and a Move button, on compact rows instead of
+two-column card blocks. The "not ready" refusal reads in gold, as guidance, not
+in the loss colour.
