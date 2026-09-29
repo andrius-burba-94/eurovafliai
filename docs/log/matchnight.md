@@ -196,3 +196,19 @@ phases have counted rounds.
 A layout bug older than this slice: every table row is its own CSS grid, and
 `auto` tracks sized to each row's own content, so the Total column drifted by a
 few pixels row to row. The tracks after the name are now fixed widths.
+
+## S8 — Recap
+
+The recap reads as the morning-after front page. Its headline is a sentence
+built from `roundStory` — winner, margin, spoon — so it is never written by
+hand and never wrong about the night. The winner gets a banner on their own
+colour with the crown and gold-sweep moments (keyed on league and round, like
+Home, so seeing it on one page means it is still on the other). The night is a
+ladder with a bar per team in the team's colour and the crown and spoon marks
+on the first and last rows. Rounds are chips linking to `?round=`, replacing the
+select-and-submit form; `recap.spec.ts` now clicks the chip.
+
+Captain of the round was in the plan's list for this page. It needs each
+member's recorded captain joined to that night's box score, which is exactly
+what League Stats' lineup-efficiency section computes, so it lands there (S10)
+rather than as a second implementation here.

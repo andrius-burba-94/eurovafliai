@@ -1,12 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
-import {
-  Bank,
-  Correction,
-  Door,
-  EmptyNotice,
-  Slots,
-} from "@/components/board";
+import { Bank, Door, EmptyNotice, Slots } from "@/components/board";
+import { PageHeader } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
 import {
   resolveSeason,
@@ -17,6 +12,7 @@ import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readLeagueRecap } from "@/lib/stats/queries";
+import { stylesById } from "@/lib/teams/identity";
 
 import { RecapBody } from "./recap-body";
 import { RoundPicker } from "./round-picker";
@@ -65,11 +61,10 @@ export default async function RecapPage({
 
   return (
     <AppShell current="recap" league={navLeagueFrom(data)} measure="wide" testId="recap">
-      <div className="flex flex-col gap-2">
-        <p className="slot-label text-live">{data.league.name} / Review</p>
-        <h1 className="display text-4xl sm:text-5xl">Recap</h1>
-        <p className="text-sm text-ink-soft">The round&apos;s table, standout performance and biggest roster swing.</p>
-      </div>
+      <PageHeader
+        eyebrow={page ? `${data.league.name} · round ${page.recap.round}` : data.league.name}
+        title="Recap"
+      />
 
       <SeasonControl
         action={`/leagues/${id}/recap`}
@@ -80,10 +75,9 @@ export default async function RecapPage({
       {requestedRound !== null &&
       page &&
       page.recap.round !== requestedRound ? (
-        <Correction testId="recap-round-fallback">
-          Round {requestedRound} is not counted. Showing round{" "}
-          {page.recap.round}.
-        </Correction>
+        <p data-testid="recap-round-fallback" className="rounded-lg border border-gold/40 bg-gold/10 px-3.5 py-3 text-sm">
+          Round {requestedRound} is not counted yet. Showing round {page.recap.round}.
+        </p>
       ) : null}
 
       {emptyDraft ? (
@@ -129,7 +123,9 @@ export default async function RecapPage({
           <RecapBody
             recap={page.recap}
             names={names}
+            styles={stylesById(data.members)}
             playerNames={page.playerNames}
+            playerCodes={page.playerCodes}
             leagueId={id}
             season={season}
           />

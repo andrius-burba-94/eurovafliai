@@ -200,9 +200,11 @@ test("a counted round ranks the night, names the best, and names the swing", asy
 
   await expect(page.getByTestId("season-select")).toHaveValue("E2099");
   await expect(page.getByTestId("recap-table")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Round", exact: true }),
-  ).toHaveAttribute("data-framed", "true");
+  // Rounds are chips now, one per counted night, the current one pressed.
+  await expect(page.getByTestId("recap-rounds")).toBeVisible();
+  await expect(page.getByTestId("recap-round-2")).toHaveAttribute("aria-current", "page");
+  // The headline is written from the night's own facts.
+  await expect(page.getByTestId("recap-headline")).toContainText("Other FC win round 2");
   for (const label of ["The night", "Best night", "Biggest swing"]) {
     await expect(
       page.getByRole("region", { name: label, exact: true }),
@@ -231,8 +233,7 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   await expect(page).toHaveURL(/season=E2099/);
   await page.goto(`/leagues/${league.id}/recap?season=E2099`);
 
-  await page.getByTestId("recap-round").selectOption("1");
-  await page.getByTestId("recap-show-round").click();
+  await page.getByTestId("recap-round-1").click();
   await expect(page).toHaveURL(/round=1/);
   await expect(rows.first()).toContainText("Chief FC");
   await expect(rows.first().getByTestId("recap-tenths")).toHaveText("14.2");
