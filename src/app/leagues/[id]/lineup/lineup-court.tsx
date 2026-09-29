@@ -44,6 +44,7 @@ export function LineupCourt({
                 <button
                   type="button"
                   data-testid="court-player"
+                  data-position={position}
                   data-captain={player.isCaptain || undefined}
                   data-valid={(armed !== null && armed !== player.id && (!armedPlayer || armedPlayer.position === player.position)) || undefined}
                   aria-pressed={armed === player.id}
@@ -54,7 +55,7 @@ export function LineupCourt({
                   <span className="lineup-court-disc">
                     <PlayerPortrait personCode={player.personCode} name={player.name} />
                     <span className="lineup-court-position" aria-hidden="true">{position}</span>
-                    {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C</span> : null}
+                    {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C&times;2</span> : null}
                   </span>
                   <strong title={player.name}>{surname(player.name)}</strong>
                 </button>

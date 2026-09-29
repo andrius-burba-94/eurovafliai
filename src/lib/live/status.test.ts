@@ -13,7 +13,7 @@ describe("matchday feed status", () => {
     expect(feedStatus({ ...base, checkedAt: ["2026-09-29T17:50:00.000Z"] })).toEqual({ label: "Live feed stale — scores may lag", alert: true });
   });
   it("shows freshness for a recent provisional snapshot", () => {
-    expect(feedStatus({ ...base, checkedAt: ["2026-09-29T17:59:00.000Z"] }).label).toBe("Provisional feed updated 17:59 UTC");
+    expect(feedStatus({ ...base, checkedAt: ["2026-09-29T17:59:00.000Z"] }).label).toBe("Provisional feed updated 20:59");
   });
   it("always prefers the authoritative final state", () => {
     expect(feedStatus({ ...base, final: true, connected: false, checkedAt: ["2026-09-29T17:00:00.000Z"] })).toEqual({ label: "Final scores recorded", alert: false });

@@ -18,7 +18,7 @@ export default function NotFound() {
       <BareRail />
       <Sheet testId="not-found">
         <div className="flex max-w-xl flex-col gap-3">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+          <h1 className="display text-4xl sm:text-5xl">
             That board is not here
           </h1>
           <EmptyNotice>

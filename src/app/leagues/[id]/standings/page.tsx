@@ -94,7 +94,7 @@ export default async function StandingsPage({
     >
       <div className="flex flex-col gap-2">
         <p className="slot-label text-live">{data.league.name} / League</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Standings</h1>
+        <h1 className="display text-4xl sm:text-5xl">Standings</h1>
         <p className="text-sm text-ink-soft">Every counted round, with each team&apos;s season total and recent movement.</p>
       </div>
 

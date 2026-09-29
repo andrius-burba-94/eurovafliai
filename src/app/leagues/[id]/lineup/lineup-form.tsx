@@ -9,6 +9,7 @@ import {
   CardName,
   Correction,
   FixtureNote,
+  PositionPatch,
   selectStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
@@ -475,7 +476,7 @@ export function LineupForm({
           /> : <div className="overflow-x-auto rounded-md border border-rule-strong" role="region" aria-label="Starting five grid" tabIndex={0}>
             <table className="w-full min-w-96 text-left text-sm">
               <thead className="bg-stock text-xs uppercase tracking-wider text-ink-soft"><tr><th className="p-3">Role</th><th className="p-3">Player</th><th className="p-3">Fixture</th><th className="p-3">Captain</th></tr></thead>
-              <tbody>{groups.starter.map((player) => <tr key={player.id} className="border-t border-rule/50"><td className="p-3 text-pos-g">{player.position}</td><td className="p-3">{player.name}</td><td className="p-3"><FixtureNote fixture={player.fixture} /></td><td className="p-3"><button type="button" onClick={() => markCaptain(player.id)} className="min-h-11 text-gold hover:underline">{captainId === player.id ? "Captain ×2" : "Make captain"}</button></td></tr>)}</tbody>
+              <tbody>{groups.starter.map((player) => <tr key={player.id} className="border-t border-rule/50"><td className="p-3"><PositionPatch position={player.position} /></td><td className="p-3">{player.name}</td><td className="p-3"><FixtureNote fixture={player.fixture} /></td><td className="p-3"><button type="button" onClick={() => markCaptain(player.id)} className="min-h-11 text-gold hover:underline">{captainId === player.id ? "Captain ×2" : "Make captain"}</button></td></tr>)}</tbody>
             </table>
           </div>}
 

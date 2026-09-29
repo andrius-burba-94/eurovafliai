@@ -167,9 +167,9 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(page.getByTestId("transaction-builder")).toBeVisible();
   await expect(page.getByTestId("record-transaction-submit")).toBeDisabled();
   await expect(page.getByTestId("confirm-sentence")).toContainText("Choose the same number");
-  await expect(
-    page.getByRole("region", { name: "Season", exact: true }),
-  ).toHaveAttribute("data-framed", "true");
+  // One fantasy season is not a choice, so the season control is not drawn
+  // until a second exists (ADR-0011).
+  await expect(page.getByRole("region", { name: "Season", exact: true })).toHaveCount(0);
   for (const label of ["This side", "The other side"]) {
     await expect(
       page.getByRole("region", { name: label, exact: true }),

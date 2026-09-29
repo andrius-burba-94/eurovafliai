@@ -25,7 +25,7 @@ export default async function TransactionsPage({ params }: PageProps<"/leagues/[
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="slot-label">League / transactions</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Trades</h1>
+          <h1 className="display text-4xl sm:text-5xl">Trades</h1>
           <p className="mt-2 text-sm text-ink-soft">Recorded roster changes and their effective rounds.</p>
         </div>
         {canManage && data.league.status === "season" ? (

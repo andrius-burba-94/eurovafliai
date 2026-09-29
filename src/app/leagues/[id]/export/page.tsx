@@ -51,7 +51,7 @@ export default async function ExportPage({
     <AppShell current="export" league={navLeagueFrom(data)} testId="export">
       <div className="flex flex-col gap-4">
         <span className="slot-label text-ink">{league.name}</span>
-        <h1 className="text-3xl font-semibold tracking-[0.04em] uppercase sm:text-4xl">
+        <h1 className="display text-4xl sm:text-5xl">
           Export the draft
         </h1>
       </div>

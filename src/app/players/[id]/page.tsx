@@ -101,7 +101,7 @@ export default async function PlayerPage({
             &larr; Back to the roster
           </Link>
         ) : null}
-        <div className="flex items-center gap-4"><PlayerPortrait personCode={player.personCode} name={player.name} className="!h-20 !w-[4.5rem]" /><h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">{player.name}</h1></div>
+        <div className="flex items-center gap-4"><PlayerPortrait personCode={player.personCode} name={player.name} className="!h-20 !w-[4.5rem]" /><h1 className="display min-w-0 text-4xl break-words sm:text-5xl">{player.name}</h1></div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <span className="slot-label flex items-center gap-1"><ClubCrest clubCode={player.clubCode} />{player.clubCode} · {player.clubName}</span>
           <PositionPatch position={player.position} />

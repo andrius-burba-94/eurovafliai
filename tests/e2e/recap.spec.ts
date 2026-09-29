@@ -32,9 +32,9 @@ test("a member sees an empty recap before the draft is complete", async ({
 
   await page.goto(`/leagues/${league.id}/recap`);
   await expect(page.getByTestId("recap")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Season", exact: true }),
-  ).toHaveAttribute("data-framed", "true");
+  // One fantasy season is not a choice, so the season control is not drawn
+  // until a second exists (ADR-0011).
+  await expect(page.getByRole("region", { name: "Season", exact: true })).toHaveCount(0);
   await expect(page.getByTestId("recap-empty").locator("..")).toHaveAttribute(
     "data-framed",
     "true",

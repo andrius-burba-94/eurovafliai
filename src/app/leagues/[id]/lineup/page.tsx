@@ -87,7 +87,7 @@ export default async function LineupPage({
     >
       <div className="flex flex-col gap-2">
         <p className="slot-label text-live">{data.league.name} / My team</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Lineup</h1>
+        <h1 className="display text-4xl sm:text-5xl">Lineup</h1>
         <p className="text-sm text-ink-soft">{teamName}, round {round}. Set the five, captain and rotation before recording.</p>
       </div>
 

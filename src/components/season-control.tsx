@@ -33,6 +33,9 @@ export function SeasonControl({
   season: string;
   currentSeason: string;
 }) {
+  // One season to choose from is not a choice; the control waits for a second.
+  const options = seasonOptions(season, currentSeason);
+  if (options.length < 2) return null;
   return (
     <Bank framed label="Season">
       <form
@@ -47,7 +50,7 @@ export function SeasonControl({
             className={selectStyles}
             defaultValue={season}
           >
-            {seasonOptions(season, currentSeason).map((option) => (
+            {options.map((option) => (
               <option key={option} value={option}>
                 {option}
                 {option === currentSeason ? " · current" : ""}

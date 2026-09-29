@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { jetbrainsMono, spaceGrotesk } from "@/app/font";
+import { barlowCondensed, jetbrainsMono, spaceGrotesk } from "@/app/font";
 import "./globals.css";
 import {
   Correction,
@@ -29,12 +29,12 @@ export default function GlobalError({
     // for free — which is the right direction for this particular page.
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${barlowCondensed.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-stock text-ink">
         <BareRail />
         <Sheet testId="root-error">
-          <h1 className="text-3xl font-semibold uppercase tracking-[0.04em]">
+          <h1 className="display text-4xl sm:text-5xl">
             The board could not load
           </h1>
           <Correction>

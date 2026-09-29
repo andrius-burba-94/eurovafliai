@@ -48,23 +48,8 @@ export function SubmitButton({
   const { pending } = useFormStatus();
 
   const tones = {
-    // `/50`, not `/35`: measured, `ink/35` over stock is **2.10:1** — under
-    // this system's own 3:1 floor for a boundary that means something, and on
-    // a button the border *is* the control: no fill, no radius, and in the pool
-    // no coloured label either. Hover at `/80` was 7.72:1 and was the only
-    // state that cleared the floor, which a phone never reaches. `/50` is
-    // 3.10:1 and stays inside the 35–80% range DESIGN.md already declares.
-    ink: "border-ink/50 hover:border-ink/80 active:bg-ink/5",
-    // `/80`, not `/60`. Measured at **2.60:1** on stock by 3.4a's critique —
-    // under this project's own 3:1 boundary floor, on the *primary* action of
-    // six surfaces including the login page's only button. The pass that
-    // measured `border-ink/35` at 2.10:1 and fixed it to `/50` never measured
-    // the `live` tone sitting beside it in this same object, which is the kind
-    // of near-miss that is only ever caught by measuring the thing rather than
-    // the thing next to it. `/80` is 3.58:1 on stock and 3.24:1 on the live
-    // blush — both sides clear — and stays inside the 35–80% range DESIGN.md
-    // already declares.
-    live: "border-live/80 text-live hover:border-live active:bg-live/8",
+    ink: "border border-rule-strong text-ink hover:border-ink-soft active:bg-ink/5",
+    live: "border border-live bg-live text-live-ink hover:brightness-110 active:brightness-95",
     liveOnField: "border-2 border-live text-ink active:bg-live/8",
   };
 
@@ -75,11 +60,12 @@ export function SubmitButton({
       aria-busy={pending}
       data-testid={testId}
       data-pending={pending ? "true" : undefined}
+      data-tone={tone}
       // Thirty rows in the pool each said only "Pick", so a screen-reader
       // rotor read "Pick, Pick, Pick…" with the player's name in a sibling
       // span it had no way to connect.
       aria-label={ariaLabel}
-      className={`${tones[tone]} min-h-11 border px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-not-allowed disabled:opacity-60 ${compact ? "" : "w-full sm:w-auto"}`}
+      className={`${tones[tone]} min-h-11 rounded-lg px-4 py-2.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live disabled:cursor-not-allowed disabled:opacity-60 ${compact ? "" : "w-full sm:w-auto"}`}
     >
       {pending ? (pendingLabel ?? "Working…") : children}
     </button>

@@ -4,6 +4,7 @@ import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useActionState } from "react";
 
 import { Bank, CardName, Correction, Slot, Slots } from "@/components/board";
+import { StatusBadge, availabilityBadge } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
 import { markPlayerFit, refreshNews, type NewsResult } from "@/lib/news/actions";
 import type { NewsItem } from "@/lib/news/queries";
@@ -14,9 +15,9 @@ import type { NewsItem } from "@/lib/news/queries";
  * A row is the fact and a link, and the link is the point: the headline is the
  * publisher's own words and the paragraph under it stays on their site.
  *
- * The state language is the board's. An item that is currently why somebody is
- * unavailable is `live` — it is the one that is *doing* something right now;
- * everything else is `filled` history. The marker keeps its two jobs.
+ * An item that is currently why somebody is unavailable carries the player's
+ * availability as a badge with its word — Out in loss red, Doubtful in gold —
+ * and everything else is plain history. The accent is not an injury colour.
  */
 
 const START: NewsResult = { error: null };
@@ -105,16 +106,18 @@ export function NewsBoard({
           ) : (
             <Slots testId="news-unavailable" label="Players marked unavailable">
               {[...unavailable.values()].map((player) => (
-                <Slot key={player.id} state="live" testId={`unfit-${player.id}`}>
+                <Slot key={player.id} testId={`unfit-${player.id}`}>
                   <span className="flex min-w-0 flex-1 items-baseline gap-3">
                     <PlayerStatsLink
                       id={player.id}
                       name={player.name}
-                      className="min-w-0 text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                      className="min-w-0 underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                     >
                       <CardName scale="slot">{player.name}</CardName>
                     </PlayerStatsLink>
-                    <span className="slot-label shrink-0">{player.status}</span>
+                    <StatusBadge kind={availabilityBadge(player.status)?.kind ?? "out"}>
+                      {availabilityBadge(player.status)?.word ?? player.status}
+                    </StatusBadge>
                   </span>
                   <form action={fitAction}>
                     <input type="hidden" name="player" value={player.id} />
@@ -150,26 +153,27 @@ export function NewsBoard({
 
         <Slots testId="news-items" label="Published injury and transfer items">
           {items.map((item) => {
-            const live = Boolean(item.player && item.player.status !== "active");
+            const badge = item.player ? availabilityBadge(item.player.status) : null;
             return (
-              <Slot
-                key={item.id}
-                testId="news-item"
-                state={live ? "live" : "filled"}
-              >
+              <Slot key={item.id} testId="news-item">
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     {item.player ? (
                       <PlayerStatsLink
                         id={item.player.id}
                         name={item.player.name}
-                        className="min-w-0 text-live underline decoration-live/40 underline-offset-4 transition-colors hover:decoration-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                        className="min-w-0 underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                       >
                         <CardName scale="slot">{item.player.name}</CardName>
                       </PlayerStatsLink>
                     ) : (
                       <CardName scale="slot">{item.name}</CardName>
                     )}
+                    {badge ? (
+                      <StatusBadge kind={badge.kind} testId="news-status">
+                        {badge.word}
+                      </StatusBadge>
+                    ) : null}
                     {item.bodyPart ? (
                       <span className="slot-label" data-testid="news-body-part">
                         {item.bodyPart}

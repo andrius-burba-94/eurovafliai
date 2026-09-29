@@ -67,7 +67,7 @@ export default async function RecapPage({
     <AppShell current="recap" league={navLeagueFrom(data)} measure="wide" testId="recap">
       <div className="flex flex-col gap-2">
         <p className="slot-label text-live">{data.league.name} / Review</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Recap</h1>
+        <h1 className="display text-4xl sm:text-5xl">Recap</h1>
         <p className="text-sm text-ink-soft">The round&apos;s table, standout performance and biggest roster swing.</p>
       </div>
 

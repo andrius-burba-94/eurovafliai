@@ -169,7 +169,7 @@ export default async function DraftPage({
             <p className="slot-label">
               Paused &middot; pick {draft.current_pick}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
+            <h1 className="display mt-1 text-3xl sm:text-4xl">
               The draft is paused
             </h1>
             {needsLine ? <div className="mt-2">{needsLine}</div> : null}
@@ -191,7 +191,7 @@ export default async function DraftPage({
                 the whole thing grows 4px on a Pixel 7 and 12px at 1440,
                 which is the budget a band that never leaves the viewport
                 gets to spend. */}
-            <h1 className="mt-1 text-xl font-semibold uppercase tracking-[0.04em] sm:text-2xl">
+            <h1 className="display mt-1 text-2xl sm:text-3xl">
               {isYourTurn
                 ? "You are on the clock"
                 : `${onClock.memberName} is on the clock`}
@@ -213,7 +213,7 @@ export default async function DraftPage({
         ) : (
           <>
             <p className="slot-label">Complete</p>
-            <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em]">
+            <h1 className="display mt-1 text-3xl">
               Every slot is filled
             </h1>
             {view.you ? (
@@ -286,7 +286,7 @@ export default async function DraftPage({
           {/* The way to a sheet for somebody who has not written one — the pool
               pins a link for everybody who has. Shown to a member only: a
               commissioner with no membership row has no roster to rank for. */}
-          {view.you && view.sheet.length === 0 ? (
+          {view.you && view.sheet.length === 0 && draft.status !== "complete" ? (
             <Link
               href={`/leagues/${id}/sheet`}
               data-testid="write-a-sheet"

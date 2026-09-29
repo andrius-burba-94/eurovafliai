@@ -85,9 +85,9 @@ test("a member opens a roster from the season lobby", async ({
   await page.getByTestId("enter-roster").click();
 
   await expect(page.getByTestId("roster")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Season", exact: true }),
-  ).toHaveAttribute("data-framed", "true");
+  // One fantasy season is not a choice, so the season control is not drawn
+  // until a second exists (ADR-0011).
+  await expect(page.getByRole("region", { name: "Season", exact: true })).toHaveCount(0);
   await expect(page.getByTestId("roster-list")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "The roster", exact: true }),

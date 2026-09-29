@@ -11,6 +11,7 @@ import { readLineupBoard } from "@/lib/lineups/queries";
 import { readMatchdayData } from "@/lib/live/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { formatHundredths } from "@/lib/stats/scoring";
+import { formatTipOff } from "@/lib/time/local";
 
 import { MatchdayLive } from "./matchday-live";
 
@@ -20,8 +21,7 @@ function requestedRound(value: string | string[] | undefined): number | null {
 }
 
 function gameTime(value: string | undefined): string {
-  const date = Date.parse(value ?? "");
-  return Number.isFinite(date) ? new Date(date).toISOString().slice(5, 16).replace("T", " · ") + " UTC" : "Time to be confirmed";
+  return formatTipOff(value) ?? "Time to be confirmed";
 }
 
 export default async function MatchdayPage({ params, searchParams }: PageProps<"/leagues/[id]/matchday">) {
@@ -56,7 +56,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="slot-label text-live">League / Round {matchday.round}</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">Matchday</h1>
+          <h1 className="display mt-1 text-4xl sm:text-5xl">Matchday</h1>
           <p className="mt-2 text-sm text-ink-soft">Follow your lineup and the league as games are played.</p>
         </div>
         <form method="get" action={`/leagues/${id}/matchday`} className="flex items-center gap-2">
@@ -89,7 +89,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                   return <li key={player.id} className="rounded-md border border-panel-border bg-stock p-3" data-testid="matchday-player">
                     <div className="flex items-start gap-2"><PlayerPortrait personCode={player.personCode} name={player.name} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{player.name}</p><p className="flex items-center gap-1 text-xs text-ink-soft"><PositionPatch position={player.position} />{player.role ?? "Unassigned"} · <ClubCrest clubCode={player.clubCode} />{player.clubCode}</p></div><strong className="text-lg tabular-nums">{points != null ? (points / 10).toFixed(1) : "—"}</strong></div>
                     <div className="mt-3 flex justify-between gap-2 text-xs"><span className={status === "In play" ? "text-gain" : "text-ink-soft"}>{status}</span><span className="text-ink-soft">{fixture ? `${fixture.local_club} vs ${fixture.road_club}` : "No fixture"}</span></div>
-                    {progress !== null ? <div className="mt-2" aria-label={`${progress}% of recent fantasy average`}><div className="h-1.5 overflow-hidden rounded-full bg-[#303a47]"><div className="h-full bg-live" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-[10px] text-ink-soft">Score vs recent average</p></div> : null}
+                    {progress !== null ? <div className="mt-2" aria-label={`${progress}% of recent fantasy average`}><div className="h-1.5 overflow-hidden rounded-full bg-stock-high"><div className="h-full bg-live" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-xs text-ink-soft">Score vs recent average</p></div> : null}
                   </li>;
                 })}
               </ul>

@@ -14,7 +14,9 @@ alternatives.
 | [0006](ADR-0006-midnight-board.md) | The midnight board: one dark ground, and a colour-coded instrument (supersedes 0005, D17, D21) | superseded by 0009 |
 | [0007](ADR-0007-the-roll-ceremony.md) | The roll ceremony: a derived-phase draw, a fourth animation (raises D22's budget) | accepted |
 | [0008](ADR-0008-app-shell.md) | The app shell: a sidebar, a side panel and a bottom tab bar (reverses DESIGN.md's no-sidebar rule) | accepted |
-| [0009](ADR-0009-arena-redesign.md) | The arena interface: slate shell, court-first lineup and provisional matchday | accepted; in review |
+| [0009](ADR-0009-arena-redesign.md) | The arena interface: slate shell, court-first lineup and provisional matchday | visual rules superseded by 0011 |
+| [0010](ADR-0010-official-media.md) | Official player portraits and club marks | accepted |
+| [0011](ADR-0011-matchnight.md) | Matchnight: the broadcast interface — two grounds, team identity, moments | accepted |
 
 Locked product decisions (scoring formula, stats source, formats in and out of
 scope, participant count) are not ADRs — they live in the decision log,

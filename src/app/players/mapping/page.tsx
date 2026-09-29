@@ -58,7 +58,7 @@ export default async function MappingPage({
   return (
     <AppShell current="mapping" testId="player-mapping">
       <div className="flex max-w-xl flex-col gap-3">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+        <h1 className="display text-4xl sm:text-5xl">
           Player mapping
         </h1>
         <p className="text-ink-soft">

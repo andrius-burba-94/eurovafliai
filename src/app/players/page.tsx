@@ -45,7 +45,7 @@ export default async function PlayersPage() {
     <AppShell current="pool" measure="wide" testId="players">
       <div className="flex flex-col gap-4">
         <p className="slot-label text-live">EuroLeague / Players</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Player pool</h1>
+        <h1 className="display text-4xl sm:text-5xl">Player pool</h1>
         {counts.total === 0 ? (
           <p className="text-ink-soft">
             No players yet. Run{" "}

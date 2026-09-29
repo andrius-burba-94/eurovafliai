@@ -111,7 +111,7 @@ export function SeasonDashboard({
   return (
     <>
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-[0.04em] uppercase sm:text-4xl">
+        <h1 className="display text-4xl sm:text-5xl">
           {seasonLabel(season)}
         </h1>
         <span className="slot-label text-ink-soft">

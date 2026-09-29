@@ -37,7 +37,7 @@ export default async function StatImportPage() {
   return (
     <AppShell current="import-stats" testId="stat-import">
       <div className="flex max-w-xl flex-col gap-3">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+        <h1 className="display text-4xl sm:text-5xl">
           Import box scores
         </h1>
         <p className="text-ink-soft">

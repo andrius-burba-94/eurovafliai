@@ -16,42 +16,52 @@ test("the direction contract survives into the emitted markup", async ({
   await page.goto("/login");
   const html = await page.content();
   expect(html).toContain("DIRECTION CONTRACT");
-  expect(html).toContain("arena interface, ADR-0009");
+  expect(html).toContain("matchnight broadcast, ADR-0011");
   expect(html).toContain("League, Drafts, EuroLeague and Manage");
   expect(html).toMatch(/Finished-game\s+standings are authoritative/);
 });
 
-test("the slate ground arrives from CSS rather than a script", async ({
-  page,
-}) => {
-  // Phase 10 removed the second ground, the `<head>` override script and the
-  // rail's switch. The thing worth asserting is not the hex — `tokens.test.ts`
-  // owns every ratio — but that the dark ground arrives *without* JavaScript
-  // and without a stored preference, which is what the deleted script used to
-  // guarantee and what a regression here would silently undo.
-  await page.goto("/login");
-
-  const scheme = await page
-    .locator("html")
-    .evaluate((el) => getComputedStyle(el).colorScheme);
-  expect(scheme).toBe("dark");
-
-  // The ground is dark. Parsed rather than string-matched, because the token is
-  // OKLCH and the browser reports whatever space it resolved to.
-  const luminance = await page.locator("body").evaluate((el) => {
-    const [r, g, b] = getComputedStyle(el)
-      .backgroundColor.match(/[\d.]+/g)!
-      .slice(0, 3)
-      .map((v) => {
-        const c = Number(v) / 255;
-        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      });
+/**
+ * Relative luminance of the body's computed background. Read through a canvas
+ * pixel, because the browser reports an OKLCH token as `lab(...)` and parsing
+ * those numbers as RGB measures the wrong thing.
+ */
+async function groundLuminance(page: import("@playwright/test").Page) {
+  return page.locator("body").evaluate((el) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = getComputedStyle(el).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    const [r, g, b] = Array.from(context.getImageData(0, 0, 1, 1).data.slice(0, 3)).map((v) => {
+      const c = v / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
     return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
   });
-  expect(luminance).toBeLessThan(0.05);
+}
 
-  // And nothing is left that could switch it.
+test("the ground follows the device, from CSS alone", async ({ page }) => {
+  // ADR-0011 ships two grounds and no switch: the phone's own setting decides.
+  // The thing worth asserting is that each arrives without JavaScript or a
+  // stored preference, and that nothing is left that could override it.
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/login");
+  expect(await page.locator("html").evaluate((el) => getComputedStyle(el).colorScheme)).toBe("dark");
+  await expect.poll(() => groundLuminance(page)).toBeLessThan(0.05);
+
+  await page.emulateMedia({ colorScheme: "light" });
+  expect(await page.locator("html").evaluate((el) => getComputedStyle(el).colorScheme)).toBe("light");
+  await expect.poll(() => groundLuminance(page)).toBeGreaterThan(0.8);
+
   await expect(page.getByTestId("theme-control")).toHaveCount(0);
+});
+
+test("headlines are set in the broadcast face", async ({ page }) => {
+  await page.goto("/login");
+  const family = await page.locator("h1").first().evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(family).toContain("Barlow Condensed");
 });
 
 test("the board's own font is the one actually rendering", async ({ page }) => {

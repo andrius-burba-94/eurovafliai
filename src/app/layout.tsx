@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
-import { jetbrainsMono, spaceGrotesk } from "@/app/font";
+import { barlowCondensed, jetbrainsMono, spaceGrotesk } from "@/app/font";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,40 +8,40 @@ export const metadata: Metadata = {
   description: "Euroleague fantasy draft platform for one small, loud league.",
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0b0f18" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f4f7" },
+  ],
+};
+
 /** The current design contract is emitted for browser-level design checks. */
 const DIRECTION_CONTRACT = `<!--
-  DIRECTION CONTRACT — arena interface, ADR-0009
+  DIRECTION CONTRACT — matchnight broadcast, ADR-0011
 
-  SCENE: a small EuroLeague draft league sets its five on a phone before tip-off,
-  follows the same lineup through a match, then reads the finished league table.
+  SCENE: friends on a couch at 20:00 CET with the game on the TV, and quick
+  phone checks the morning after. The app reads like the scoreboard graphic in
+  the same room: one big number per page, calm until something happens.
 
-  STRUCTURE: a persistent sidebar groups League, Drafts, EuroLeague and Manage
-  separately. The phone uses Lineup, Players, Matchday, League and More.
-  Permissions decide which destinations appear. The live draft remains prominent
-  while a league is drafting.
+  STRUCTURE: a persistent sidebar groups League, Drafts, EuroLeague and Manage.
+  Phone tabs in season are Home, Lineup, Live, Table and More. Permissions
+  decide which destinations appear.
 
-  PALETTE: slate canvas and quiet panels. Cyan names the active choice or play,
-  emerald a gain, crimson an injury or loss, and gold a captain or caution.
-  State never relies on color alone. A position always prints G, F or C.
+  PALETTE: dark and light grounds follow the device. Tip-off orange is the one
+  act, the selection and whoever is on the clock; gain is green, loss red, gold
+  crowns and captains. Each member's team has a colour and a monogram crest.
+  State never relies on colour alone. A position always prints G, F or C.
 
-  CENTERPIECE: the fixed-ratio half court separates center, forward and guard
-  rows and supports the five official G/F/C formations. Tap-to-swap, captain,
-  grid and formation controls share one draft state. Recording is a distinct
-  server action; an optimizer only previews.
+  TYPE: Barlow Condensed is the broadcast voice for headlines, scores and team
+  names; Space Grotesk sets every other word; JetBrains Mono sets figures in a
+  column.
 
-  LIVE HONESTY: matchday calls live values provisional, says when the official
-  feed was checked and names stale or unavailable data plainly. Finished-game
-  standings are authoritative. Live polling remains gated until an actual
-  in-game response is observed changing.
+  MOMENTS: round winner crown, rank overtake, trade verdict, wooden spoon,
+  streak badges and the draft's pick-is-in lower third. Each plays once per
+  viewer and holds still under reduced motion.
 
-  MATERIAL: small corners on controls, circular player marks, one border on a
-  framed panel. No decorative gradient or glow. Strong type and spacing carry
-  hierarchy. Touch targets are at least 44px, focus is visible, and reduced
-  motion is respected.
-
-  HISTORY: ADR-0006 describes the retired midnight-orange direction. ADR-0008
-  established the sidebar. ADR-0009 and DESIGN.md's current contract govern this
-  interface.
+  LIVE HONESTY: live values are provisional and say when the feed was checked.
+  Finished-game standings are authoritative.
 -->`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -52,7 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // now, declared in CSS, so the server's markup and the browser's agree.
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${barlowCondensed.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-stock text-ink">
         <div hidden dangerouslySetInnerHTML={{ __html: DIRECTION_CONTRACT }} />
@@ -61,7 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             header. The shell's (or Sheet's) <main id="main"> is the landing. */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:border-2 focus:border-live focus:bg-stock focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:uppercase focus:tracking-[0.14em] focus:text-live focus:outline-none"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-live focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-live-ink focus:outline-none"
         >
           Skip to content
         </a>

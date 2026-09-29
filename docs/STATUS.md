@@ -21,6 +21,29 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
+## In progress: Matchnight redesign (ADR-0011)
+
+A full visual and experience refresh after a design critique scored the arena
+interface 22/40. The direction is a matchnight broadcast: two grounds that follow
+the device, Barlow Condensed for headlines and scores, Tip-off orange as the one
+act, a colour-and-monogram crest for every member's team, one hero fact per page,
+and a small set of celebration moments. Built on the `matchnight-redesign` branch,
+one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
+
+| Slice | State | What changed |
+|---|---|---|
+| S0 Concept gallery | Done | `/concepts` (development only, invented data): fonts, palettes in both grounds, crests, moments with replay, two variants of nine screens. |
+| S1 Foundation | Done | Two measured grounds, display face, restyled board vocabulary, `PageHeader`/`ScoreFigure`/`StatusBadge`/`RoundStepper`/`TeamCrest`/`Moment`, shell colours tokenised, the critique's six bugs fixed, season control hidden while there is one season. |
+
+**Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
+directions, and any signed-in page with the system in dark and then light mode:
+the ground, headlines and primary buttons change with it. On a lineup, the grid
+view shows each position in its own colour and the captain reads `C×2`.
+
+**Known local-only failure.** `news.spec.ts` plants items dated 13 September; a
+local database that has run the news worker holds newer items, and the page
+shows the newest 40, so the planted row is off the list. CI starts empty.
+
 ## League activity
 
 The season dashboard separates member Chat, recorded Trades, injury reports, and
@@ -32,7 +55,7 @@ The underlying transaction and chat rows remain the audit record. News and
 injuries use the existing RotoWire items, split by their stored injury status.
 No PocketBase schema migration is needed for this presentation change.
 
-## In review: arena visual redesign
+## Landed: arena visual redesign (visual rules superseded by ADR-0011)
 
 The user approved the interactive site concept on 28 September 2026. The implementation branch is **not production**. [ADR-0009](adr/ADR-0009-arena-redesign.md) records the new design and the product boundaries; earlier ADRs remain available.
 

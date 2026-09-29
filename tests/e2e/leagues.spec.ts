@@ -63,9 +63,7 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await expect(leagueRow).toHaveAttribute("data-state", "waiting");
   await expect(leagueRow).toContainText("Your roster");
   await expect(leagueRow).toContainText("0/5");
-  await expect(page.getByTestId("create-league")).not.toHaveClass(
-    /\btext-live\b/,
-  );
+  await expect(page.getByTestId("create-league")).not.toHaveAttribute("data-tone", "live");
 });
 
 test("a second person joins with the invite code", async ({

@@ -104,11 +104,12 @@ phone, and a mid-draft rollback is a supported operation rather than a disaster.
 - **Name:** Eurovafliai. Lithuanian-flavored, affectionate, slightly silly —
   the product is for friends, not for clients. It does not pretend to be a
   sports-industry SaaS.
-- **Recorded design direction** (from the blueprint, not expanded here):
-  *broadcast scoreboard restraint* — data-dense, calm surfaces, one accent doing
-  real work (on-the-clock highlight, position colors), no card-in-card, no
-  gradient soup. Motion is reserved for meaningful state changes: the roll, a
-  pick landing on the board.
+- **Recorded design direction** (ADR-0011, *matchnight broadcast*): the app
+  reads like the scoreboard graphic of a game night — one big number per page,
+  team colours and crests, Tip-off orange for the one act, dark and light
+  grounds following the device. Moments celebrate changes a friend would point
+  at (a crown, an overtake, a spoon, a deal verdict, a pick landing) and hold
+  still under reduced motion. No card-in-card, no ad hoc gradients.
 - Draft night is **phones on a couch**: mobile-first is a product commitment,
   not a nice-to-have.
 
