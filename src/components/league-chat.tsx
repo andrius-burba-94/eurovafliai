@@ -64,7 +64,8 @@ import {
 /** How long the panel is when open. Bounded so the board stays reachable. */
 const OPEN_HEIGHT = "max-h-[40vh]";
 
-const seenKey = (leagueId: string) => `eurovafliai:chat-seen:${leagueId}`;
+const seenKey = (leagueId: string, channel: "all" | "members") =>
+  `eurovafliai:chat-seen:${leagueId}${channel === "members" ? ":members" : ""}`;
 
 /**
  * The last message this viewer has seen, kept in `localStorage`.
@@ -107,9 +108,9 @@ function subscribeSeen(listener: () => void): () => void {
   };
 }
 
-function readSeen(leagueId: string): string | null {
+function readSeen(leagueId: string, channel: "all" | "members"): string | null {
   try {
-    return window.localStorage.getItem(seenKey(leagueId));
+    return window.localStorage.getItem(seenKey(leagueId, channel));
   } catch {
     // Storage denied. Chat still works; the viewer simply always reads as
     // caught up, which is the harmless direction to fail in.
@@ -117,9 +118,9 @@ function readSeen(leagueId: string): string | null {
   }
 }
 
-function writeSeen(leagueId: string, id: string): void {
+function writeSeen(leagueId: string, channel: "all" | "members", id: string): void {
   try {
-    window.localStorage.setItem(seenKey(leagueId), id);
+    window.localStorage.setItem(seenKey(leagueId, channel), id);
   } catch {
     // See `readSeen`.
   }
@@ -132,6 +133,7 @@ export function LeagueChat({
   initial,
   myMemberId,
   initiallyOpen = false,
+  channel = "all",
   authorNames,
 }: {
   leagueId: string;
@@ -143,6 +145,8 @@ export function LeagueChat({
   myMemberId: string | null;
   /** Lobby chat is a task; the denser draft room keeps it folded. */
   initiallyOpen?: boolean;
+  /** Season chat is a conversation; draft and setup retain the full system record. */
+  channel?: "all" | "members";
   /** Member id to visible team or account name, for unnamed teams. */
   authorNames: Readonly<Record<string, string>>;
 }) {
@@ -180,7 +184,7 @@ export function LeagueChat({
   const [sending, setSending] = useState(false);
   const lastSeen = useSyncExternalStore(
     subscribeSeen,
-    () => readSeen(leagueId),
+    () => readSeen(leagueId, channel),
     () => null,
   );
 
@@ -257,22 +261,25 @@ export function LeagueChat({
    */
   const { connected, live } = useLiveSubscription({ authToken, subscribe });
 
-  const newest = messages.at(-1) ?? null;
+  const visibleMessages = channel === "members"
+    ? messages.filter((message) => !message.system)
+    : messages;
+  const newest = visibleMessages.at(-1) ?? null;
 
   // Reading it *is* seeing it. Not a `setState` — it writes the external store
   // and notifies, so the lint rule that refuses state changes in effects has
   // nothing to object to and the badge clears in every open tab.
   useEffect(() => {
-    if (open && newest) writeSeen(leagueId, newest.id);
-  }, [open, newest, leagueId]);
+    if (open && newest) writeSeen(leagueId, channel, newest.id);
+  }, [open, newest, leagueId, channel]);
 
   const unread = (() => {
-    if (!lastSeen) return open ? 0 : messages.length;
-    const at = messages.findIndex((each) => each.id === lastSeen);
+    if (!lastSeen) return open ? 0 : visibleMessages.length;
+    const at = visibleMessages.findIndex((each) => each.id === lastSeen);
     // A `lastSeen` we can no longer find means the row was retracted out from
     // under it. Counting nothing is better than counting everything.
     if (at < 0) return 0;
-    return messages.length - at - 1;
+    return visibleMessages.length - at - 1;
   })();
 
   // ── scrolling ─────────────────────────────────────────────────────────────
@@ -411,7 +418,7 @@ export function LeagueChat({
       aside={
         open ? (
           <span className="flex items-center gap-3">
-            <span>{chatTotal(messages.length)}</span>
+            <span>{chatTotal(visibleMessages.length)}</span>
             <button
               type="button"
               onClick={() => setOpen(false)}
@@ -424,7 +431,7 @@ export function LeagueChat({
             </button>
           </span>
         ) : (
-          chatTotal(messages.length)
+          chatTotal(visibleMessages.length)
         )
       }
       framed
@@ -522,13 +529,13 @@ export function LeagueChat({
             data-testid="chat-list"
             className={`${OPEN_HEIGHT} overflow-y-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live`}
           >
-            {messages.length === 0 ? (
+            {visibleMessages.length === 0 ? (
               <p className="max-w-prose px-3 py-3 text-sm text-ink-soft">
                 {CHAT_UI.empty}
               </p>
             ) : (
               <Slots testId="chat-run" label={CHAT_UI.transcriptLabel}>
-                {messages.map((message) => (
+                {visibleMessages.map((message) => (
                   <Slot
                     key={message.id}
                     testId="chat-message"

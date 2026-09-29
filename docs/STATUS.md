@@ -21,6 +21,17 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
+## League activity
+
+The season dashboard separates member Chat, recorded Trades, injury reports, and
+EuroLeague news. Chat's count and unread state include only member messages;
+the setup lobby and draft room still show the full system transcript. A free-agent
+exchange historically stored as a drop plus an add appears as one event in the
+Trades view and full trade history when its team, round, note and time match.
+The underlying transaction and chat rows remain the audit record. News and
+injuries use the existing RotoWire items, split by their stored injury status.
+No PocketBase schema migration is needed for this presentation change.
+
 ## In review: arena visual redesign
 
 The user approved the interactive site concept on 28 September 2026. The implementation branch is **not production**. [ADR-0009](adr/ADR-0009-arena-redesign.md) records the new design and the product boundaries; earlier ADRs remain available.

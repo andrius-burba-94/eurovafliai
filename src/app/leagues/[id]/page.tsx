@@ -14,12 +14,14 @@ import { AppShell } from "@/components/app-shell";
 import { ContextPanel } from "@/components/context-panel";
 import { getSession } from "@/lib/auth/session";
 import { LeagueChat } from "@/components/league-chat";
+import { LeagueActivity } from "./league-activity";
 import { readMessages } from "@/lib/chat/store";
 import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueSentence } from "@/lib/mapping/queue";
 import { createUserClient } from "@/lib/pb/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
+import { readNews } from "@/lib/news/queries";
 import { readPanel } from "@/lib/panel/queries";
 import {
   readMemberRoster,
@@ -109,7 +111,7 @@ export default async function LobbyPage({
   // query that already existed for the page the dashboard is replacing a door
   // to (4.5, 5.4, 5.1, 5.2). In parallel because they are independent, and at
   // ~10 users the cost that matters is the round trip rather than the work.
-  const [snapshots, recap, roster, transactions, panel] = isSeasonDashboard
+  const [snapshots, recap, roster, transactions, panel, news] = isSeasonDashboard
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
         readLeagueRecap(id, season, null).catch(() => null),
@@ -118,8 +120,9 @@ export default async function LobbyPage({
           : Promise.resolve([]),
         readRecentTransactions(id, teamNames).catch(() => []),
         readPanel({ leagueId: id, season, teamNames }),
+        readNews(100).catch(() => []),
       ])
-    : [[], null, [], [], null];
+    : [[], null, [], [], null, []];
 
   return (
     <AppShell
@@ -179,18 +182,25 @@ export default async function LobbyPage({
           playerNames={recap?.playerNames ?? {}}
           roster={roster}
           rosterTemplate={template}
-          transactions={transactions}
           teamNames={teamNames}
           youMemberId={youMemberId}
-          viewerIsManager={viewerIsManager}
-          chat={
-            <LeagueChat
+          activity={
+            <LeagueActivity
               leagueId={id}
-              authToken={session.token}
-              initial={chat}
-              myMemberId={youMemberId}
-              initiallyOpen
-              authorNames={teamNames}
+              transactions={transactions}
+              news={news ?? []}
+              viewerIsManager={viewerIsManager}
+              chat={
+                <LeagueChat
+                  leagueId={id}
+                  authToken={session.token}
+                  initial={chat}
+                  myMemberId={youMemberId}
+                  initiallyOpen
+                  channel="members"
+                  authorNames={teamNames}
+                />
+              }
             />
           }
         />

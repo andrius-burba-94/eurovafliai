@@ -115,6 +115,15 @@ export function announceTrade(input: {
   return `${input.teamA} traded ${nameList(input.sent)} to ${input.teamB} for ${nameList(input.received)}, counting from round ${input.fromRound}.`;
 }
 
+export function announceExchange(input: {
+  readonly teamName: string;
+  readonly released: string;
+  readonly acquired: string;
+  readonly fromRound: number;
+}): string {
+  return `${input.teamName} exchanged ${input.released} for ${input.acquired}, counting from round ${input.fromRound}.`;
+}
+
 export function announceDrop(input: {
   readonly teamName: string;
   readonly players: readonly string[];

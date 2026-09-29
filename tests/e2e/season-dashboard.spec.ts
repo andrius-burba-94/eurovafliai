@@ -112,6 +112,7 @@ test("the season lobby is a dashboard, not a grid of doors", async ({
   await expect(page.getByTestId("dashboard-standings")).toBeVisible();
   await expect(page.getByTestId("chat-toggle")).toBeVisible();
   await expect(page.getByTestId("dashboard-roster-tally")).toBeVisible();
+  await page.getByRole("tab", { name: "Trades" }).click();
   await expect(page.getByTestId("dashboard-tx-tally")).toBeVisible();
 
   // The season is named for both its years. "26" alone is half the name of the
@@ -184,6 +185,7 @@ test("an unscored season shows the shape and admits it is empty", async ({
 
   await expect(page.getByTestId("dashboard-standings-empty")).toBeVisible();
   await expect(page.getByTestId("dashboard-news-empty")).toBeVisible();
+  await page.getByRole("tab", { name: "Trades" }).click();
   await expect(page.getByTestId("dashboard-tx-empty")).toBeVisible();
   // The roster is written by the draft, not by a round, so it is still there.
   await expect(page.getByTestId("dashboard-roster-tally")).toContainText(
@@ -191,6 +193,68 @@ test("an unscored season shows the shape and admits it is empty", async ({
   );
   // No round to name, and it says so rather than printing "Round undefined".
   await expect(page.getByTestId("dashboard-round")).toHaveCount(0);
+});
+
+
+test("a free-agent exchange is one trade and system notices stay out of chat", async ({
+  page,
+  context,
+}) => {
+  const { chief, league, mine } = await seasonLeague("Activity League", { scored: false });
+  const pb = await superuser();
+  const released = await createPlayer("Release Brooks");
+  const acquired = await createPlayer("Arrival Lawson");
+  const common = {
+    league: league.id,
+    date: "2026-09-29 14:07:00.000Z",
+    from_round: 2,
+    members: [mine.id],
+    note: "Official game: Virtuozas received Lawson and released Brooks before round 2.",
+  };
+  await pb.collection("transactions").create({
+    ...common,
+    type: "drop",
+    players_in: { [mine.id]: [] },
+    players_out: { [mine.id]: [released.id] },
+  });
+  await pb.collection("transactions").create({
+    ...common,
+    type: "add",
+    players_in: { [mine.id]: [acquired.id] },
+    players_out: { [mine.id]: [] },
+  });
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    kind: "system",
+    body: "Virtuozas dropped Release Brooks, counting from round 2.",
+  });
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    kind: "system",
+    body: "Virtuozas signed Arrival Lawson, counting from round 2.",
+  });
+  await pb.collection("chat_messages").create({
+    league: league.id,
+    author: mine.id,
+    kind: "user",
+    body: "The round is ready",
+  });
+
+  await signIn(context, chief);
+  await page.goto(`/leagues/${league.id}`);
+  const activity = page.getByTestId("league-activity");
+  await expect(activity.getByTestId("chat-message")).toHaveCount(1);
+  await expect(activity.getByTestId("chat-message")).toContainText("The round is ready");
+  await expect(activity).not.toContainText("dropped Release Brooks");
+  await activity.getByRole("tab", { name: "Trades" }).click();
+  await expect(activity.getByTestId("dashboard-transaction")).toHaveCount(1);
+  await expect(activity.getByTestId("dashboard-transaction")).toContainText(
+    /Virtuozas exchanged Release Brooks.* for Arrival Lawson.*counting from round 2\./,
+  );
+  await activity.getByRole("tab", { name: "Injuries" }).click();
+  await expect(activity.getByRole("tabpanel", { name: "Injuries" })).toBeVisible();
+  await activity.getByRole("tab", { name: "EuroLeague news" }).click();
+  await expect(activity.getByRole("tabpanel", { name: "EuroLeague news" })).toBeVisible();
 });
 
 test("the setup lobby is untouched by any of this", async ({
