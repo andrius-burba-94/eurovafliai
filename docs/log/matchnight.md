@@ -120,3 +120,31 @@ A manager sees the mapping queue as a count on the Manage item. It is the same
 `countMappingQueue` the league page already ran for managers, now run by the
 shell for managers only. The phone header shows the waffle mark alone below
 `sm`, so the league switcher and the panel button fit at 390px.
+
+## S4 — League Home
+
+The page now answers "how am I doing, and what do I do next" in the first
+screen at 390px: the league's name as the one headline, then the viewer's team
+on its own colour — crest, rank as a scoreboard figure, total, the teams they
+passed since the last counted round, their place on the night, the next
+tip-off and a single Set lineup action. A ticker says the round in one line.
+
+`src/lib/season/story.ts` is new and pure: `roundStory` (winner, margin,
+spoon — and nobody is crowned for a night nobody scored), `movementOf` (rank,
+places moved, whom you passed, gap to the leader, ties broken on team name the
+way the table does) and `ordinal`. The recap query now also returns person
+codes so the best night has a portrait.
+
+The moments are wired: the viewer's table row plays **overtake** when they
+climbed, the winner's card plays **sweep** and its crown **crown**, the spoon
+**spoon**. Each is keyed on the league and round, so it plays once per viewer
+and a reload is still.
+
+Removed from the season page: the 13-card roster (it is My Team's job; a
+summary with G/F/C counts and two doors remains) and the mapping notice (the
+Manage item carries the count). The member list stays, at the bottom, as the
+league's directory with crests.
+
+A bug found by screenshot: a shield crest's `padding-top: 16%` resolved against
+the *parent's* width and stretched every shield to 46px tall. It is now a
+fraction of the crest's own size.

@@ -86,6 +86,8 @@ export type RecapPageData = {
   readonly recap: Recap;
   readonly countedRounds: readonly number[];
   readonly playerNames: Readonly<Record<string, string>>;
+  /** Person codes for the named players, so a portrait can be drawn. */
+  readonly playerCodes: Readonly<Record<string, string>>;
 };
 
 /**
@@ -186,22 +188,28 @@ export async function readLeagueRecap(
     ),
   ];
   const playerNames: Record<string, string> = {};
+  const playerCodes: Record<string, string> = {};
   if (nameIds.length > 0) {
     const people = await pb.collection("players").getFullList<{
       id: string;
       name: string;
+      person_code?: string;
     }>({
       filter: nameIds.map((id) => `id = '${id}'`).join(" || "),
-      fields: "id,name",
+      fields: "id,name,person_code",
       requestKey: null,
     });
-    for (const person of people) playerNames[person.id] = person.name;
+    for (const person of people) {
+      playerNames[person.id] = person.name;
+      if (person.person_code) playerCodes[person.id] = person.person_code;
+    }
   }
 
   return {
     recap,
     countedRounds,
     playerNames,
+    playerCodes,
   };
 }
 

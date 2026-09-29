@@ -138,26 +138,24 @@ export default async function LobbyPage({
           slot label above it and the `h1` lives in `SeasonDashboard`. Two
           elements at display size, one of them the same size as the other,
           is the hierarchy 10.9 spent a whole slice fixing. */}
-      <div className="flex flex-col gap-4">
-        {isSeasonDashboard ? (
-          <span className="slot-label text-ink">{league.name}</span>
-        ) : (
+      {isSeasonDashboard ? null : (
+        <div className="flex flex-col gap-4">
           <h1 className="display text-4xl sm:text-5xl">
             {league.name}
           </h1>
-        )}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <span className="slot-label">
-            {league.season} &middot; {league.status}
-          </span>
-          <span className="slot-label">{rosterSize(template)} players</span>
-          <span className="flex items-center gap-1.5">
-            <PositionPatch position="G" count={template.G} />
-            <PositionPatch position="F" count={template.F} />
-            <PositionPatch position="C" count={template.C} />
-          </span>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <span className="slot-label">
+              {league.season} &middot; {league.status}
+            </span>
+            <span className="slot-label">{rosterSize(template)} players</span>
+            <span className="flex items-center gap-1.5">
+              <PositionPatch position="G" count={template.G} />
+              <PositionPatch position="F" count={template.F} />
+              <PositionPatch position="C" count={template.C} />
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {league.status === "drafting" ? (
         <Bank label="Draft room" framed>
@@ -177,14 +175,18 @@ export default async function LobbyPage({
       {isSeasonDashboard ? (
         <SeasonDashboard
           leagueId={league.id}
+          leagueName={league.name}
           season={season}
           snapshots={snapshots}
           recap={recap?.recap ?? null}
           playerNames={recap?.playerNames ?? {}}
+          playerCodes={recap?.playerCodes ?? {}}
           roster={roster}
           rosterTemplate={template}
           teamNames={teamNames}
+          teamStyles={stylesById(members)}
           youMemberId={youMemberId}
+          schedule={panel?.schedule ?? null}
           activity={
             <LeagueActivity
               leagueId={id}
@@ -242,7 +244,7 @@ export default async function LobbyPage({
           because further down is where it was already being missed. Renders
           only when something is genuinely standing — a notice that also
           appears when there is nothing to do is the one people stop reading. */}
-      {mappingSentence ? (
+      {mappingSentence && !isSeasonDashboard ? (
         <Correction testId="mapping-queue">
           {mappingSentence}{" "}
           <Link

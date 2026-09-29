@@ -675,7 +675,7 @@
 }
 .cx-crest[data-shape="shield"] {
   clip-path: polygon(0 0, 100% 0, 100% 64%, 50% 100%, 0 64%);
-  padding-bottom: 12%;
+  padding-bottom: calc(var(--crest-size, 2.25rem) * 0.12);
 }
 .cx-crest[data-shape="hex"] {
   clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
