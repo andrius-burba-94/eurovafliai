@@ -151,8 +151,11 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(
     page.getByRole("region", { name: "League standings" }),
   ).toHaveAttribute("data-framed", "true");
+  // Trades share the season activity panel with chat and EuroLeague updates.
+  // Open the tab before checking its framed ledger and manager's record door.
+  await page.getByRole("tab", { name: "Trades" }).click();
   await expect(
-    page.getByRole("region", { name: "Transactions" }),
+    page.getByRole("region", { name: "Trades", exact: true }),
   ).toHaveAttribute("data-framed", "true");
   await expect(page.getByTestId("enter-standings")).toBeVisible();
   await expect(page.getByTestId("enter-recap")).toBeVisible();

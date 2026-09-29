@@ -19,7 +19,6 @@ import {
   formatSignedTenths,
   formatTenths,
 } from "@/lib/stats/scoring";
-import type { TransactionLine } from "@/lib/memberships/queries";
 import {
   dashboardRoster,
   dashboardStandings,
@@ -75,11 +74,9 @@ export function SeasonDashboard({
   playerNames,
   roster,
   rosterTemplate,
-  transactions,
   teamNames,
   youMemberId,
-  viewerIsManager,
-  chat,
+  activity,
 }: {
   leagueId: string;
   season: string;
@@ -88,12 +85,10 @@ export function SeasonDashboard({
   playerNames: Readonly<Record<string, string>>;
   roster: readonly DashboardRosterPlayer[];
   rosterTemplate: Readonly<Record<Position, number>>;
-  transactions: readonly TransactionLine[];
   teamNames: Readonly<Record<string, string>>;
   youMemberId: string | null;
-  viewerIsManager: boolean;
-  /** The league conversation, rendered by the caller so this stays a server component. */
-  chat: React.ReactNode;
+  /** Chat, trades and EuroLeague updates share this space. */
+  activity: React.ReactNode;
 }) {
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.at(-2) ?? null;
@@ -222,11 +217,7 @@ export function SeasonDashboard({
           </Slots>
         </Bank>
 
-        {/* The conversation, at the top right, where the brief puts it. It is
-            the same thread the draft room shows — `chat_messages` is
-            league-scoped, so the hours before a roll and the season since are
-            one transcript. */}
-        <div className="flex flex-col gap-4">{chat}</div>
+        <div className="flex flex-col gap-4">{activity}</div>
 
         <Bank
           label="My roster"
@@ -306,7 +297,7 @@ export function SeasonDashboard({
         </Bank>
 
         <div className="flex flex-col gap-8">
-          <Bank label="League news" framed>
+          <Bank label="This round" framed>
             {recap ? (
               <>
                 {/* The brief's "matchup of the week", told truthfully: this
@@ -378,44 +369,6 @@ export function SeasonDashboard({
             </Slots>
           </Bank>
 
-          <Bank
-            label="Transactions"
-            aside={
-              <span data-testid="dashboard-tx-tally">
-                {transactions.length === 0
-                  ? "none yet"
-                  : `${transactions.length} recent`}
-              </span>
-            }
-            framed
-          >
-            {transactions.length === 0 ? (
-              <EmptyNotice testId="dashboard-tx-empty">
-                No trades, signings or drops have been recorded.
-              </EmptyNotice>
-            ) : (
-              <Slots testId="dashboard-transactions">
-                {transactions.map((line) => (
-                  <Slot key={line.id} testId="dashboard-transaction">
-                    <span className="min-w-0 text-sm break-words text-ink">
-                      {line.sentence}
-                    </span>
-                  </Slot>
-                ))}
-              </Slots>
-            )}
-            {viewerIsManager ? (
-              <Slots>
-                <Door
-                  href={`/leagues/${leagueId}/transactions/new`}
-                  testId="record-transaction"
-                  title="Record a transaction"
-                  description="A trade, a signing or a drop, once the room has agreed."
-                  action="Write it down"
-                />
-              </Slots>
-            ) : null}
-          </Bank>
         </div>
       </div>
     </>

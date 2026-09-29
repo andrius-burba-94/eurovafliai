@@ -3,6 +3,7 @@ import "server-only";
 import {
   announceAdd,
   announceDrop,
+  announceExchange,
   announceImpact,
   announceTrade,
 } from "@/lib/chat/messages";
@@ -15,6 +16,7 @@ import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
 import { last5SeriesOf } from "@/lib/stats/project";
 
+import { groupTransactionHistory } from "./history";
 import type { Seat } from "./plan";
 import { listActiveMemberships } from "./store";
 
@@ -209,6 +211,8 @@ type StoredTx = {
   members: unknown;
   players_in: unknown;
   players_out: unknown;
+  note?: string;
+  date?: string;
 };
 
 function asIdMap(raw: unknown): Record<string, string[]> {
@@ -372,20 +376,9 @@ export type TransactionLine = {
 };
 
 /**
- * The league's recent transactions, newest first — the dashboard's news panel.
- *
- * ## Why it borrows the chat's sentences
- *
- * 5.2 already announces every recorded deal in chat, through `announceTrade` /
- * `announceAdd` / `announceDrop`. Those functions are reused verbatim here
- * rather than a second phrasing being written for the panel: a dashboard that
- * described the same deal in different words from the transcript six inches to
- * its right would read as two different events, and the league would have to
- * work out whether it was one. One voice, two surfaces.
- *
- * Players are resolved in a single read of the ids the transactions actually
- * mention, not of the whole pool: this runs on the lobby, which is the page
- * everybody opens.
+ * Recent roster events, newest first. An unambiguous free-agent drop/add pair
+ * is presented as one exchange; independent writes remain separate. Player
+ * names are resolved in one read after grouping, so `limit` counts events.
  */
 export async function readRecentTransactions(
   leagueId: string,
@@ -404,12 +397,15 @@ export async function readRecentTransactions(
   if (rows.length === 0) return [];
 
   const wanted = new Set<string>();
-  for (const row of rows.slice(0, limit)) {
-    for (const ids of Object.values(asIdMap(row.players_in))) {
-      for (const id of ids) wanted.add(id);
-    }
-    for (const ids of Object.values(asIdMap(row.players_out))) {
-      for (const id of ids) wanted.add(id);
+  const events = groupTransactionHistory(rows).slice(0, limit);
+  for (const event of events) {
+    for (const row of event.rows) {
+      for (const ids of Object.values(asIdMap(row.players_in))) {
+        for (const id of ids) wanted.add(id);
+      }
+      for (const ids of Object.values(asIdMap(row.players_out))) {
+        for (const id of ids) wanted.add(id);
+      }
     }
   }
 
@@ -430,7 +426,23 @@ export async function readRecentTransactions(
     ids.map((id) => names.get(id) ?? "a player");
   const team = (memberId: string) => teamNames[memberId] ?? "A team";
 
-  return rows.slice(0, limit).flatMap((row): TransactionLine[] => {
+  return events.flatMap((event): TransactionLine[] => {
+    if (event.exchange) {
+      const { memberId, acquiredId, releasedId } = event.exchange;
+      const row = event.rows[0]!;
+      return [{
+        id: row.id,
+        type: "trade",
+        fromRound: row.from_round,
+        sentence: announceExchange({
+          teamName: team(memberId),
+          released: names.get(releasedId) ?? "a player",
+          acquired: names.get(acquiredId) ?? "a player",
+          fromRound: row.from_round,
+        }),
+      }];
+    }
+    const row = event.rows[0]!;
     const incoming = asIdMap(row.players_in);
     const outgoing = asIdMap(row.players_out);
     const members = Object.keys({ ...incoming, ...outgoing });
