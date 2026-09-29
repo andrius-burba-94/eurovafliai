@@ -212,3 +212,20 @@ Captain of the round was in the plan's list for this page. It needs each
 member's recorded captain joined to that night's box score, which is exactly
 what League Stats' lineup-efficiency section computes, so it lands there (S10)
 rather than as a second implementation here.
+
+## S9 — Trades
+
+The page's headline promise — what every deal has been worth — is finally on
+the page. `readLeagueDeals` reads the league's transactions, the players they
+name and those players' box scores this season once, groups a free-agent
+drop and add into one exchange (`groupTransactionHistory`, unchanged), and
+computes each side's verdict with `impactForMember`, the function the team
+page and the recap already used, so the three cannot disagree. It also returns
+a per-team ledger of net points across all deals.
+
+A verdict stamp plays once per viewer per deal side and per verdict: a deal
+that turns from losing to winning is a new change and stamps again.
+
+Found by the standings spec while running this slice: the round-winner cell's
+`sr-only` "Round winner," was part of the cell's text, so a reader of the
+number got a sentence. It is the cell's `aria-label` now.

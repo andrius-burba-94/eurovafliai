@@ -230,12 +230,12 @@ export function StandingsTable({
                             data-testid="standings-round"
                             data-round={round}
                             data-winner={won ? "true" : undefined}
+                            aria-label={won ? `Round winner, ${formatHundredths(row.byRound[round] ?? 0)}` : undefined}
                             className={`stat px-2 py-2 text-right text-sm ${won ? "font-bold text-gold" : "text-ink-soft"}`}
                           >
                             {won ? (
                               <span className="inline-flex items-center gap-1">
                                 <Glyph name="crown" size={11} />
-                                <span className="sr-only">Round winner, </span>
                                 {formatHundredths(row.byRound[round] ?? 0)}
                               </span>
                             ) : (

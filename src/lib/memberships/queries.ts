@@ -492,3 +492,140 @@ export async function readRecentTransactions(
     ];
   });
 }
+
+/** One side of a recorded deal: who it was, what went each way, what it has earned. */
+export type DealSide = {
+  readonly memberId: string;
+  readonly inIds: readonly string[];
+  readonly outIds: readonly string[];
+  /** Live fantasy tenths since `fromRound`, lineup-weighted — `impactForMember`. */
+  readonly deltaTenths: number;
+};
+
+export type LeagueDeal = {
+  readonly id: string;
+  /** "exchange" is a free-agent drop and add recorded as one move. */
+  readonly kind: "trade" | "exchange" | "add" | "drop";
+  readonly fromRound: number;
+  readonly date: string;
+  readonly note: string;
+  readonly sides: readonly DealSide[];
+};
+
+export type DealPlayer = {
+  readonly name: string;
+  readonly personCode?: string;
+  readonly position?: Position;
+  readonly clubCode?: string;
+};
+
+export type LeagueDeals = {
+  readonly deals: readonly LeagueDeal[];
+  readonly players: Readonly<Record<string, DealPlayer>>;
+  /** Net tenths per member across every deal they were in, and how many. */
+  readonly ledger: Readonly<Record<string, { readonly netTenths: number; readonly deals: number }>>;
+};
+
+/**
+ * Every recorded deal in a league, newest first, with each side's live verdict.
+ * One read of transactions, the players they name and those players' box
+ * scores this season; the verdict is the same `impactForMember` the team page
+ * and the recap use, so the three can never disagree about a deal.
+ */
+export async function readLeagueDeals(leagueId: string, season: string): Promise<LeagueDeals> {
+  const empty: LeagueDeals = { deals: [], players: {}, ledger: {} };
+  const session = await getSession();
+  if (!session) return empty;
+
+  const pb = createUserClient(session.token);
+  const rows = await pb.collection("transactions").getFullList<StoredTx>({
+    filter: `league = '${leagueId}'`,
+    sort: "-date,-created",
+    requestKey: null,
+  });
+  if (rows.length === 0) return empty;
+
+  const transactions: ImpactTransaction[] = rows.flatMap((row) =>
+    row.type === "trade" || row.type === "add" || row.type === "drop"
+      ? [
+          {
+            id: row.id,
+            type: row.type,
+            fromRound: row.from_round,
+            playersIn: asIdMap(row.players_in),
+            playersOut: asIdMap(row.players_out),
+          },
+        ]
+      : [],
+  );
+  const playerIds = [
+    ...new Set(transactions.flatMap((tx) => [...Object.values(tx.playersIn).flat(), ...Object.values(tx.playersOut).flat()])),
+  ];
+  const memberIds = [
+    ...new Set(transactions.flatMap((tx) => [...Object.keys(tx.playersIn), ...Object.keys(tx.playersOut)])),
+  ];
+  const idFilter = playerIds.map((id) => `id = '${id}'`).join(" || ");
+  const [lines, people] =
+    playerIds.length === 0
+      ? [[], []]
+      : await Promise.all([
+          pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; pir: number }>({
+            filter: `(${playerIds.map((id) => `player = '${id}'`).join(" || ")}) && season = "${season}"`,
+            fields: "player,round,fantasy_pts,pir",
+            requestKey: null,
+          }),
+          pb.collection("players").getFullList<{ id: string; name: string; person_code?: string; position?: Position; club_code?: string }>({
+            filter: idFilter,
+            fields: "id,name,person_code,position,club_code",
+            requestKey: null,
+          }),
+        ]);
+
+  const weights = await readLineupWeights(pb, leagueId, season, [...new Set(lines.map((line) => line.round))], memberIds);
+  const impactLines = lines.map((line) => ({ playerId: line.player, round: line.round, fantasyTenths: line.fantasy_pts, pir: line.pir }));
+  const deltaOf = new Map<string, number>();
+  for (const memberId of memberIds) {
+    for (const deal of impactForMember(memberId, transactions, impactLines, weights)) {
+      deltaOf.set(`${deal.transactionId}|${memberId}`, deal.deltaTenths);
+    }
+  }
+
+  const deals: LeagueDeal[] = groupTransactionHistory(rows).map((event) => {
+    const first = event.rows[0]!;
+    const members = [...new Set(event.rows.flatMap((row) => [...Object.keys(asIdMap(row.players_in)), ...Object.keys(asIdMap(row.players_out))]))];
+    const sides = members.map((memberId) => ({
+      memberId,
+      inIds: event.rows.flatMap((row) => asIdMap(row.players_in)[memberId] ?? []),
+      outIds: event.rows.flatMap((row) => asIdMap(row.players_out)[memberId] ?? []),
+      deltaTenths: event.rows.reduce((sum, row) => sum + (deltaOf.get(`${row.id}|${memberId}`) ?? 0), 0),
+    }));
+    return {
+      id: first.id,
+      kind: event.exchange ? "exchange" : (first.type as LeagueDeal["kind"]),
+      fromRound: first.from_round,
+      date: first.date ?? "",
+      note: first.note?.trim() ?? "",
+      sides,
+    };
+  });
+
+  const ledger: Record<string, { netTenths: number; deals: number }> = {};
+  for (const deal of deals) {
+    for (const side of deal.sides) {
+      const entry = (ledger[side.memberId] ??= { netTenths: 0, deals: 0 });
+      entry.netTenths += side.deltaTenths;
+      entry.deals += 1;
+    }
+  }
+
+  return {
+    deals,
+    players: Object.fromEntries(
+      people.map((person) => [
+        person.id,
+        { name: person.name, personCode: person.person_code, position: person.position, clubCode: person.club_code },
+      ]),
+    ),
+    ledger,
+  };
+}
