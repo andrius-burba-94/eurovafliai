@@ -438,3 +438,42 @@ long name wraps to two lines.
 Verification: lint, typecheck and 1557 unit tests pass; `lineup.spec` and
 `a11y.spec` pass on both projects (the draft-room a11y test timed out once
 under a parallel run and passed on its own).
+
+## S17 — Lineup on one screen
+
+Asked for after comparing the page with the official game, whose whole lineup
+— court, sixth man, bench, inactive — sits in one window. Ours spent a header
+(eyebrow, "Lineup", a standfirst) restating what the page plainly is, then the
+court, then thirteen full-width rows each carrying an armband radio, a role
+select and a Move button.
+
+The header is now one toolbar line: the team (the picker, for a manager), the
+round stepper and the tip-off. With no `?round=` the page opens the round
+`roundSchedule` already calls current — the earliest one with a game still to
+play — instead of round 1; the side panel's Schedule tab shows the same round.
+
+The court sits beside the tiers once the board is `@xl` wide, and its width is
+also bounded by the viewport's height (`(100dvh − 18rem) × 15/14`, never below
+17rem), so the court no longer pushes the bench off the screen. Discs and
+name tags are sized in the court's own inline units, which replaced the two
+viewport media queries. Sixth man, Bench and Inactive are compact cards: the
+portrait, the surname, a position letter on the card's edge, club and fixture.
+
+The grid view only listed the five with a "Make captain" link, so nobody could
+be moved from it. It is now the whole lineup as a table — role select and
+captain radio per row — and the court's cards no longer carry those controls.
+That settles the Phase 11 critique's first open question (three ways to place a
+player on every card). What the form posts is a hidden `role:<id>` per player
+and one `captain`, written from state, so both views post the same thing. The
+cost: without JavaScript the page shows the lineup but cannot change it.
+
+Drag and drop is pointer-based (`lineup-drag.ts`), not HTML5 drag, which phones
+do not do reliably. A mouse drags after 5px; a finger has to hold for 280ms
+first, because a touch that moves at once is the page scrolling. A drop onto a
+player swaps, onto the court or a tier moves, and it goes through the same
+`place` a tap does. The click after a drag is swallowed so a drop does not
+also pick the player up.
+
+Verification: lint, typecheck, knip and 1557 unit tests pass; `lineup.spec`
+(with a new mouse-drag test at 1600 × 1000) and the lineup `a11y.spec` (court
+and grid) pass on both projects.

@@ -50,7 +50,7 @@ change. Do not leave two versions.
 | `src/app/leagues/[id]/draft/clock-cue.tsx` | Sound/live-region cue; fires on **turn transition**, not "is it my turn". |
 | `src/app/leagues/[id]/draft/armed-pick.tsx` | Armed pool row. |
 | `src/app/leagues/[id]/draft/pick-form.tsx` | Pick request. |
-| `src/app/leagues/[id]/sheet/sheet-list.tsx` | Hand-rolled drag (ref for drop target, nearest-midpoint hit-test). |
+| `src/app/leagues/[id]/lineup/lineup-drag.ts` | Pointer drag onto discrete targets (`data-drop`, element under the pointer); touch holds before dragging so the page still scrolls. |
 | `src/lib/positions.ts` | Position words and the one list-join. Do not duplicate. |
 
 Helpers for E2E: `draftPlayer` / `submitPick` in the Playwright specs — new
