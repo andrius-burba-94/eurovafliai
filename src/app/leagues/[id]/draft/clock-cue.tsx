@@ -183,7 +183,7 @@ export function ClockCue({
   }, [enabled, saidFor]);
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-3">
+    <div className="flex flex-col items-start gap-2">
       <button
         type="button"
         onClick={() => writeCues(!enabled)}

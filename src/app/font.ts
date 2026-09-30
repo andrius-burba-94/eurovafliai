@@ -1,4 +1,4 @@
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Barlow_Condensed, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 
 /*
  * Two families with one job each — Phase 10 / D22, replacing the One Label
@@ -34,5 +34,17 @@ export const spaceGrotesk = Space_Grotesk({
 export const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin", "latin-ext"],
+  display: "swap",
+});
+
+/**
+ * The broadcast voice (ADR-0011): headlines, scores, team names. Reached
+ * through `font-display` and the `display` / `display-figure` utilities —
+ * never a label, a button or a sentence.
+ */
+export const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin", "latin-ext"],
+  weight: ["500", "600", "700", "800"],
   display: "swap",
 });

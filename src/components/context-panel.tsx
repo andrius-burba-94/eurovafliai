@@ -7,6 +7,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { EmptyNotice, Slot, Slots } from "@/components/board";
 import { PlayerPoolList } from "@/components/player-pool-list";
 import type { PanelData, PanelGame } from "@/lib/panel/types";
+import { formatTipOff } from "@/lib/time/local";
 
 /**
  * The side panel's body: Players, Schedule and News as an ARIA tablist —
@@ -126,14 +127,6 @@ export function ContextPanel({
   );
 }
 
-const TIP_OFF = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Europe/Vilnius",
-});
 
 function Schedule({ schedule }: { schedule: PanelData["schedule"] }) {
   if (!schedule || schedule.games.length === 0) {
@@ -170,7 +163,7 @@ function GameRow({ game }: { game: PanelGame }) {
           </abbr>
         </span>
         <span className="text-sm text-ink-soft">
-          {game.tipOff ? TIP_OFF.format(new Date(game.tipOff)) : "Time to come"}
+          {formatTipOff(game.tipOff) ?? "Time to come"}
         </span>
       </span>
       {game.played ? (

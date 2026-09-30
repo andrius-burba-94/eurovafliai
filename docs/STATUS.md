@@ -21,6 +21,49 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
+## In progress: Matchnight redesign (ADR-0011)
+
+A full visual and experience refresh after a design critique scored the arena
+interface 22/40. The direction is a matchnight broadcast: two grounds that follow
+the device, Barlow Condensed for headlines and scores, Tip-off orange as the one
+act, a colour-and-monogram crest for every member's team, one hero fact per page,
+and a small set of celebration moments. Built on the `matchnight-redesign` branch,
+one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
+
+| Slice | State | What changed |
+|---|---|---|
+| S0 Concept gallery | Done | `/concepts` (development only, invented data): fonts, palettes in both grounds, crests, moments with replay, two variants of nine screens. |
+| S1 Foundation | Done | Two measured grounds, display face, restyled board vocabulary, `PageHeader`/`ScoreFigure`/`StatusBadge`/`RoundStepper`/`TeamCrest`/`Moment`, shell colours tokenised, the critique's six bugs fixed, season control hidden while there is one season. |
+| S2 Team identity | Done | Migration `1790100000` adds optional `team_color` / `team_crest` to `league_members`; a member who never chose gets a default from their place. `setTeamIdentity` (own team any time, managers anyone's). Picker in the lobby and on the team page; crests beside names in the lobby, chat, draft board and radar. |
+| S3 Shell and nav | Done | Phone tabs Home, Lineup, Live, Table, More in season (Home, Draft, Sheet, Players while drafting). One name per destination: "Live", "Standings". Cheat Sheet leaves the nav once the draft is done; Export leaves it (still reachable from League Home until S13). Manage shows how many mapping questions wait. Compact phone header, tokenised sidebar and panel toggle. |
+| S4 League Home | Done | Your team as the hero (crest, rank at scoreboard size, total, who you passed, the next tip-off, Set lineup), a round ticker, the table with crests and gaps beside the round's story (crowned winner, best night with portrait, wooden spoon, biggest swing), a roster summary, then chat. Overtake, crown, sweep and spoon moments play once per viewer. The 13-card roster moved to My Team; the mapping notice is in Manage's count during the season. |
+| S5 Live | Done | A scoreboard: your round total and provisional or final rank first, with finished / playing now / still to play chips; your players with counted points (role multiplier applied, captain marked C×2 in gold), status badges and Vilnius tip-off times; game tiles with club crests; a crested table. The typed round field is a ‹ Round › stepper. |
+| S6 Lineup | Done | The court is the first panel, on hardwood, with formation pills and the court/grid switch under it; the round is a stepper and the header says when the round tips off (it does not claim a lock — lineups are recorded after the fact). Tiers are compact rows: a gold C×2 armband radio, a role pill and a Move button per player — every control and accessible name the form posts and the specs use is kept. |
+| S7 Standings | Done | A podium for the top three, the honours earned so far (On fire, Crowned, Spoon collector — pure `season/badges.ts`), then the table with crests, a gap-to-leader column, each round's winner in gold with a crown, and the viewer's row lit. Only phases with counted rounds are offered. The provisional note is gold guidance, not a red error. Overtake plays on the viewer's row and a new badge flips in, once each. |
+| S8 Recap | Done | A front page: a headline written from the night ("X win round 3 by 32.4", "Y take the wooden spoon"), the winner's banner with a dropping crown and gold sweep, the night as a colour-coded ladder, the best night with portrait, the wooden spoon (swinging once) and the biggest swing. Rounds are chips, not a select. |
+| S9 Trades | Done | "Who is winning the market": net points since each deal per team, as a diverging bar. Then every deal as a card — each side's players out and in with portraits, from which round, and a live verdict stamped Winning or Losing (the same lineup-weighted `impactForMember` the team page and recap use, via the new `readLeagueDeals`). Team filter chips. Record a trade gets the new header; its two-column builder and announcement preview stay. |
+| S10 League Stats | Done | New `/leagues/[id]/stats` and a Stats nav item. Record book (highest and lowest round, biggest margin, best single night, best captain call), honours, team profiles (average, best, worst, spread, rounds won, top-3, spoons), lineup efficiency (bench points lost, captain hit rate), draft value (steals, busts, autodraft vs people), players of the season (top, hot, best free agents, by position) and the deal ledger. Pure `stats/league-stats.ts`, one query in `league-stats-queries.ts`. |
+| S11 Team, player, pool | Done | My Team: crest header, "Carrying you" / "On thin ice", the roster grouped G/F/C with injury badges, season points (raw, while on this roster), last round, form and next opponent; the radar is gone and the crest editor sits at the foot. Player profile: a card hero (portrait, club, badge, current PIR) and a game-log table with heat shading. Pool: ranked by the same average PIR the draft uses, with position, Injured and sort filters; the ingest summary is folded for members. News keeps S1's Out / Doubtful badges; an ownership filter needs a league context the global news page does not have, and is left to the side panel. |
+| S12 Draft and roll | Done | The on-clock band carries the picker's crest at headline size. Every landed pick raises a "The pick is in" lower-third for the whole room (team crest, player, position, pick number, AUTO when the worker made it) with a short two-note sting where cues are on; a first paint or reload shows nothing. A finished draft reads "That's the draft", links to the standings and to Stats' steals and busts, and folds undo / start over behind "Commissioner tools". The roll is a stage: a lattice panel, the drawn team's crest and name at display size, crests down the order, and a gold "First pick" reveal. The full-screen shell-less stage from the plan is not done: the roll still renders inside the league shell. |
+| S13 Sheet, export, login, leagues | Done | Login is a full-bleed title screen: the wordmark at display size, one Google action, the season's shape as three figures. Your leagues is one big card per league whose button is the likely next act (lobby, draft room, lineup, final table). A Download menu (results CSV, rosters CSV, everything JSON, or choose) sits on the standings header and above the draft board; `/export` stays for the full picker and deep links, and the lobby door still leads there. An empty cheat sheet offers "Use the PIR ranking" — the top 60 by the draft's own average PIR (pure `sheets/seed.ts`), written only onto an empty sheet — and a sheet with rows gets "Not on your sheet", the best 12 unranked players with an Add button (the existing `insert` operation). Paste stays below. The plan's "star" is the Add button; there is no separate favourites list. |
+| S14 Commissioner pages | Done | Mapping is a queue: "Question 3 of 23" across feed names, box-score codes and news names, one current row (the board's keyboard-cursor outline), J / K to move, Y / N to answer the current question. A rename is two records side by side, "In the pool" and "In the feed". Every row stays on the page and answerable by tap — the specs (and a commissioner) act on a specific question, not only the first. Roster and stat imports show Paste → Review → Apply, derived from the form's own state (a plan on screen is Review, a stored result is done). |
+| S15 Polish and re-critique | Done | Re-scored **31/40** (from 22). Standings' team column fits a crest and name, honours group with counts. The draft pool row sizes its extras by the row (container queries), so desktop no longer cuts surnames to three letters; portrait and club crest CSS moved into `@layer components` so `hidden` works on them. a11y runs every surface in both grounds. E2E cleanup removes roster windows before players, which fixes the pool-count flake. On a laptop the draft room's "Draft for me" and sound switches head the watching column, so the first pool row sits at 754px of a 900px screen (it was 990). Open from the critique: the roll stage is not shell-less (P2), League Home's phone tail (P2), recap headlines are always plural (P3), no scoring explainer page (P3). |
+
+**Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
+directions, and any signed-in page with the system in dark and then light mode:
+the ground, headlines and primary buttons change with it. On a lineup, the grid
+view shows each position in its own colour and the captain reads `C×2`. Open
+your team page, expand **Your crest**, pick a colour and a shape and save: the
+crest appears beside your name in chat and on the draft board. Signed out,
+`/login` is the title screen. On a league's Cheat Sheet with nothing ranked,
+press **Use the PIR ranking**, then add someone from **Not on your sheet**.
+Standings has a **Download** menu. In a draft room on a desktop, pool rows show
+the whole surname beside the club and position.
+
+**Known local-only failure.** `news.spec.ts` plants items dated 13 September; a
+local database that has run the news worker holds newer items, and the page
+shows the newest 40, so the planted row is off the list. CI starts empty.
+
 ## League activity
 
 The season dashboard separates member Chat, recorded Trades, injury reports, and
@@ -32,7 +75,7 @@ The underlying transaction and chat rows remain the audit record. News and
 injuries use the existing RotoWire items, split by their stored injury status.
 No PocketBase schema migration is needed for this presentation change.
 
-## In review: arena visual redesign
+## Landed: arena visual redesign (visual rules superseded by ADR-0011)
 
 The user approved the interactive site concept on 28 September 2026. The implementation branch is **not production**. [ADR-0009](adr/ADR-0009-arena-redesign.md) records the new design and the product boundaries; earlier ADRs remain available.
 

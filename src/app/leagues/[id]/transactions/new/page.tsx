@@ -5,6 +5,7 @@ import {
   SeasonControl,
 } from "@/components/season-control";
 import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -54,11 +55,11 @@ export default async function NewTransactionPage({
       measure="wide"
       testId="transaction-builder"
     >
-      <div className="flex flex-col gap-2">
-        <p className="slot-label text-live">{data.league.name} / Trades</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Record a trade</h1>
-        <p className="text-sm text-ink-soft">Review who sends each player and the effective round before recording the agreement.</p>
-      </div>
+      <PageHeader
+        eyebrow={`${data.league.name} · Trades`}
+        title="Record a trade"
+        lead="Choose each side, the round it counts from, and read the announcement before it goes to the league."
+      />
       <SeasonControl
         action={`/leagues/${id}/transactions/new`}
         season={season}

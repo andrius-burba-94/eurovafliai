@@ -59,6 +59,8 @@ test("the ingest summary says who holds the roster authority", async ({
   await signIn(context, user);
 
   await page.goto("/players");
+  // Folded for a member who cannot act on it, one tap away for anyone curious.
+  await page.getByText("Where this data comes from").click();
   // The question a commissioner actually has after a sync, and the answer to
   // "why did my correction get overwritten".
   await expect(page.getByText(/holds authority/)).toBeVisible();

@@ -1363,3 +1363,47 @@ test("the bar reserves its own height, and its caption is not a shouted sentence
   );
   expect(transform).toBe("none");
 });
+
+test("an empty sheet can start from the PIR ranking", async ({ page, context }) => {
+  const { commissioner, league } = await sheetLeague("Seed League");
+  const star = await sheetPlayer("Seedstar", {
+    position: "G",
+    prev_season_pir: 9990,
+    prev_season_games: 30,
+  });
+
+  await signIn(context, commissioner);
+  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.getByTestId("sheet-start").click();
+
+  // On the sheet, not necessarily #1: the other project's run of this test
+  // plants its own Seedstar with the same average at the same moment.
+  await expect(page.getByTestId("sheet-list")).toContainText(star.name);
+  // Nothing to start from once there is a sheet: the button would overwrite it.
+  await expect(page.getByTestId("sheet-start")).toHaveCount(0);
+});
+
+test("a player not on the sheet can be added from the suggestions", async ({
+  page,
+  context,
+}) => {
+  const { commissioner, league } = await sheetLeague("Suggest League");
+  const first = await sheetPlayer("Alphaone", { position: "F" });
+  const top = await sheetPlayer("Suggestee", {
+    position: "C",
+    prev_season_pir: 9980,
+    prev_season_games: 30,
+  });
+
+  await signIn(context, commissioner);
+  await saveSheet(page, league.id, first.name);
+  await page.goto(`/leagues/${league.id}/sheet`);
+
+  const suggestions = page.getByTestId("sheet-suggestions");
+  await expect(suggestions).toContainText("Suggestee");
+  await suggestions.getByRole("button", { name: `Add ${top.name} to your sheet` }).click();
+
+  const rows = page.getByTestId("sheet-row");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1)).toContainText("Suggestee");
+});

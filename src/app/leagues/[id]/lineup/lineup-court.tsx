@@ -30,7 +30,7 @@ export function LineupCourt({
   const armedPlayer = starters.find((player) => player.id === armed);
   const canPlace = armed !== null && !armedIsStarter;
   return (
-    <div className="lineup-court" data-testid="lineup-court" role="group" aria-label="Starting five on a basketball half court. Centers nearest the basket, guards at the back.">
+    <div className="lineup-court hardwood" data-testid="lineup-court" role="group" aria-label="Starting five on a basketball half court. Centers nearest the basket, guards at the back.">
       <svg className="lineup-court-lines" viewBox="0 0 600 420" preserveAspectRatio="none" aria-hidden="true">
         <path d="M8 8 H592 V412 H8 Z M238 8 V142 H362 V8 M238 142 A62 62 0 0 0 362 142 M258 22 H342 M300 22 V42 M285 44 A15 15 0 0 0 315 44 M68 8 C68 250 145 338 300 347 C455 338 532 250 532 8 M8 412 H592" />
       </svg>
@@ -44,6 +44,7 @@ export function LineupCourt({
                 <button
                   type="button"
                   data-testid="court-player"
+                  data-position={position}
                   data-captain={player.isCaptain || undefined}
                   data-valid={(armed !== null && armed !== player.id && (!armedPlayer || armedPlayer.position === player.position)) || undefined}
                   aria-pressed={armed === player.id}
@@ -54,7 +55,7 @@ export function LineupCourt({
                   <span className="lineup-court-disc">
                     <PlayerPortrait personCode={player.personCode} name={player.name} />
                     <span className="lineup-court-position" aria-hidden="true">{position}</span>
-                    {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C</span> : null}
+                    {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C&times;2</span> : null}
                   </span>
                   <strong title={player.name}>{surname(player.name)}</strong>
                 </button>

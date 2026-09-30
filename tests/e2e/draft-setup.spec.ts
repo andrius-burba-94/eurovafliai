@@ -122,8 +122,8 @@ test("the commissioner rolls, and the order is stable when re-applied", async ({
   await page.goto(`/leagues/${league.id}`);
 
   await expect(page.getByTestId("member-position")).toHaveCount(0);
-  await expect(page.getByTestId("toggle-ready")).toHaveClass(/\btext-live\b/);
-  await expect(page.getByTestId("draft-roll")).not.toHaveClass(/\btext-live\b/);
+  await expect(page.getByTestId("toggle-ready")).toHaveAttribute("data-tone", "live");
+  await expect(page.getByTestId("draft-roll")).not.toHaveAttribute("data-tone", "live");
   await expect(page.getByTestId("draft-manual")).toHaveCount(0);
 
   await rollOrder(page, league.id);
@@ -134,8 +134,8 @@ test("the commissioner rolls, and the order is stable when re-applied", async ({
   const first = await positions.allInnerTexts();
   expect([...first].sort()).toEqual(["01", "02", "03", "04"]);
   await expect(page.getByTestId("draft-manual")).toBeVisible();
-  await expect(page.getByTestId("draft-roll")).not.toHaveClass(/\btext-live\b/);
-  await expect(page.getByTestId("start-draft")).toHaveClass(/\btext-live\b/);
+  await expect(page.getByTestId("draft-roll")).not.toHaveAttribute("data-tone", "live");
+  await expect(page.getByTestId("start-draft")).toHaveAttribute("data-tone", "live");
   const reshuffleBox = await page
     .getByTestId("draft-reshuffle-toggle")
     .boundingBox();

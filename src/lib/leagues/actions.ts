@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { clearLeagueMemberships } from "@/lib/memberships/store";
 import { getSuperuserClient } from "@/lib/pb/superuser";
+import { isCrestShape, isTeamColor } from "@/lib/teams/identity";
 import {
   generateInviteCode,
   isPlausibleInviteCode,
@@ -16,6 +17,7 @@ import {
   canKickMember,
   canMarkReady,
   canRenameTeam,
+  canStyleTeam,
   normalizeTeamName,
   validateTeamName,
   type LobbyActor,
@@ -300,6 +302,38 @@ export async function renameTeam(
 
   revalidatePath(`/leagues/${context.league.id}`);
   return { error: null, value: name.value };
+}
+
+/**
+ * Choose a team's crest colour and shape. One write, and both fields are
+ * validated against the curated sets before it, so there is no half-state.
+ */
+export async function setTeamIdentity(
+  _previous: LobbyResult,
+  formData: FormData,
+): Promise<LobbyResult> {
+  const context = await loadLobbyContext(formData);
+  if (!context) return NOT_YOURS;
+
+  const verdict = canStyleTeam(context.actor);
+  if (!verdict.ok) return { error: verdict.reason };
+
+  const color = formData.get("color");
+  const crest = formData.get("crest");
+  if (!isTeamColor(color) || !isCrestShape(crest)) {
+    return { error: "Choose one of the colours and one of the shapes." };
+  }
+
+  try {
+    await context.pb
+      .collection("league_members")
+      .update(context.member.id, { team_color: color, team_crest: crest }, { requestKey: null });
+  } catch {
+    return { error: "Could not save that crest. Try again." };
+  }
+
+  revalidatePath(`/leagues/${context.league.id}`, "layout");
+  return OK;
 }
 
 export async function setReady(

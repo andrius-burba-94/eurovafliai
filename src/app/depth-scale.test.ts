@@ -36,30 +36,26 @@ const files = sourceFiles(SRC).map((path) => ({
   text: readFileSync(path, "utf8"),
 }));
 
-describe("the board's restrained corner scale", () => {
+describe("the corner scale", () => {
   it("finds source files to check", () => {
     // If the walk breaks, every assertion below passes vacuously.
     expect(files.length).toBeGreaterThan(50);
   });
 
-  it("uses only small corners for controls and full circles for marks", () => {
-    // The arena treatment introduces small control corners and circular player
-    // marks. Large floating cards still do not belong in this board.
-    const offenders = files.filter(({ text }) => /\brounded-(?!(?:block|md|lg|full)\b)[a-z0-9[]/.test(text));
-    expect(
-      offenders.map((f) => f.path),
-      "use the approved small corner scale (DESIGN.md, Shapes)",
-    ).toEqual([]);
+  it("uses only the named corners", () => {
+    // ADR-0011: small corners for controls, a card radius for panels, full
+    // circles for marks and pills. An arbitrary radius is how two panels end
+    // up almost-but-not-quite matching.
+    const CORNER = /\brounded-(?!(?:(?:[trbl]{1,2}|[se]{1,2})-)?(?:block|card|md|lg|xl|2xl|full)\b)[a-z0-9[]/;
+    const offenders = files.filter(({ text }) => CORNER.test(text));
+    expect(offenders.map((f) => f.path), "use the named corner scale (DESIGN.md, Shapes)").toEqual([]);
   });
 });
 
-describe("the board refuses atmosphere", () => {
-  // The No-Atmosphere Rule, which is what survives of
-  // Flatness-Is-Not-Negotiable. A dark ground is precisely where a glow, a
-  // gradient or a blurred backdrop starts to look like a good idea, and those
-  // are the three things ADR-0006 went on refusing while it gave up the light
-  // ground. There is deliberately no shadow token either: a shadow works by
-  // darkening what is under it, and at L 0.18 there is nothing left to darken.
+describe("atmosphere lives in named utilities, never at a call site", () => {
+  // ADR-0011 allows a team-colour field, the waffle lattice and the hardwood,
+  // each as one named utility in globals.css. What stays refused in component
+  // code is the ad hoc version: a one-off gradient, a glow, a glass blur.
   const FORBIDDEN: ReadonlyArray<readonly [string, RegExp]> = [
     ["a shadow", /\bshadow-(?!none\b)[a-z0-9[]/],
     ["a gradient", /\bbg-(gradient|linear|radial|conic)-/],

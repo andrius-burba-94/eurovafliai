@@ -1,67 +1,92 @@
 @import "tailwindcss";
 
-/* Approved 2026-27 arena palette. State colors have named jobs; neutral
- * surfaces and type carry the hierarchy on every signed-in page. */
-@theme {
-  --color-stock: oklch(0.16828 0.01806 263.904);
-  --color-stock-panel: oklch(0.23944 0.03538 262.586);
-  --color-ink: oklch(0.94392 0.00591 239.822);
-  --color-ink-soft: oklch(0.77437 0.01702 245.146);
-  --color-ink-faint: oklch(0.74407 0.01579 251.202);
-  --color-rule: oklch(0.53597 0.03508 245.524);
-  --color-rule-strong: oklch(0.60640 0.03369 242.335);
-  --color-panel-border: oklch(0.34478 0.02653 255.110);
-  --color-rail: oklch(0.77811 0.02977 238.366);
-  --color-live: oklch(0.75428 0.08630 207.019);
-  --color-live-sunk: oklch(0.33303 0.04280 212.130);
-  --color-gain: oklch(0.73544 0.10996 161.936);
-  --color-loss: oklch(0.69863 0.12641 14.661);
-  --color-gold: oklch(0.77767 0.09508 82.098);
-  --color-pos-g: oklch(0.75428 0.08630 207.019);
-  --color-pos-f: oklch(0.73544 0.10996 161.936);
-  --color-pos-c: oklch(0.77767 0.09508 82.098);
+/*
+ * Matchnight (ADR-0011). Two grounds, one palette of meanings: the dark
+ * values are the default and the light ones follow the phone's own setting.
+ * Every ratio either ground renders is measured in `tokens.test.ts`, which
+ * reads both blocks below, so a value here is never eyeballed.
+ *
+ * `static`, because several tokens (the team colours, the court, the wood)
+ * are reached through `var()` in an inline style or a named utility rather
+ * than a class Tailwind can see, and v4 drops a theme variable no class uses.
+ *
+ * `live` keeps its name and is the accent: the one act on a surface, the
+ * selection, focus and whoever is on the clock. The red "on air" bug for a
+ * game in play is `on-air`, always printed with the word LIVE.
+ */
+@theme static {
+  --color-stock: oklch(0.16 0.022 262);
+  --color-stock-panel: oklch(0.205 0.026 262);
+  --color-stock-high: oklch(0.25 0.03 262);
+  --color-stock-sunk: oklch(0.135 0.02 262);
+  --color-ink: oklch(0.95 0.006 250);
+  --color-ink-soft: oklch(0.8 0.014 255);
+  --color-ink-faint: oklch(0.72 0.018 258);
+  --color-rule: oklch(0.52 0.03 262);
+  --color-rule-strong: oklch(0.6 0.03 262);
+  --color-panel-border: oklch(0.32 0.028 262);
+  --color-rail: oklch(0.78 0.06 240);
+  --color-live: oklch(0.74 0.165 50);
+  --color-live-sunk: oklch(0.27 0.055 50);
+  --color-live-ink: oklch(0.18 0.03 45);
+  --color-gain: oklch(0.8 0.15 150);
+  --color-loss: oklch(0.72 0.16 20);
+  --color-gold: oklch(0.86 0.13 88);
+  --color-pos-g: oklch(0.8 0.11 235);
+  --color-pos-f: oklch(0.83 0.12 180);
+  --color-pos-c: oklch(0.78 0.13 305);
+  --color-on-air: oklch(0.56 0.2 27);
+  --color-on-air-ink: oklch(0.99 0.005 30);
+  --color-wood: oklch(0.56 0.085 60);
+  --color-wood-deep: oklch(0.5 0.08 56);
+  --color-court-line: oklch(0.95 0.02 80);
+
+  /* A member's team colour. The same on both grounds: a crest is a painted
+   * object, and its monogram picks its own ink (see `TEAM_INK`). */
+  --color-team-crimson: oklch(0.55 0.19 25);
+  --color-team-ember: oklch(0.7 0.17 48);
+  --color-team-mustard: oklch(0.82 0.15 90);
+  --color-team-lime: oklch(0.82 0.17 130);
+  --color-team-forest: oklch(0.52 0.12 155);
+  --color-team-teal: oklch(0.66 0.1 195);
+  --color-team-sky: oklch(0.76 0.11 235);
+  --color-team-royal: oklch(0.5 0.19 265);
+  --color-team-violet: oklch(0.56 0.19 300);
+  --color-team-magenta: oklch(0.57 0.21 345);
+  --color-team-slate: oklch(0.48 0.03 255);
+  --color-team-sand: oklch(0.8 0.06 75);
+  --color-team-ink-dark: oklch(0.2 0.03 262);
+  --color-team-ink-light: oklch(0.98 0.005 250);
 
   /* --- Type -------------------------------------------------------------
-   * Two families with one job each: words in Space Grotesk, figures that live
-   * in a column in JetBrains Mono. Figures are tabular in both, so a column of
-   * them is a column and a clock does not jitter as it counts down.
-   *
-   * The boundary is stateable in one sentence, which is the point: a figure in
-   * a sentence ("3 of 13 filled") is prose and stays sans. See the `stat`
-   * utility below, which is the only door to the mono face.
+   * Three families, one job each. Barlow Condensed is the broadcast voice:
+   * headlines, scores, team names, reached through `font-display` and the
+   * `display-*` utilities. Space Grotesk sets every other word. JetBrains Mono
+   * sets figures that live in a column, through `stat`.
    */
   --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-barlow-condensed), var(--font-space-grotesk), ui-sans-serif, sans-serif;
   --font-mono:
     var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 
-  --text-slot: 0.6875rem;
+  --text-slot: 0.75rem;
   --text-slot--line-height: 1rem;
-  --text-slot--letter-spacing: 0.14em;
+  --text-slot--letter-spacing: 0.06em;
 
-  /* The roll's clock — the one figure in this app read from across a room.
-   *
-   * A new size step, and therefore a change to DESIGN.md rather than a local
-   * override (ADR-0007). The argument is the invite code's: a number the league
-   * counts down *out loud together* has to be legible from the far end of a
-   * sofa, on a phone lying on a table, and the display step (2.25rem) is a
-   * heading size. Negative tracking because at this size the mono face's
-   * default spacing opens two digits into two separate objects. */
+  /* The roll's clock, read from the far end of a sofa (ADR-0007). */
   --text-roll: 5rem;
   --text-roll--line-height: 1;
   --text-roll--letter-spacing: -0.03em;
 
-  /* Framed panels and controls use restrained small corners. Circular player
-   * marks are a court affordance. Depth comes from fill and border, not glow. */
   --radius-block: 0.375rem;
+  --radius-card: 0.875rem;
 
-  /* --- Spacing rhythm ---------------------------------------------------
-   * A slot is the board's unit. Everything vertical is a multiple of it, so a
-   * dense passage and a quiet one share one grid.
-   */
   --spacing-slot: 2.75rem;
+
+  --ease-broadcast: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* The app has one dark ground. */
 :root {
   color-scheme: dark;
   /* The phone tab bar: its row, its top rule, the home indicator. Every bar
@@ -70,9 +95,41 @@
   --tabs-height: calc(3.5rem + 1px + env(safe-area-inset-bottom));
 }
 
+/* The light ground: the same meanings, solved again for a lit room. */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --color-stock: oklch(0.965 0.004 255);
+    --color-stock-panel: oklch(0.993 0.002 255);
+    --color-stock-high: oklch(0.93 0.006 255);
+    --color-stock-sunk: oklch(0.935 0.006 255);
+    --color-ink: oklch(0.21 0.03 262);
+    --color-ink-soft: oklch(0.38 0.03 262);
+    --color-ink-faint: oklch(0.47 0.025 262);
+    --color-rule: oklch(0.6 0.016 255);
+    --color-rule-strong: oklch(0.52 0.02 255);
+    --color-panel-border: oklch(0.87 0.008 255);
+    --color-rail: oklch(0.45 0.09 250);
+    --color-live: oklch(0.53 0.17 42);
+    --color-live-sunk: oklch(0.93 0.035 50);
+    --color-live-ink: oklch(0.99 0.005 60);
+    --color-gain: oklch(0.5 0.13 150);
+    --color-loss: oklch(0.52 0.19 25);
+    --color-gold: oklch(0.52 0.12 75);
+    --color-pos-g: oklch(0.5 0.13 245);
+    --color-pos-f: oklch(0.48 0.1 180);
+    --color-pos-c: oklch(0.5 0.16 305);
+    --color-on-air: oklch(0.54 0.2 27);
+    --color-on-air-ink: oklch(0.99 0.005 30);
+    --color-wood: oklch(0.66 0.085 64);
+    --color-wood-deep: oklch(0.6 0.085 60);
+    --color-court-line: oklch(0.98 0.01 80);
+  }
+}
+
 ::selection {
   background-color: var(--color-live);
-  color: var(--color-stock);
+  color: var(--color-live-ink);
 }
 
 body {
@@ -85,18 +142,116 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* A fixed-ratio half court keeps the five legible at every shell width. */
+/* --- Broadcast type ------------------------------------------------------
+ * The display face in caps: page titles, section heads, team names on a
+ * scoreboard. `display-figure` is a score, set tight and lining. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+  line-height: 0.95;
+}
+
+@utility display-figure {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.85;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* --- Surfaces ------------------------------------------------------------ */
+
+/* A member's colour as a field: the hero strip, the draft band, a board
+ * column head. It fades into the panel so text on it always sits on panel
+ * stock at its right-hand end; `--team` is set by `TeamField`. */
+@utility team-field {
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--team, var(--color-team-slate)) 34%, var(--color-stock)) 0%,
+    color-mix(in oklab, var(--team, var(--color-team-slate)) 12%, var(--color-stock-panel)) 58%,
+    var(--color-stock-panel) 100%
+  );
+}
+
+/* The waffle lattice — Eurovafliai's own texture, and also a draft board. */
+@utility lattice {
+  background-image:
+    repeating-linear-gradient(0deg, color-mix(in oklab, var(--color-ink) 5%, transparent) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(90deg, color-mix(in oklab, var(--color-ink) 5%, transparent) 0 1px, transparent 1px 18px);
+}
+
+/* Arena light from below the title screen, in the accent. */
+@utility spotlight {
+  background-image: radial-gradient(ellipse at bottom, color-mix(in oklab, var(--color-live) 22%, transparent), transparent 70%);
+}
+
+/* The hardwood the lineup is set on: parquet strips over a warm field. */
+@utility hardwood {
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 11.5%, oklch(0 0 0 / 0.07) 11.5% 12%),
+    linear-gradient(180deg, var(--color-wood) 0%, var(--color-wood-deep) 100%);
+}
+
+/* The brand mark: a waffle in the accent, which is also a draft board. */
+@utility waffle-mark {
+  display: inline-block;
+  border-radius: 22%;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 22%, oklch(0.18 0.03 45 / 0.28) 22% 27%),
+    repeating-linear-gradient(90deg, transparent 0 22%, oklch(0.18 0.03 45 / 0.28) 22% 27%),
+    var(--color-live);
+}
+
+/* A member's crest: monogram on their colour, in their shape. `TeamCrest`
+ * sets --crest, --crest-ink and --crest-size. */
+.team-crest {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--crest-size, 2rem);
+  height: var(--crest-size, 2rem);
+  background: var(--crest);
+  color: var(--crest-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--crest-size, 2rem) * 0.42);
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+.team-crest[data-shape="roundel"] {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(var(--crest-size, 2rem) * 0.07) color-mix(in oklab, var(--crest-ink) 35%, transparent);
+}
+.team-crest[data-shape="shield"] {
+  clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%);
+  align-content: start;
+  /* Of the crest's own size: a percentage padding is of the parent's width. */
+  padding-top: calc(var(--crest-size, 2rem) * 0.16);
+}
+.team-crest[data-shape="hex"] {
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+}
+.team-crest[data-shape="waffle"] {
+  border-radius: 22%;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 22%, color-mix(in oklab, var(--crest-ink) 18%, transparent) 22% 26%),
+    repeating-linear-gradient(90deg, transparent 0 22%, color-mix(in oklab, var(--crest-ink) 18%, transparent) 22% 26%),
+    var(--crest);
+}
+
+/* --- Court ---------------------------------------------------------------
+ * A fixed-ratio half court keeps the five legible at every shell width. */
 .lineup-court {
   position: relative;
-  width: min(100%, 38rem);
-  aspect-ratio: 1.18;
-  min-height: 18rem;
+  width: min(100%, 36rem);
+  aspect-ratio: 1 / 1.08;
+  min-height: 20rem;
   margin-inline: auto;
   overflow: hidden;
-  border: 1px solid #718e90;
-  border-radius: 0.375rem;
-  background: #193236;
-  box-shadow: inset 0 0 0 5px #11272d;
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in oklab, var(--color-wood-deep) 70%, var(--color-ink));
 }
 .lineup-court-lines {
   position: absolute;
@@ -104,39 +259,46 @@ body {
   width: 100%;
   height: 100%;
   fill: none;
-  stroke: #91aaaa;
+  stroke: var(--color-court-line);
+  stroke-opacity: 0.7;
   stroke-width: 2;
-  opacity: .7;
   pointer-events: none;
 }
 .lineup-court-name {
   position: absolute;
-  top: .8rem;
-  left: .9rem;
-  color: #bfcecc;
-  font-size: .625rem;
+  top: 0.7rem;
+  left: 0.8rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  background: oklch(0.16 0.022 262 / 0.78);
+  color: oklch(0.95 0.006 250);
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: .15em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .lineup-court-row {
   position: absolute;
-  left: 2.2rem;
-  right: .7rem;
-  height: 26%;
+  left: 2.1rem;
+  right: 0.6rem;
+  height: 27%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.lineup-court-row-c { top: 11%; }
-.lineup-court-row-f { top: 38%; }
-.lineup-court-row-g { top: 65%; }
+.lineup-court-row-c { top: 7%; }
+.lineup-court-row-f { top: 37%; }
+.lineup-court-row-g { top: 67%; }
 .lineup-court-role {
   position: absolute;
-  left: -1.5rem;
-  color: #a8c9c9;
-  font-size: .55rem;
-  letter-spacing: .1em;
+  left: -1.55rem;
+  padding: 0.3rem 0.1rem;
+  border-radius: 0.25rem;
+  background: oklch(0.16 0.022 262 / 0.7);
+  color: oklch(0.95 0.006 250);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
@@ -146,71 +308,80 @@ body {
   width: 100%;
   justify-content: center;
   align-items: center;
-  gap: .25rem;
+  gap: 0.25rem;
 }
 .lineup-court-players li { width: min(31%, 6.5rem); min-width: 0; }
 .lineup-court-player {
   display: grid;
   width: 100%;
-  min-height: 4.75rem;
+  min-height: 5rem;
   justify-items: center;
   align-content: center;
-  gap: .25rem;
+  gap: 0.3rem;
   border: 0;
   background: transparent;
-  color: #e9edf0;
+  color: oklch(0.97 0.005 250);
   text-align: center;
   cursor: pointer;
 }
 .lineup-court-player:focus-visible,
-.lineup-court-open:focus-visible { outline: 2px solid #67bfcb; outline-offset: 2px; }
+.lineup-court-open:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; border-radius: 0.5rem; }
 .lineup-court-disc {
   position: relative;
   display: grid;
   place-items: center;
-  width: 2.85rem;
-  height: 2.85rem;
-  border: 2px solid #b8cfce;
+  width: 3.1rem;
+  height: 3.1rem;
+  border: 2px solid var(--pos, var(--color-ink-soft));
   border-radius: 50%;
-  background: #263f44;
-  font-size: .875rem;
+  background: var(--color-stock-high);
+  color: var(--color-ink);
+  font-size: 0.875rem;
   font-weight: 800;
 }
-.player-portrait {
-  position: relative;
-  display: inline-grid;
-  width: 2.4rem;
-  height: 2.65rem;
-  flex: none;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid #6f858a;
-  border-radius: .35rem .35rem .2rem .2rem;
-  background: #263f44;
-  color: #cbd5d9;
-  vertical-align: middle;
+.lineup-court-player[data-position="G"] { --pos: var(--color-pos-g); }
+.lineup-court-player[data-position="F"] { --pos: var(--color-pos-f); }
+.lineup-court-player[data-position="C"] { --pos: var(--color-pos-c); }
+/* Layered so a call site's `hidden` or container variant can win: unlayered,
+   `display: inline-grid` beat every utility and the pool row's portrait never
+   hid at any width. */
+@layer components {
+  .player-portrait {
+    position: relative;
+    display: inline-grid;
+    width: 2.4rem;
+    height: 2.65rem;
+    flex: none;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid var(--color-panel-border);
+    border-radius: 0.375rem 0.375rem 0.25rem 0.25rem;
+    background: var(--color-stock-high);
+    color: var(--color-ink-soft);
+    vertical-align: middle;
+  }
+  .player-portrait-fallback { font-size: 0.85rem; font-weight: 700; }
+  .player-portrait img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+  }
+  .club-crest {
+    position: relative;
+    display: inline-grid;
+    width: 1.55rem;
+    height: 1.55rem;
+    flex: none;
+    place-items: center;
+    vertical-align: middle;
+  }
+  .club-crest-fallback { color: var(--color-ink-soft); font-size: 0.625rem; font-weight: 700; letter-spacing: -0.02em; }
+  .club-crest img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
 }
-.player-portrait-fallback { font-size: .85rem; font-weight: 700; }
-.player-portrait img {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center bottom;
-}
-.club-crest {
-  position: relative;
-  display: inline-grid;
-  width: 1.55rem;
-  height: 1.55rem;
-  flex: none;
-  place-items: center;
-  vertical-align: middle;
-}
-.club-crest-fallback { color: #a9b9c1; font-size: .53rem; font-weight: 700; letter-spacing: -.03em; }
-.club-crest img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
 .lineup-court-disc .player-portrait {
   width: 100%;
   height: 100%;
@@ -218,40 +389,50 @@ body {
   border-radius: 50%;
   background: transparent;
 }
-.lineup-court-player[data-captain] .lineup-court-disc { border-color: #d5b16e; }
-.lineup-court-player[data-valid] .lineup-court-disc { border-color: #67bfcb; outline: 2px solid #67bfcb; outline-offset: 2px; }
-.lineup-court-player[aria-pressed="true"] .lineup-court-disc { background: #286170; }
+.lineup-court-player[data-valid] .lineup-court-disc { outline: 2px solid var(--color-live); outline-offset: 2px; }
+.lineup-court-player[aria-pressed="true"] .lineup-court-disc { background: var(--color-live-sunk); border-color: var(--color-live); }
 .lineup-court-position,
 .lineup-court-captain {
   position: absolute;
   display: grid;
   place-items: center;
-  width: 1.05rem;
-  height: 1.05rem;
-  border-radius: .2rem;
-  font-size: .58rem;
+  height: 1.1rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 800;
   line-height: 1;
 }
-.lineup-court-position { right: -.5rem; bottom: -.25rem; background: #67bfcb; color: #10252c; }
-.lineup-court-captain { left: -.5rem; top: -.3rem; background: #d5b16e; color: #2b2317; }
+.lineup-court-position { right: -0.45rem; bottom: -0.25rem; width: 1.1rem; background: var(--pos, var(--color-ink-soft)); color: var(--color-stock); }
+.lineup-court-captain { left: -0.6rem; top: -0.35rem; padding: 0 0.25rem; background: var(--color-gold); color: oklch(0.22 0.04 80); letter-spacing: 0.02em; }
 .lineup-court-player strong {
   display: block;
   max-width: 100%;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: oklch(0.16 0.022 262 / 0.82);
   overflow: hidden;
-  font-size: .68rem;
-  line-height: 1.15;
-  font-weight: 600;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lineup-court-open { min-height: 3rem; width: 100%; border: 1px dashed #8ca9a8; background: #183136; color: #e9edf0; font-size: .6rem; }
-.lineup-court-open:disabled { opacity: .7; }
+.lineup-court-open {
+  min-height: 3rem;
+  width: 100%;
+  border: 1px dashed var(--color-court-line);
+  border-radius: 0.5rem;
+  background: oklch(0.16 0.022 262 / 0.45);
+  color: oklch(0.97 0.005 250);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.lineup-court-open:disabled { opacity: 0.7; }
 @media (max-width: 400px) {
-  .lineup-court-row { left: 1.8rem; right: .4rem; }
-  .lineup-court-role { left: -1.2rem; font-size: .48rem; }
-  .lineup-court-disc { width: 2.3rem; height: 2.3rem; }
-  .lineup-court-player { min-height: 4rem; }
-  .lineup-court-player strong { font-size: .58rem; }
+  .lineup-court-row { left: 1.9rem; right: 0.35rem; }
+  .lineup-court-disc { width: 2.6rem; height: 2.6rem; }
+  .lineup-court-player { min-height: 4.4rem; }
+  .lineup-court-player strong { font-size: 0.6875rem; }
 }
 
 /* The board's ruling, in three weights. A slot that is waiting is ruled thin
@@ -341,7 +522,7 @@ body {
  * (below) groups a SUBJECT. Both are level 1 and there is nothing below them. */
 @utility bank-framed {
   border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-block);
+  border-radius: var(--radius-card);
   background-color: var(--color-stock-panel);
   padding: 1rem;
 }
@@ -362,7 +543,7 @@ body {
  * 1rem is a lot of scrolling for the same information. */
 @utility card-block {
   border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-block);
+  border-radius: 0.625rem;
   background-color: var(--color-stock-panel);
   padding: 0.75rem;
 }
@@ -373,7 +554,7 @@ body {
  * utility rather than a modifier so there is one declaration per material. */
 @utility card-block-live {
   border: 2px solid var(--color-live);
-  border-radius: var(--radius-block);
+  border-radius: 0.625rem;
   background-color: var(--color-live-sunk);
   padding: calc(0.75rem - 1px);
 }
@@ -387,7 +568,7 @@ body {
  * thirteen blocks out of nine players and four absences. */
 @utility card-block-waiting {
   border: 1px dashed var(--color-rule);
-  border-radius: var(--radius-block);
+  border-radius: 0.625rem;
   padding: 0.75rem;
 }
 
@@ -427,7 +608,7 @@ body {
   line-height: var(--text-slot--line-height);
   letter-spacing: var(--text-slot--letter-spacing);
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-ink-soft);
 }
 
@@ -661,6 +842,128 @@ body {
    * *pacing* is the ceremony and is not motion — and only the travel is
    * dropped. Someone who has asked their phone for no motion still watches the
    * order being drawn; they simply are not moved through it. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* --- Moments (ADR-0011) --------------------------------------------------
+ * The season's celebrations. Each is played once per viewer by `Moment`,
+ * which only sets the attribute when this viewer has not seen the change
+ * before, so a reload is still. All share the one curve and all collapse to
+ * their end state under reduced motion. */
+@keyframes overtake {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes overtake-flash {
+  from { background-color: color-mix(in oklab, var(--color-gain) 28%, transparent); }
+  to { background-color: transparent; }
+}
+@keyframes crown-drop {
+  0% { transform: translateY(-140%) rotate(-14deg); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateY(0) rotate(-8deg); opacity: 1; }
+}
+@keyframes gold-sweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+@keyframes stamp {
+  from { transform: scale(1.8) rotate(-14deg); opacity: 0; }
+  to { transform: scale(1) rotate(-8deg); opacity: 1; }
+}
+@keyframes spoon-swing {
+  0% { transform: rotate(0); }
+  30% { transform: rotate(-18deg); }
+  60% { transform: rotate(10deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes badge-flip {
+  from { transform: perspective(400px) rotateY(90deg); opacity: 0; }
+  to { transform: perspective(400px) rotateY(0); opacity: 1; }
+}
+@keyframes wipe-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes rise-in {
+  from { transform: translateY(0.75rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes on-air-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+[data-moment="overtake"][data-playing] {
+  animation:
+    overtake 700ms var(--ease-broadcast) both,
+    overtake-flash 1400ms ease-out 500ms both;
+}
+[data-moment="crown"][data-playing] {
+  animation: crown-drop 800ms var(--ease-broadcast) both;
+}
+[data-moment="sweep"] {
+  position: relative;
+  overflow: hidden;
+}
+[data-moment="sweep"][data-playing]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, color-mix(in oklab, var(--color-gold) 30%, transparent), transparent);
+  animation: gold-sweep 1100ms var(--ease-broadcast) 350ms both;
+}
+[data-moment="stamp"][data-playing] {
+  animation: stamp 420ms var(--ease-broadcast) 250ms both;
+}
+[data-moment="spoon"][data-playing] {
+  transform-origin: 50% 10%;
+  animation: spoon-swing 1200ms var(--ease-broadcast) 300ms both;
+}
+[data-moment="badge"][data-playing] {
+  animation: badge-flip 620ms var(--ease-broadcast) both;
+}
+[data-moment="lower-third"][data-playing] {
+  animation: wipe-in 520ms var(--ease-broadcast) both;
+}
+[data-moment="lower-third"][data-playing] [data-moment-part="body"] {
+  animation: rise-in 520ms var(--ease-broadcast) 260ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-moment][data-playing],
+  [data-moment][data-playing]::after,
+  [data-moment][data-playing] [data-moment-part] {
+    animation: none !important;
+  }
+}
+
+/* A stamp: the verdict on a deal, set at a tilt like a rubber stamp. */
+@utility verdict-stamp {
+  display: inline-grid;
+  place-items: center;
+  padding: 0.2rem 0.55rem;
+  border: 2px solid currentColor;
+  border-radius: 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transform: rotate(-8deg);
+}
+
+/* The red "on air" dot beside the word LIVE. */
+@utility on-air-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: on-air-pulse 1.6s ease-in-out infinite;
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }

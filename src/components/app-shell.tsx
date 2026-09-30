@@ -12,6 +12,8 @@ import {
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 import { readShellLeagues, type LeagueLink } from "@/lib/leagues/queries";
+import { countMappingQueue } from "@/lib/mapping/queries";
+import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
 import {
   navFor,
   tabsFor,
@@ -34,7 +36,7 @@ import {
  */
 /** The side panel's sheet material, at menu size — not a framed Bank. */
 const POPOVER =
-  "absolute z-50 flex flex-col border border-rule-strong bg-stock-panel p-2";
+  "absolute z-50 flex flex-col rounded-xl border border-panel-border bg-stock-panel p-2";
 
 const focusRing =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live";
@@ -68,7 +70,10 @@ export async function AppShell({
     getSession(),
     readShellLeagues(),
   ]);
-  const groups = navFor({ league, isRosterManager: manager });
+  const mappingWaiting = manager
+    ? queueTotal(await countMappingQueue().catch(() => EMPTY_QUEUE))
+    : 0;
+  const groups = navFor({ league, isRosterManager: manager, mappingWaiting });
   const tabs = tabsFor(groups);
   const here = groups
     .flatMap((group) => group.items)
@@ -80,7 +85,7 @@ export async function AppShell({
       <div className="flex min-h-0 flex-1">
         <aside
           data-testid="sidebar"
-          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-[#303a47] bg-[#111824] px-4 py-4 lg:flex"
+          className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-panel-border bg-stock-sunk px-4 py-3 lg:flex"
         >
           <Masthead />
           <div className="mt-2">
@@ -95,9 +100,9 @@ export async function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="border-b border-[#303a47] bg-[#111a28]">
+          <header className="border-b border-panel-border bg-stock">
             <div className="flex min-h-14 items-center justify-between gap-3 px-5 py-2 sm:px-8">
-              <div className="min-w-0 lg:hidden">
+              <div className="min-w-0 shrink-0 lg:hidden">
                 <Masthead compact />
               </div>
               <p
@@ -173,13 +178,17 @@ function NavLink({
       aria-current={isHere ? "page" : undefined}
       className={`flex min-h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors ${focusRing} ${
         isHere
-          ? "bg-[#253542] font-semibold text-ink"
-          : "text-ink-soft hover:bg-[#1c2c3e] hover:text-ink"
+          ? "bg-stock-high font-semibold text-ink [&_svg]:text-live"
+          : "text-ink-soft hover:bg-stock-panel hover:text-ink"
       }`}
     >
       <NavIcon name={item.icon} />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {item.note ? <span className="slot-label text-ink">{item.note}</span> : null}
+      {item.note ? (
+        <span className="rounded-full bg-live px-2 py-0.5 text-[0.6875rem] leading-4 font-bold text-live-ink">
+          {item.note}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -198,11 +207,11 @@ function SidebarNavGroups({
           key={group.id}
           name="sidebar-nav"
           open={group.items.some((item) => item.key === current) || (!current && index === 0)}
-          className="group border-t border-[#26313d] first:border-0"
+          className="group border-t border-panel-border first:border-0"
         >
           <summary
             data-testid={`nav-group-${group.id}`}
-            className={`slot-label flex min-h-11 list-none items-center justify-between px-3 text-ink-soft transition-colors hover:bg-[#1c2c3e] hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
+            className={`slot-label flex min-h-9 list-none items-center justify-between rounded-md px-3 text-ink-soft transition-colors hover:bg-stock-panel hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
           >
             <span id={`nav-group-label-${group.id}`} className="truncate">{group.label}</span>
             <span aria-hidden="true" className="text-base transition-transform group-open:rotate-90">›</span>
@@ -240,7 +249,7 @@ function NavGroups({
   return (
     <>
       {groups.map((group) => (
-        <div key={group.id} className="flex flex-col gap-1 border-t border-[#26313d] pt-3 first:border-0 first:pt-0">
+        <div key={group.id} className="flex flex-col gap-1 border-t border-panel-border pt-3 first:border-0 first:pt-0">
           <p id={`${prefix}-group-${group.id}`} className="slot-label truncate px-3 text-ink-soft">
             {group.label}
           </p>
@@ -285,7 +294,7 @@ function LeagueSwitcher({
           <span className="sr-only">, switch league</span>
         </>
       }
-      buttonClassName={`slot-label flex min-h-11 min-w-11 items-center justify-between gap-2 border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 ${focusRing} ${
+      buttonClassName={`flex min-h-11 min-w-11 items-center justify-between gap-2 rounded-lg border border-panel-border bg-stock-panel px-3 text-sm font-semibold text-ink transition-colors hover:border-rule-strong ${focusRing} ${
         compact ? "max-w-40" : "w-full"
       }`}
       panelClassName={`${POPOVER} mt-1 gap-1 ${
@@ -370,13 +379,13 @@ function BottomTabs({
 }) {
   const tabClass = (isHere: boolean) =>
     `flex min-h-14 w-full min-w-11 flex-col items-center justify-center gap-1 border-t-2 px-1 text-[0.6875rem] leading-4 transition-colors ${focusRing} ${
-      isHere ? "border-ink text-ink" : "border-transparent text-ink-soft hover:text-ink"
+      isHere ? "border-live font-semibold text-ink [&_svg]:text-live" : "border-transparent text-ink-soft hover:text-ink"
     }`;
   return (
     <nav
       aria-label="Tabs"
       data-testid="bottom-tabs"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-[#303a47] bg-[#111824] pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-panel-border bg-stock-sunk pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       <ul role="list" className="grid grid-cols-5">
         {tabs.map((item) => (
@@ -433,9 +442,9 @@ function shortLabel(item: NavItem): string {
     case "pool":
       return "Players";
     case "matchday":
-      return "Matchday";
+      return "Live";
     case "standings":
-      return "League";
+      return "Table";
     case "news":
       return "News";
     case "mapping":

@@ -120,3 +120,15 @@ export const CUE_KEY = "eurovafliai:cues";
 export function cuesEnabled(stored: string | null): boolean {
   return stored === "on";
 }
+
+/**
+ * The pick-is-in sting (ADR-0011): a short falling third, heard by everyone in
+ * the room when a pick lands — the broadcast's "and the pick is…". Quieter
+ * and shorter than the clock tone, which remains the one that means "you".
+ * Plays only where cues are switched on, like every other noise here.
+ */
+export const PICK_STING = {
+  notes: [880, 698],
+  noteSeconds: 0.09,
+  gain: 0.1,
+} as const;

@@ -1,3 +1,5 @@
+import { formatClock } from "@/lib/time/local";
+
 export type FeedStatus = { readonly label: string; readonly alert: boolean };
 
 /** A displayed status must never imply finality from a provisional snapshot. */
@@ -18,7 +20,7 @@ export function feedStatus(input: {
   }
   if (checks.length > 0) {
     const latest = Math.max(...checks);
-    return { label: `Provisional feed updated ${new Date(latest).toISOString().slice(11, 16)} UTC`, alert: false };
+    return { label: `Provisional feed updated ${formatClock(latest)}`, alert: false };
   }
   const windowOpen = input.now > 0 ? input.gameTimes.some((stamp) => {
     const tip = Date.parse(stamp);

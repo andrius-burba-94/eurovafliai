@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Bank, CardName, Door, Slot, Slots } from "@/components/board";
+import { TeamCrest } from "@/components/broadcast";
+import type { CrestShape, TeamColor } from "@/lib/teams/identity";
 import {
   COUNTDOWN_MS,
   isDrawn,
@@ -15,6 +17,8 @@ type Seat = {
   readonly position: number;
   readonly name: string;
   readonly isYou: boolean;
+  readonly color: TeamColor;
+  readonly crest: CrestShape;
 };
 
 /**
@@ -140,11 +144,13 @@ export function RollCeremony({
         data-testid="roll-announcer"
         role="status"
         aria-live="polite"
-        className="flex flex-col items-center gap-3 py-4 text-center sm:py-8"
+        className="relative flex flex-col items-center gap-3 overflow-hidden rounded-card border border-panel-border bg-stock-panel px-4 py-8 text-center sm:py-12"
       >
+        <span aria-hidden="true" className="lattice pointer-events-none absolute inset-0" />
         {done ? (
           <>
-            <span className="slot-label text-ink-soft">First pick</span>
+            <span className="slot-label relative text-gold">First pick</span>
+            {first ? <TeamCrest name={first.name} color={first.color} shape={first.crest} size={96} className="relative" /> : null}
             {/* No figure here, and that is the phase difference rather than an
                 omission. The numeral's two jobs were counting and locating, and
                 at the end there is nothing left to count: the answer is a name.
@@ -152,7 +158,7 @@ export function RollCeremony({
                 one more step. `01` is on the row below, where it belongs. */}
             <p
               data-testid="roll-name"
-              className="text-3xl font-semibold tracking-[0.04em] break-words text-balance uppercase sm:text-4xl"
+              className="display relative text-4xl break-words text-balance sm:text-6xl"
             >
               {first?.name ?? "—"}
             </p>
@@ -188,15 +194,18 @@ export function RollCeremony({
           </>
         ) : (
           <>
-            <span className="slot-label text-ink-soft">
+            <span className="slot-label relative text-ink-soft">
               Slot {String(ceremony.landed).padStart(2, "0")}
             </span>
+            {landedSeat ? (
+              <TeamCrest key={`crest-${ceremony.landed}`} name={landedSeat.name} color={landedSeat.color} shape={landedSeat.crest} size={72} className="slot-drawn relative" />
+            ) : null}
             <span data-testid="roll-figure" className="roll-clock text-live">
               {String(ceremony.landed).padStart(2, "0")}
             </span>
             <p
               data-testid="roll-name"
-              className="text-3xl font-semibold tracking-[0.04em] break-words text-balance uppercase sm:text-4xl"
+              className="display relative text-4xl break-words text-balance sm:text-6xl"
             >
               {landedSeat?.name ?? "—"}
             </p>
@@ -241,7 +250,10 @@ export function RollCeremony({
                     key={`drawn-${seat.position}`}
                     className="slot-drawn flex flex-wrap items-baseline gap-x-3"
                   >
-                    <CardName>{seat.name}</CardName>
+                    <span className="flex items-center gap-2 self-center">
+                      <TeamCrest name={seat.name} color={seat.color} shape={seat.crest} size={24} />
+                      <CardName>{seat.name}</CardName>
+                    </span>
                     {seat.isYou ? (
                       <span className="slot-label text-ink-soft">you</span>
                     ) : null}

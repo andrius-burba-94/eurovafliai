@@ -1,289 +1,383 @@
 import Link from "next/link";
-import { ClubCrest, PlayerPortrait } from "@/components/official-media";
-import { PlayerStatsLink } from "@/components/player-stats-link";
+import type { ReactNode } from "react";
 
-import {
-  Bank,
-  CardBlock,
-  CardBlocks,
-  Door,
-  EmptyNotice,
-  PositionPatch,
-  Slot,
-  Slots,
-  Sparkline,
-} from "@/components/board";
-import {
-  formatHundredths,
-  formatSignedHundredths,
-  formatSignedTenths,
-  formatTenths,
-} from "@/lib/stats/scoring";
+import { Bank, Door, EmptyNotice, PositionPatch, Slot, Slots } from "@/components/board";
+import { PageHeader, ScoreFigure, TeamCrest, teamFieldStyle } from "@/components/broadcast";
+import { Glyph } from "@/components/glyphs";
+import { Moment } from "@/components/moment";
+import { PlayerPortrait } from "@/components/official-media";
+import type { Position } from "@/lib/engine";
+import type { PanelData } from "@/lib/panel/types";
 import {
   dashboardRoster,
   dashboardStandings,
   seasonLabel,
   type DashboardRosterPlayer,
 } from "@/lib/season/dashboard";
+import { movementOf, ordinal, roundStory } from "@/lib/season/story";
+import {
+  formatHundredths,
+  formatSignedHundredths,
+  formatSignedTenths,
+  formatTenths,
+} from "@/lib/stats/scoring";
 import type { Recap } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
-import type { Position } from "@/lib/engine";
+import type { TeamStyle } from "@/lib/teams/identity";
+import { formatTipOff } from "@/lib/time/local";
 
 /**
- * The season dashboard — what a league sees once the draft is over.
+ * League Home in season (ADR-0011): your team as the scoreboard's hero, the
+ * round in one line, the table and the round's story side by side, then the
+ * conversation. The page answers "how am I doing and what do I do next"
+ * before anything else, at phone width, on first load.
  *
- * ## Why it replaced a grid of doors
- *
- * Until now the season lobby was four `Door` blocks: Standings, Your lineup,
- * This round, Record a transaction. Every one of them was a *promise of a
- * surface* rather than a surface, so the page that a league opens most often
- * during the thirty-eight rounds it plays told it nothing at all — you had to
- * pick a door to learn whether you were winning.
- *
- * So the four panels of the brief: the table, the conversation, your roster and
- * the league's news, on one screen, in the density this app is for. The doors
- * survive as the way *in* to each surface, not as the surface itself.
- *
- * ## The three panels the brief asked for that this product cannot tell the truth about
- *
- * Recorded here rather than silently substituted, because a later reader will
- * otherwise try to "finish" them:
- *
- * - **A W-L column.** This league has no head-to-head: standings are cumulative
- *   fantasy points with per-round snapshots (4.5). There is no opponent to have
- *   beaten, so the column would read `0-0` forever. It is `PTS` and the round's
- *   movement instead, which is what the league is actually playing for.
- * - **"Matchup of the week".** The same fact, larger: there is no matchup
- *   format anywhere in the blueprint, PRODUCT.md or CONTEXT.md, and inventing
- *   one would be inventing a game. What a round genuinely has is 5.4's recap —
- *   the night's ranking, the best night, and the deal that moved most — so the
- *   card shows that.
- * - **Player headshots.** The official roster now supplies the permitted
- *   portraits and club marks via the player's person code. Players absent
- *   from the official roster keep a letter fallback.
- *
- * This is the same discipline as **D19** (purple head coaches) and **D23** (the
- * double round): a brief item that describes data the competition does not
- * produce is dropped on the measurement, with the number written down.
+ * What it still refuses to claim: there is no head-to-head in this league, so
+ * no W-L column and no "matchup"; a round is one night against the whole
+ * table, and the story says so in its own facts — who won the night, by how
+ * much, who took the wooden spoon.
  */
 export function SeasonDashboard({
   leagueId,
+  leagueName,
   season,
   snapshots,
   recap,
   playerNames,
+  playerCodes,
   roster,
   rosterTemplate,
   teamNames,
+  teamStyles,
   youMemberId,
+  schedule,
   activity,
 }: {
   leagueId: string;
+  leagueName: string;
   season: string;
   snapshots: readonly RoundSnapshot[];
   recap: Recap | null;
   playerNames: Readonly<Record<string, string>>;
+  playerCodes: Readonly<Record<string, string>>;
   roster: readonly DashboardRosterPlayer[];
   rosterTemplate: Readonly<Record<Position, number>>;
   teamNames: Readonly<Record<string, string>>;
+  teamStyles: Readonly<Record<string, TeamStyle>>;
   youMemberId: string | null;
+  schedule: PanelData["schedule"];
   /** Chat, trades and EuroLeague updates share this space. */
-  activity: React.ReactNode;
+  activity: ReactNode;
 }) {
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.at(-2) ?? null;
-  const totals = Object.fromEntries(
-    (latest?.table ?? []).map((row) => [row.memberId, row.totalHundredths]),
-  );
   const standings = dashboardStandings({
-    totals,
+    totals: Object.fromEntries((latest?.table ?? []).map((row) => [row.memberId, row.totalHundredths])),
     previous: previous
-      ? Object.fromEntries(
-          previous.table.map((row) => [row.memberId, row.totalHundredths]),
-        )
+      ? Object.fromEntries(previous.table.map((row) => [row.memberId, row.totalHundredths]))
       : null,
     teamNames,
     youMemberId,
   });
+  const leaderTotal = standings[0]?.totalHundredths ?? 0;
+  const movement = youMemberId ? movementOf(snapshots, youMemberId, teamNames) : null;
+  const story = roundStory(recap);
   const groups = dashboardRoster(roster, rosterTemplate);
-  const yourRank = standings.findIndex((row) => row.isYou) + 1;
+  const rosterTotal = rosterTemplate.G + rosterTemplate.F + rosterTemplate.C;
+  const nameOf = (memberId: string) => teamNames[memberId] ?? "A team";
+  const styleOf = (memberId: string) => teamStyles[memberId];
+  const you = youMemberId ? { name: nameOf(youMemberId), style: styleOf(youMemberId) } : null;
+  const yourNight = youMemberId ? recap?.rows.findIndex((row) => row.memberId === youMemberId) ?? -1 : -1;
+
+  const upcoming = schedule?.games.filter((game) => !game.played && game.tipOff) ?? [];
+  const nextTip = upcoming.map((game) => game.tipOff!).sort()[0] ?? null;
+  const nextRound =
+    upcoming.length > 0 && (!latest || schedule!.round > latest.round) ? schedule!.round : null;
 
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-[0.04em] uppercase sm:text-4xl">
-          {seasonLabel(season)}
-        </h1>
-        <span className="slot-label text-ink-soft">
-          {latest
-            ? `Regular season in progress · Round ${latest.round}`
-            : "Regular season · no round scored yet"}
-          {" · "}
-          {standings.length || Object.keys(teamNames).length} teams
-        </span>
-      </div>
+      <PageHeader
+        eyebrow={`${seasonLabel(season)} season${latest ? ` · after round ${latest.round}` : ""}`}
+        title={leagueName}
+      />
 
-      {/* Two columns from `lg`, one on a phone, in the order the brief reads
-          them: the table and the conversation, then your roster and the news.
-          Below `lg` nothing is side by side — draft night and match night are
-          both phones on a couch. */}
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-x-6 lg:items-start">
+      {you ? (
+        <section
+          data-testid="dashboard-hero"
+          aria-label="Your team"
+          className="team-field relative overflow-hidden rounded-card border border-panel-border p-4 sm:p-6"
+          style={you.style ? teamFieldStyle(you.style.color) : undefined}
+        >
+          <div aria-hidden="true" className="lattice pointer-events-none absolute inset-0" />
+          <div className="relative flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              {you.style ? <TeamCrest name={you.name} color={you.style.color} shape={you.style.crest} size={52} /> : null}
+              <div className="min-w-0">
+                <p className="slot-label">Your team</p>
+                <p className="display truncate text-2xl sm:text-3xl">{you.name}</p>
+              </div>
+            </div>
+
+            {movement ? (
+              <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+                <div>
+                  <p className="slot-label">Rank</p>
+                  <ScoreFigure size="xl" testId="dashboard-rank">
+                    {ordinal(movement.rank)}
+                  </ScoreFigure>
+                </div>
+                <div className="flex flex-col gap-1 pb-1">
+                  <ScoreFigure size="md">{formatHundredths(movement.totalHundredths)}</ScoreFigure>
+                  <p className="text-sm text-ink-soft">
+                    {movement.moved > 0 ? (
+                      <span className="font-semibold text-gain">▲ {movement.moved} </span>
+                    ) : movement.moved < 0 ? (
+                      <span className="font-semibold text-loss">▼ {-movement.moved} </span>
+                    ) : null}
+                    {movement.passed.length > 0
+                      ? `passed ${movement.passed.slice(0, 2).map(nameOf).join(" and ")}${
+                          movement.passed.length > 2 ? ` and ${movement.passed.length - 2} more` : ""
+                        }`
+                      : movement.gap > 0
+                        ? `${formatHundredths(movement.gap)} behind the leader`
+                        : "points, top of the table"}
+                  </p>
+                  {yourNight >= 0 && recap ? (
+                    <p className="text-sm text-ink-soft">
+                      {ordinal(yourNight + 1)} on the night in round {recap.round} ·{" "}
+                      <span className="stat text-ink">{formatHundredths(recap.rows[yourNight]!.hundredths)}</span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-ink-soft">No round has been scored yet. Your rank arrives after the first counted night.</p>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-ink-soft">
+                {nextRound && nextTip
+                  ? `Round ${nextRound} tips off ${formatTipOff(nextTip)}`
+                  : "Set who starts and who is captain before each round."}
+              </p>
+              <Link
+                href={`/leagues/${leagueId}/lineup`}
+                data-testid="hero-lineup"
+                className="inline-flex min-h-11 items-center rounded-lg bg-live px-5 text-sm font-bold text-live-ink transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              >
+                Set lineup
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {story ? (
+        <p
+          data-testid="dashboard-ticker"
+          className="flex items-stretch overflow-x-auto rounded-lg border border-panel-border text-sm whitespace-nowrap"
+        >
+          <span className="display grid place-items-center bg-live px-3 text-base text-live-ink">Round {story.round}</span>
+          <span className="flex items-center gap-2 border-r border-panel-border px-3 py-2 text-ink-soft">
+            <Glyph name="crown" size={14} className="text-gold" />
+            <span className="font-semibold text-ink">{nameOf(story.winner.memberId)}</span> won the night
+          </span>
+          {recap?.bestNight && recap.bestNight.fantasyTenths > 0 ? (
+            <span className="flex items-center gap-2 border-r border-panel-border px-3 py-2 text-ink-soft">
+              <Glyph name="star" size={14} className="text-live" />
+              Best night <span className="font-semibold text-ink">{playerNames[recap.bestNight.playerId] ?? "A player"}</span>
+            </span>
+          ) : null}
+          {story.spoon ? (
+            <span className="flex items-center gap-2 px-3 py-2 text-ink-soft">
+              <Glyph name="spoon" size={14} className="text-wood" />
+              Spoon <span className="font-semibold text-ink">{nameOf(story.spoon.memberId)}</span>
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-x-6">
         <Bank
           label="League standings"
-          aside={
-            latest ? (
-              <span data-testid="dashboard-round">Round {latest.round}</span>
-            ) : undefined
-          }
+          aside={latest ? <span data-testid="dashboard-round">Round {latest.round}</span> : undefined}
           framed
         >
           {standings.length === 0 ? (
             <EmptyNotice testId="dashboard-standings-empty">
-              No round has been scored yet. The table fills in after the first
-              Euroleague night this league counts.
+              No round has been scored yet. The table fills in after the first Euroleague night this league counts.
             </EmptyNotice>
           ) : (
-            <>
-              {/* A ledger, so a slot run rather than card blocks: these rows are
-                  compared down a column, which is the whole distinction
-                  DESIGN.md draws between the two materials. */}
-              <div className="slot-label flex items-baseline justify-between gap-3 px-3 pb-1 text-ink-faint">
-                <span>Pos &middot; Team</span>
-                <span className="flex items-baseline gap-4">
-                  <span>Pts</span>
-                  <span className="w-14 text-right">Round</span>
-                </span>
-              </div>
-              {/* No `current` on the viewer's row, deliberately: that is
-                  `Slot`'s keyboard cursor — a 2px ink outline plus
-                  `aria-current` — and "this row is mine" is not a cursor
-                  position. The word "you" in the row carries it, which is the
-                  rule the lobby's own member list already follows. */}
-              <Slots testId="dashboard-standings">
-                {standings.map((row) => (
-                  <Slot
-                    key={row.memberId}
-                    testId="dashboard-standing"
-                    state="filled"
-                  >
-                    <span className="flex min-w-0 items-baseline gap-3">
-                      <span className="stat text-ink-faint">
-                        {String(row.position).padStart(2, "0")}
-                      </span>
+            <Slots testId="dashboard-standings">
+              {standings.map((row) => {
+                const style = styleOf(row.memberId);
+                const content = (
+                  <span className="flex w-full items-center gap-3">
+                    <span className="stat w-6 shrink-0 text-ink-faint">{String(row.position).padStart(2, "0")}</span>
+                    {style ? <TeamCrest name={row.teamName} color={style.color} shape={style.crest} size={28} /> : null}
+                    <span className="flex min-w-0 flex-1 flex-col">
                       <Link
                         href={`/leagues/${leagueId}/teams/${row.memberId}?season=${season}`}
-                        className="min-w-0 truncate text-sm text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                        className="min-w-0 truncate text-sm font-semibold text-ink underline decoration-ink/0 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                       >
                         {row.teamName}
+                        {row.isYou ? <span className="ml-2 rounded-full bg-live-sunk px-1.5 py-0.5 text-[0.6875rem] font-bold text-live">you</span> : null}
                       </Link>
-                      {row.isYou ? (
-                        <span className="slot-label text-ink-soft">you</span>
-                      ) : null}
-                    </span>
-                    <span className="flex items-baseline gap-4">
-                      <span className="stat text-ink">
-                        {formatHundredths(row.totalHundredths)}
-                      </span>
-                      {/* Null is not zero: no previous round to compare
-                          against prints nothing, where a blank round prints
-                          +0.0. The distinction is the panel's one real sum. */}
-                      <span className="stat w-14 text-right text-ink-soft">
-                        {row.roundHundredths === null
-                          ? ""
-                          : formatSignedHundredths(row.roundHundredths)}
+                      <span className="text-xs text-ink-faint">
+                        {row.totalHundredths === leaderTotal ? "Leader" : `−${formatHundredths(leaderTotal - row.totalHundredths)}`}
                       </span>
                     </span>
+                    <span className="flex flex-col items-end">
+                      <span className="stat font-semibold text-ink">{formatHundredths(row.totalHundredths)}</span>
+                      <span className="stat text-xs text-ink-soft">
+                        {row.roundHundredths === null ? "" : formatSignedHundredths(row.roundHundredths)}
+                      </span>
+                    </span>
+                  </span>
+                );
+                return (
+                  <Slot key={row.memberId} testId="dashboard-standing" state="filled" nowrap>
+                    {row.isYou && movement && movement.moved > 0 && latest ? (
+                      <Moment kind="overtake" id={`overtake:${leagueId}:${latest.round}:${movement.rank}`} as="span" className="flex w-full">
+                        {content}
+                      </Moment>
+                    ) : (
+                      content
+                    )}
                   </Slot>
-                ))}
-              </Slots>
-            </>
+                );
+              })}
+            </Slots>
           )}
-          {/* Outside the branch above, deliberately. A door is *navigation*,
-              and navigation that vanishes when a panel has no data is how a
-              league loses its way to a surface on the day it most wants to
-              look: the first day of a season, or any time the configured season
-              has nothing ingested yet. The page it opens carries its own season
-              selector, which is exactly how you reach the season this panel
-              could not show. Caught by `recap.spec.ts`, which seeds a different
-              season and lost the door along with the table. */}
           <Slots>
             <Door
               href={`/leagues/${leagueId}/standings?season=${season}`}
               testId="enter-standings"
               title="The full table"
-              description="Every round, side by side, with the phase filter."
+              description="Every round side by side, with each round's winner."
               action="Open"
             />
           </Slots>
         </Bank>
 
-        <div className="flex flex-col gap-4">{activity}</div>
+        <Bank label={story ? `Round ${story.round} story` : "This round"} framed>
+          {story ? (
+            <div className="flex flex-col gap-3" data-testid="dashboard-night">
+              <Moment kind="sweep" id={`crown:${leagueId}:${story.round}`} testId="dashboard-winner" className="rounded-xl border border-gold/40 bg-gold/8 p-3">
+                <p className="slot-label flex items-center gap-1.5 text-gold">
+                  <Glyph name="crown" size={14} /> Round winner
+                </p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-3">
+                    {styleOf(story.winner.memberId) ? (
+                      <span className="relative">
+                        <TeamCrest
+                          name={nameOf(story.winner.memberId)}
+                          color={styleOf(story.winner.memberId)!.color}
+                          shape={styleOf(story.winner.memberId)!.crest}
+                          size={44}
+                        />
+                        <Moment kind="crown" id={`crown-drop:${leagueId}:${story.round}`} as="span" className="absolute -top-3.5 left-2.5 text-gold">
+                          <Glyph name="crown" size={22} />
+                        </Moment>
+                      </span>
+                    ) : null}
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{nameOf(story.winner.memberId)}</span>
+                      {story.margin !== null ? (
+                        <span className="text-xs text-ink-soft">by {formatHundredths(story.margin)}</span>
+                      ) : null}
+                    </span>
+                  </span>
+                  <ScoreFigure size="md">{formatHundredths(story.winner.hundredths)}</ScoreFigure>
+                </div>
+              </Moment>
 
+              {recap?.bestNight && recap.bestNight.fantasyTenths > 0 ? (
+                <div data-testid="dashboard-best-night" className="flex items-center justify-between gap-3 rounded-xl border border-panel-border p-3">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <PlayerPortrait personCode={playerCodes[recap.bestNight.playerId]} name={playerNames[recap.bestNight.playerId] ?? "A player"} />
+                    <span className="min-w-0">
+                      <span className="slot-label block">Best night</span>
+                      <span className="block truncate font-semibold">{playerNames[recap.bestNight.playerId] ?? "A player"}</span>
+                      <span className="text-xs text-ink-soft">for {nameOf(recap.bestNight.memberId)}</span>
+                    </span>
+                  </span>
+                  <ScoreFigure size="sm">{formatTenths(recap.bestNight.fantasyTenths)}</ScoreFigure>
+                </div>
+              ) : null}
+
+              {story.spoon ? (
+                <div data-testid="dashboard-spoon" className="flex items-center justify-between gap-3 rounded-xl border border-panel-border p-3">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <Moment kind="spoon" id={`spoon:${leagueId}:${story.round}`} as="span" className="grid size-10 place-items-center text-wood">
+                      <Glyph name="spoon" size={30} />
+                    </Moment>
+                    <span className="min-w-0">
+                      <span className="slot-label block">Wooden spoon</span>
+                      <span className="block truncate font-semibold">{nameOf(story.spoon.memberId)}</span>
+                    </span>
+                  </span>
+                  <span className="stat text-ink-soft">{formatHundredths(story.spoon.hundredths)}</span>
+                </div>
+              ) : null}
+
+              {recap?.biggestSwing ? (
+                <div data-testid="dashboard-swing" className="flex items-center justify-between gap-3 rounded-xl border border-panel-border p-3">
+                  <span className="min-w-0">
+                    <span className="slot-label block">Biggest swing</span>
+                    <span className="block truncate text-sm">
+                      {nameOf(recap.biggestSwing.memberId)}, from round {recap.biggestSwing.fromRound}
+                    </span>
+                  </span>
+                  <span className={`stat font-semibold ${recap.biggestSwing.deltaTenths >= 0 ? "text-gain" : "text-loss"}`}>
+                    {formatSignedTenths(recap.biggestSwing.deltaTenths)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <EmptyNotice testId="dashboard-news-empty">
+              Nothing to report yet. A round&rsquo;s story arrives with the first night this league counts.
+            </EmptyNotice>
+          )}
+          <Slots>
+            <Door
+              href={`/leagues/${leagueId}/recap?season=${season}`}
+              testId="enter-recap"
+              title="The whole round"
+              description="Every team's night, the best night and the deal that moved most."
+              action="Open"
+            />
+          </Slots>
+        </Bank>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-start lg:gap-x-6">
         <Bank
-          label="My roster"
+          label="Your roster"
           aside={
             <span data-testid="dashboard-roster-tally">
-              {roster.length} of{" "}
-              {rosterTemplate.G + rosterTemplate.F + rosterTemplate.C}
+              {roster.length} of {rosterTotal}
             </span>
           }
           framed
         >
           {roster.length === 0 ? (
             <EmptyNotice testId="dashboard-roster-empty">
-              You have no players yet. A roster is written when the draft
-              completes.
+              You have no players yet. A roster is written when the draft completes.
             </EmptyNotice>
           ) : (
-            groups.map((group) => (
-              <div key={group.position} className="flex flex-col gap-3">
-                <div className="slot-label flex items-baseline justify-between gap-3 px-3">
-                  <span>{group.label}</span>
-                  <span
-                    data-testid="dashboard-group-count"
-                    className="stat text-ink-soft"
-                  >
+            <div className="flex flex-wrap items-center gap-2">
+              {groups.map((group) => (
+                <span key={group.position} className="flex items-center gap-1.5">
+                  <PositionPatch position={group.position} />
+                  <span data-testid="dashboard-group-count" className="stat text-sm text-ink-soft">
                     {group.filled}/{group.of}
                   </span>
-                </div>
-                {group.players.length === 0 ? (
-                  <EmptyNotice>Nobody in this bucket yet.</EmptyNotice>
-                ) : (
-                  <CardBlocks
-                    testId="dashboard-roster-group"
-                    label={group.label}
-                    columns
-                  >
-                    {group.players.map((player) => (
-                      <CardBlock
-                        key={player.id}
-                        testId="dashboard-roster-player"
-                        position={player.position}
-                      >
-                        <span className="flex min-w-0 items-center justify-between gap-3">
-                          <PlayerPortrait personCode={player.personCode} name={player.name} />
-                          <PlayerStatsLink
-                            id={player.id}
-                            name={player.name}
-                            className="min-w-0 truncate text-sm text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                          >
-                            {player.name}
-                          </PlayerStatsLink>
-                          <PositionPatch position={player.position} />
-                        </span>
-                        <span className="flex items-baseline justify-between gap-3">
-                          <span className="slot-label flex items-center gap-1 text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubCode}</span>
-                          <Sparkline
-                            values={player.last5Pirs}
-                            what={`${player.name} last five PIRs`}
-                          />
-                        </span>
-                      </CardBlock>
-                    ))}
-                  </CardBlocks>
-                )}
-              </div>
-            ))
+                </span>
+              ))}
+            </div>
           )}
           <Slots>
             <Door
@@ -293,83 +387,19 @@ export function SeasonDashboard({
               description="Who starts, who is captain, who sits — per round."
               action="Set it"
             />
+            {youMemberId ? (
+              <Door
+                href={`/leagues/${leagueId}/teams/${youMemberId}?season=${season}`}
+                testId="enter-my-team"
+                title="Your players"
+                description="Form, fixtures and the deals that changed your squad."
+                action="Open"
+              />
+            ) : null}
           </Slots>
         </Bank>
 
-        <div className="flex flex-col gap-8">
-          <Bank label="This round" framed>
-            {recap ? (
-              <>
-                {/* The brief's "matchup of the week", told truthfully: this
-                    league plays one Euroleague night at a time against the
-                    whole table, so the night's own facts are the result. */}
-                <Slots testId="dashboard-night">
-                  <Slot state="filled">
-                    <span className="slot-label">Round {recap.round}</span>
-                    {/* Prose, in the words family. `stat` is for figures read
-                        *down a column*, and "You finished 3 of 12" is a
-                        sentence with a number in it — which DESIGN.md's own
-                        rule keeps in Space Grotesk. */}
-                    <span className="text-sm text-ink">
-                      {yourRank > 0
-                        ? `You finished ${yourRank} of ${standings.length}.`
-                        : "You are not in this table."}
-                    </span>
-                  </Slot>
-                  {/* A best night of 0.0 is what an unscored round looks
-                      like from here — the recap ranks whoever it has, and
-                      before any box score lands that is somebody with nothing.
-                      Headlining it would announce a performance that did not
-                      happen. */}
-                  {recap.bestNight && recap.bestNight.fantasyTenths > 0 ? (
-                    <Slot testId="dashboard-best-night" state="filled">
-                      <span className="flex min-w-0 flex-col gap-1">
-                        <span className="slot-label">Best night</span>
-                        <span className="truncate text-sm text-ink">
-                          {playerNames[recap.bestNight.playerId] ?? "A player"}
-                        </span>
-                      </span>
-                      <span className="stat text-ink">
-                        {formatTenths(recap.bestNight.fantasyTenths)}
-                      </span>
-                    </Slot>
-                  ) : null}
-                  {recap.biggestSwing ? (
-                    <Slot testId="dashboard-swing" state="filled">
-                      <span className="flex min-w-0 flex-col gap-1">
-                        <span className="slot-label">Biggest swing</span>
-                        <span className="truncate text-sm text-ink">
-                          {teamNames[recap.biggestSwing.memberId] ?? "A team"},
-                          from round {recap.biggestSwing.fromRound}
-                        </span>
-                      </span>
-                      <span className="stat text-ink">
-                        {formatSignedTenths(recap.biggestSwing.deltaTenths)}
-                      </span>
-                    </Slot>
-                  ) : null}
-                </Slots>
-              </>
-            ) : (
-              <EmptyNotice testId="dashboard-news-empty">
-                Nothing to report yet. A round&rsquo;s news arrives with the
-                first night this league counts.
-              </EmptyNotice>
-            )}
-            {/* Same rule as the standings door above: the way to a surface does
-                not depend on this panel having something to say. */}
-            <Slots>
-              <Door
-                href={`/leagues/${leagueId}/recap?season=${season}`}
-                testId="enter-recap"
-                title="This round, in full"
-                description="Every team's night, the best night and the deal that moved most."
-                action="Open"
-              />
-            </Slots>
-          </Bank>
-
-        </div>
+        <div className="flex flex-col gap-4">{activity}</div>
       </div>
     </>
   );

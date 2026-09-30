@@ -2,6 +2,10 @@
 
 <!-- impeccable:product-schema 1 -->
 
+## Register
+
+product
+
 ## Platform
 
 web
@@ -104,13 +108,43 @@ phone, and a mid-draft rollback is a supported operation rather than a disaster.
 - **Name:** Eurovafliai. Lithuanian-flavored, affectionate, slightly silly —
   the product is for friends, not for clients. It does not pretend to be a
   sports-industry SaaS.
-- **Recorded design direction** (from the blueprint, not expanded here):
-  *broadcast scoreboard restraint* — data-dense, calm surfaces, one accent doing
-  real work (on-the-clock highlight, position colors), no card-in-card, no
-  gradient soup. Motion is reserved for meaningful state changes: the roll, a
-  pick landing on the board.
+- **Recorded design direction** (ADR-0011, *matchnight broadcast*): the app
+  reads like the scoreboard graphic of a game night — one big number per page,
+  team colours and crests, Tip-off orange for the one act, dark and light
+  grounds following the device. Moments celebrate changes a friend would point
+  at (a crown, an overtake, a spoon, a deal verdict, a pick landing) and hold
+  still under reduced motion. No card-in-card, no ad hoc gradients.
 - Draft night is **phones on a couch**: mobile-first is a product commitment,
   not a nice-to-have.
+
+## Brand Personality
+
+**Broadcast, confident, playful.**
+
+- **Broadcast:** it reads like the scoreboard graphic on the TV in the same
+  room. Dense, legible at a glance, calm until something happens.
+- **Confident:** the server is the referee, and the interface speaks like one.
+  State is stated, not hedged: whose pick it is, what the clock says, what a
+  trade actually cost. No "oops", no apologetic copy around rules.
+- **Playful:** the name is a joke among friends and the product can wink back.
+  Humor lives in small moments (the roll, a pick landing, chat announcements),
+  never in the numbers and never at the expense of clarity.
+
+Emotional goal for draft night: shared tension and fun around one board.
+Emotional goal for the season: trust that the standings are right without
+anyone checking.
+
+## Anti-references
+
+- **Generic SaaS dashboard.** Cream backgrounds, hero-metric tiles, identical
+  card grids, onboarding tours. This is a league among friends, not a B2B
+  product.
+- **Sportsbooks and betting apps.** Neon odds, flashing urgency, casino energy,
+  "act now" pressure. Nothing here is money, and the clock should feel tense,
+  not predatory.
+- **Cluttered big-network fantasy apps.** Ads, tab bars inside tab bars, promo
+  banners, news feeds crowding out the board. The draft room shows the board,
+  the clock and the pool; everything else earns its place or leaves.
 
 ## Evidence on Hand
 

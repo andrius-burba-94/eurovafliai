@@ -7,7 +7,9 @@ import {
   PositionPatch,
 } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { TeamCrest } from "@/components/broadcast";
 import { ContextPanel } from "@/components/context-panel";
+import { DownloadMenu } from "@/components/download-menu";
 import { DraftBoard, type BoardEntry } from "@/components/draft-board";
 import { LeagueChat } from "@/components/league-chat";
 import { RosterRadar } from "@/components/roster-radar";
@@ -26,6 +28,7 @@ import { DraftControls } from "./draft-controls";
 import { LiveDraft } from "./live-draft";
 import { PickClock } from "./pick-clock";
 import { PickForm } from "./pick-form";
+import { PickIsIn } from "./pick-is-in";
 
 
 /**
@@ -77,6 +80,7 @@ export default async function DraftPage({
     memberId,
     name: nameOf.get(memberId)?.name ?? "Unknown member",
     isYou: Boolean(nameOf.get(memberId)?.isYou),
+    style: nameOf.get(memberId)?.style,
   }));
   const entries = new Map<number, BoardEntry>(
     picks.map((pick) => [
@@ -169,7 +173,7 @@ export default async function DraftPage({
             <p className="slot-label">
               Paused &middot; pick {draft.current_pick}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em] sm:text-3xl">
+            <h1 className="display mt-1 text-3xl sm:text-4xl">
               The draft is paused
             </h1>
             {needsLine ? <div className="mt-2">{needsLine}</div> : null}
@@ -191,11 +195,21 @@ export default async function DraftPage({
                 the whole thing grows 4px on a Pixel 7 and 12px at 1440,
                 which is the budget a band that never leaves the viewport
                 gets to spend. */}
-            <h1 className="mt-1 text-xl font-semibold uppercase tracking-[0.04em] sm:text-2xl">
-              {isYourTurn
-                ? "You are on the clock"
-                : `${onClock.memberName} is on the clock`}
-            </h1>
+            <div className="mt-1 flex items-center gap-3">
+              {nameOf.get(onClock.memberId)?.style ? (
+                <TeamCrest
+                  name={onClock.memberName}
+                  color={nameOf.get(onClock.memberId)!.style.color}
+                  shape={nameOf.get(onClock.memberId)!.style.crest}
+                  size={40}
+                />
+              ) : null}
+              <h1 className="display text-2xl sm:text-4xl">
+                {isYourTurn
+                  ? "You are on the clock"
+                  : `${onClock.memberName} is on the clock`}
+              </h1>
+            </div>
             {/* The clock is the room's, not the picker's: everybody watches
                 the same number run down. It only renders while a draft is
                 live, which is the only state `onClock` is non-null in. */}
@@ -212,18 +226,19 @@ export default async function DraftPage({
           </>
         ) : (
           <>
-            <p className="slot-label">Complete</p>
-            <h1 className="mt-1 text-2xl font-semibold uppercase tracking-[0.04em]">
-              Every slot is filled
+            <p className="slot-label">Complete · {picks.length} picks</p>
+            <h1 className="display mt-1 text-3xl sm:text-4xl">
+              That&rsquo;s the draft
             </h1>
             {view.you ? (
-              <Link
-                href={`/leagues/${id}/standings`}
-                data-testid="enter-standings"
-                className="mt-3 inline-flex border-b border-ink/50 text-sm hover:border-ink/80"
-              >
-                Open the standings
-              </Link>
+              <span className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+                <Link href={`/leagues/${id}/standings`} data-testid="enter-standings" className="text-live hover:underline">
+                  Open the standings &rarr;
+                </Link>
+                <Link href={`/leagues/${id}/stats#draft`} className="text-live hover:underline">
+                  Steals and busts so far &rarr;
+                </Link>
+              </span>
             ) : null}
           </>
         )}
@@ -243,6 +258,22 @@ export default async function DraftPage({
           live={!isPaused && !!onClock}
         />
       </div>
+
+      <PickIsIn
+        latest={
+          picks.length > 0
+            ? {
+                overallNo: picks.at(-1)!.overallNo,
+                round: Math.ceil(picks.at(-1)!.overallNo / Math.max(1, draft.order.length)),
+                playerName: picks.at(-1)!.playerName,
+                position: picks.at(-1)!.position,
+                memberName: nameOf.get(picks.at(-1)!.memberId)?.name ?? "A team",
+                style: nameOf.get(picks.at(-1)!.memberId)?.style,
+                isAuto: picks.at(-1)!.isAuto,
+              }
+            : null
+        }
+      />
 
       {/* Renders nothing while the subscription is healthy. It is mounted
           here, high in the room, because "this board may be behind" is only
@@ -266,9 +297,9 @@ export default async function DraftPage({
 
       {/* Two columns from `lg` up, one below it — the room's whole layout
           decision, and it is about what a person does rather than about
-          screen size. The left column is where you ACT: the sheet nudge, your
-          own autodraft switch, and the pool. The right column is what you
-          WATCH: the radar, the board, the commissioner's panel and the
+          screen size. The left column is where you ACT: the pool. The right
+          column opens with your own switches and the sheet nudge, then what
+          you WATCH: the radar, the board, the commissioner's panel and the
           transcript.
           
           On a phone this is one flow in the order it has always been, with
@@ -281,12 +312,17 @@ export default async function DraftPage({
           `items-start` so the shorter column does not stretch to the taller
           one's height and leave a framed Bank with a metre of empty stock
           under its last row. */}
-      <div className="flex flex-col gap-8 sm:gap-slot lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <div className="flex flex-col gap-8 sm:gap-slot">
+      {/* From `lg`, the switches about *you* head the watching column instead
+          of sitting above the pool: stacked there, they put the first player
+          at the bottom edge of a 900px laptop screen. The pool spans both rows,
+          and `1fr` on the second row keeps its height from stretching the
+          first. On a phone the three read in source order, as before. */}
+      <div className="flex flex-col gap-8 sm:gap-slot lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-8">
+        <div className="flex flex-col gap-8 empty:hidden sm:gap-slot lg:col-start-2 lg:row-start-1">
           {/* The way to a sheet for somebody who has not written one — the pool
               pins a link for everybody who has. Shown to a member only: a
               commissioner with no membership row has no roster to rank for. */}
-          {view.you && view.sheet.length === 0 ? (
+          {view.you && view.sheet.length === 0 && draft.status !== "complete" ? (
             <Link
               href={`/leagues/${id}/sheet`}
               data-testid="write-a-sheet"
@@ -302,8 +338,11 @@ export default async function DraftPage({
           {/* Your own switch, above the commissioner's controls: the common
               case is a member handing their own picks over, not a manager
               intervening. */}
+          {/* Side by side where there is room: stacked, the two switches and
+              their sentences cost the pool a full screen's worth of its first
+              row on a laptop. */}
           {view.you && draft.status !== "complete" ? (
-            <>
+            <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
               <AutodraftToggle
                 leagueId={id}
                 enabled={view.you.autodraftEnabled}
@@ -321,9 +360,11 @@ export default async function DraftPage({
                 overallNo={onClock?.overallNo ?? null}
                 round={onClock?.round ?? null}
               />
-            </>
+            </div>
           ) : null}
+        </div>
 
+        <div className="empty:hidden lg:col-start-1 lg:row-span-2 lg:row-start-1">
           {/* The pool stays readable while paused — you just cannot pick from
               it. Offering a button the server is about to refuse would be worse
               than not offering one. */}
@@ -361,7 +402,7 @@ export default async function DraftPage({
             </Bank>
           ) : null}
         </div>
-        <div className="flex flex-col gap-8 sm:gap-slot">
+        <div className="flex flex-col gap-8 sm:gap-slot lg:col-start-2 lg:row-start-2">
           {/* Before the board on purpose. On a phone the pick path owns the top
               of the room — clock, then a way to pick — and the radar is the first
               thing you meet when you scroll to *study* the draft rather than to
@@ -387,7 +428,12 @@ export default async function DraftPage({
               which is the whole of the Board-Shows-Its-Shape rule. */}
           <Bank
             label="The board"
-            aside={`${picks.length} of ${draft.order.length * draft.rounds}`}
+            aside={
+              <span className="flex items-center gap-3">
+                {`${picks.length} of ${draft.order.length * draft.rounds}`}
+                {picks.length > 0 ? <DownloadMenu leagueId={id} /> : null}
+              </span>
+            }
             framed
           >
             <DraftBoard
@@ -403,6 +449,32 @@ export default async function DraftPage({
               since 10.9 — see the column note above. Its member list is in draft
               order — the order the board reads across and the radar reads down —
               so the three surfaces name the same league in the same sequence. */}
+          {draft.status === "complete" && view.canManage ? (
+            <details className="group rounded-card border border-panel-border bg-stock-panel px-4 py-2" data-testid="complete-tools">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                Commissioner tools
+                <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
+              </summary>
+              <p className="pb-3 text-sm text-ink-soft">Undoing a pick or starting over rewrites a finished draft and the season built on it.</p>
+              <DraftControls
+                leagueId={id}
+                status={draft.status}
+                canManage={view.canManage}
+                picksMade={picks.length}
+                pickSeconds={draft.pick_seconds}
+                members={draft.order.map((memberId) => ({
+                  id: memberId,
+                  name: nameOf.get(memberId)?.name ?? "Unknown member",
+                  isYou: Boolean(nameOf.get(memberId)?.isYou),
+                  autodraftEnabled: Boolean(
+                    nameOf.get(memberId)?.autodraftEnabled,
+                  ),
+                }))}
+                onClockMemberId={onClock?.memberId ?? null}
+                onClockMemberName={onClock?.memberName ?? null}
+              />
+            </details>
+          ) : (
           <DraftControls
             leagueId={id}
             status={draft.status}
@@ -420,6 +492,7 @@ export default async function DraftPage({
             onClockMemberId={onClock?.memberId ?? null}
             onClockMemberName={onClock?.memberName ?? null}
           />
+          )}
 
           {/* Where the ticker was.
 
@@ -442,6 +515,9 @@ export default async function DraftPage({
             myMemberId={view.you?.memberId ?? null}
             authorNames={Object.fromEntries(
               view.members.map((member) => [member.id, member.name]),
+            )}
+            authorStyles={Object.fromEntries(
+              view.members.map((member) => [member.id, member.style]),
             )}
           />
         </div>

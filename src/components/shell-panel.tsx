@@ -64,7 +64,7 @@ export function PanelToggle({ label }: { label: string }) {
       aria-expanded={open}
       aria-controls="context-panel"
       onClick={() => setOpen(!open)}
-      className={`slot-label inline-flex min-h-11 min-w-11 items-center justify-center border border-ink/50 px-3 text-ink transition-colors hover:border-ink/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-panel-border bg-stock-panel px-3 text-sm font-semibold text-ink transition-colors hover:border-rule-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
         docked ? "xl:hidden" : ""
       }`}
     >
@@ -74,9 +74,9 @@ export function PanelToggle({ label }: { label: string }) {
 }
 
 const SHEET =
-  "fixed inset-y-0 right-0 z-40 flex w-full border-rule-strong bg-stock-panel max-sm:border-t sm:w-[22rem] sm:border-l";
+  "fixed inset-y-0 right-0 z-40 flex w-full border-panel-border bg-stock-panel max-sm:border-t sm:w-[22rem] sm:border-l";
 const COLUMN =
-  "xl:sticky xl:top-0 xl:z-auto xl:flex xl:h-dvh xl:w-[22rem] xl:shrink-0 xl:border-t-0 xl:border-l xl:border-rail/40 xl:bg-stock xl:px-4 xl:pt-6";
+  "xl:sticky xl:top-0 xl:z-auto xl:flex xl:h-dvh xl:w-[22rem] xl:shrink-0 xl:border-t-0 xl:border-l xl:border-panel-border xl:bg-stock-sunk xl:px-4 xl:pt-6";
 
 export function PanelFrame({
   label,

@@ -1,14 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import {
-  Bank,
-  Correction,
-  Door,
-  EmptyNotice,
-  Slots,
-} from "@/components/board";
+import { Bank, Door, EmptyNotice, Slots } from "@/components/board";
+import { PageHeader } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
+import { DownloadMenu } from "@/components/download-menu";
 import {
   resolveSeason,
   SeasonControl,
@@ -19,6 +15,7 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readProvisionalRounds } from "@/lib/lineups/queries";
 import { readStandingsSnapshots } from "@/lib/stats/queries";
+import { stylesById } from "@/lib/teams/identity";
 
 import { StandingsTable } from "./standings-table";
 
@@ -92,11 +89,12 @@ export default async function StandingsPage({
       measure="wide"
       testId="standings"
     >
-      <div className="flex flex-col gap-2">
-        <p className="slot-label text-live">{data.league.name} / League</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Standings</h1>
-        <p className="text-sm text-ink-soft">Every counted round, with each team&apos;s season total and recent movement.</p>
-      </div>
+      <PageHeader
+        eyebrow={data.league.name}
+        title="Standings"
+        lead={snapshots.length > 0 ? `After round ${snapshots.at(-1)!.round}. Each round's winner is in gold.` : undefined}
+        action={<DownloadMenu leagueId={data.league.id} />}
+      />
 
       <SeasonControl
         action={`/leagues/${id}/standings`}
@@ -139,7 +137,11 @@ export default async function StandingsPage({
       ) : (
         <>
           {provisional.length > 0 ? (
-            <Correction testId="standings-provisional">
+            <p
+              data-testid="standings-provisional"
+              className="rounded-lg border border-gold/40 bg-gold/10 px-3.5 py-3 text-sm text-ink"
+            >
+              <span className="font-semibold text-gold">Provisional · </span>
               {provisional.length === 1
                 ? `Round ${provisional[0]} counted every player at 100%: no lineup has been recorded for it.`
                 : `Rounds ${provisional.join(", ")} counted every player at 100%: no lineup has been recorded for them.`}{" "}
@@ -147,11 +149,12 @@ export default async function StandingsPage({
                 Set a lineup
               </Link>{" "}
               and the table is recomputed.
-            </Correction>
+            </p>
           ) : null}
           <StandingsTable
             snapshots={snapshots}
             names={names}
+            styles={stylesById(data.members)}
             leagueId={id}
             season={season}
             viewerMemberId={you?.id ?? null}

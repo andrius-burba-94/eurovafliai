@@ -77,10 +77,10 @@ export function Masthead({ compact = false }: { compact?: boolean }) {
       href="/"
       className="-mx-2 flex min-h-11 min-w-0 items-center gap-2 px-2 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
     >
-      <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded border border-gain text-base font-extrabold text-gain">E</span>
-      <span className="flex min-w-0 flex-col">
-        <span className="whitespace-nowrap text-sm font-bold tracking-[0.1em] uppercase">
-          Eurovafliai
+      <span aria-hidden="true" className="waffle-mark size-7 shrink-0" />
+      <span className={`flex min-w-0 flex-col ${compact ? "max-sm:sr-only" : ""}`}>
+        <span className="display whitespace-nowrap text-xl leading-none">
+          Euro<span className="text-live">vafliai</span>
         </span>
         {/* The phone header shares its line with the switcher and the panel
             button, and a 390px screen has no room left for the season. */}
@@ -167,7 +167,7 @@ export function LoadingSheet({ label }: { label: string }) {
  * `SubmitButton` needs a form; these pages retry in place.
  */
 export const retryButtonStyles =
-  "min-h-11 min-w-11 w-full border-2 border-live px-4 py-3 text-slot font-semibold uppercase tracking-[0.14em] text-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live sm:w-auto";
+  "min-h-11 min-w-11 w-full rounded-lg bg-live px-5 py-3 text-base font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live sm:w-auto";
 
 /**
  * First-use / no-data copy inside a Bank. Test ids stay on this `<p>` so E2E
@@ -220,10 +220,10 @@ export function Bank({
       className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
     >
       <div className="flex items-baseline justify-between gap-4">
-        <h2 id={headingId} className="text-base font-semibold tracking-tight text-ink">
+        <h2 id={headingId} className="display text-xl text-ink sm:text-2xl">
           {label}
         </h2>
-        {aside ? <span className="text-xs text-ink-soft">{aside}</span> : null}
+        {aside ? <span className="text-sm text-ink-soft">{aside}</span> : null}
       </div>
       {children}
     </section>
@@ -279,10 +279,9 @@ export function CardBlocks({
  * another block.
  *
  * State is carried in the block's own border, the way a row's is carried in its
- * rule — never by a badge parked inside an otherwise normal block. The
- * `position` prop tints the left edge in the position's own hue, which is the
- * colour coding D22 asks for; the G/F/C letter still has to be printed by the
- * caller, because colour never carries position alone.
+ * rule — never by a badge parked inside an otherwise normal block. Position
+ * is printed by the caller as a patch: a coloured side stripe is the one
+ * accent ADR-0011 refuses.
  */
 export function CardBlock({
   children,
@@ -305,15 +304,7 @@ export function CardBlock({
    * renders.
    */
   state?: BlockState;
-  /**
-   * A 3px edge in the position's hue, so a roster can be scanned by colour.
-   *
-   * It is a *border-left* rather than a wash across the block, because a wash
-   * would put every figure in the block on a tinted field and re-open the
-   * pairing `tokens.test.ts` measures for slots — at which point thirteen
-   * blocks in three hues need their own contrast argument. An edge changes no
-   * contrast at all, and the wash is already available to a row that wants it.
-   */
+  /** Recorded as `data-position`; the caller prints the G/F/C patch. */
   position?: "G" | "F" | "C";
   /** Plays the card-landing motion once. Inert under `prefers-reduced-motion`. */
   landed?: boolean;
@@ -324,9 +315,7 @@ export function CardBlock({
       data-testid={testId}
       data-state={state}
       data-position={position}
-      className={`${BLOCK_MATERIAL[state]} ${landed ? "card-lands" : ""} ${
-        position && state === "filled" ? `border-l-3 ${BLOCK_EDGE[position]}` : ""
-      } ${className} flex min-w-0 flex-col gap-2`}
+      className={`${BLOCK_MATERIAL[state]} ${landed ? "card-lands" : ""} ${className} flex min-w-0 flex-col gap-2`}
     >
       {children}
     </li>
@@ -349,18 +338,6 @@ const BLOCK_MATERIAL: Record<BlockState, string> = {
   waiting: "card-block-waiting",
 };
 
-/**
- * The position edge. Full-strength hue, not an alpha: it sits on panel stock
- * rather than on the ground, and an alpha edge would take its colour from
- * whichever surface the block happens to be on — the same mistake the patch's
- * background made before 3.4a, and the reason `PATCH` below carries an opaque
- * field. A 3px edge is a non-text boundary, and these clear 8.8:1 on a panel.
- */
-const BLOCK_EDGE: Record<"G" | "F" | "C", string> = {
-  G: "border-l-pos-g",
-  F: "border-l-pos-f",
-  C: "border-l-pos-c",
-};
 
 /**
  * Five games, drawn — slice 10.6.
@@ -603,7 +580,7 @@ export function Door({
         </span>
       </span>
       <span
-        className={`slot-label shrink-0 ${
+        className={`shrink-0 text-sm font-semibold ${
           actionTone === "live" ? "text-live" : "text-ink"
         }`}
       >
@@ -748,7 +725,7 @@ export function PositionPatch({
       // visible letters are decorative once the label names the need.
       role={label ? "img" : undefined}
       aria-label={label}
-      className={`${PATCH[position]} inline-flex items-baseline gap-1 border px-2 py-1 text-slot font-semibold tracking-[0.1em]`}
+      className={`${PATCH[position]} inline-flex items-baseline gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold`}
     >
       {count === undefined ? null : (
         <span aria-hidden={label ? "true" : undefined}>{count}</span>
@@ -773,7 +750,7 @@ export function Field({
           "LEAGUE NAME" outweigh its own heading "START A LEAGUE"; making it
           fainter (the first attempt) put it at 2.96:1. So: same ink, lighter
           weight, tighter tracking than the Bank's 0.14em. */}
-      <span className="text-slot font-normal uppercase tracking-[0.06em] text-ink-soft">
+      <span className="text-sm font-medium text-ink-soft">
         {label}
       </span>
       {children}
@@ -793,8 +770,8 @@ export function Field({
  * same reason.
  */
 export const inputStyles =
-  "min-h-11 w-full border-b border-ink/50 bg-transparent px-1 py-2 text-base " +
-  "placeholder:text-ink-faint focus:border-live focus:outline-none";
+  "min-h-11 w-full rounded-lg border border-rule bg-stock px-3 py-2 text-base " +
+  "placeholder:text-ink-faint focus:border-live focus:outline-2 focus:outline-offset-0 focus:outline-live/40";
 
 /**
  * A filter, in the board's own material — slice 3.3, and the answer to
@@ -839,10 +816,10 @@ export function FilterToggle({
       // only, and a single-letter toggle fell straight through it: G, F and C
       // measured 24.5–26.5px wide. That clears WCAG 2.2 AA's 24px and fails
       // both AAA and this project's own written 44px.
-      className={`slot-label flex min-h-11 min-w-11 items-end justify-center px-2 pb-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+      className={`flex min-h-11 min-w-11 items-center justify-center rounded-full border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
         pressed
-          ? "border-b-2 border-ink text-ink"
-          : "border-b border-dashed border-rule hover:text-ink"
+          ? "border-ink bg-ink text-stock"
+          : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
       }`}
     >
       {children}
@@ -860,8 +837,8 @@ export function FilterToggle({
  * choosing them.
  */
 export const selectStyles =
-  "min-h-11 w-full appearance-none border-b border-ink/50 bg-transparent px-1 py-2 " +
-  "text-base focus:border-live focus:outline-none";
+  "min-h-11 w-full appearance-none rounded-lg border border-rule bg-stock px-3 py-2 " +
+  "text-base focus:border-live focus:outline-2 focus:outline-offset-0 focus:outline-live/40";
 
 /**
  * A correction on the board — struck in ink, not in marker.
@@ -880,9 +857,9 @@ export function Correction({
     <div
       data-testid={testId}
       role="alert"
-      className="slot-correction flex flex-col gap-1 px-3 py-3"
+      className="flex flex-col gap-1 rounded-lg border border-loss/60 bg-loss/8 px-3.5 py-3"
     >
-      <span className="slot-label">Correction</span>
+      <span className="text-sm font-semibold text-loss">Needs attention</span>
       <p className="text-sm text-ink">{children}</p>
     </div>
   );

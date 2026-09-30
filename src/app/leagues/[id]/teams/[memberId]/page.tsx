@@ -3,26 +3,25 @@ import { notFound, redirect } from "next/navigation";
 
 import {
   Bank,
-  CardBlock,
-  CardBlocks,
-  CardName,
   EmptyNotice,
   FixtureNote,
   PositionPatch,
   Sparkline,
 } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { ScoreFigure, StatusBadge, TeamCrest, availabilityBadge } from "@/components/broadcast";
+import { TeamIdentityPicker } from "@/components/team-identity-picker";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import { ContextPanel } from "@/components/context-panel";
-import { RosterRadar } from "@/components/roster-radar";
 import {
   resolveSeason,
   SeasonControl,
 } from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
-import { buildRadar, radarSize } from "@/lib/engine";
+import { radarSize } from "@/lib/engine";
+import { formatTenths } from "@/lib/stats/scoring";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readPanel } from "@/lib/panel/queries";
@@ -69,18 +68,11 @@ export default async function TeamPage({
     readPanel({ leagueId: id, season, teamNames }),
   ]);
   const template = data.settings.roster_template;
-  const radarPicks = roster.map((player, index) => ({
-    overallNo: player.overallNo ?? index + 1,
-    playerId: player.id,
-    position: player.position,
-  }));
-  const radar = buildRadar(
-    [{ memberId: member.id, picks: radarPicks }],
-    template,
-  );
   const displayName = member.teamName.trim() ? member.teamName : member.name;
+  const played = roster.filter((player) => player.games > 0);
+  const top = [...played].sort((a, b) => b.seasonTenths - a.seasonTenths)[0];
+  const low = [...played].sort((a, b) => a.seasonTenths / a.games - b.seasonTenths / b.games)[0];
   const rosterSize = radarSize(template);
-  const waiting = Math.max(rosterSize - roster.length, 0);
   const viewerCanManage =
     data.isCommissioner ||
     data.members.some((row) => row.isYou && row.canManage);
@@ -94,12 +86,15 @@ export default async function TeamPage({
       panel={<ContextPanel data={panel} />}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="slot-label text-live">{data.league.name} / {member.isYou ? "My team" : "Team"}</p>
-          <h1 className="mt-1 min-w-0 text-3xl font-semibold tracking-tight break-words sm:text-4xl">{displayName}</h1>
-          <p className="mt-2 text-sm text-ink-soft">{roster.length} of {rosterSize} players · {template.G} guards, {template.F} forwards, {template.C} centers</p>
+        <div className="flex min-w-0 items-center gap-4">
+          <TeamCrest name={displayName} color={member.color} shape={member.crest} size={64} />
+          <div className="min-w-0">
+            <p className="slot-label text-live">{data.league.name} / {member.isYou ? "My team" : "Team"}</p>
+            <h1 className="display mt-1 min-w-0 text-4xl break-words sm:text-5xl">{displayName}</h1>
+            <p className="mt-2 text-sm text-ink-soft">{member.name} · {roster.length} of {rosterSize} players</p>
+          </div>
         </div>
-        {member.isYou && data.league.status === "season" ? <Link href={`/leagues/${id}/lineup`} className="inline-flex min-h-11 items-center rounded border border-live px-4 text-sm font-semibold text-live hover:bg-live-sunk/50">Set lineup →</Link> : null}
+        {member.isYou && data.league.status === "season" ? <Link href={`/leagues/${id}/lineup`} className="inline-flex min-h-11 items-center rounded-lg bg-live px-4 text-sm font-bold text-live-ink hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">Set lineup</Link> : null}
       </div>
 
       <SeasonControl
@@ -108,72 +103,90 @@ export default async function TeamPage({
         currentSeason={currentSeason}
       />
 
-      {roster.length === 0 ? (
-        <Bank framed label="The roster" aside={`0 of ${rosterSize}`}>
+      {roster.length > 1 && top && low && top.id !== low.id ? (
+        <div className="grid gap-3 sm:grid-cols-2" data-testid="roster-callouts">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-gain/40 bg-gain/10 p-4">
+            <span className="flex min-w-0 items-center gap-3">
+              <PlayerPortrait personCode={top.personCode} name={top.name} />
+              <span className="min-w-0">
+                <span className="slot-label block text-gain">Carrying you</span>
+                <span className="block truncate font-semibold">{top.name}</span>
+              </span>
+            </span>
+            <ScoreFigure size="sm">{formatTenths(top.seasonTenths)}</ScoreFigure>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-loss/40 bg-loss/10 p-4">
+            <span className="flex min-w-0 items-center gap-3">
+              <PlayerPortrait personCode={low.personCode} name={low.name} />
+              <span className="min-w-0">
+                <span className="slot-label block text-loss">On thin ice</span>
+                <span className="block truncate font-semibold">{low.name}</span>
+              </span>
+            </span>
+            <ScoreFigure size="sm">{formatTenths(low.seasonTenths)}</ScoreFigure>
+          </div>
+        </div>
+      ) : null}
+
+      <Bank framed label="The roster" aside={`${roster.length} of ${rosterSize} · season points`}>
+        {roster.length === 0 ? (
           <EmptyNotice testId="roster-empty">
-            No players are on this roster yet. Slots fill from the draft, then
-            from recorded trades.
+            No players are on this roster yet. Slots fill from the draft, then from recorded trades.
           </EmptyNotice>
-        </Bank>
-      ) : (
-        <Bank
-          framed
-          label="The roster"
-          aside={`${roster.length} of ${rosterSize}`}
-        >
-          <CardBlocks
-            testId="roster-list"
-            label={`${displayName} roster`}
-            columns
-          >
-            {roster.map((player) => (
-              <CardBlock
-                key={player.id}
-                testId="roster-player"
-                state="filled"
-                position={player.position}
-              >
-                <PlayerStatsLink
-                  id={player.id}
-                  name={player.name}
-                  href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
-                  className="-mx-3 -my-3 flex min-h-11 min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-ink/5 active:bg-ink/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
-                >
-                  <PositionPatch position={player.position} />
-                  <PlayerPortrait personCode={player.personCode} name={player.name} />
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <CardName>{player.name}</CardName>
-                    <span className="flex items-center gap-1 text-sm text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubName || player.clubCode}</span>
-                  </span>
-                  {player.overallNo ? (
-                    <span className="stat slot-label">
-                      #{player.overallNo}
-                    </span>
-                  ) : null}
-                </PlayerStatsLink>
-                {/* Drawn at every width here, unlike the pool row: a block has
-                    vertical room where a 390px ledger row has none, which is
-                    most of the argument for blocks on this surface. */}
-                <Sparkline
-                  values={player.last5Pirs}
-                  what="PIR"
-                  className="flex h-4 w-[3.125rem] text-ink-soft"
-                  testId="roster-spark"
-                />
-                <FixtureNote fixture={player.fixture} />
-              </CardBlock>
-            ))}
-            {Array.from({ length: waiting }, (_, index) => (
-              <CardBlock key={`waiting-${index}`} state="waiting">
-                <span className="slot-label text-ink-faint">
-                  Open roster slot{" "}
-                  {String(roster.length + index + 1).padStart(2, "0")}
-                </span>
-              </CardBlock>
-            ))}
-          </CardBlocks>
-        </Bank>
-      )}
+        ) : (
+          <ul role="list" aria-label={`${displayName} roster`} data-testid="roster-list" className="flex flex-col">
+            {(["G", "F", "C"] as const).map((position) => {
+              const group = roster.filter((player) => player.position === position).sort((a, b) => b.seasonTenths - a.seasonTenths);
+              return (
+                <li key={position} className="flex flex-col">
+                  <p className="slot-label flex items-center gap-2 border-b border-panel-border py-2">
+                    <PositionPatch position={position} />
+                    {position === "G" ? "Guards" : position === "F" ? "Forwards" : "Centers"} · {group.length}/{template[position]}
+                  </p>
+                  <ul role="list" className="flex flex-col">
+                    {group.map((player) => {
+                      const badge = availabilityBadge(player.status);
+                      return (
+                        <li key={player.id} data-testid="roster-player" className="flex items-center gap-3 border-b border-panel-border py-2.5 last:border-b-0">
+                          <PlayerStatsLink
+                            id={player.id}
+                            name={player.name}
+                            href={`/players/${player.id}?league=${encodeURIComponent(id)}&member=${encodeURIComponent(memberId)}`}
+                            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                          >
+                            <PlayerPortrait personCode={player.personCode} name={player.name} />
+                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="truncate text-sm font-semibold">{player.name}</span>
+                                {badge ? <StatusBadge kind={badge.kind}>{badge.word}</StatusBadge> : null}
+                              </span>
+                              <span className="flex flex-wrap items-center gap-x-2 text-xs text-ink-soft">
+                                <span className="flex items-center gap-1"><ClubCrest clubCode={player.clubCode} />{player.clubCode}</span>
+                                <FixtureNote fixture={player.fixture} />
+                                {player.overallNo ? <span className="stat">#{player.overallNo}</span> : null}
+                              </span>
+                            </span>
+                          </PlayerStatsLink>
+                          <Sparkline values={player.last5Pirs} what="PIR" className="hidden h-4 w-[3.125rem] text-ink-soft sm:inline-flex" testId="roster-spark" />
+                          <span className="flex w-16 shrink-0 flex-col items-end">
+                            <span className="stat text-sm font-bold">{formatTenths(player.seasonTenths)}</span>
+                            <span className="stat text-xs text-ink-faint">{player.lastTenths === null ? "—" : `last ${formatTenths(player.lastTenths)}`}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                    {Array.from({ length: Math.max(0, template[position] - group.length) }, (_, index) => (
+                      <li key={`open-${index}`} className="flex min-h-12 items-center border-b border-dashed border-rule py-2 text-sm text-ink-faint last:border-b-0">
+                        Open roster slot
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Bank>
 
       <ImpactList
         deals={deals}
@@ -183,16 +196,18 @@ export default async function TeamPage({
         season={data.league.status === "season"}
       />
 
-      <Bank framed label="Roster shape">
-        <RosterRadar
-          rows={radar}
-          columns={[
-            { memberId: member.id, name: displayName, isYou: member.isYou },
-          ]}
-          total={rosterSize}
-          onClockMemberId={null}
-        />
-      </Bank>
+      {member.isYou || viewerCanManage ? (
+        <details className="group rounded-xl border border-panel-border bg-stock-panel px-4 py-3" data-testid="edit-crest">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            {member.isYou ? "Your crest" : `${displayName}'s crest`}
+            <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
+          </summary>
+          <div className="pt-3 pb-1">
+            <TeamIdentityPicker leagueId={id} memberId={member.id} name={displayName} color={member.color} crest={member.crest} />
+          </div>
+        </details>
+      ) : null}
+
     </AppShell>
   );
 }

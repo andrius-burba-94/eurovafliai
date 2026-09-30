@@ -33,9 +33,9 @@ test("a member sees an empty table before the draft is complete", async ({
 
   await page.goto(`/leagues/${league.id}/standings`);
   await expect(page.getByTestId("standings")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Season", exact: true }),
-  ).toHaveAttribute("data-framed", "true");
+  // One fantasy season is not a choice, so the season control is not drawn
+  // until a second exists (ADR-0011).
+  await expect(page.getByRole("region", { name: "Season", exact: true })).toHaveCount(0);
   await expect(page.getByTestId("standings-empty").locator("..")).toHaveAttribute(
     "data-framed",
     "true",
@@ -193,8 +193,10 @@ test("a counted round ranks the members who scored it", async ({
   await expect(page.getByTestId("roster-player")).toContainText(star.name);
 
   await expect(page.getByTestId("season-select").locator('option[value="E2025"]')).toHaveCount(0);
+  // E2025 is not a fantasy season: the page falls back to the current one,
+  // and with only that one left there is nothing to choose between.
   await page.goto(`/leagues/${league.id}/standings?season=E2025`);
-  await expect(page.getByTestId("season-select")).toHaveValue("E2026");
+  await expect(page.getByTestId("season-select")).toHaveCount(0);
 });
 
 test("a signed-in member reads a player's stored game log", async ({
@@ -229,6 +231,6 @@ test("a signed-in member reads a player's stored game log", async ({
   const row = page.getByTestId("player-game");
   await expect(row).toContainText("E2099");
   await expect(row).toContainText("R4");
-  await expect(row).toContainText("PIR 12");
-  await expect(row).toContainText("3.3");
+  await expect(row.getByTestId("player-game-pir")).toHaveText("12");
+  await expect(row.getByTestId("player-game-fantasy")).toHaveText("3.3");
 });

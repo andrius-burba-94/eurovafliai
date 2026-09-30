@@ -6,6 +6,7 @@ import type { Position, RadarRow, RadarSlot } from "@/lib/engine";
 import { positionSentence } from "@/lib/positions";
 
 import type { BoardColumn } from "./draft-board";
+import { TeamCrest } from "@/components/broadcast";
 
 /**
  * The roster radar — slice 3.2.
@@ -297,12 +298,17 @@ export function RosterRadar({
                   No `title`: the board argued a hover tooltip does not exist on
                   a phone, and the column is wider here instead. */}
               <span
-                className={`slot-label w-[5.5rem] shrink-0 truncate sm:w-44 ${
-                  column.isYou ? "text-ink" : ""
+                className={`flex w-[5.5rem] shrink-0 items-center gap-1.5 text-xs font-semibold sm:w-44 ${
+                  column.isYou ? "text-ink" : "text-ink-soft"
                 }`}
               >
-                {column.name}
-                {column.isYou ? " · you" : ""}
+                {column.style ? (
+                  <TeamCrest name={column.name} color={column.style.color} shape={column.style.crest} size={18} />
+                ) : null}
+                <span className="min-w-0 truncate">
+                  {column.name}
+                  {column.isYou ? " · you" : ""}
+                </span>
               </span>
 
               {/* The picture. Said properly in the sentence below it. */}

@@ -3,27 +3,53 @@ import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
+import {
+  PageHeader,
+  RoundStepper,
+  ScoreFigure,
+  StatusBadge,
+  TeamCrest,
+  type BadgeKind,
+} from "@/components/broadcast";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
+import { ROLE_MULTIPLIERS, ROLE_WORDS } from "@/lib/lineups/lineup";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readMatchdayData } from "@/lib/live/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
+import { ordinal } from "@/lib/season/story";
 import { formatHundredths } from "@/lib/stats/scoring";
+import { stylesById } from "@/lib/teams/identity";
+import { formatClock, formatTipOff } from "@/lib/time/local";
 
 import { MatchdayLive } from "./matchday-live";
+
+/** The regular season's rounds; the stepper walks them. */
+const REGULAR_SEASON_ROUNDS = 38;
 
 function requestedRound(value: string | string[] | undefined): number | null {
   const round = typeof value === "string" ? Number(value) : NaN;
   return Number.isInteger(round) && round > 0 ? round : null;
 }
 
-function gameTime(value: string | undefined): string {
-  const date = Date.parse(value ?? "");
-  return Number.isFinite(date) ? new Date(date).toISOString().slice(5, 16).replace("T", " · ") + " UTC" : "Time to be confirmed";
-}
+type GameState = "final" | "live" | "stale" | "unavailable" | "scheduled";
 
+const GAME_BADGE: Record<GameState, { kind: BadgeKind; word: string }> = {
+  final: { kind: "final", word: "Final" },
+  live: { kind: "live", word: "Live" },
+  stale: { kind: "doubtful", word: "Feed stale" },
+  unavailable: { kind: "provisional", word: "Feed unavailable" },
+  scheduled: { kind: "scheduled", word: "Scheduled" },
+};
+
+/**
+ * Live (Matchday) — ADR-0011. A scoreboard: your round total and live rank
+ * first, then your five with each player's counted points, then the games and
+ * the provisional table. Every live figure says it is provisional until the
+ * finished-game pipeline has recorded the round.
+ */
 export default async function MatchdayPage({ params, searchParams }: PageProps<"/leagues/[id]/matchday">) {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
@@ -51,65 +77,243 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
   const yourRank = matchday.hasScoringBasis ? matchday.ranks.find((row) => row.memberId === you.id) : undefined;
   const hasLiveScores = matchday.snapshots.some((row) => row.live);
   const hasRoundScores = matchday.ranks.some((row) => row.roundHundredths !== 0);
+  const styles = stylesById(data.members);
+  const teamName = (memberId: string) => {
+    const member = data.members.find((row) => row.id === memberId);
+    return member?.teamName || member?.name || "Team";
+  };
+
+  const gameState = (gameCode: number, played: boolean): GameState => {
+    const snapshot = byGame.get(gameCode);
+    if (played) return "final";
+    if (snapshot?.live) return now - Date.parse(snapshot.checked_at) > 5 * 60_000 ? "stale" : "live";
+    return snapshot ? "unavailable" : "scheduled";
+  };
+
+  const players = [...(board?.players ?? [])]
+    .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.name.localeCompare(b.name))
+    .map((player) => {
+      const fixture = matchday.fixtures.find((game) => game.local_club === player.clubCode || game.road_club === player.clubCode);
+      const state: GameState | null = fixture ? gameState(fixture.game_code, Boolean(fixture.played)) : null;
+      const raw = matchday.scoresByPlayer[player.id] ?? null;
+      const multiplier = player.role ? ROLE_MULTIPLIERS[player.role] : 1;
+      return { player, fixture, state, raw, counted: raw === null ? null : raw * multiplier, multiplier };
+    });
+  const counting = players.filter((row) => row.multiplier > 0);
+  const finished = counting.filter((row) => row.state === "final").length;
+  const playing = counting.filter((row) => row.state === "live" || row.state === "stale").length;
+  const toPlay = counting.filter((row) => row.state === "scheduled" || row.state === null).length;
+  const statusWord = matchday.final
+    ? "Final"
+    : !matchday.hasScoringBasis
+      ? "Waiting for scores"
+      : hasLiveScores
+        ? "Provisional live rank"
+        : hasRoundScores
+          ? "Provisional rank"
+          : "Rank before this round";
+
   return (
     <AppShell current="matchday" league={navLeagueFrom(data)} measure="wide" testId="matchday">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="slot-label text-live">League / Round {matchday.round}</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">Matchday</h1>
-          <p className="mt-2 text-sm text-ink-soft">Follow your lineup and the league as games are played.</p>
-        </div>
-        <form method="get" action={`/leagues/${id}/matchday`} className="flex items-center gap-2">
-          <label htmlFor="matchday-round" className="text-xs text-ink-soft">Round</label>
-          <input id="matchday-round" name="round" inputMode="numeric" defaultValue={matchday.round} className="w-16 rounded border border-rule-strong bg-stock-panel p-2 text-sm" />
-          <button type="submit" className="min-h-11 rounded border border-rule-strong px-3 text-sm">Show</button>
-        </form>
-      </div>
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-panel-border bg-stock-panel p-4" aria-label="Matchday status">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">{matchday.final ? "Final standings" : !matchday.hasScoringBasis ? "League position pending" : hasLiveScores ? "Provisional live rank" : hasRoundScores ? "Provisional league position" : "League position before this round"}</p>
-          <p className="mt-1 text-2xl font-semibold">{yourRank ? `${yourRank.rank} of ${matchday.ranks.length}` : "—"}<span className="ml-4 text-base font-normal text-ink-soft">{yourRank ? `${formatHundredths(yourRank.roundHundredths)} this round` : "No score"}</span></p>
-        </div>
-        <div className="text-right">
-          <MatchdayLive authToken={session.token} season={season} round={matchday.round} checkedAt={matchday.snapshots.filter((row) => row.live).map((row) => row.checked_at)} final={matchday.final} hasGameWindow={hasGameWindow} gameTimes={matchday.fixtures.map((game) => game.utc_date ?? "")} hasPlayedGames={matchday.fixtures.some((game) => game.played)} />
-          {!matchday.final ? <p className="mt-1 text-xs text-gold">Scores and ranks can change until finished games are recorded.</p> : <p className="mt-1 text-xs text-gain">Finished-game standings are authoritative.</p>}
+      <PageHeader
+        eyebrow={data.league.name}
+        title="Live"
+        action={
+          <RoundStepper
+            round={matchday.round}
+            max={Math.max(REGULAR_SEASON_ROUNDS, matchday.round)}
+            hrefFor={(round) => `/leagues/${id}/matchday?round=${round}`}
+          />
+        }
+      />
+
+      <section
+        aria-label="Matchday status"
+        data-testid="matchday-scoreboard"
+        className="relative overflow-hidden rounded-card border border-panel-border bg-stock-panel p-4 sm:p-6"
+      >
+        <div aria-hidden="true" className="lattice pointer-events-none absolute inset-0" />
+        <div className="relative flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {matchday.final ? (
+              <StatusBadge kind="final">Final · round {matchday.round}</StatusBadge>
+            ) : hasLiveScores ? (
+              <StatusBadge kind="live">Live · round {matchday.round}</StatusBadge>
+            ) : (
+              <StatusBadge kind="provisional">Round {matchday.round}</StatusBadge>
+            )}
+            <MatchdayLive
+              authToken={session.token}
+              season={season}
+              round={matchday.round}
+              checkedAt={matchday.snapshots.filter((row) => row.live).map((row) => row.checked_at)}
+              final={matchday.final}
+              hasGameWindow={hasGameWindow}
+              gameTimes={matchday.fixtures.map((game) => game.utc_date ?? "")}
+              hasPlayedGames={matchday.fixtures.some((game) => game.played)}
+            />
+          </div>
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
+            <div>
+              <p className="slot-label">This round</p>
+              <ScoreFigure size="xl" testId="matchday-total">
+                {yourRank ? formatHundredths(yourRank.roundHundredths) : "—"}
+              </ScoreFigure>
+            </div>
+            <div className="pb-1">
+              <p className="slot-label">{statusWord}</p>
+              <p className="display text-3xl">
+                {yourRank ? `${ordinal(yourRank.rank)} of ${matchday.ranks.length}` : "No score yet"}
+              </p>
+            </div>
+          </div>
+          {counting.length > 0 ? (
+            <p className="flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="rounded-full bg-stock-high px-2.5 py-1 text-ink-soft">{finished} finished</span>
+              <span className={`rounded-full px-2.5 py-1 ${playing > 0 ? "bg-on-air text-on-air-ink" : "bg-stock-high text-ink-soft"}`}>
+                {playing} playing now
+              </span>
+              <span className="rounded-full bg-stock-high px-2.5 py-1 text-ink-soft">{toPlay} still to play</span>
+            </p>
+          ) : null}
+          <p className="text-xs text-ink-soft">
+            {matchday.final
+              ? "Finished-game standings are authoritative."
+              : "Provisional until finished games are recorded."}
+          </p>
         </div>
       </section>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(16rem,1fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <Bank framed label="Your lineup" aside={`Round ${matchday.round}`}>
-            {!board || board.players.length === 0 ? <EmptyNotice>Your roster and lineup appear here after the draft.</EmptyNotice> : (
-              <ul role="list" className="grid gap-2 sm:grid-cols-2">
-                {[...board.players].sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.name.localeCompare(b.name)).map((player) => {
-                  const fixture = matchday.fixtures.find((game) => game.local_club === player.clubCode || game.road_club === player.clubCode);
-                  const snapshot = fixture ? byGame.get(fixture.game_code) : undefined;
-                  const status = fixture?.played ? "Finished" : snapshot?.live ? "In play" : snapshot ? "Finished" : "Yet to play";
-                  const points = matchday.scoresByPlayer[player.id];
-                  const progress = points != null && player.estimateTenths && player.estimateTenths > 0 ? Math.max(0, Math.min(100, Math.round(points / player.estimateTenths * 100))) : null;
-                  return <li key={player.id} className="rounded-md border border-panel-border bg-stock p-3" data-testid="matchday-player">
-                    <div className="flex items-start gap-2"><PlayerPortrait personCode={player.personCode} name={player.name} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{player.name}</p><p className="flex items-center gap-1 text-xs text-ink-soft"><PositionPatch position={player.position} />{player.role ?? "Unassigned"} · <ClubCrest clubCode={player.clubCode} />{player.clubCode}</p></div><strong className="text-lg tabular-nums">{points != null ? (points / 10).toFixed(1) : "—"}</strong></div>
-                    <div className="mt-3 flex justify-between gap-2 text-xs"><span className={status === "In play" ? "text-gain" : "text-ink-soft"}>{status}</span><span className="text-ink-soft">{fixture ? `${fixture.local_club} vs ${fixture.road_club}` : "No fixture"}</span></div>
-                    {progress !== null ? <div className="mt-2" aria-label={`${progress}% of recent fantasy average`}><div className="h-1.5 overflow-hidden rounded-full bg-[#303a47]"><div className="h-full bg-live" style={{ width: `${progress}%` }} /></div><p className="mt-1 text-[10px] text-ink-soft">Score vs recent average</p></div> : null}
-                  </li>;
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] xl:items-start">
+        <Bank framed label="Your lineup" aside={board?.source === "recorded" ? "Recorded" : "Everyone at 100%"}>
+          {players.length === 0 ? (
+            <EmptyNotice>Your roster and lineup appear here after the draft.</EmptyNotice>
+          ) : (
+            <ul role="list" className="flex flex-col divide-y divide-panel-border">
+              {players.map(({ player, fixture, state, raw, counted, multiplier }) => {
+                const captain = player.role === "captain";
+                const progress =
+                  raw !== null && player.estimateTenths && player.estimateTenths > 0
+                    ? Math.max(0, Math.min(100, Math.round((raw / player.estimateTenths) * 100)))
+                    : null;
+                return (
+                  <li
+                    key={player.id}
+                    data-testid="matchday-player"
+                    data-role={player.role ?? undefined}
+                    className={`flex items-center gap-3 py-3 ${multiplier === 0 ? "opacity-60" : ""}`}
+                  >
+                    <span className="relative shrink-0">
+                      <PlayerPortrait personCode={player.personCode} name={player.name} />
+                      {captain ? (
+                        <span className="absolute -top-1.5 -left-1.5 rounded bg-gold px-1 text-[0.625rem] leading-4 font-extrabold text-[oklch(0.22_0.04_80)]">
+                          C×2
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate text-sm font-semibold">{player.name}</span>
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
+                        <PositionPatch position={player.position} />
+                        <span className={captain ? "font-semibold text-gold" : ""}>
+                          {player.role ? ROLE_WORDS[player.role] : "Counted at 100%"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <ClubCrest clubCode={player.clubCode} />
+                          {fixture ? `${fixture.local_club} v ${fixture.road_club}` : "No game this round"}
+                        </span>
+                        {state === "scheduled" && fixture?.utc_date ? <span>{formatClock(fixture.utc_date)}</span> : null}
+                      </span>
+                      {progress !== null && multiplier > 0 ? (
+                        <span
+                          className="mt-1 block h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-stock-high"
+                          role="img"
+                          aria-label={`${progress}% of recent fantasy average`}
+                        >
+                          <span className={`block h-full ${captain ? "bg-gold" : "bg-live"}`} style={{ width: `${progress}%` }} />
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      <ScoreFigure size="sm">{counted !== null ? (counted / 10).toFixed(1) : "—"}</ScoreFigure>
+                      {state ? <StatusBadge kind={GAME_BADGE[state].kind}>{GAME_BADGE[state].word}</StatusBadge> : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Link
+            href={`/leagues/${id}/lineup?round=${matchday.round}`}
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-live hover:underline"
+          >
+            Review lineup &rarr;
+          </Link>
+        </Bank>
+
+        <div className="flex min-w-0 flex-col gap-6">
+          <Bank framed label="Games" aside={`${matchday.fixtures.length} games · Vilnius time`}>
+            {matchday.fixtures.length === 0 ? (
+              <EmptyNotice>The schedule for this round is not available yet.</EmptyNotice>
+            ) : (
+              <ul role="list" className="grid grid-cols-2 gap-2">
+                {matchday.fixtures.map((fixture) => {
+                  const state = gameState(fixture.game_code, Boolean(fixture.played));
+                  const snapshot = byGame.get(fixture.game_code);
+                  const score = (side: "local" | "road") =>
+                    snapshot
+                      ? side === "local"
+                        ? snapshot.localScore
+                        : snapshot.roadScore
+                      : fixture.played
+                        ? side === "local"
+                          ? fixture.local_score
+                          : fixture.road_score
+                        : null;
+                  return (
+                    <li key={fixture.id} data-testid="matchday-game" className="flex flex-col gap-1.5 rounded-lg border border-panel-border bg-stock p-2.5">
+                      <span className="flex items-center justify-between gap-2">
+                        <StatusBadge kind={GAME_BADGE[state].kind}>{GAME_BADGE[state].word}</StatusBadge>
+                        {state === "scheduled" ? (
+                          <span className="text-xs text-ink-soft">{formatTipOff(fixture.utc_date) ?? "Time to be confirmed"}</span>
+                        ) : null}
+                      </span>
+                      {(["local", "road"] as const).map((side) => (
+                        <span key={side} className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-sm font-bold">
+                            <ClubCrest clubCode={side === "local" ? fixture.local_club : fixture.road_club} />
+                            {side === "local" ? fixture.local_club : fixture.road_club}
+                          </span>
+                          <span className="stat text-sm font-bold">{score(side) ?? ""}</span>
+                        </span>
+                      ))}
+                    </li>
+                  );
                 })}
               </ul>
             )}
-            <Link href={`/leagues/${id}/lineup?round=${matchday.round}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-live hover:underline">Review lineup →</Link>
           </Bank>
-        </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <Bank framed label="Games" aside={`${matchday.fixtures.length} fixtures`}>
-            {matchday.fixtures.length === 0 ? <EmptyNotice>The schedule for this round is not available yet.</EmptyNotice> : <ul role="list" className="divide-y divide-panel-border">
-              {matchday.fixtures.map((fixture) => {
-                const snapshot = byGame.get(fixture.game_code);
-                const stale = snapshot && now - Date.parse(snapshot.checked_at) > 5 * 60_000;
-                const status = fixture.played ? "Final" : snapshot?.live ? stale ? "Feed stale" : "In play" : snapshot ? "Feed unavailable" : "Scheduled";
-                return <li key={fixture.id} className="py-3 first:pt-0 last:pb-0"><div className="flex justify-between gap-2 text-sm"><strong>{fixture.local_club} <span className="text-ink-soft">vs</span> {fixture.road_club}</strong><span className="tabular-nums">{snapshot ? `${snapshot.localScore}–${snapshot.roadScore}` : fixture.played ? `${fixture.local_score}–${fixture.road_score}` : "—"}</span></div><div className="mt-1 flex justify-between gap-2 text-xs text-ink-soft"><span>{gameTime(fixture.utc_date)}</span><span className={status === "In play" ? "text-gain" : stale ? "text-gold" : ""}>{status}</span></div></li>;
-              })}
-            </ul>}
-          </Bank>
+
           <Bank framed label={matchday.final ? "Final table" : hasRoundScores ? "Provisional table" : "League table"}>
-            {!matchday.hasScoringBasis ? <EmptyNotice>The league table appears when scores are recorded.</EmptyNotice> : <ol className="divide-y divide-panel-border">{matchday.ranks.map((row) => <li key={row.memberId} className={`flex justify-between gap-2 py-2 text-sm ${row.memberId === you.id ? "font-semibold text-live" : ""}`}><span>{row.rank}. {data.members.find((member) => member.id === row.memberId)?.teamName || data.members.find((member) => member.id === row.memberId)?.name || "Team"}</span><span className="tabular-nums">{formatHundredths(row.totalHundredths)}</span></li>)}</ol>}
+            {!matchday.hasScoringBasis ? (
+              <EmptyNotice>The league table appears when scores are recorded.</EmptyNotice>
+            ) : (
+              <ol className="flex flex-col divide-y divide-panel-border">
+                {matchday.ranks.map((row) => {
+                  const style = styles[row.memberId];
+                  const mine = row.memberId === you.id;
+                  return (
+                    <li key={row.memberId} className={`flex items-center gap-2.5 py-2 text-sm ${mine ? "font-semibold" : ""}`}>
+                      <span className="stat w-5 text-ink-faint">{row.rank}</span>
+                      {style ? <TeamCrest name={teamName(row.memberId)} color={style.color} shape={style.crest} size={22} /> : null}
+                      <span className={`min-w-0 flex-1 truncate ${mine ? "text-live" : ""}`}>{teamName(row.memberId)}</span>
+                      <span className="stat text-xs text-ink-soft">{formatHundredths(row.roundHundredths)}</span>
+                      <span className="stat w-16 text-right">{formatHundredths(row.totalHundredths)}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
           </Bank>
         </div>
       </div>

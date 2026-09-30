@@ -1,0 +1,411 @@
+# Matchnight redesign (ADR-0011)
+
+The story behind the redesign, slice by slice. STATUS.md holds the table and
+the current "Try it" notes; this file holds the why.
+
+## The critique that started it
+
+An `/impeccable critique` on 30 September 2026, run as two independent
+assessments (a design-director review of all 20 routes plus the deterministic
+detector), scored the arena interface **22/40** on Nielsen's heuristics and
+failed **6 of 8** cognitive-load checks. The findings that shaped the plan:
+
+- The design system forbade the product's own promise. "Broadcast, confident,
+  playful" had no permitted means of being playful: four animations, all on
+  draft night; "no material for success"; one accent with two jobs.
+- Controls came before content. A framed Season panel with one option sat
+  above five pages; Lineup and Recap stacked a second form under it, pushing
+  the court below the fold at 390px.
+- Teams had no identity beyond a string, and no page had a hero — "You
+  finished 1 of 8" was `text-sm` inside a panel while the page's `h1` read
+  `26-27`.
+- Real bugs: the court's position badge was always cyan; the grid view printed
+  every position in the guard colour; the captain's "C" collided with the
+  center's "C"; matchday times were UTC while the panel used Vilnius time;
+  injury news used the on-the-clock material; a completed draft still nagged
+  "You have no cheat sheet".
+- The detector's one primary finding (bounce easing on the pick spring) was a
+  false positive; its advisories were the court's hard-coded palette and
+  7.7–10px labels.
+
+## The questionnaire and the gallery
+
+Direction: matchnight broadcast. Dark and light grounds following the device.
+A condensed display face. Team colour and monogram crest. Rewrite the rules
+rather than bend them. Moments: round winner, overtake, trade verdict, wooden
+spoon, streaks, plus the draft's pick-is-in banner and opt-in draft sounds. A
+League Stats page (records, team profiles, lineup efficiency, draft value,
+player leaders, trade ledger). No social features. Neutral copy. A fixed
+League Home. Tabs Home, Lineup, Live, Table, More. Commissioner pages get the
+new look and UX fixes, no celebrations.
+
+**S0** built `/concepts` (development only, invented data) with four display
+faces, two palettes in both grounds, the crest system, replayable moments and
+two variants of nine screens. The owner skipped the picks, so the
+recommendations were taken and recorded in ADR-0011: Barlow Condensed, Tip-off
+orange, Home A (scorebug), Live A (scoreboard), Lineup B (hardwood), Standings
+A (podium), Recap A (front page), Trades both (ledger over cards), Stats A
+(record book), Draft A (scorebug band), Roll A (stage). Every one is a token or
+a component choice and can be revisited.
+
+## S1 — foundation
+
+- Two grounds in `globals.css`, measured by a rewritten `tokens.test.ts` that
+  asks every floor on both (180 assertions). The pinned hex anchors and the
+  gradient ban are gone; the halation ceiling, the slot materials and the
+  opaque position patch stay.
+- Tokens were solved numerically before the tests were written: four light
+  values (accent and gold on raised surfaces, the forward letter on its wash,
+  the accent on its field) and two team colours (crimson, magenta) failed a
+  first pass and were darkened.
+- Barlow Condensed joins the two existing families as `font-display`, with the
+  `display` and `display-figure` utilities. Every page `h1` moved onto it.
+- The board vocabulary was restyled in place, which moved every page at once:
+  `Bank` headings in display caps, rounder panels, pill filters, boxed inputs,
+  a filled accent primary button with `data-tone`, a loss-red "Needs attention"
+  correction, and no coloured side stripe on card blocks.
+- New primitives: `PageHeader`, `ScoreFigure`, `StatusBadge`, `RoundStepper`,
+  `TeamCrest` (`src/components/broadcast.tsx`), `Moment`
+  (`src/components/moment.tsx`), the pure `src/lib/teams/identity.ts` and
+  `src/lib/time/local.ts`.
+- The shell's six hard-coded colours became tokens (`stock-sunk` is new).
+- Every bug in the critique's list above is fixed. `SeasonControl` renders
+  nothing while there is one fantasy season.
+- Specs that asserted the old aesthetic now assert the new intent: the
+  direction contract, both grounds from CSS alone, headlines in the broadcast
+  face, `data-tone` instead of `text-live`, and the injury badge instead of the
+  live material.
+
+**S1 verification.** Full chromium e2e locally: 239 passed, 13 failed on the
+first run. Six were specs asserting the framed Season panel, which now does not
+render while there is one fantasy season; they assert its absence instead.
+Four were `news.spec.ts` against a local database holding newer RotoWire items
+than the planted ones (the page shows the newest 40); CI starts empty. Three
+(`cheat-sheet` 317, `pool` 320 and 365, the known pool flake) and one run of the
+light-ground check failed under parallel load and pass alone; the ground check
+now polls. Unit: 1517 passed, lint and typecheck clean.
+
+## S2 — team identity
+
+A crest is a colour (twelve), a shape (waffle, shield, roundel, hex) and a
+monogram taken from the team name. The migration adds two optional selects and
+nothing else: no backfill, because a member who never chose is drawn with a
+deterministic default from their place in the id-ordered member list, and every
+reader (`toMember`, `stylesFromRecords`) uses that same order. Rollback drops
+the two fields and loses only the choices.
+
+One write per save, both values validated against the curated sets first, so
+there is no half-state to repair. Styling is allowed at any league status — a
+crest moves no points — for your own team, or anyone's if you manage the league.
+
+The first screenshot showed monograms on nothing: Tailwind v4 drops theme
+variables no class uses, and team colours are reached only through inline
+`var()`. The theme block is now `@theme static`.
+
+Crests appear in the lobby list, chat author lines, draft board column heads
+(on a team-colour field) and the radar. Standings, recap, trades and Home take
+them in their own slices. New spec: `team-identity.spec.ts`.
+
+## S3 — shell and navigation
+
+The tab bar now answers "what is the league doing tonight": Home first, then
+Lineup, Live and Table in season, or the Draft room and Sheet while drafting.
+The sidebar and the tabs share `navFor`, so "Standing"/"League"/"Standings"
+collapsed into one word, and Matchday is "Live" everywhere including its
+headline. The cheat sheet leaves the nav once the board is full (it only drives
+autodraft), and Export stops being a destination; League Home keeps its door
+until S13 turns it into a download on the board and standings.
+
+A manager sees the mapping queue as a count on the Manage item. It is the same
+`countMappingQueue` the league page already ran for managers, now run by the
+shell for managers only. The phone header shows the waffle mark alone below
+`sm`, so the league switcher and the panel button fit at 390px.
+
+## S4 — League Home
+
+The page now answers "how am I doing, and what do I do next" in the first
+screen at 390px: the league's name as the one headline, then the viewer's team
+on its own colour — crest, rank as a scoreboard figure, total, the teams they
+passed since the last counted round, their place on the night, the next
+tip-off and a single Set lineup action. A ticker says the round in one line.
+
+`src/lib/season/story.ts` is new and pure: `roundStory` (winner, margin,
+spoon — and nobody is crowned for a night nobody scored), `movementOf` (rank,
+places moved, whom you passed, gap to the leader, ties broken on team name the
+way the table does) and `ordinal`. The recap query now also returns person
+codes so the best night has a portrait.
+
+The moments are wired: the viewer's table row plays **overtake** when they
+climbed, the winner's card plays **sweep** and its crown **crown**, the spoon
+**spoon**. Each is keyed on the league and round, so it plays once per viewer
+and a reload is still.
+
+Removed from the season page: the 13-card roster (it is My Team's job; a
+summary with G/F/C counts and two doors remains) and the mapping notice (the
+Manage item carries the count). The member list stays, at the bottom, as the
+league's directory with crests.
+
+A bug found by screenshot: a shield crest's `padding-top: 16%` resolved against
+the *parent's* width and stretched every shield to 46px tall. It is now a
+fraction of the crest's own size.
+
+## S5 — Live
+
+Matchday is "Live" and opens on the scoreboard: the round's provisional total
+as the page's figure, the provisional or final rank beside it, and three
+chips counting the viewer's counting players who have finished, are playing
+now, or are still to play. The "provisional until recorded" line stays, once,
+and only final rounds say final.
+
+Each player row now shows what counts: the raw fantasy points times the role
+multiplier from the round's lineup (captain ×2, bench ×0.5, inactive ×0 and
+dimmed), with the captain marked in gold and a LIVE / FINAL / SCHEDULED badge.
+Games are tiles with club crests and Vilnius times. The round is stepped, not
+typed, through `RoundStepper`.
+
+## S6 — Lineup
+
+The court is now what the page opens on after the header, drawn on the
+hardwood utility, with the five formations as pills and the court/grid switch
+beneath it. The typed "Which round" form became a stepper; a manager's "whose
+team" choice is one compact select. The header names the round's first
+tip-off. It deliberately does not say "locks": this league records lineups
+after the official game, and a lock the app does not enforce would be a claim.
+
+The per-player controls stayed, restyled rather than removed. They are what the
+form posts without JavaScript and what `lineup.spec.ts` drives by accessible
+name ("{name} role", "{name} captain", "Move {name}"): a role pill, the captain
+as a gold armband radio, and a Move button, on compact rows instead of
+two-column card blocks. The "not ready" refusal reads in gold, as guidance, not
+in the loss colour.
+
+## S7 — Standings
+
+`src/lib/season/badges.ts` is the league's honours, pure and deterministic:
+`honoursByRound` (a night's winners — all of them on a tie — and its wooden
+spoons; nobody is crowned on a night nobody scored), `memberHonours` (rounds
+won, spoons, the current top-three streak, best round) and `badgesFrom` (On
+fire at three straight top-three nights, Crowned, Spoon collector at two).
+League Stats will read the same module.
+
+The page leads with a podium, then the badges, then the table. Each round's
+winner is gold with a crown and an `sr-only` "Round winner", so the mark is not
+colour alone. Play-in, Playoffs and Final Four filters appear only once those
+phases have counted rounds.
+
+A layout bug older than this slice: every table row is its own CSS grid, and
+`auto` tracks sized to each row's own content, so the Total column drifted by a
+few pixels row to row. The tracks after the name are now fixed widths.
+
+## S8 — Recap
+
+The recap reads as the morning-after front page. Its headline is a sentence
+built from `roundStory` — winner, margin, spoon — so it is never written by
+hand and never wrong about the night. The winner gets a banner on their own
+colour with the crown and gold-sweep moments (keyed on league and round, like
+Home, so seeing it on one page means it is still on the other). The night is a
+ladder with a bar per team in the team's colour and the crown and spoon marks
+on the first and last rows. Rounds are chips linking to `?round=`, replacing the
+select-and-submit form; `recap.spec.ts` now clicks the chip.
+
+Captain of the round was in the plan's list for this page. It needs each
+member's recorded captain joined to that night's box score, which is exactly
+what League Stats' lineup-efficiency section computes, so it lands there (S10)
+rather than as a second implementation here.
+
+## S9 — Trades
+
+The page's headline promise — what every deal has been worth — is finally on
+the page. `readLeagueDeals` reads the league's transactions, the players they
+name and those players' box scores this season once, groups a free-agent
+drop and add into one exchange (`groupTransactionHistory`, unchanged), and
+computes each side's verdict with `impactForMember`, the function the team
+page and the recap already used, so the three cannot disagree. It also returns
+a per-team ledger of net points across all deals.
+
+A verdict stamp plays once per viewer per deal side and per verdict: a deal
+that turns from losing to winning is a new change and stamps again.
+
+Found by the standings spec while running this slice: the round-winner cell's
+`sr-only` "Round winner," was part of the cell's text, so a reader of the
+number got a sentence. It is the cell's `aria-label` now.
+
+## S10 — League Stats
+
+A new page answers the league's arguments with numbers. Everything is derived
+in the pure `src/lib/stats/league-stats.ts` from what is already stored:
+
+- **Records** from the snapshots (highest and lowest round, the widest winning
+  margin) and from box scores joined to membership windows (the best single
+  night for whoever owned the player that round, and the best captain call at
+  the armband's ×2).
+- **Team profiles** per counted round, with the honours from S7's
+  `memberHonours`.
+- **Lineup efficiency**: points left on the bench and in the stands (raw minus
+  the lineup multiplier), and how often the captain was the night's best
+  starter. Only rounds with a recorded or carried lineup are judged; an absent
+  round counted everyone at 100% and has nothing to say.
+- **Draft value**: a pick is worth what the player scored for the member who
+  drafted them, while they held him. Steals are the best late picks, busts the
+  weakest early ones, and autodraft is compared with picks people made.
+- **Players**: season leaders with their current owner, hot form over the last
+  three rounds (two games minimum), the best unowned players, and leaders by
+  position.
+- **Deals**: S9's ledger.
+
+This is also where "captain of the round" from the recap plan landed, as the
+best captain call record. Adding the Stats item pushed the full season sidebar
+33px past a 690px laptop screen; group headers are 36px now (nav links stay
+44px).
+
+## S11 — My Team, player profile, pool, news
+
+`readMemberRoster` now also returns each player's availability, their season
+points while on this roster (from the membership window's `from_round`, raw —
+before lineup multipliers, and labelled so), games counted and the latest
+round's points. My Team uses them for a roster grouped by position and two
+callouts: the top scorer ("Carrying you") and the lowest per-game scorer ("On
+thin ice"). The radar went: once a roster is full its shape says nothing.
+
+The player page opens on a card: portrait, club crest, position, availability
+badge, bio and current PIR. The game log is a table (game, club, PIR, fantasy
+shaded by size); `standings.spec.ts` reads the PIR and fantasy cells directly.
+
+The pool is a scouting board ranked by `averagePirOf` — the same number the
+draft room and the side panel rank on — with Injured and A–Z as choices. The
+ingest summary is folded behind "Where this data comes from" for members and
+open for managers.
+
+Not done, and why: the plan's "Your roster / League-owned / All" filter for
+injury news. `/players/news` is global — it has no league, so it has no owner
+to filter by. The league's side panel already shows news with owners.
+
+## S12 — Draft room and roll
+
+The pick-is-in banner is a client component fed by the server's latest pick;
+it remembers the last `overallNo` it has seen and only plays on a change, so a
+first paint, a reload or a reconnect never replays an old pick. The sting
+reuses the cue switch — silent unless the member turned cues on — and stays
+quieter and shorter than the clock tone, which keeps meaning "you".
+
+A complete draft no longer puts undo and reset next to the celebration; they
+are one tap away behind "Commissioner tools", with the consequence stated.
+
+The roll kept its composition (one announcer over the filling order, figures
+in the mono face) and gained the broadcast skin: a lattice stage, the landed
+team's crest dropping in, names in the display face, crests on every drawn
+slot. Hiding the shell for a full-screen stage needs a layout outside the
+league shell and was left out; the stage fills the content column.
+
+Verification note: a long-running `next dev` (8 hours, 1.2 GB) turned the
+fully-parallel draft specs into 75 timeouts; each failing test passed alone.
+Against `next build` + `next start` (as CI runs) all 126 draft, board,
+controls, setup and roll tests pass.
+
+## S13 — Cheat sheet, Download menu, login, Your leagues
+
+The sheet now starts from something. `startSheetFromRanking` writes the top 60
+of the pool by `averagePirOf` — the order the room already sorts on — and only
+onto an empty sheet, because a member with a ranking has made choices and a
+one-tap overwrite is the one-way door the paste box already warns about. After
+that, "Not on your sheet" lists the best twelve players the sheet lacks; Add
+sends the existing `insert` operation at the bottom, so it inherits the
+operation-on-the-wire safety (a double tap cannot rank anyone twice). Ranking
+and suggestion logic is pure in `sheets/seed.ts` with unit tests; the pool read
+(`readRankablePool`) lives in the framework-free store beside the matcher's.
+
+The Download menu is a `<details>` of plain links to the existing export
+handler, so it needs no JavaScript and every choice is a shareable URL. The
+export page is unchanged and still reachable from the lobby door that
+`export.spec.ts` walks.
+
+Login dropped the empty board plan for a title screen, keeping the single
+framed Sign in bank and every hook `auth.spec.ts` reads. Your leagues became
+one card per league; the card's `<li>` carries the old `data-state`, and
+`leagues.spec.ts` now finds the card from its title link by ancestor rather
+than by direct parent.
+
+Verification: cheat-sheet spec (78, two new), leagues, auth, a11y, export and
+standings all pass against `next build` + `next start`. Run together with
+other files on one machine, two cheat-sheet pool-count assertions flaked once
+and passed on the file's own run.
+
+## S14 — Mapping queue and stepwise imports
+
+The plan asked for a strict one-at-a-time queue. It became a queue with a
+cursor instead: the counter, the current row and the keyboard walk are one at a
+time, but every question stays rendered and tappable. A hidden queue would let
+only the first question be answered, and the mapping specs — like a
+commissioner who came for one specific name — act on a particular row that is
+rarely first when real imports or other runs have questions waiting.
+
+Y and N submit the current row's own forms (`data-answer`), so the keyboard
+path is the same server action, confirmation and refusal as a tap. Keys are
+ignored while typing in a field. The progress bar carries `data-ready` from
+`useHydrated`, the same fact-not-duration wait the pool uses; the new spec
+walks J/K without answering, because a Y would write into a shared queue.
+
+The imports already previewed before writing, so the change is the visible
+step: `ImportSteps` (Paste, Review, Apply) in `broadcast.tsx`, derived from
+state the forms already had.
+
+## S15 — Polish and the second critique
+
+Polish, driven by the captures (`npm run capture`, now pointable at a build
+with `CAPTURE_BASE`) rather than by memory of the pages:
+
+- Standings: the sticky team column is wide enough for a crest and a real team
+  name (`--team-col`, 11.5rem on phones, 15rem from `sm`); honours group by
+  kind with a count (`Badge.tally`), so "Crowned" is one line of crests with
+  ×5 / ×2 rather than a badge per round; the podium stands on the table's rule.
+- The draft pool row was cutting surnames to three letters on desktop. Its
+  extras (games count, fantasy average, form line, portrait) were hidden by
+  *viewport* breakpoints, and from `lg` the pool is one column of the room, so
+  a 1440px screen gave the row everything a tablet does. They are container
+  queries on the row now. Second cause, same symptom: `.player-portrait` and
+  `.club-crest` were unlayered CSS, which beats every Tailwind utility, so the
+  portrait's `hidden` never applied anywhere — the reason those call sites
+  needed `!h-8 !w-7`. Both classes now sit in `@layer components`.
+- a11y runs every surface under both grounds (`test.use({ colorScheme })`), and
+  the standings honour glyph moved its label to `sr-only` text (axe refuses
+  `aria-label` on a plain `span`).
+- Test hygiene: `cleanupTestData` now deletes the test club's roster windows
+  before its players. `roster_memberships.player` does not cascade, so the
+  a11y court test's two players survived their test and appeared as an extra
+  row in every later club-filtered pool count on the same worker — the
+  "flaky" pool and cheat-sheet counts S13 recorded.
+
+### The second critique
+
+Scored from fresh captures of 18 surfaces at 1440px and on a Pixel 7, against
+the same heuristics as the first. **31/40** (first: 22/40).
+
+| # | Heuristic | Score | What holds it back |
+|---|---|---|---|
+| 1 | Visibility of system status | 4 | On-clock band, pick-is-in banner, provisional notes, live chips |
+| 2 | Match with the real world | 3 | Broadcast words throughout; a recap headline treats every team name as plural ("Rimas win") |
+| 3 | User control and freedom | 3 | Undo, start over, Escape, sheet operations; the roll still cannot be left from a shell-less stage |
+| 4 | Consistency and standards | 3 | One board vocabulary; the Player Pool page and ingest summary still read as the older admin style |
+| 5 | Error prevention | 4 | Arm-then-confirm picks, typed word to start over, sheet written only when empty |
+| 6 | Recognition over recall | 3 | One name per destination; the desktop draft room is a long single column of controls above the pool |
+| 7 | Flexibility and efficiency | 3 | Keyboard pool, J/K mapping queue, Download menu |
+| 8 | Aesthetic and minimalist design | 3 | Every page has a hero; League Home on a phone still ends in members, export and delete |
+| 9 | Error recovery | 3 | Refusals on the tapped row in the correction voice |
+| 10 | Help and documentation | 2 | Inline sentences explain rules, but there is no single "how the league scores" page |
+
+The P1 was fixed before the PR. On a 1440×900 screen the first pool row sat
+at y=990, below the fold, under "Draft for me", the sound switch and five
+rows of filters. From `lg` the two personal switches (and the sheet nudge)
+now head the watching column, via a two-row grid where the pool spans both
+rows; Position and PIR share one line; the sound switch lost a stray top
+margin. Measured by the capture run: 890 after the filter change, 754 after
+the move. Phones keep the old order.
+
+Left open, in order: the shell-less roll stage (P2), League Home's phone tail (P2), a
+singular/plural rule for recap headlines (P3), and a scoring explainer (P3).
+
+Verification: lint, typecheck, knip and 1557 unit tests pass. Against
+`next build` + `next start`, the full Playwright suite ran at 514–519 of 544;
+the remainder were the four known local-only news tests (both projects) and
+30-second timeouts under ten parallel workers on one laptop. Every non-news
+failing file passed on its own run (205 and then 244 tests, zero failures).

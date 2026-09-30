@@ -115,12 +115,18 @@ test("the season lobby is a dashboard, not a grid of doors", async ({
   await page.getByRole("tab", { name: "Trades" }).click();
   await expect(page.getByTestId("dashboard-tx-tally")).toBeVisible();
 
-  // The season is named for both its years. "26" alone is half the name of the
-  // competition, which is what the first cut printed.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("26-27");
-  // One display headline per surface: the league's name steps down so the
-  // season can have it.
+  // One display headline per surface, and it is the league's name. The season
+  // is named for both its years above it — "26" alone is half a name.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dashboard League");
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(page.getByText("26-27 season", { exact: false })).toBeVisible();
+
+  // The viewer's team leads the page: rank and total at scoreboard size, and
+  // the one thing to do next.
+  const hero = page.getByTestId("dashboard-hero");
+  await expect(hero).toContainText("Virtuozas");
+  await expect(hero.getByTestId("dashboard-rank")).toHaveText("1st");
+  await expect(hero.getByTestId("hero-lineup")).toHaveAttribute("href", `/leagues/${league.id}/lineup`);
 
   // The table is ranked, numbered, and knows which row is the viewer's.
   const rows = page.getByTestId("dashboard-standing");
@@ -161,8 +167,6 @@ test("nothing on the dashboard claims a fact this product does not have", async 
   expect(body).not.toMatch(/matchup/i);
   expect(body).not.toMatch(/\bfinal\b/i);
 
-  // The local fixture has no official photo, so the roster keeps its fallback.
-  await expect(page.getByTestId("dashboard-roster-group").locator(".player-portrait-fallback").first()).toBeVisible();
 
   // And the brief's other instruction: no cheat-sheet panel on this screen.
   await expect(page.getByTestId("lobby-sheet")).toHaveCount(0);

@@ -589,12 +589,13 @@ export function PickForm({
                   testId="sheet-pinned-row"
                   state="waiting"
                   nowrap
+                  className="@container"
                 >
                   <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
                     <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
                       #{player.rank}
                     </span>
-                    <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden sm:inline-grid !h-8 !w-7" />
+                    <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
                     <span className="min-w-0 truncate" title={player.name}>
                       <CardName scale="slot">{player.name}</CardName>
                     </span>
@@ -668,18 +669,45 @@ export function PickForm({
       {/* Two rows, not one that wraps: a position is a *which*, and the three
           below it are *whethers*. Left as a single wrapping run, "Hide drafted"
           landed on the same line as G F C and read as a fourth position. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-        <span className="slot-label pb-2">Position</span>
-        {POSITIONS.map((position) => (
-          <FilterToggle
-            key={position}
-            testId={`filter-position-${position}`}
-            pressed={filters.positions.includes(position)}
-            onPressedChange={() => togglePosition(position)}
-          >
-            {position}
-          </FilterToggle>
-        ))}
+      {/* Position and PIR share a line where there is room: both are short
+          runs of *which*, each behind its own label, and on a laptop the two
+          extra rows are what pushed the first player below the fold. */}
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+          <span className="slot-label pb-2">Position</span>
+          {POSITIONS.map((position) => (
+            <FilterToggle
+              key={position}
+              testId={`filter-position-${position}`}
+              pressed={filters.positions.includes(position)}
+              onPressedChange={() => togglePosition(position)}
+            >
+              {position}
+            </FilterToggle>
+          ))}
+        </div>
+
+        {/* Reads `PIR` because the column it narrows reads `PIR`. It said
+            `Last 5` over thresholds applied to fantasy points, which was two
+            numbers away from what the row displayed. */}
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+          <span className="slot-label pb-2">PIR</span>
+          {([100, 150, 200] as const).map((floor) => (
+            <FilterToggle
+              key={floor}
+              testId={`filter-proj-${floor}`}
+              pressed={filters.minProjection === floor}
+              onPressedChange={() =>
+                setFilter(
+                  "minProjection",
+                  filters.minProjection === floor ? 0 : floor,
+                )
+              }
+            >
+              {`${floor / 10}+`}
+            </FilterToggle>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
@@ -716,28 +744,6 @@ export function PickForm({
             On my sheet
           </FilterToggle>
         ) : null}
-      </div>
-
-      {/* Reads `PIR` because the column it narrows reads `PIR`. It said
-          `Last 5` over thresholds applied to fantasy points, which was two
-          numbers away from what the row displayed. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-        <span className="slot-label pb-2">PIR</span>
-        {([100, 150, 200] as const).map((floor) => (
-          <FilterToggle
-            key={floor}
-            testId={`filter-proj-${floor}`}
-            pressed={filters.minProjection === floor}
-            onPressedChange={() =>
-              setFilter(
-                "minProjection",
-                filters.minProjection === floor ? 0 : floor,
-              )
-            }
-          >
-            {`${floor / 10}+`}
-          </FilterToggle>
-        ))}
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-3">
@@ -871,11 +877,14 @@ export function PickForm({
               // An armed row is never faded: `ink-faint` on the live blush is
               // 4.37:1, and the row you are about to commit is the last thing
               // that should be hard to read.
-              className={
+              // Sized by the row, not the viewport: from `lg` the pool is one
+              // column of the room, and viewport breakpoints let the extras
+              // squeeze a surname down to three letters.
+              className={`@container ${
                 (player.drafted || player.noRoom) && !isArmed
                   ? "text-ink-faint"
                   : ""
-              }
+              }`}
             >
               <span
                 className={`flex min-w-0 flex-1 items-baseline ${POOL_GAP} overflow-hidden`}
@@ -924,7 +933,7 @@ export function PickForm({
                       : formatTenths(player.averagePir)}
                   </span>
                   {player.averageGames > 0 ? (
-                    <span className="stat slot-label hidden sm:inline">
+                    <span className="stat slot-label hidden @md:inline">
                       {player.averageGames}
                     </span>
                   ) : null}
@@ -944,22 +953,22 @@ export function PickForm({
                 >
                   <CardName scale="slot">{player.name}</CardName>
                 </span>
-                <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden sm:inline-grid !h-8 !w-7" />
+                <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
                 <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
                 {/* Fantasy points are what the standings actually sum, so they
                     stay on the row rather than being hidden — named, quiet,
-                    and behind PIR. Held back below `sm` because the row cannot
+                    and behind PIR. Held back on a narrow row because it cannot
                     carry two numeric columns, a name, a club and a patch
                     inside 390px; the player page prints it at every width. */}
                 {player.averageFantasy !== null ? (
                   <span
-                    className="stat slot-label hidden shrink-0 sm:inline"
+                    className="stat slot-label hidden shrink-0 @2xl:inline"
                     data-testid="pool-proj"
                   >
                     {`FP ${formatTenths(player.averageFantasy)}`}
                   </span>
                 ) : null}
-                {/* Form, behind the number it qualifies — and `sm` and up only,
+                {/* Form, behind the number it qualifies — and on a wide row only,
                     on exactly the budget the fantasy average above it is held
                     to. The measurement in `PIR_COLUMN` is what makes this a
                     rule rather than a preference: the name absorbs the whole
@@ -971,7 +980,7 @@ export function PickForm({
                 <Sparkline
                   values={player.last5Pirs}
                   what="PIR"
-                  className="hidden h-4 w-[3.125rem] shrink-0 text-ink-soft sm:inline-flex"
+                  className="hidden h-4 w-[3.125rem] shrink-0 text-ink-soft @2xl:inline-flex"
                   testId="pool-spark"
                 />
                 <PositionPatch position={player.position} />

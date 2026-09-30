@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { Bank, Correction, Slot, Slots } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
@@ -18,6 +18,7 @@ import type {
   UnmatchedCode,
   UnmatchedNews,
 } from "@/lib/mapping/queries";
+import { useHydrated } from "@/lib/hydrated";
 import { attachNewsName, type NewsResult } from "@/lib/news/actions";
 
 /**
@@ -89,6 +90,49 @@ export function MappingSurface({
   const likely = renames.filter((rename) => rename.confidence === "likely");
   const asking = renames.filter((rename) => rename.confidence === "candidate");
 
+  // One queue across the three kinds, in the order the page lists them.
+  const queue = [
+    ...likely.map((rename) => `rename-${rename.existingId}`),
+    ...asking.map((rename) => `rename-${rename.existingId}`),
+    ...unmatched.map((entry) => `code-${entry.personCode}`),
+    ...news.map((entry) => `news-name-${entry.slug}`),
+  ];
+  const [cursor, setCursor] = useState(0);
+  // Keys pressed before hydration go nowhere; specs wait on this, as the pool's `pool-ready`.
+  const ready = useHydrated();
+  const at = Math.min(cursor, Math.max(0, queue.length - 1));
+  const currentKey = queue[at] ?? null;
+  const queueKey = queue.join("\n");
+
+  useEffect(() => {
+    const keys = queueKey ? queueKey.split("\n") : [];
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable]")) return;
+      const key = event.key.toLowerCase();
+      const row = currentKey ? document.querySelector<HTMLElement>(`[data-testid="${currentKey}"]`) : null;
+      if (key === "j" || key === "k") {
+        event.preventDefault();
+        const next = Math.max(0, Math.min(keys.length - 1, at + (key === "j" ? 1 : -1)));
+        setCursor(next);
+        document
+          .querySelector<HTMLElement>(`[data-testid="${keys[next]}"]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      if ((key === "y" || key === "n") && row) {
+        const form = row.querySelector<HTMLFormElement>(`form[data-answer="${key === "y" ? "yes" : "no"}"]`);
+        if (form) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [at, currentKey, queueKey]);
+
   return (
     <>
       {errors.length > 0 ? (
@@ -112,6 +156,22 @@ export function MappingSurface({
         >
           {dones[dones.length - 1]}
         </p>
+      ) : null}
+
+      {queue.length > 0 ? (
+        <div
+          data-testid="mapping-progress"
+          data-ready={ready}
+          className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 rounded-card border border-panel-border bg-stock-panel px-4 py-3"
+        >
+          <p className="display text-2xl" aria-live="polite">
+            Question {at + 1} <span className="text-ink-soft">of {queue.length}</span>
+          </p>
+          <p className="hidden text-sm text-ink-soft sm:block">
+            <kbd className="stat">J</kbd> / <kbd className="stat">K</kbd> to move ·{" "}
+            <kbd className="stat">Y</kbd> yes · <kbd className="stat">N</kbd> no
+          </p>
+        </div>
       ) : null}
 
       <Bank
@@ -153,6 +213,7 @@ export function MappingSurface({
                   batchId={batchId!}
                   confirmAction={renameAction}
                   rejectAction={rejectAction}
+                  current={currentKey === `rename-${rename.existingId}`}
                 />
               ))}
             </Slots>
@@ -175,6 +236,7 @@ export function MappingSurface({
                   confirmAction={renameAction}
                   rejectAction={rejectAction}
                   choosable
+                  current={currentKey === `rename-${rename.existingId}`}
                 />
               ))}
             </Slots>
@@ -203,6 +265,7 @@ export function MappingSurface({
                 key={entry.personCode}
                 entry={entry}
                 action={attachAction}
+                current={currentKey === `code-${entry.personCode}`}
               />
             ))}
           </Slots>
@@ -223,7 +286,12 @@ export function MappingSurface({
         ) : (
           <Slots testId="mapping-news">
             {news.map((entry) => (
-              <NewsRow key={entry.slug} entry={entry} action={newsAction} />
+              <NewsRow
+                key={entry.slug}
+                entry={entry}
+                action={newsAction}
+                current={currentKey === `news-name-${entry.slug}`}
+              />
             ))}
           </Slots>
         )}
@@ -235,14 +303,16 @@ export function MappingSurface({
 function NewsRow({
   entry,
   action,
+  current,
 }: {
   entry: UnmatchedNews;
   action: (formData: FormData) => void;
+  current: boolean;
 }) {
   const [playerId, setPlayerId] = useState(entry.candidates[0]?.id ?? "");
 
   return (
-    <Slot state="live" testId={`news-name-${entry.slug}`}>
+    <Slot state="live" current={current} testId={`news-name-${entry.slug}`}>
       <span className="flex w-full flex-col gap-2">
         <span className="text-sm">
           <strong>{entry.name}</strong>{" "}
@@ -277,7 +347,7 @@ function NewsRow({
                 ))}
               </select>
             </label>
-            <form action={action}>
+            <form action={action} data-answer="yes">
               <input type="hidden" name="slug" value={entry.slug} />
               <input type="hidden" name="player" value={playerId} />
               <SubmitButton
@@ -302,21 +372,34 @@ function RenameRow({
   confirmAction,
   rejectAction,
   choosable = false,
+  current,
 }: {
   rename: StoredRename;
   batchId: string;
   confirmAction: (formData: FormData) => void;
   rejectAction: (formData: FormData) => void;
   choosable?: boolean;
+  current: boolean;
 }) {
   const [code, setCode] = useState(rename.personCode);
 
   return (
-    <Slot state="live" testId={`rename-${rename.existingId}`}>
-      <span className="flex w-full flex-col gap-2">
-        <span className="text-sm">
-          <strong>{rename.existingName}</strong> → {rename.incomingName}{" "}
-          <span className="text-ink-soft">({rename.clubCode})</span>
+    <Slot state="live" current={current} testId={`rename-${rename.existingId}`}>
+      <span className="flex w-full flex-col gap-3">
+        <span className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 text-sm">
+          <span className="flex min-w-0 flex-col gap-0.5 rounded-md border border-rule-strong px-3 py-2">
+            <span className="slot-label text-ink-soft">In the pool</span>
+            <strong className="break-words">{rename.existingName}</strong>
+            <span className="text-xs text-ink-soft">{rename.clubCode}</span>
+          </span>
+          <span aria-hidden="true" className="self-center text-ink-faint">
+            ?
+          </span>
+          <span className="flex min-w-0 flex-col gap-0.5 rounded-md border border-rule-strong px-3 py-2">
+            <span className="slot-label text-ink-soft">In the feed</span>
+            <strong className="break-words">{rename.incomingName}</strong>
+            <span className="text-xs text-ink-soft">{rename.clubCode}</span>
+          </span>
         </span>
         <span className="text-xs text-ink-soft break-words">
           {rename.reason}
@@ -345,7 +428,7 @@ function RenameRow({
           ) : null}
 
           <span className="flex flex-wrap gap-2">
-            <form action={confirmAction}>
+            <form action={confirmAction} data-answer="yes">
               <input type="hidden" name="batch" value={batchId} />
               <input type="hidden" name="player" value={rename.existingId} />
               <input type="hidden" name="code" value={code} />
@@ -359,7 +442,7 @@ function RenameRow({
                 Same player
               </SubmitButton>
             </form>
-            <form action={rejectAction}>
+            <form action={rejectAction} data-answer="no">
               <input type="hidden" name="batch" value={batchId} />
               <input type="hidden" name="player" value={rename.existingId} />
               <input type="hidden" name="code" value={code} />
@@ -382,14 +465,16 @@ function RenameRow({
 function CodeRow({
   entry,
   action,
+  current,
 }: {
   entry: UnmatchedCode;
   action: (formData: FormData) => void;
+  current: boolean;
 }) {
   const [playerId, setPlayerId] = useState(entry.candidates[0]?.id ?? "");
 
   return (
-    <Slot state="live" testId={`code-${entry.personCode}`}>
+    <Slot state="live" current={current} testId={`code-${entry.personCode}`}>
       <span className="flex w-full flex-col gap-2">
         <span className="text-sm">
           <strong>{entry.name ?? "(no name in the import)"}</strong>{" "}
@@ -424,7 +509,7 @@ function CodeRow({
                 ))}
               </select>
             </label>
-            <form action={action}>
+            <form action={action} data-answer="yes">
               <input type="hidden" name="player" value={playerId} />
               <input type="hidden" name="code" value={entry.personCode} />
               <input type="hidden" name="games" value={entry.games.join(",")} />

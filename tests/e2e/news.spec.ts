@@ -121,8 +121,10 @@ test("an injury item marks the player in the pool, and links back to who said it
     "href",
     `https://www.rotowire.com/euro/player/${run}-kneed`,
   );
-  // An item that is currently why somebody is unavailable is struck live.
-  await expect(row).toHaveAttribute("data-state", "live");
+  // An item that is currently why somebody is unavailable says so on the row,
+  // in the loss colour and with its word — never in the accent.
+  await expect(row.getByTestId("news-status")).toHaveText("Out");
+  await expect(row.getByTestId("news-status")).toHaveAttribute("data-badge", "out");
 
   // The pool says the word on the player it applies to, which is the whole
   // point of feeding `players.status` rather than building a parallel flag.

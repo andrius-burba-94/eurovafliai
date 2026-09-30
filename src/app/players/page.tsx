@@ -44,8 +44,8 @@ export default async function PlayersPage() {
   return (
     <AppShell current="pool" measure="wide" testId="players">
       <div className="flex flex-col gap-4">
-        <p className="slot-label text-live">EuroLeague / Players</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Player pool</h1>
+        <p className="slot-label text-live">EuroLeague</p>
+        <h1 className="display text-4xl sm:text-5xl">Player pool</h1>
         {counts.total === 0 ? (
           <p className="text-ink-soft">
             No players yet. Run{" "}
@@ -69,6 +69,11 @@ export default async function PlayersPage() {
       <PoolBrowser players={pool.players} clubs={clubs.map((club) => ({ code: club.code, name: club.name }))} />
 
       {counts.total > 0 ? (
+        <details className="group rounded-card border border-panel-border bg-stock-panel px-4 py-2" open={canImport}>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            Where this data comes from
+            <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
+          </summary>
         <Bank label="Ingest" aside={`${authority} holds authority`}>
           <Slots>
             <Slot>
@@ -187,6 +192,7 @@ export default async function PlayersPage() {
             ) : null}
           </Slots>
         </Bank>
+        </details>
       ) : null}
 
     </AppShell>

@@ -3,12 +3,12 @@ import { notFound, redirect } from "next/navigation";
 
 import {
   Bank,
-  CardName,
   PositionPatch,
   Slot,
   Slots,
   Sparkline,
 } from "@/components/board";
+import { ScoreFigure, StatusBadge, availabilityBadge } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
@@ -101,22 +101,39 @@ export default async function PlayerPage({
             &larr; Back to the roster
           </Link>
         ) : null}
-        <div className="flex items-center gap-4"><PlayerPortrait personCode={player.personCode} name={player.name} className="!h-20 !w-[4.5rem]" /><h1 className="min-w-0 text-3xl font-semibold break-words uppercase tracking-[0.04em] sm:text-4xl">{player.name}</h1></div>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <span className="slot-label flex items-center gap-1"><ClubCrest clubCode={player.clubCode} />{player.clubCode} · {player.clubName}</span>
-          <PositionPatch position={player.position} />
-          {player.status !== "active" ? (
-            <span className="slot-label">{player.status}</span>
-          ) : null}
-          {/* The roster feed has carried all of this since 2.1 and nothing
-              read it. Each part appears only if the feed has it — one of
-              332 E2026 players has no height. */}
-          {bio.length > 0 ? (
-            <span className="slot-label" data-testid="player-bio">
-              {bio.join(" · ")}
+        <section
+          aria-label="Player card"
+          className="relative flex items-end gap-4 overflow-hidden rounded-card border border-panel-border bg-stock-panel p-4 sm:gap-6 sm:p-6"
+        >
+          <div aria-hidden="true" className="lattice pointer-events-none absolute inset-0" />
+          <PlayerPortrait personCode={player.personCode} name={player.name} className="relative !h-32 !w-28 sm:!h-40 sm:!w-36" />
+          <div className="relative flex min-w-0 flex-col gap-2 pb-1">
+            <span className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
+              <ClubCrest clubCode={player.clubCode} />
+              {player.clubName || player.clubCode}
             </span>
-          ) : null}
-        </div>
+            <h1 className="display min-w-0 text-4xl break-words sm:text-5xl">{player.name}</h1>
+            <span className="flex flex-wrap items-center gap-2">
+              <PositionPatch position={player.position} />
+              {availabilityBadge(player.status) ? (
+                <StatusBadge kind={availabilityBadge(player.status)!.kind}>{availabilityBadge(player.status)!.word}</StatusBadge>
+              ) : null}
+              {/* Each part appears only if the feed has it — one of 332 E2026
+                  players has no height. */}
+              {bio.length > 0 ? (
+                <span className="text-xs text-ink-soft" data-testid="player-bio">
+                  {bio.join(" · ")}
+                </span>
+              ) : null}
+            </span>
+            {player.last5 ? (
+              <span className="flex items-baseline gap-2">
+                <ScoreFigure size="md">{formatTenths(player.last5.pirTenths)}</ScoreFigure>
+                <span className="text-xs text-ink-soft">PIR, last {player.last5.games}</span>
+              </span>
+            ) : null}
+          </div>
+        </section>
       </div>
 
       {/* **Current form, and only when there is any.**
@@ -277,23 +294,40 @@ export default async function PlayerPage({
             counted round; the roster link above is still the squad of record.
           </p>
         ) : (
-          <Slots testId="player-log-rows">
-            {log.map((line) => (
-              <Slot key={line.id} testId="player-game" state="filled">
-                <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <CardName scale="slot">
-                    {line.season} · R{line.round}
-                  </CardName>
-                  <span className="slot-label">{line.phase}</span>
-                  <span className="slot-label">{line.clubCode}</span>
-                </span>
-                <span className="stat flex flex-wrap items-baseline gap-x-3 text-sm">
-                  <span>PIR {line.pir}</span>
-                  <span>{formatTenths(line.fantasyTenths)}</span>
-                </span>
-              </Slot>
-            ))}
-          </Slots>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[22rem] text-sm" data-testid="player-log-rows">
+              <thead>
+                <tr className="text-left text-xs text-ink-soft">
+                  <th className="py-2 pr-3 font-semibold">Game</th>
+                  <th className="py-2 pr-3 font-semibold">Club</th>
+                  <th className="py-2 pr-3 text-right font-semibold">PIR</th>
+                  <th className="py-2 text-right font-semibold">Fantasy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {log.map((line) => {
+                  const heat = Math.max(0, Math.min(1, line.fantasyTenths / 300));
+                  return (
+                    <tr key={line.id} data-testid="player-game" className="border-t border-panel-border">
+                      <td className="py-2 pr-3 font-semibold">
+                        {line.season} · R{line.round}
+                        <span className="ml-2 text-xs font-normal text-ink-faint">{line.phase}</span>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className="flex items-center gap-1.5 text-ink-soft"><ClubCrest clubCode={line.clubCode} />{line.clubCode}</span>
+                      </td>
+                      <td className="stat py-2 pr-3 text-right" data-testid="player-game-pir">{line.pir}</td>
+                      <td className="stat py-2 text-right font-bold" data-testid="player-game-fantasy">
+                        <span className="rounded px-1.5 py-0.5" style={{ background: `color-mix(in oklab, var(--color-gain) ${Math.round(heat * 30)}%, transparent)` }}>
+                          {formatTenths(line.fantasyTenths)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </Bank>
     </AppShell>

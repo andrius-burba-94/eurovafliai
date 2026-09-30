@@ -1,6 +1,9 @@
-import { Bank, Field, selectStyles } from "@/components/board";
-import { SubmitButton } from "@/components/submit-button";
+import Link from "next/link";
 
+/**
+ * Every counted round as a chip, newest last — a round is picked, never typed.
+ * Links, so the page works before JavaScript and a round is a URL to share.
+ */
 export function RoundPicker({
   leagueId,
   season,
@@ -13,34 +16,20 @@ export function RoundPicker({
   rounds: readonly number[];
 }) {
   return (
-    <Bank framed label="Round" aside={`Round ${round}`}>
-      <form
-        method="get"
-        action={`/leagues/${leagueId}/recap`}
-        className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
-      >
-        <input type="hidden" name="season" value={season} />
-        <Field label="Euroleague round">
-          <select
-            name="round"
-            data-testid="recap-round"
-            className={selectStyles}
-            defaultValue={String(round)}
-          >
-            {rounds.map((n) => (
-              <option key={n} value={n}>
-                Round {n}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <SubmitButton
-          testId="recap-show-round"
-          pendingLabel="Opening that night…"
+    <nav aria-label="Counted rounds" data-testid="recap-rounds" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      {rounds.map((n) => (
+        <Link
+          key={n}
+          href={`/leagues/${leagueId}/recap?${new URLSearchParams({ season, round: String(n) })}`}
+          data-testid={`recap-round-${n}`}
+          aria-current={n === round ? "page" : undefined}
+          className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border px-3.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+            n === round ? "border-ink bg-ink text-stock" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
+          }`}
         >
-          Show this night
-        </SubmitButton>
-      </form>
-    </Bank>
+          R{n}
+        </Link>
+      ))}
+    </nav>
   );
 }

@@ -224,7 +224,7 @@ export function SheetList({
           <p className="min-w-0 text-sm break-words text-ink-soft">
             You have not ranked anybody yet. Until you do, autodraft picks the
             first legal player it finds: arbitrary, and the same every time.
-            Paste a ranked list in the box below.
+            Start from the PIR ranking above, or paste a list below.
           </p>
         </div>
       </Bank>

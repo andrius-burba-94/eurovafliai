@@ -5,9 +5,11 @@ import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { getCheatSheetView } from "@/lib/sheets/queries";
+import { SEED_DEPTH } from "@/lib/sheets/seed";
 
 import { SheetForm } from "./sheet-form";
 import { SheetList } from "./sheet-list";
+import { SheetSuggestions, StartFromRanking } from "./sheet-start";
 
 /**
  * Your cheat sheet — slice 3.4.
@@ -45,7 +47,7 @@ export default async function CheatSheetPage({
   return (
     <AppShell current="sheet" league={league} testId="cheat-sheet">
       <div className="flex max-w-xl flex-col gap-3">
-        <h1 className="text-3xl font-semibold uppercase tracking-[0.04em] sm:text-4xl">
+        <h1 className="display text-4xl sm:text-5xl">
           Your cheat sheet
         </h1>
         <p className="text-ink-soft">
@@ -55,6 +57,10 @@ export default async function CheatSheetPage({
         </p>
       </div>
 
+      {view.rows.length === 0 ? (
+        <StartFromRanking leagueId={id} depth={SEED_DEPTH} />
+      ) : null}
+
       <SheetList
         leagueId={id}
         rows={view.rows}
@@ -62,6 +68,14 @@ export default async function CheatSheetPage({
         poolSize={view.poolSize}
         cover={view.cover}
       />
+
+      {view.rows.length > 0 ? (
+        <SheetSuggestions
+          leagueId={id}
+          players={view.suggestions}
+          rankedCount={view.rows.length}
+        />
+      ) : null}
 
       {/* `initialText` moves now — a reorder above rewrites it — and
           `SheetForm` re-seeds its box from it. Deliberately *not* a `key`:
