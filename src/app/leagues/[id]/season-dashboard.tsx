@@ -1,19 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Bank, Door, EmptyNotice, PositionPatch, Slot, Slots } from "@/components/board";
+import { Bank, Door, EmptyNotice, Slot, Slots } from "@/components/board";
 import { PageHeader, ScoreFigure, TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
-import type { Position } from "@/lib/engine";
 import type { PanelData } from "@/lib/panel/types";
-import {
-  dashboardRoster,
-  dashboardStandings,
-  seasonLabel,
-  type DashboardRosterPlayer,
-} from "@/lib/season/dashboard";
+import { dashboardStandings, seasonLabel } from "@/lib/season/dashboard";
 import { movementOf, ordinal, roundStory } from "@/lib/season/story";
 import {
   formatHundredths,
@@ -29,7 +23,8 @@ import { formatTipOff } from "@/lib/time/local";
 /**
  * League Home in season (ADR-0011): your team as the scoreboard's hero, the
  * round in one line, the table and the round's story side by side, then the
- * conversation. The page answers "how am I doing and what do I do next"
+ * conversation across the full width. Your own roster is not repeated here:
+ * the sidebar and the standings rows already lead to every team. The page answers "how am I doing and what do I do next"
  * before anything else, at phone width, on first load.
  *
  * What it still refuses to claim: there is no head-to-head in this league, so
@@ -45,8 +40,6 @@ export function SeasonDashboard({
   recap,
   playerNames,
   playerCodes,
-  roster,
-  rosterTemplate,
   teamNames,
   teamStyles,
   youMemberId,
@@ -60,8 +53,6 @@ export function SeasonDashboard({
   recap: Recap | null;
   playerNames: Readonly<Record<string, string>>;
   playerCodes: Readonly<Record<string, string>>;
-  roster: readonly DashboardRosterPlayer[];
-  rosterTemplate: Readonly<Record<Position, number>>;
   teamNames: Readonly<Record<string, string>>;
   teamStyles: Readonly<Record<string, TeamStyle>>;
   youMemberId: string | null;
@@ -82,8 +73,6 @@ export function SeasonDashboard({
   const leaderTotal = standings[0]?.totalHundredths ?? 0;
   const movement = youMemberId ? movementOf(snapshots, youMemberId, teamNames) : null;
   const story = roundStory(recap);
-  const groups = dashboardRoster(roster, rosterTemplate);
-  const rosterTotal = rosterTemplate.G + rosterTemplate.F + rosterTemplate.C;
   const nameOf = (memberId: string) => teamNames[memberId] ?? "A team";
   const styleOf = (memberId: string) => teamStyles[memberId];
   const you = youMemberId ? { name: nameOf(youMemberId), style: styleOf(youMemberId) } : null;
@@ -353,54 +342,7 @@ export function SeasonDashboard({
         </Bank>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-start lg:gap-x-6">
-        <Bank
-          label="Your roster"
-          aside={
-            <span data-testid="dashboard-roster-tally">
-              {roster.length} of {rosterTotal}
-            </span>
-          }
-          framed
-        >
-          {roster.length === 0 ? (
-            <EmptyNotice testId="dashboard-roster-empty">
-              You have no players yet. A roster is written when the draft completes.
-            </EmptyNotice>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              {groups.map((group) => (
-                <span key={group.position} className="flex items-center gap-1.5">
-                  <PositionPatch position={group.position} />
-                  <span data-testid="dashboard-group-count" className="stat text-sm text-ink-soft">
-                    {group.filled}/{group.of}
-                  </span>
-                </span>
-              ))}
-            </div>
-          )}
-          <Slots>
-            <Door
-              href={`/leagues/${leagueId}/lineup`}
-              testId="enter-lineup"
-              title="Your lineup"
-              description="Who starts, who is captain, who sits — per round."
-              action="Set it"
-            />
-            {youMemberId ? (
-              <Door
-                href={`/leagues/${leagueId}/teams/${youMemberId}?season=${season}`}
-                testId="enter-my-team"
-                title="Your players"
-                description="Form, fixtures and the deals that changed your squad."
-                action="Open"
-              />
-            ) : null}
-          </Slots>
-        </Bank>
-
-        <div className="flex flex-col gap-4">{activity}</div>
-      </div>
+      <div className="flex flex-col gap-4">{activity}</div>
     </>
   );
 }
