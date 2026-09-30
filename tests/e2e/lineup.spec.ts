@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   addMemberTo,
@@ -115,13 +115,24 @@ async function score(
  * `captain` is no longer a role in the select: it is a mark on a starter, made
  * with an exclusive radio, because the captaincy is not a sixth place on the
  * team sheet. So this helper reads "captain" as *starter, and marked*, which is
- * what the rulebook means by it.
+ * what the rulebook means by it. The select and the radio live in the grid view;
+ * the court moves players by tap and drag.
  */
+async function showGrid(page: Page): Promise<void> {
+  const grid = page.getByRole("button", { name: "grid", exact: true });
+  if ((await grid.getAttribute("aria-pressed")) !== "true") await grid.click();
+}
+
+async function showCourt(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "court", exact: true }).click();
+}
+
 async function assign(
   page: Page,
   player: { name: string },
   role: string,
 ): Promise<void> {
+  await showGrid(page);
   if (role === "captain") {
     await page.getByLabel(`${player.name} captain`).check();
     return;
@@ -172,7 +183,7 @@ test("a captain doubles, the bench halves and the inactive score nothing", async
   await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   await expect(page.getByTestId("lineup")).toBeVisible();
-  await expect(page.getByTestId("lineup-row")).toHaveCount(8);
+  await expect(page.getByTestId("lineup-tier-none").getByTestId("lineup-card")).toHaveCount(8);
   await expect(page.getByTestId("lineup-absent")).toContainText("100%");
 
   await arrange(page, planted.players);
@@ -274,6 +285,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
 
   const captainOf = (index: number) =>
     page.getByLabel(`${planted.players[index]!.name} captain`);
+  await showGrid(page);
 
   // Marking a captain places them too: the captaincy is a mark on a starter,
   // so a control that could name a captain the validator would then refuse is a
@@ -305,6 +317,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
 
   // Re-opening splits the stored captain back into a place plus a mark.
   await page.reload();
+  await showGrid(page);
   await expect(captainOf(0)).toBeChecked();
   await expect(page.getByLabel(`${planted.players[0]!.name} role`)).toHaveValue(
     "starter",
@@ -329,8 +342,8 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   await expect(court.getByTestId("court-open").first()).toBeDisabled();
 
   const guard = planted.players[0]!;
-  const roleOf = (player: { name: string }) =>
-    page.getByLabel(`${player.name} role`);
+  const center = planted.players[6]!;
+  const bench = page.getByTestId("lineup-tier-bench");
   const moveButton = (player: { name: string }) =>
     page.getByRole("button", { name: `Move ${player.name}` });
 
@@ -339,35 +352,77 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   await expect(moveButton(guard)).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("lineup-in-hand")).toContainText(guard.name);
   await court.getByTestId("court-open").first().click();
-  await expect(roleOf(guard)).toHaveValue("starter");
   await expect(court.getByTestId("court-player")).toHaveCount(1);
+  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "G");
   await expect(court.getByTestId("court-open")).toHaveCount(4);
   await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
 
-  // Out of it again, by a tier — and the court token is the handle too.
+  // Out of it again, by an open place in a tier — the court token is the handle too.
   await court.getByTestId("court-player").click();
-  await page.getByTestId("lineup-to-bench").click();
-  await expect(roleOf(guard)).toHaveValue("bench");
+  await bench.getByTestId("lineup-open").first().click();
   await expect(court.getByTestId("court-player")).toHaveCount(0);
-  await expect(page.getByTestId("lineup-tier-bench")).toContainText(
-    guard.name,
-  );
+  await expect(bench.getByRole("button", { name: `Move ${guard.name}` })).toBeVisible();
 
-  // The select still drives the same state, and the court follows it.
-  await roleOf(planted.players[6]!).selectOption("starter");
-  await expect(court.getByTestId("court-player")).toContainText(
-    planted.players[6]!.name.split(",")[0]!,
-  );
+  // The grid's select drives the same state, and the court follows it.
+  await showGrid(page);
+  await page.getByLabel(`${center.name} role`).selectOption("starter");
+  await expect(page.getByLabel(`${guard.name} role`)).toHaveValue("bench");
+  await showCourt(page);
+  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "C");
 
   // A bench player in hand, a starter tapped: the two trade places.
   await moveButton(guard).click();
   await court.getByTestId("court-player").click();
-  await expect(roleOf(guard)).toHaveValue("starter");
-  await expect(roleOf(planted.players[6]!)).toHaveValue("bench");
+  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "G");
+  await expect(bench.getByRole("button", { name: `Move ${center.name}` })).toBeVisible();
   await expect(page.getByTestId("lineup-swapped")).toContainText(
     `${guard.name} to the five`,
   );
   await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
+});
+
+test.describe("on a screen that holds the whole lineup", () => {
+test.use({ viewport: { width: 1600, height: 1000 } });
+
+test("a player dragged onto the court starts, and dragged onto a starter swaps with them", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "a mouse drag; touch holds first");
+  const owner = await createTestUser("dragowner");
+  const mate = await createTestUser("dragmate");
+  const planted = await plantSeason(owner, mate, "Court Drags");
+
+  await signIn(context, owner);
+  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+
+  const court = page.getByTestId("lineup-court");
+  const guard = planted.players[0]!;
+  const center = planted.players[6]!;
+  async function dragOnto(from: { name: string }, to: Locator) {
+    const source = await page.getByRole("button", { name: `Move ${from.name}` }).boundingBox();
+    const target = await to.boundingBox();
+    if (!source || !target) throw new Error("nothing to drag");
+    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+    await page.mouse.up();
+  }
+
+  await dragOnto(guard, court);
+  await expect(court.getByTestId("court-player")).toHaveCount(1);
+  await expect(page.getByTestId("lineup-swapped")).toContainText(`${guard.name} to the five`);
+
+  await dragOnto(center, court.getByTestId("court-player"));
+  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "C");
+  await expect(page.getByTestId("lineup-tier-none").getByRole("button", { name: `Move ${guard.name}` })).toBeVisible();
+  // A drag is not also a tap: nobody is left in hand.
+  await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
+  if (process.env.REDESIGN_CAPTURE) {
+    await page.getByRole("button", { name: "2-2-1", exact: true }).click();
+    await page.screenshot({ path: "/tmp/eurovafliai-lineup-wide.png" });
+  }
+});
 });
 
 test("formation selection fills the court, survives refresh, and stays unrecorded until saved", async ({ page, context }, testInfo) => {
@@ -403,7 +458,8 @@ test("formation selection fills the court, survives refresh, and stays unrecorde
   await page.reload();
   await expect(page.getByTestId("lineup-summary")).toContainText("1-3-1");
   await page.getByRole("button", { name: "grid", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Starting five grid" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Lineup grid" })).toBeVisible();
+  await expect(page.getByTestId("lineup-row")).toHaveCount(8);
   const compareButton = page.getByRole("button", { name: "Compare players" });
   await compareButton.focus();
   await expect(compareButton).toBeFocused();

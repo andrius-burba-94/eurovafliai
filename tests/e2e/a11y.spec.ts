@@ -150,9 +150,9 @@ for (const colorScheme of ["dark", "light"] as const) {
       context,
     }) => {
       // 11.2 and 11.3 in one page: a tablist beside the content from `xl`, and a
-      // court of toggle buttons over tiers of cards that each still carry a
-      // select and a radio. Populated, with one player already on the court, so
-      // axe reads a token, an open place and a tier heading rather than none.
+      // court of toggle buttons beside tiers of cards, and the grid whose rows
+      // carry a select and a radio. Populated, with one player already on the
+      // court, so axe reads a token, an open place and a tier heading.
       const user = await createTestUser("courtaxe");
       const league = await createLeagueFor(user, "Axe Court");
       const pb = await superuser();
@@ -195,11 +195,14 @@ for (const colorScheme of ["dark", "light"] as const) {
 
       await signIn(context, user);
       await page.goto(`/leagues/${league.id}/lineup?season=E2099&round=1`);
-      await page.getByLabel(`${players[0]!.name} role`).selectOption("starter");
+      await page.getByRole("button", { name: `Move ${players[0]!.name}` }).click();
+      await page.getByTestId("court-open").first().click();
       await expect(
         page.getByTestId("lineup-court").getByTestId("court-player"),
       ).toHaveCount(1);
       await assertNoSerious(page, "lineup court");
+      await page.getByRole("button", { name: "grid", exact: true }).click();
+      await assertNoSerious(page, "lineup grid");
     });
 
     test("the export picker has no serious axe findings", async ({

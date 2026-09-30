@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { Bank, EmptyNotice, selectStyles } from "@/components/board";
-import { PageHeader, RoundStepper } from "@/components/broadcast";
+import { RoundStepper } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
 import { ContextPanel } from "@/components/context-panel";
 import { resolveSeason, SeasonControl } from "@/components/season-control";
@@ -23,15 +23,17 @@ import { LineupForm } from "./lineup-form";
  * The league is played on the official site; this is where the result is typed
  * in afterwards, which is why the round is a free choice and not "tonight" —
  * and why the page names a round's tip-off without claiming it locks anything.
+ * Unasked, it opens the round the schedule says is current, the earliest one
+ * with a game still to play, because that is the one most visits are about.
  * The owner sets their own lineup and the commissioner sets anyone's.
  */
 
-function roundFrom(value: string | string[] | undefined): number {
+function roundFrom(value: string | string[] | undefined): number | null {
   const parsed = Number.parseInt(
     typeof value === "string" ? value : "",
     10,
   );
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export default async function LineupPage({
@@ -45,7 +47,7 @@ export default async function LineupPage({
   const query = await searchParams;
   const currentSeason = serverConfig().EUROLEAGUE_SEASON;
   const season = resolveSeason(query.season, currentSeason);
-  const round = roundFrom(query.round);
+  const asked = roundFrom(query.round);
 
   const data = await getLeagueWithMembers(id);
   if (!data) notFound();
@@ -67,12 +69,11 @@ export default async function LineupPage({
   const teamNames = Object.fromEntries(
     data.members.map((row) => [row.id, row.teamName.trim() || row.name]),
   );
-  const [board, panel] = await Promise.all([
-    drafted
-      ? readLineupBoard({ leagueId: id, memberId, season, round })
-      : Promise.resolve(null),
-    readPanel({ leagueId: id, season, teamNames, round }),
-  ]);
+  const panel = await readPanel({ leagueId: id, season, teamNames, round: asked ?? undefined });
+  const round = asked ?? panel.schedule?.round ?? 1;
+  const board = drafted
+    ? await readLineupBoard({ leagueId: id, memberId, season, round })
+    : null;
   const comparison = board ? await readComparisonPlayers(board.players, season, session.token) : [];
   const firstTip = (panel.schedule?.round === round ? panel.schedule.games : [])
     .map((game) => game.tipOff)
@@ -88,45 +89,42 @@ export default async function LineupPage({
       testId="lineup"
       panel={<ContextPanel data={panel} />}
     >
-      <PageHeader
-        eyebrow={`${data.league.name} · ${teamName}`}
-        title="Lineup"
-        lead={tipOff ? `Round ${round} tips off ${tipOff}.` : `Set the five, the captain and the rotation for round ${round}.`}
-        action={
-          <RoundStepper
-            round={round}
-            max={Math.max(38, round)}
-            hrefFor={(next) => `/leagues/${id}/lineup?${new URLSearchParams({ season, round: String(next), member: memberId })}`}
-            testId="lineup-stepper"
-          />
-        }
-      />
-
-      <SeasonControl
-        action={`/leagues/${id}/lineup`}
-        season={season}
-        currentSeason={currentSeason}
-      />
-
-      {canManage ? (
-        <form method="get" action={`/leagues/${id}/lineup`} className="flex flex-wrap items-end gap-2" data-testid="lineup-picker">
-          <input type="hidden" name="season" value={season} />
-          <input type="hidden" name="round" value={String(round)} />
-          <label className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-xs">
-            <span className="text-sm font-medium text-ink-soft">Whose team</span>
-            <select name="member" defaultValue={memberId} data-testid="lineup-member" className={selectStyles}>
+      {/* One line, not a header: the page is plainly the lineup, so the room
+          goes to the court. The team is named by the picker when there is one. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="lineup-toolbar">
+        <h1 className={canManage ? "sr-only" : "display min-w-0 truncate text-2xl"}>
+          {canManage ? `Lineup: ${teamName}` : teamName}
+        </h1>
+        {canManage ? (
+          <form method="get" action={`/leagues/${id}/lineup`} className="flex min-w-0 items-center gap-2" data-testid="lineup-picker">
+            <input type="hidden" name="season" value={season} />
+            <input type="hidden" name="round" value={String(round)} />
+            <select name="member" aria-label="Whose team" defaultValue={memberId} data-testid="lineup-member" className={`${selectStyles} max-w-56 min-w-0 font-semibold`}>
               {data.members.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.teamName.trim() ? row.teamName : row.name}
                 </option>
               ))}
             </select>
-          </label>
-          <SubmitButton testId="lineup-show" tone="ink" pendingLabel="Opening…" compact>
-            Show
-          </SubmitButton>
-        </form>
-      ) : null}
+            <SubmitButton testId="lineup-show" tone="ink" pendingLabel="Opening…" compact>
+              Show
+            </SubmitButton>
+          </form>
+        ) : null}
+        <RoundStepper
+          round={round}
+          max={Math.max(38, round)}
+          hrefFor={(next) => `/leagues/${id}/lineup?${new URLSearchParams({ season, round: String(next), member: memberId })}`}
+          testId="lineup-stepper"
+        />
+        {tipOff ? <p className="text-sm text-ink-soft">Tips off {tipOff}</p> : null}
+      </div>
+
+      <SeasonControl
+        action={`/leagues/${id}/lineup`}
+        season={season}
+        currentSeason={currentSeason}
+      />
 
       {!drafted ? (
         <Bank framed label="The lineup">
