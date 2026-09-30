@@ -7,7 +7,7 @@ import type PocketBase from "pocketbase";
 import { useLiveSubscription } from "@/lib/pb/use-live";
 import { feedStatus } from "@/lib/live/status";
 
-export function MatchdayLive({ authToken, season, round, checkedAt, final, hasGameWindow, gameTimes, hasPlayedGames }: {
+export function MatchdayLive({ authToken, season, round, checkedAt, final, hasGameWindow, gameTimes, hasPlayedGames, hasFullTime }: {
   authToken: string;
   season: string;
   round: number;
@@ -16,6 +16,7 @@ export function MatchdayLive({ authToken, season, round, checkedAt, final, hasGa
   hasGameWindow: boolean;
   gameTimes: readonly string[];
   hasPlayedGames: boolean;
+  hasFullTime: boolean;
 }) {
   const router = useRouter();
   const [now, setNow] = useState(0);
@@ -33,6 +34,6 @@ export function MatchdayLive({ authToken, season, round, checkedAt, final, hasGa
     if (reconnect) router.refresh();
   }, [router]);
   const { connected } = useLiveSubscription({ authToken, subscribe, onConnect });
-  const status = feedStatus({ final, connected, checkedAt, now, hasGameWindow, gameTimes, hasPlayedGames });
+  const status = feedStatus({ final, connected, checkedAt, now, hasGameWindow, gameTimes, hasPlayedGames, hasFullTime });
   return <p className={`text-xs ${status.alert ? "text-gold" : "text-ink-soft"}`} role="status" data-testid="matchday-feed-status">{status.label}</p>;
 }
