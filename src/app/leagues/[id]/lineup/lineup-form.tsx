@@ -332,7 +332,7 @@ export function LineupForm({
         data-testid="lineup-row"
         data-state={role === "" ? "waiting" : "filled"}
         data-position={player.position}
-        className={`flex flex-col gap-2 border-b border-panel-border py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4 ${
+        className={`flex flex-col gap-2 border-b border-panel-border py-3 last:border-b-0 @sm:flex-row @sm:items-center @sm:gap-3 ${
           inHand ? "rounded-lg bg-live-sunk/60 px-2 outline-2 -outline-offset-2 outline-live" : ""
         }`}
       >
@@ -340,7 +340,7 @@ export function LineupForm({
           <PositionPatch position={player.position} />
           <PlayerPortrait personCode={player.personCode} name={player.name} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-semibold">{player.name}</span>
+            <span title={player.name} className="line-clamp-2 text-sm leading-snug font-semibold">{player.name}</span>
             <span className="flex flex-wrap items-center gap-x-2 text-xs text-ink-soft">
               <span className="flex items-center gap-1">
                 <ClubCrest clubCode={player.clubCode} />
@@ -353,7 +353,7 @@ export function LineupForm({
             </span>
           </span>
         </span>
-        <span className="flex flex-wrap items-center justify-end gap-2">
+        <span className="flex flex-wrap items-center justify-end gap-1.5 @sm:shrink-0 @sm:flex-nowrap @lg:gap-2">
           {/*
             A radio group rather than thirteen toggles, because "exactly one of
             these" is what a radio group *is*: the browser clears the previous
@@ -404,10 +404,53 @@ export function LineupForm({
             }`}
           >
             <span aria-hidden="true">⇄</span>
-            {inHand ? "In hand" : "Move"}
+            <span className="hidden @lg:inline">{inHand ? "In hand" : "Move"}</span>
           </button>
         </span>
       </li>
+    );
+  }
+
+  function renderTier(tier: (typeof TIERS)[number], className = "") {
+    const members = groups[tier.role];
+    const capacity = tier.role === "" ? 0 : template[TEMPLATE_KEY[tier.role]];
+    if (tier.role === "" && members.length === 0) return null;
+    const canMoveHere = armed !== null && (places[armed] ?? "") !== tier.role;
+    return (
+      <section
+        key={tier.role || "none"}
+        aria-labelledby={`tier-${tier.role || "none"}`}
+        data-testid={`lineup-tier-${tier.role || "none"}`}
+        className={`flex min-w-0 flex-col gap-1 ${className}`}
+      >
+        <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <h3 id={`tier-${tier.role || "none"}`} className="display text-xl">
+            {tier.label}
+            <span className="ml-2 font-sans text-sm font-semibold tracking-normal text-ink-soft normal-case">
+              {capacity > 0 ? `${members.length}/${capacity}` : members.length}
+              {tier.role !== "" && tier.role !== "starter" ? ` · ${multiplierWord(tier.role)}` : ""}
+            </span>
+          </h3>
+          {canMoveHere ? (
+            <button
+              type="button"
+              data-testid={`lineup-to-${tier.role || "none"}`}
+              onClick={() => moveTo(tier.role)}
+              className="inline-flex min-h-11 items-center rounded-full bg-live px-4 text-sm font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+            >
+              Move here
+            </button>
+          ) : null}
+        </div>
+        <ul role="list" aria-label={tier.label} className="@container rounded-card border border-panel-border bg-stock-panel px-3">
+          {members.map(row)}
+          {Array.from({ length: Math.max(0, capacity - members.length) }, (_, index) => (
+            <li key={`open-${index}`} data-testid="lineup-open" className="flex min-h-12 items-center border-b border-dashed border-rule py-2 text-sm text-ink-faint last:border-b-0">
+              Open place
+            </li>
+          ))}
+        </ul>
+      </section>
     );
   }
 
@@ -547,48 +590,18 @@ export function LineupForm({
         </div>
       </Bank>
 
-      {TIERS.map((tier) => {
-        const members = groups[tier.role];
-        const capacity = tier.role === "" ? 0 : template[TEMPLATE_KEY[tier.role]];
-        if (tier.role === "" && members.length === 0) return null;
-        const canMoveHere = armed !== null && (places[armed] ?? "") !== tier.role;
-        return (
-          <section
-            key={tier.role || "none"}
-            aria-labelledby={`tier-${tier.role || "none"}`}
-            data-testid={`lineup-tier-${tier.role || "none"}`}
-            className="flex flex-col gap-1"
-          >
-            <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1">
-              <h3 id={`tier-${tier.role || "none"}`} className="display text-xl">
-                {tier.label}
-                <span className="ml-2 font-sans text-sm font-semibold tracking-normal text-ink-soft normal-case">
-                  {capacity > 0 ? `${members.length}/${capacity}` : members.length}
-                  {tier.role !== "" && tier.role !== "starter" ? ` · ${multiplierWord(tier.role)}` : ""}
-                </span>
-              </h3>
-              {canMoveHere ? (
-                <button
-                  type="button"
-                  data-testid={`lineup-to-${tier.role || "none"}`}
-                  onClick={() => moveTo(tier.role)}
-                  className="inline-flex min-h-11 items-center rounded-full bg-live px-4 text-sm font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                >
-                  Move here
-                </button>
-              ) : null}
-            </div>
-            <ul role="list" aria-label={tier.label} className="rounded-card border border-panel-border bg-stock-panel px-3">
-              {members.map(row)}
-              {Array.from({ length: Math.max(0, capacity - members.length) }, (_, index) => (
-                <li key={`open-${index}`} data-testid="lineup-open" className="flex min-h-12 items-center border-b border-dashed border-rule py-2 text-sm text-ink-faint last:border-b-0">
-                  Open place
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {/* Two columns once each can hold a row on one line: the five beside
+          the players who come off the bench, the rest across the foot. */}
+      <div className="@container">
+        <div className="grid gap-6 @4xl:grid-cols-2 @4xl:items-start">
+          {renderTier(TIERS[0]!)}
+          <div className="flex flex-col gap-6">
+            {renderTier(TIERS[1]!)}
+            {renderTier(TIERS[2]!)}
+          </div>
+          {TIERS.slice(3).map((tier) => renderTier(tier, "@4xl:col-span-2"))}
+        </div>
+      </div>
 
       {result.error ? <Correction testId="lineup-error">{result.error}</Correction> : null}
 

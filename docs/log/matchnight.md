@@ -409,3 +409,32 @@ Verification: lint, typecheck, knip and 1557 unit tests pass. Against
 the remainder were the four known local-only news tests (both projects) and
 30-second timeouts under ten parallel workers on one laptop. Every non-news
 failing file passed on its own run (205 and then 244 tests, zero failures).
+
+## S16 — Header and lineup layout
+
+The desktop shell header held one line: the league name (and, off League Home,
+the page's name), directly above a page title that already says both — the
+sidebar marks the page. From `lg` the sidebar carries the masthead and the
+switcher, so the header is now drawn only while the side panel still needs its
+toggle: the draft room, whose panel never docks, and `lg`–`xl` pages whose
+panel has not become a column yet. Phones keep it for the masthead, switcher
+and panel button. `shell.spec.ts` asserts the header is hidden at 1280px
+instead of reading "Cheat Sheet" from it.
+
+The lineup court was a 600 × 420 drawing stretched into a 1 : 1.08 box, which
+made it taller than wide. It is redrawn at 40 units a metre to FIBA's
+15 × 14 m half court and the box shares that ratio, so nothing is stretched;
+it is up to 42rem wide. The discs went from 3.1rem to 4.5rem (3.6rem under
+560px, 3rem under 400px) with larger badges and name tags.
+
+The tiers' rows were full-width, so a desktop left a wide empty band between
+each name and its controls. The tiers now stand in two columns once their
+container reaches `@4xl` — Starting five beside Sixth man and Bench (five rows
+each), Inactive and Not placed across the foot. Rows switch to one line by
+their own list's width (`@sm`) rather than the viewport; in a narrow column
+the Move button shows only its icon (the accessible name is unchanged) and a
+long name wraps to two lines.
+
+Verification: lint, typecheck and 1557 unit tests pass; `lineup.spec` and
+`a11y.spec` pass on both projects (the draft-room a11y test timed out once
+under a parallel run and passed on its own).

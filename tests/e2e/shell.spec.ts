@@ -69,7 +69,8 @@ test("the sidebar names the league and marks where you are", async ({
   await expect(
     page.getByTestId("sidebar").getByTestId("nav-group-drafts").locator(".."),
   ).toHaveAttribute("open", "");
-  await expect(page.getByTestId("shell-here")).toContainText("Cheat Sheet");
+  // The page's h1 names the league; a desktop header would only repeat it.
+  await expect(page.getByTestId("shell-header")).toBeHidden();
 
   // Every nav target is 44px tall; the rows are full-width, so wide enough.
   for (const link of await nav.getByRole("link").all()) {
