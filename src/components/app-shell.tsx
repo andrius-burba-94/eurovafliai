@@ -75,9 +75,9 @@ export async function AppShell({
     : 0;
   const groups = navFor({ league, isRosterManager: manager, mappingWaiting });
   const tabs = tabsFor(groups);
-  const here = groups
-    .flatMap((group) => group.items)
-    .find((item) => item.key === current);
+  // From `lg` the sidebar carries the masthead and the switcher, so the header
+  // is only drawn while the panel still needs its toggle.
+  const headerHidden = !panel ? "lg:hidden" : panelDocked ? "xl:hidden" : "";
   const account = session?.user.name || session?.user.email || "Account";
 
   const body = (
@@ -100,25 +100,15 @@ export async function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="border-b border-panel-border bg-stock">
+          <header
+            data-testid="shell-header"
+            className={`border-b border-panel-border bg-stock ${headerHidden}`}
+          >
             <div className="flex min-h-14 items-center justify-between gap-3 px-5 py-2 sm:px-8">
               <div className="min-w-0 shrink-0 lg:hidden">
                 <Masthead compact />
               </div>
-              <p
-                data-testid="shell-here"
-                className="slot-label hidden min-w-0 truncate lg:block"
-              >
-                {league ? (
-                  <span className="text-ink">{league.name}</span>
-                ) : (
-                  <span className="text-ink">Euroleague 2026&ndash;27</span>
-                )}
-                {here && here.key !== "league-home" ? (
-                  <> &middot; {here.label}</>
-                ) : null}
-              </p>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex shrink-0 items-center gap-2">
                 <div className="lg:hidden">
                   <LeagueSwitcher
                     leagues={leagues}
