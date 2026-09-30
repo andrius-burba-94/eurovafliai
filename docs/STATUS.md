@@ -393,8 +393,9 @@ npx playwright test tests/e2e/season-dashboard.spec.ts
 ```
 
 Open a league whose `status` is `season` with a seat of your own. The lobby body
-is gone: in its place, at the **`wide`** measure, the table and the conversation
-across the top, your roster and the league's news underneath. The thing to look
+is gone: in its place, at the **`wide`** measure, your team, the table and the
+round's story across the top, then the conversation (chat, trades, news) at full
+width underneath. The thing to look
 at is that **you can tell whether you are winning without pressing anything** —
 which the four-door grid it replaced could not do. Then narrow the window: below
 `lg` it is one column in the same order, because match night is phones on a
@@ -419,15 +420,20 @@ ADR-0010.
 
 **The `wide` measure now has two callers**, and the `MEASURE` key was renamed
 `room` → `wide` to say so. That is D24's argument reused rather than a new one:
-the room is pool, board, radar and console, the dashboard is standings, chat,
-roster and news, and both are four surfaces at once. There is still no third
+the room is pool, board, radar and console, the dashboard is your team,
+standings, the round's story and the conversation, and both are four surfaces
+at once. There is still no third
 measure.
 
 Two things left this screen on purpose: the **cheat sheet** (the brief's own
 instruction, and its season copy was already only a souvenir) and the lobby's
 **second copy of the chat** — the dashboard renders the same thread in its own
 panel, and two transcripts of one thread on one page is two unread counts for
-the same messages.
+the same messages. Later, two more went: the **Your roster** panel (the sidebar
+already leads to your lineup and team) and the lobby's **Members** list (every
+team is a row in the standings, each linking to its team page). That gave the
+chat the full row. Before the first counted round the standings list the teams
+unranked under the empty notice, so every team is still one tap away.
 
 ## Try it on localhost — the roll ceremony
 

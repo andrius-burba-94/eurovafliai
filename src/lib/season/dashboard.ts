@@ -1,14 +1,10 @@
-import type { Position } from "@/lib/engine";
-
 /**
  * The season dashboard's arithmetic, kept pure.
  *
- * The dashboard reads four existing surfaces at once — standings, chat, the
- * viewer's roster and the league's news — and every one of those already has a
- * query written for it (4.5, 3.5, 5.1, 5.2). What did *not* exist is the
- * shaping between them: a standings row that carries its movement since last
- * round, a roster split the way the template is written, and a run of
- * transactions said in one sentence each.
+ * The dashboard reads existing surfaces at once — standings, chat and the
+ * league's news — and every one of those already has a query written for it.
+ * What did *not* exist is the shaping between them: a standings row that
+ * carries its movement since last round, and a season code said out loud.
  *
  * It lives here rather than in the component for the usual reason in this repo:
  * this is the half with answers that can be wrong. A panel that renders is easy
@@ -36,30 +32,6 @@ export type DashboardStanding = {
    */
   readonly roundHundredths: number | null;
   readonly isYou: boolean;
-};
-
-export type DashboardRosterGroup = {
-  readonly position: Position;
-  readonly label: string;
-  readonly filled: number;
-  readonly of: number;
-  readonly players: readonly DashboardRosterPlayer[];
-};
-
-export type DashboardRosterPlayer = {
-  readonly id: string;
-  readonly name: string;
-  readonly clubCode: string;
-  readonly personCode?: string;
-  readonly position: Position;
-  /** Last five PIRs, oldest first. Empty before the season is under way. */
-  readonly last5Pirs: readonly number[];
-};
-
-const GROUP_LABEL: Record<Position, string> = {
-  G: "Guards",
-  F: "Forwards",
-  C: "Centers",
 };
 
 /**
@@ -102,30 +74,6 @@ export function dashboardStandings({
   );
 
   return rows.map((row, index) => ({ ...row, position: index + 1 }));
-}
-
-/**
- * The viewer's roster, grouped the way the roster template is written.
- *
- * Always all three groups, in G/F/C order, even when one is empty — the
- * template is the shape of the thing, and a dashboard that dropped "Centers"
- * because a manager holds none would hide the only fact that matters about it
- * (DESIGN.md's Board-Shows-Its-Shape Rule).
- */
-export function dashboardRoster(
-  players: readonly DashboardRosterPlayer[],
-  template: Readonly<Record<Position, number>>,
-): DashboardRosterGroup[] {
-  return (["G", "F", "C"] as const).map((position) => {
-    const mine = players.filter((player) => player.position === position);
-    return {
-      position,
-      label: GROUP_LABEL[position],
-      filled: mine.length,
-      of: template[position],
-      players: [...mine].sort((a, b) => a.name.localeCompare(b.name)),
-    };
-  });
 }
 
 /**

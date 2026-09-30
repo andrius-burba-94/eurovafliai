@@ -81,8 +81,8 @@ test("a member opens a roster from the season lobby", async ({
 
   await signIn(context, commissioner);
   await page.goto(`/leagues/${league.id}`);
-  await expect(page.getByTestId("enter-roster")).toBeVisible();
-  await page.getByTestId("enter-roster").click();
+  await expect(page.getByTestId("enter-team")).toBeVisible();
+  await page.getByTestId("enter-team").click();
 
   await expect(page.getByTestId("roster")).toBeVisible();
   // One fantasy season is not a choice, so the season control is not drawn

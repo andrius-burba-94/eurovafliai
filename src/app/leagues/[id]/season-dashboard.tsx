@@ -1,19 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Bank, Door, EmptyNotice, PositionPatch, Slot, Slots } from "@/components/board";
+import { Bank, Door, EmptyNotice, Slot, Slots } from "@/components/board";
 import { PageHeader, ScoreFigure, TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
-import type { Position } from "@/lib/engine";
 import type { PanelData } from "@/lib/panel/types";
-import {
-  dashboardRoster,
-  dashboardStandings,
-  seasonLabel,
-  type DashboardRosterPlayer,
-} from "@/lib/season/dashboard";
+import { dashboardStandings, seasonLabel } from "@/lib/season/dashboard";
 import { movementOf, ordinal, roundStory } from "@/lib/season/story";
 import {
   formatHundredths,
@@ -29,7 +23,8 @@ import { formatTipOff } from "@/lib/time/local";
 /**
  * League Home in season (ADR-0011): your team as the scoreboard's hero, the
  * round in one line, the table and the round's story side by side, then the
- * conversation. The page answers "how am I doing and what do I do next"
+ * conversation across the full width. Your own roster is not repeated here:
+ * the sidebar and the standings rows already lead to every team. The page answers "how am I doing and what do I do next"
  * before anything else, at phone width, on first load.
  *
  * What it still refuses to claim: there is no head-to-head in this league, so
@@ -45,8 +40,6 @@ export function SeasonDashboard({
   recap,
   playerNames,
   playerCodes,
-  roster,
-  rosterTemplate,
   teamNames,
   teamStyles,
   youMemberId,
@@ -60,8 +53,6 @@ export function SeasonDashboard({
   recap: Recap | null;
   playerNames: Readonly<Record<string, string>>;
   playerCodes: Readonly<Record<string, string>>;
-  roster: readonly DashboardRosterPlayer[];
-  rosterTemplate: Readonly<Record<Position, number>>;
   teamNames: Readonly<Record<string, string>>;
   teamStyles: Readonly<Record<string, TeamStyle>>;
   youMemberId: string | null;
@@ -82,10 +73,10 @@ export function SeasonDashboard({
   const leaderTotal = standings[0]?.totalHundredths ?? 0;
   const movement = youMemberId ? movementOf(snapshots, youMemberId, teamNames) : null;
   const story = roundStory(recap);
-  const groups = dashboardRoster(roster, rosterTemplate);
-  const rosterTotal = rosterTemplate.G + rosterTemplate.F + rosterTemplate.C;
   const nameOf = (memberId: string) => teamNames[memberId] ?? "A team";
   const styleOf = (memberId: string) => teamStyles[memberId];
+  const teamHref = (memberId: string) => `/leagues/${leagueId}/teams/${memberId}?season=${season}`;
+  const teamsByName = Object.entries(teamNames).sort(([, a], [, b]) => a.localeCompare(b));
   const you = youMemberId ? { name: nameOf(youMemberId), style: styleOf(youMemberId) } : null;
   const yourNight = youMemberId ? recap?.rows.findIndex((row) => row.memberId === youMemberId) ?? -1 : -1;
 
@@ -204,9 +195,26 @@ export function SeasonDashboard({
           framed
         >
           {standings.length === 0 ? (
-            <EmptyNotice testId="dashboard-standings-empty">
-              No round has been scored yet. The table fills in after the first Euroleague night this league counts.
-            </EmptyNotice>
+            <>
+              <EmptyNotice testId="dashboard-standings-empty">
+                No round has been scored yet. The table fills in after the first Euroleague night this league counts.
+              </EmptyNotice>
+              {/* Unranked and without points: nobody leads a table nothing has
+                  been counted in. The rows are still the way to every team. */}
+              <Slots testId="dashboard-teams">
+                {teamsByName.map(([memberId, teamName]) => {
+                  const style = styleOf(memberId);
+                  return (
+                    <Slot key={memberId} state="filled" nowrap>
+                      <span className="flex w-full items-center gap-3">
+                        {style ? <TeamCrest name={teamName} color={style.color} shape={style.crest} size={28} /> : null}
+                        <TeamLink href={teamHref(memberId)} name={teamName} isYou={memberId === youMemberId} />
+                      </span>
+                    </Slot>
+                  );
+                })}
+              </Slots>
+            </>
           ) : (
             <Slots testId="dashboard-standings">
               {standings.map((row) => {
@@ -216,13 +224,7 @@ export function SeasonDashboard({
                     <span className="stat w-6 shrink-0 text-ink-faint">{String(row.position).padStart(2, "0")}</span>
                     {style ? <TeamCrest name={row.teamName} color={style.color} shape={style.crest} size={28} /> : null}
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <Link
-                        href={`/leagues/${leagueId}/teams/${row.memberId}?season=${season}`}
-                        className="min-w-0 truncate text-sm font-semibold text-ink underline decoration-ink/0 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                      >
-                        {row.teamName}
-                        {row.isYou ? <span className="ml-2 rounded-full bg-live-sunk px-1.5 py-0.5 text-[0.6875rem] font-bold text-live">you</span> : null}
-                      </Link>
+                      <TeamLink href={teamHref(row.memberId)} name={row.teamName} isYou={row.isYou} />
                       <span className="text-xs text-ink-faint">
                         {row.totalHundredths === leaderTotal ? "Leader" : `−${formatHundredths(leaderTotal - row.totalHundredths)}`}
                       </span>
@@ -353,54 +355,20 @@ export function SeasonDashboard({
         </Bank>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:items-start lg:gap-x-6">
-        <Bank
-          label="Your roster"
-          aside={
-            <span data-testid="dashboard-roster-tally">
-              {roster.length} of {rosterTotal}
-            </span>
-          }
-          framed
-        >
-          {roster.length === 0 ? (
-            <EmptyNotice testId="dashboard-roster-empty">
-              You have no players yet. A roster is written when the draft completes.
-            </EmptyNotice>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              {groups.map((group) => (
-                <span key={group.position} className="flex items-center gap-1.5">
-                  <PositionPatch position={group.position} />
-                  <span data-testid="dashboard-group-count" className="stat text-sm text-ink-soft">
-                    {group.filled}/{group.of}
-                  </span>
-                </span>
-              ))}
-            </div>
-          )}
-          <Slots>
-            <Door
-              href={`/leagues/${leagueId}/lineup`}
-              testId="enter-lineup"
-              title="Your lineup"
-              description="Who starts, who is captain, who sits — per round."
-              action="Set it"
-            />
-            {youMemberId ? (
-              <Door
-                href={`/leagues/${leagueId}/teams/${youMemberId}?season=${season}`}
-                testId="enter-my-team"
-                title="Your players"
-                description="Form, fixtures and the deals that changed your squad."
-                action="Open"
-              />
-            ) : null}
-          </Slots>
-        </Bank>
-
-        <div className="flex flex-col gap-4">{activity}</div>
-      </div>
+      <div className="flex flex-col gap-4">{activity}</div>
     </>
+  );
+}
+
+function TeamLink({ href, name, isYou }: { href: string; name: string; isYou: boolean }) {
+  return (
+    <Link
+      href={href}
+      data-testid="enter-team"
+      className="min-w-0 truncate text-sm font-semibold text-ink underline decoration-ink/0 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+    >
+      {name}
+      {isYou ? <span className="ml-2 rounded-full bg-live-sunk px-1.5 py-0.5 text-[0.6875rem] font-bold text-live">you</span> : null}
+    </Link>
   );
 }

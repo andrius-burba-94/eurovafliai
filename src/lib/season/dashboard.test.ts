@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { dashboardRoster, dashboardStandings, seasonLabel } from "./dashboard";
+import { dashboardStandings, seasonLabel } from "./dashboard";
 
 const TEAMS = { a: "Virtuozas", b: "Vafliai", c: "Krosas" };
-const TEMPLATE = { G: 5, F: 5, C: 3 } as const;
 
 describe("dashboardStandings", () => {
   it("ranks on the total, highest first", () => {
@@ -112,79 +111,6 @@ describe("dashboardStandings", () => {
         youMemberId: null,
       }),
     ).toEqual([]);
-  });
-});
-
-describe("dashboardRoster", () => {
-  const player = (id: string, position: "G" | "F" | "C", name = id) => ({
-    id,
-    name,
-    clubCode: "BAR",
-    position,
-    last5Pirs: [],
-  });
-
-  it("groups into guards, forwards and centers, in that order", () => {
-    const groups = dashboardRoster(
-      [player("p1", "C"), player("p2", "G"), player("p3", "F")],
-      TEMPLATE,
-    );
-    expect(groups.map((group) => group.position)).toEqual(["G", "F", "C"]);
-    expect(groups.map((group) => group.label)).toEqual([
-      "Guards",
-      "Forwards",
-      "Centers",
-    ]);
-  });
-
-  // Board-Shows-Its-Shape: the template is the shape of the thing, so a group
-  // with nobody in it is the one worth drawing.
-  it("keeps an empty group rather than dropping it", () => {
-    const groups = dashboardRoster([player("p1", "G")], TEMPLATE);
-    const centers = groups.find((group) => group.position === "C")!;
-    expect(centers.filled).toBe(0);
-    expect(centers.of).toBe(3);
-    expect(centers.players).toEqual([]);
-  });
-
-  it("counts filled against the template, per position", () => {
-    const groups = dashboardRoster(
-      [player("p1", "G"), player("p2", "G"), player("p3", "C")],
-      TEMPLATE,
-    );
-    expect(groups.map((group) => `${group.filled}/${group.of}`)).toEqual([
-      "2/5",
-      "0/5",
-      "1/3",
-    ]);
-  });
-
-  it("orders players within a group by name", () => {
-    const groups = dashboardRoster(
-      [
-        player("p1", "G", "Zzz"),
-        player("p2", "G", "Aaa"),
-        player("p3", "G", "Mmm"),
-      ],
-      TEMPLATE,
-    );
-    expect(groups[0]!.players.map((p) => p.name)).toEqual([
-      "Aaa",
-      "Mmm",
-      "Zzz",
-    ]);
-  });
-
-  // The template is league settings, never hardcoded (PRODUCT.md).
-  it("follows a template that is not 5/5/3", () => {
-    const groups = dashboardRoster([player("p1", "G")], { G: 4, F: 4, C: 3 });
-    expect(groups.map((group) => group.of)).toEqual([4, 4, 3]);
-  });
-
-  it("draws all three groups for an empty roster", () => {
-    const groups = dashboardRoster([], TEMPLATE);
-    expect(groups).toHaveLength(3);
-    expect(groups.every((group) => group.filled === 0)).toBe(true);
   });
 });
 

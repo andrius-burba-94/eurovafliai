@@ -108,10 +108,12 @@ test("the season lobby is a dashboard, not a grid of doors", async ({
   await page.goto(`/leagues/${league.id}`);
   await expect(page.getByTestId("lobby")).toBeVisible();
 
-  // The four panels of the brief, all on one screen.
   await expect(page.getByTestId("dashboard-standings")).toBeVisible();
   await expect(page.getByTestId("chat-toggle")).toBeVisible();
-  await expect(page.getByTestId("dashboard-roster-tally")).toBeVisible();
+  // The standings list every team and the sidebar leads to your own, so
+  // neither a roster panel nor the lobby's member list repeats them.
+  await expect(page.getByTestId("dashboard-roster-tally")).toHaveCount(0);
+  await expect(page.getByTestId("member-list")).toHaveCount(0);
   await page.getByRole("tab", { name: "Trades" }).click();
   await expect(page.getByTestId("dashboard-tx-tally")).toBeVisible();
 
@@ -136,16 +138,6 @@ test("the season lobby is a dashboard, not a grid of doors", async ({
   await expect(rows.first()).toContainText("100.0");
   // Movement since the previous counted round, signed.
   await expect(rows.first()).toContainText("+42.0");
-
-  // The roster, grouped the way the template is written, empty buckets and all.
-  await expect(page.getByTestId("dashboard-roster-tally")).toContainText(
-    "4 of 13",
-  );
-  await expect(page.getByTestId("dashboard-group-count")).toHaveText([
-    "2/5",
-    "1/5",
-    "1/3",
-  ]);
 });
 
 test("nothing on the dashboard claims a fact this product does not have", async ({
@@ -188,13 +180,11 @@ test("an unscored season shows the shape and admits it is empty", async ({
   await expect(page.getByTestId("lobby")).toBeVisible();
 
   await expect(page.getByTestId("dashboard-standings-empty")).toBeVisible();
+  // With no table yet, the teams are still one tap away, unranked.
+  await expect(page.getByTestId("dashboard-teams").getByTestId("enter-team")).toHaveCount(5);
   await expect(page.getByTestId("dashboard-news-empty")).toBeVisible();
   await page.getByRole("tab", { name: "Trades" }).click();
   await expect(page.getByTestId("dashboard-tx-empty")).toBeVisible();
-  // The roster is written by the draft, not by a round, so it is still there.
-  await expect(page.getByTestId("dashboard-roster-tally")).toContainText(
-    "4 of 13",
-  );
   // No round to name, and it says so rather than printing "Round undefined".
   await expect(page.getByTestId("dashboard-round")).toHaveCount(0);
 });

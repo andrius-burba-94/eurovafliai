@@ -23,10 +23,7 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readNews } from "@/lib/news/queries";
 import { readPanel } from "@/lib/panel/queries";
-import {
-  readMemberRoster,
-  readRecentTransactions,
-} from "@/lib/memberships/queries";
+import { readRecentTransactions } from "@/lib/memberships/queries";
 import { serverConfig } from "@/lib/config/server";
 import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
@@ -108,22 +105,19 @@ export default async function LobbyPage({
   const isSeasonDashboard = league.status === "season" && viewerIsMember;
   const season = serverConfig().EUROLEAGUE_SEASON;
 
-  // Four reads, and only on the surface that uses them — every one of them is a
-  // query that already existed for the page the dashboard is replacing a door
-  // to (4.5, 5.4, 5.1, 5.2). In parallel because they are independent, and at
-  // ~10 users the cost that matters is the round trip rather than the work.
-  const [snapshots, recap, roster, transactions, panel, news] = isSeasonDashboard
+  // Only on the surface that uses them — every one of them is a query that
+  // already existed for the page the dashboard is replacing a door to. In
+  // parallel because they are independent, and at ~10 users the cost that
+  // matters is the round trip rather than the work.
+  const [snapshots, recap, transactions, panel, news] = isSeasonDashboard
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
         readLeagueRecap(id, season, null).catch(() => null),
-        youMemberId
-          ? readMemberRoster(id, youMemberId, season).catch(() => [])
-          : Promise.resolve([]),
         readRecentTransactions(id, teamNames).catch(() => []),
         readPanel({ leagueId: id, season, teamNames }),
         readNews(100).catch(() => []),
       ])
-    : [[], null, [], [], null, []];
+    : [[], null, [], null, []];
 
   return (
     <AppShell
@@ -181,8 +175,6 @@ export default async function LobbyPage({
           recap={recap?.recap ?? null}
           playerNames={recap?.playerNames ?? {}}
           playerCodes={recap?.playerCodes ?? {}}
-          roster={roster}
-          rosterTemplate={template}
           teamNames={teamNames}
           teamStyles={stylesById(members)}
           youMemberId={youMemberId}
@@ -258,19 +250,22 @@ export default async function LobbyPage({
 
       {/* From here down the surface is live. The server render above is what
           makes the page correct before any JavaScript runs; the subscription
-          keeps it correct afterwards. */}
-      <LiveLobby
-        leagueId={league.id}
-        authToken={session.token}
-        commissionerUserId={league.commissioner}
-        viewerUserId={session.user.id}
-        leagueStatus={league.status}
-        maxMembers={settings.max_members}
-        initialMembers={members}
-        justArrived={justArrived}
-        isCommissioner={isCommissioner}
-        settings={settings}
-      />
+          keeps it correct afterwards. The dashboard's standings already list
+          every team, so in season the member list would only repeat them. */}
+      {isSeasonDashboard ? null : (
+        <LiveLobby
+          leagueId={league.id}
+          authToken={session.token}
+          commissionerUserId={league.commissioner}
+          viewerUserId={session.user.id}
+          leagueStatus={league.status}
+          maxMembers={settings.max_members}
+          initialMembers={members}
+          justArrived={justArrived}
+          isCommissioner={isCommissioner}
+          settings={settings}
+        />
+      )}
 
       {/* Setup apparatus stays together. From chat onward the order is
           conversation, private sheet, then the folded way out. */}
