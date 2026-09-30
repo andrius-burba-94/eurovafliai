@@ -349,6 +349,41 @@ clubs they had already departed. So the club walk stays the roster authority
 and this endpoint contributes **bios only**, joined by person code, with the
 club's own row winning every field it has.
 
+## The live box score — a different host, and the only one that moves in-game
+
+Verified by request on **2026-09-30**, during E2026 round 2 (game 19,
+TEL–BES, and game 20, PAN–ASV), polled once a minute from the second quarter
+to the final buzzer.
+
+```
+https://live.euroleague.net/api/Boxscore?gamecode={gameCode}&seasoncode=E2026
+https://live.euroleague.net/api/Header?gamecode={gameCode}&seasoncode=E2026
+```
+
+The `gamecode` is the same `gameCode` the v2 schedule stores, and the number
+at the end of a game-center URL (`…/E2026/19/`).
+
+- **v2 is empty while a game is on.** Throughout both games
+  `/v2/…/games/19` answered `played: false`, `0 – 0`, and `/games/19/stats`
+  had no players. v2 is the finished-game source and nothing else; live
+  figures have to come from `live.euroleague.net`.
+- **It changes during play.** Two requests 45 seconds apart moved TEL's
+  second quarter from 23 to 25. `Live: true` throughout; the score is the
+  sum of `ByQuarter[i].QuarterN` (and `ExtraN` in overtime).
+- **Person codes carry a `P` and padding**: `"P010781   "`, where the
+  roster API and our `players.person_code` say `010781`. Strip both or
+  nothing joins — a join that misses silently leaves every player at no
+  score while the game score looks healthy.
+- **`Minutes` is `"12:20"`, or `"DNP"`** for a listed player who has not
+  played (`Valuation: 0`, every stat 0).
+- **Every PIR component is present** in BoxScore's own names (capitalised:
+  `FieldGoalsMade2`, `BlocksFavour`, `FoulsCommited`…), so `scoreGame`
+  scores a live row exactly as it scores a final one. On the captured
+  in-play response, **all 24 rows** agreed with the feed's own `Valuation`.
+  `Stats[0]` is the home side and `Stats[1]` the road side, in the same
+  order as `ByQuarter`.
+- **The v2 publish delay** after the final buzzer: PENDING.
+
 ## What this means for slice 2.1
 
 Both front doors, as the blueprint describes — one shared
