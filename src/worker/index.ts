@@ -353,6 +353,8 @@ function main(): void {
 
   let liveInFlight: Promise<void> | null = null;
   let liveTimer: ReturnType<typeof setInterval> | null = null;
+  // A disagreement persists for the rest of the game, so each player is logged once.
+  const liveProblemsSeen = new Set<string>();
 
   async function livePass(): Promise<void> {
     try {
@@ -373,8 +375,15 @@ function main(): void {
       for (const fixture of candidates) {
         if (finished.has(fixture.game_code)) continue;
         try {
-          const game = await fetchLiveBoxscore(fixture.game_code, env.EUROLEAGUE_SEASON, fixture.local_club, fixture.road_club);
-          if (!game) continue;
+          const parsed = await fetchLiveBoxscore(fixture.game_code, env.EUROLEAGUE_SEASON, fixture.local_club, fixture.road_club);
+          if (!parsed) continue;
+          const { game } = parsed;
+          for (const problem of parsed.problems) {
+            const key = `${fixture.game_code}|${problem.personCode}`;
+            if (liveProblemsSeen.has(key)) continue;
+            liveProblemsSeen.add(key);
+            log(`live · game ${fixture.game_code} · ${problem.message}`, "warn");
+          }
           const outcome = await upsertLiveSnapshot(pb, {
             season: env.EUROLEAGUE_SEASON,
             gameCode: fixture.game_code,
@@ -395,7 +404,7 @@ function main(): void {
 
   function scheduleLive(): void {
     if (env.LIVE_FETCH === "off") {
-      log("live box-score polling is off pending an in-game feed check");
+      log("live box-score polling is off (LIVE_FETCH=off)");
       return;
     }
     const run = () => {
