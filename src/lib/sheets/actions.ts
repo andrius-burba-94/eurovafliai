@@ -14,7 +14,14 @@ import {
 } from "./match";
 import { parseCheatSheet } from "./parse";
 import { applyOperation, type SheetOperation } from "./reorder";
-import { deleteSheet, readMatchablePool, readSheet, saveSheet } from "./store";
+import { rankByAveragePir, SEED_DEPTH } from "./seed";
+import {
+  deleteSheet,
+  readMatchablePool,
+  readRankablePool,
+  readSheet,
+  saveSheet,
+} from "./store";
 
 /**
  * The cheat sheet's front door — slice 3.4.
@@ -356,5 +363,40 @@ export async function editCheatSheet(
   // pinned shortlist follow from this write with no code of their own.
   revalidatePath(`/leagues/${leagueId}/draft`);
 
+  return EDIT_OK;
+}
+
+/**
+ * Write a first sheet from the PIR ranking — the button on an empty sheet.
+ *
+ * Only onto an empty sheet: a member with a ranking has made choices, and a
+ * one-tap overwrite of them is exactly the one-way door the paste box warns
+ * about. One upsert, so it either landed or it did not.
+ */
+export async function startSheetFromRanking(leagueId: string): Promise<EditResult> {
+  const context = await loadSheetContext(leagueId);
+  if (!context) return NOT_YOURS;
+
+  const stored = await readSheet(context.pb, context.memberId);
+  if (stored && stored.ranking.length > 0) {
+    return { error: "You already have a sheet. Reorder it, or clear it first." };
+  }
+
+  const pool = await readRankablePool(context.pb);
+  const ranking = rankByAveragePir(pool)
+    .slice(0, SEED_DEPTH)
+    .map((player) => player.id);
+  if (ranking.length === 0) {
+    return { error: "The player pool is empty, so there is nothing to rank yet." };
+  }
+
+  try {
+    await saveSheet(context.pb, context.memberId, { ranking, tiers: [] }, "manual");
+  } catch {
+    return { error: "That did not save. Try again." };
+  }
+
+  revalidatePath(`/leagues/${leagueId}/sheet`);
+  revalidatePath(`/leagues/${leagueId}/draft`);
   return EDIT_OK;
 }

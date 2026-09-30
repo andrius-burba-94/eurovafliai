@@ -5,9 +5,11 @@ import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { getCheatSheetView } from "@/lib/sheets/queries";
+import { SEED_DEPTH } from "@/lib/sheets/seed";
 
 import { SheetForm } from "./sheet-form";
 import { SheetList } from "./sheet-list";
+import { SheetSuggestions, StartFromRanking } from "./sheet-start";
 
 /**
  * Your cheat sheet — slice 3.4.
@@ -55,6 +57,10 @@ export default async function CheatSheetPage({
         </p>
       </div>
 
+      {view.rows.length === 0 ? (
+        <StartFromRanking leagueId={id} depth={SEED_DEPTH} />
+      ) : null}
+
       <SheetList
         leagueId={id}
         rows={view.rows}
@@ -62,6 +68,14 @@ export default async function CheatSheetPage({
         poolSize={view.poolSize}
         cover={view.cover}
       />
+
+      {view.rows.length > 0 ? (
+        <SheetSuggestions
+          leagueId={id}
+          players={view.suggestions}
+          rankedCount={view.rows.length}
+        />
+      ) : null}
 
       {/* `initialText` moves now — a reorder above rewrites it — and
           `SheetForm` re-seeds its box from it. Deliberately *not* a `key`:

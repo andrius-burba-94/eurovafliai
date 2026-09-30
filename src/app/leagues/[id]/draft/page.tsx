@@ -9,6 +9,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { TeamCrest } from "@/components/broadcast";
 import { ContextPanel } from "@/components/context-panel";
+import { DownloadMenu } from "@/components/download-menu";
 import { DraftBoard, type BoardEntry } from "@/components/draft-board";
 import { LeagueChat } from "@/components/league-chat";
 import { RosterRadar } from "@/components/roster-radar";
@@ -417,7 +418,12 @@ export default async function DraftPage({
               which is the whole of the Board-Shows-Its-Shape rule. */}
           <Bank
             label="The board"
-            aside={`${picks.length} of ${draft.order.length * draft.rounds}`}
+            aside={
+              <span className="flex items-center gap-3">
+                {`${picks.length} of ${draft.order.length * draft.rounds}`}
+                {picks.length > 0 ? <DownloadMenu leagueId={id} /> : null}
+              </span>
+            }
             framed
           >
             <DraftBoard

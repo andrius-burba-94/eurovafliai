@@ -59,7 +59,7 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await page.goto("/");
   const leagueRow = page
     .getByRole("link", { name: /Vafliai Test League/i })
-    .locator("..");
+    .locator("xpath=ancestor::li");
   await expect(leagueRow).toHaveAttribute("data-state", "waiting");
   await expect(leagueRow).toContainText("Your roster");
   await expect(leagueRow).toContainText("0/5");

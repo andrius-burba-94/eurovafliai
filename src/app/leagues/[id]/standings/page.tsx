@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Bank, Door, EmptyNotice, Slots } from "@/components/board";
 import { PageHeader } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
+import { DownloadMenu } from "@/components/download-menu";
 import {
   resolveSeason,
   SeasonControl,
@@ -92,6 +93,7 @@ export default async function StandingsPage({
         eyebrow={data.league.name}
         title="Standings"
         lead={snapshots.length > 0 ? `After round ${snapshots.at(-1)!.round}. Each round's winner is in gold.` : undefined}
+        action={<DownloadMenu leagueId={data.league.id} />}
       />
 
       <SeasonControl

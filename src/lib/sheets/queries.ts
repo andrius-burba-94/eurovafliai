@@ -6,7 +6,8 @@ import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 
 import { sheetToText, tierOfRank } from "./ranking";
-import { readMatchablePool, readSheet } from "./store";
+import { suggestionsFor } from "./seed";
+import { readRankablePool, readSheet, type PoolPlayer } from "./store";
 
 /**
  * Reading your own cheat sheet.
@@ -62,6 +63,8 @@ export type CheatSheetView = {
    * rosters; the sheet has to answer it about itself.
    */
   readonly cover: Record<Position, { ranked: number; needed: number }>;
+  /** The best players by average PIR who are not on the sheet yet. */
+  readonly suggestions: PoolPlayer[];
 };
 
 export async function getCheatSheetView(
@@ -95,7 +98,7 @@ export async function getCheatSheetView(
 
   const [sheet, pool] = await Promise.all([
     readSheet(pb, own.id),
-    readMatchablePool(pb),
+    readRankablePool(pb),
   ]);
 
   const byId = new Map(pool.map((player) => [player.id, player]));
@@ -139,5 +142,6 @@ export async function getCheatSheetView(
       F: { ranked: counts.F, needed: template.F },
       C: { ranked: counts.C, needed: template.C },
     },
+    suggestions: suggestionsFor(pool, new Set(sheet?.ranking ?? []), 12),
   };
 }

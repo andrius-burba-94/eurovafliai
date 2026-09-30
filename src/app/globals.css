@@ -181,6 +181,11 @@ body {
     repeating-linear-gradient(90deg, color-mix(in oklab, var(--color-ink) 5%, transparent) 0 1px, transparent 1px 18px);
 }
 
+/* Arena light from below the title screen, in the accent. */
+@utility spotlight {
+  background-image: radial-gradient(ellipse at bottom, color-mix(in oklab, var(--color-live) 22%, transparent), transparent 70%);
+}
+
 /* The hardwood the lineup is set on: parquet strips over a warm field. */
 @utility hardwood {
   background-image:

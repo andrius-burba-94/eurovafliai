@@ -301,3 +301,31 @@ Verification note: a long-running `next dev` (8 hours, 1.2 GB) turned the
 fully-parallel draft specs into 75 timeouts; each failing test passed alone.
 Against `next build` + `next start` (as CI runs) all 126 draft, board,
 controls, setup and roll tests pass.
+
+## S13 — Cheat sheet, Download menu, login, Your leagues
+
+The sheet now starts from something. `startSheetFromRanking` writes the top 60
+of the pool by `averagePirOf` — the order the room already sorts on — and only
+onto an empty sheet, because a member with a ranking has made choices and a
+one-tap overwrite is the one-way door the paste box already warns about. After
+that, "Not on your sheet" lists the best twelve players the sheet lacks; Add
+sends the existing `insert` operation at the bottom, so it inherits the
+operation-on-the-wire safety (a double tap cannot rank anyone twice). Ranking
+and suggestion logic is pure in `sheets/seed.ts` with unit tests; the pool read
+(`readRankablePool`) lives in the framework-free store beside the matcher's.
+
+The Download menu is a `<details>` of plain links to the existing export
+handler, so it needs no JavaScript and every choice is a shareable URL. The
+export page is unchanged and still reachable from the lobby door that
+`export.spec.ts` walks.
+
+Login dropped the empty board plan for a title screen, keeping the single
+framed Sign in bank and every hook `auth.spec.ts` reads. Your leagues became
+one card per league; the card's `<li>` carries the old `data-state`, and
+`leagues.spec.ts` now finds the card from its title link by ancestor rather
+than by direct parent.
+
+Verification: cheat-sheet spec (78, two new), leagues, auth, a11y, export and
+standings all pass against `next build` + `next start`. Run together with
+other files on one machine, two cheat-sheet pool-count assertions flaked once
+and passed on the file's own run.

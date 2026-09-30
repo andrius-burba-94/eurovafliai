@@ -5,9 +5,11 @@ import {
   isUniqueViolation,
 } from "@/lib/drafts/pipeline";
 import type { Position } from "@/lib/engine";
+import { averagePirOf, type ProjectionFields } from "@/lib/stats/project";
 
 import type { MatchablePlayer } from "./match";
 import type { SheetRanking } from "./ranking";
+import type { RankablePlayer } from "./seed";
 
 /**
  * Reading and writing a cheat sheet — the PocketBase half, and nothing else.
@@ -171,5 +173,29 @@ export async function readMatchablePool(
     normalized: player.name_normalized ?? "",
     club: player.club_code,
     position: player.position,
+  }));
+}
+
+export type PoolPlayer = RankablePlayer & {
+  readonly club: string;
+  readonly position: Position;
+};
+
+/** The draftable pool with each player's average PIR, for seeding and suggestions. */
+export async function readRankablePool(pb: PocketBase): Promise<PoolPlayer[]> {
+  const players = await pb.collection("players").getFullList<
+    { id: string; name: string; club_code: string; position: Position } & ProjectionFields
+  >({
+    filter: DRAFTABLE_PLAYERS_FILTER,
+    fields:
+      "id,name,club_code,position,proj_last5_pir,proj_last5_games,prev_season_pir,prev_season_games,prev_season_code",
+    requestKey: null,
+  });
+  return players.map((player) => ({
+    id: player.id,
+    name: player.name,
+    club: player.club_code,
+    position: player.position,
+    tenths: averagePirOf(player)?.tenths ?? null,
   }));
 }

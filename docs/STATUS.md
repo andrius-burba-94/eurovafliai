@@ -45,13 +45,17 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S10 League Stats | Done | New `/leagues/[id]/stats` and a Stats nav item. Record book (highest and lowest round, biggest margin, best single night, best captain call), honours, team profiles (average, best, worst, spread, rounds won, top-3, spoons), lineup efficiency (bench points lost, captain hit rate), draft value (steals, busts, autodraft vs people), players of the season (top, hot, best free agents, by position) and the deal ledger. Pure `stats/league-stats.ts`, one query in `league-stats-queries.ts`. |
 | S11 Team, player, pool | Done | My Team: crest header, "Carrying you" / "On thin ice", the roster grouped G/F/C with injury badges, season points (raw, while on this roster), last round, form and next opponent; the radar is gone and the crest editor sits at the foot. Player profile: a card hero (portrait, club, badge, current PIR) and a game-log table with heat shading. Pool: ranked by the same average PIR the draft uses, with position, Injured and sort filters; the ingest summary is folded for members. News keeps S1's Out / Doubtful badges; an ownership filter needs a league context the global news page does not have, and is left to the side panel. |
 | S12 Draft and roll | Done | The on-clock band carries the picker's crest at headline size. Every landed pick raises a "The pick is in" lower-third for the whole room (team crest, player, position, pick number, AUTO when the worker made it) with a short two-note sting where cues are on; a first paint or reload shows nothing. A finished draft reads "That's the draft", links to the standings and to Stats' steals and busts, and folds undo / start over behind "Commissioner tools". The roll is a stage: a lattice panel, the drawn team's crest and name at display size, crests down the order, and a gold "First pick" reveal. The full-screen shell-less stage from the plan is not done: the roll still renders inside the league shell. |
+| S13 Sheet, export, login, leagues | Done | Login is a full-bleed title screen: the wordmark at display size, one Google action, the season's shape as three figures. Your leagues is one big card per league whose button is the likely next act (lobby, draft room, lineup, final table). A Download menu (results CSV, rosters CSV, everything JSON, or choose) sits on the standings header and above the draft board; `/export` stays for the full picker and deep links, and the lobby door still leads there. An empty cheat sheet offers "Use the PIR ranking" — the top 60 by the draft's own average PIR (pure `sheets/seed.ts`), written only onto an empty sheet — and a sheet with rows gets "Not on your sheet", the best 12 unranked players with an Add button (the existing `insert` operation). Paste stays below. The plan's "star" is the Add button; there is no separate favourites list. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:
 the ground, headlines and primary buttons change with it. On a lineup, the grid
 view shows each position in its own colour and the captain reads `C×2`. Open
 your team page, expand **Your crest**, pick a colour and a shape and save: the
-crest appears beside your name in chat and on the draft board.
+crest appears beside your name in chat and on the draft board. Signed out,
+`/login` is the title screen. On a league's Cheat Sheet with nothing ranked,
+press **Use the PIR ranking**, then add someone from **Not on your sheet**.
+Standings has a **Download** menu.
 
 **Known local-only failure.** `news.spec.ts` plants items dated 13 September; a
 local database that has run the news worker holds newer items, and the page
