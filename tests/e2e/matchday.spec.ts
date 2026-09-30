@@ -12,13 +12,14 @@ test.afterEach(async () => {
   await cleanupTestData();
 });
 
-test("a live snapshot scores the lineup and prints its box-score line, then full time", async ({ page, context }) => {
+test("a live snapshot scores the lineup and prints its box-score line, then full time", async ({ page, context }, testInfo) => {
   const owner = await createTestUser("matchdaylive");
   const league = await createLeagueFor(owner, "Matchday Live League");
   const pb = await superuser();
   const [mine] = await pb.collection("league_members").getFullList<{ id: string }>({ filter: `league = '${league.id}'`, requestKey: null });
   if (!mine) throw new Error("membership missing");
-  const personCode = `8${String(Date.now() % 100_000).padStart(5, "0")}`;
+  // `person_code` is unique, so parallel workers must never derive the same one.
+  const personCode = `8${String(testInfo.parallelIndex).padStart(2, "0")}${String(Date.now() % 1000).padStart(3, "0")}`;
   const star = await createPlayer("Livestar", { person_code: personCode });
   await pb.collection("roster_memberships").create(
     { league: league.id, member: mine.id, player: star.id, from_date: "2026-09-08 12:00:00.000Z", to_date: "", from_round: 1, to_round: 0, acquired_via: "draft" },
@@ -48,6 +49,8 @@ test("a live snapshot scores the lineup and prints its box-score line, then full
   await expect(row).toContainText("16.5");
   await expect(row.getByText("Live", { exact: true })).toBeVisible();
 
+  // Realtime does not replay: a write before the subscription is up is missed.
+  await expect(page.getByTestId("matchday-feed-status")).toHaveAttribute("data-live", "true");
   await pb.collection("live_game_snapshots").update(snapshot.id, { live: false, checked_at: new Date().toISOString() }, { requestKey: null });
   await expect(row.getByText("Full time", { exact: true })).toBeVisible();
   await expect(page.getByTestId("matchday-feed-status")).toHaveText("Full time · waiting for the official box score");
