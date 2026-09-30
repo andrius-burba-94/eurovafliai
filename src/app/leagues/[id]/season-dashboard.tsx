@@ -75,6 +75,8 @@ export function SeasonDashboard({
   const story = roundStory(recap);
   const nameOf = (memberId: string) => teamNames[memberId] ?? "A team";
   const styleOf = (memberId: string) => teamStyles[memberId];
+  const teamHref = (memberId: string) => `/leagues/${leagueId}/teams/${memberId}?season=${season}`;
+  const teamsByName = Object.entries(teamNames).sort(([, a], [, b]) => a.localeCompare(b));
   const you = youMemberId ? { name: nameOf(youMemberId), style: styleOf(youMemberId) } : null;
   const yourNight = youMemberId ? recap?.rows.findIndex((row) => row.memberId === youMemberId) ?? -1 : -1;
 
@@ -193,9 +195,26 @@ export function SeasonDashboard({
           framed
         >
           {standings.length === 0 ? (
-            <EmptyNotice testId="dashboard-standings-empty">
-              No round has been scored yet. The table fills in after the first Euroleague night this league counts.
-            </EmptyNotice>
+            <>
+              <EmptyNotice testId="dashboard-standings-empty">
+                No round has been scored yet. The table fills in after the first Euroleague night this league counts.
+              </EmptyNotice>
+              {/* Unranked and without points: nobody leads a table nothing has
+                  been counted in. The rows are still the way to every team. */}
+              <Slots testId="dashboard-teams">
+                {teamsByName.map(([memberId, teamName]) => {
+                  const style = styleOf(memberId);
+                  return (
+                    <Slot key={memberId} state="filled" nowrap>
+                      <span className="flex w-full items-center gap-3">
+                        {style ? <TeamCrest name={teamName} color={style.color} shape={style.crest} size={28} /> : null}
+                        <TeamLink href={teamHref(memberId)} name={teamName} isYou={memberId === youMemberId} />
+                      </span>
+                    </Slot>
+                  );
+                })}
+              </Slots>
+            </>
           ) : (
             <Slots testId="dashboard-standings">
               {standings.map((row) => {
@@ -205,13 +224,7 @@ export function SeasonDashboard({
                     <span className="stat w-6 shrink-0 text-ink-faint">{String(row.position).padStart(2, "0")}</span>
                     {style ? <TeamCrest name={row.teamName} color={style.color} shape={style.crest} size={28} /> : null}
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <Link
-                        href={`/leagues/${leagueId}/teams/${row.memberId}?season=${season}`}
-                        className="min-w-0 truncate text-sm font-semibold text-ink underline decoration-ink/0 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-                      >
-                        {row.teamName}
-                        {row.isYou ? <span className="ml-2 rounded-full bg-live-sunk px-1.5 py-0.5 text-[0.6875rem] font-bold text-live">you</span> : null}
-                      </Link>
+                      <TeamLink href={teamHref(row.memberId)} name={row.teamName} isYou={row.isYou} />
                       <span className="text-xs text-ink-faint">
                         {row.totalHundredths === leaderTotal ? "Leader" : `−${formatHundredths(leaderTotal - row.totalHundredths)}`}
                       </span>
@@ -344,5 +357,18 @@ export function SeasonDashboard({
 
       <div className="flex flex-col gap-4">{activity}</div>
     </>
+  );
+}
+
+function TeamLink({ href, name, isYou }: { href: string; name: string; isYou: boolean }) {
+  return (
+    <Link
+      href={href}
+      data-testid="enter-team"
+      className="min-w-0 truncate text-sm font-semibold text-ink underline decoration-ink/0 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+    >
+      {name}
+      {isYou ? <span className="ml-2 rounded-full bg-live-sunk px-1.5 py-0.5 text-[0.6875rem] font-bold text-live">you</span> : null}
+    </Link>
   );
 }

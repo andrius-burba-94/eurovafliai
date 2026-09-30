@@ -203,7 +203,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(page.getByTestId("lobby")).toBeVisible();
 
   await page
-    .getByTestId("enter-roster")
+    .getByTestId("enter-team")
     .filter({ hasText: "Chief FC" })
     .click();
   await expect(page.getByTestId("roster-player")).toContainText(role.name);
@@ -217,7 +217,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
 
   await page.goto(`/leagues/${league.id}`);
   await page
-    .getByTestId("enter-roster")
+    .getByTestId("enter-team")
     .filter({ hasText: "Other FC" })
     .click();
   await expect(page.getByTestId("roster-player")).toContainText(star.name);

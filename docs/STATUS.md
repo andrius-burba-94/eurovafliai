@@ -432,7 +432,8 @@ panel, and two transcripts of one thread on one page is two unread counts for
 the same messages. Later, two more went: the **Your roster** panel (the sidebar
 already leads to your lineup and team) and the lobby's **Members** list (every
 team is a row in the standings, each linking to its team page). That gave the
-chat the full row.
+chat the full row. Before the first counted round the standings list the teams
+unranked under the empty notice, so every team is still one tap away.
 
 ## Try it on localhost — the roll ceremony
 

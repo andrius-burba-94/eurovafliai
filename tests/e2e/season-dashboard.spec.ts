@@ -180,6 +180,8 @@ test("an unscored season shows the shape and admits it is empty", async ({
   await expect(page.getByTestId("lobby")).toBeVisible();
 
   await expect(page.getByTestId("dashboard-standings-empty")).toBeVisible();
+  // With no table yet, the teams are still one tap away, unranked.
+  await expect(page.getByTestId("dashboard-teams").getByTestId("enter-team")).toHaveCount(5);
   await expect(page.getByTestId("dashboard-news-empty")).toBeVisible();
   await page.getByRole("tab", { name: "Trades" }).click();
   await expect(page.getByTestId("dashboard-tx-empty")).toBeVisible();
