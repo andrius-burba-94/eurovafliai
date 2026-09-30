@@ -382,7 +382,12 @@ at the end of a game-center URL (`…/E2026/19/`).
   in-play response, **all 24 rows** agreed with the feed's own `Valuation`.
   `Stats[0]` is the home side and `Stats[1]` the road side, in the same
   order as `ByQuarter`.
-- **The v2 publish delay** after the final buzzer: PENDING.
+- **The v2 publish delay** after the final buzzer is **not yet measured**:
+  to the end of the third quarter of both games v2 still said
+  `played: false`. Until it is, the page covers the gap with a **Full time**
+  state, and the 15-minute stats pass records the game on the first pass
+  after v2 publishes. Measure it on the next game night by polling
+  `/v2/…/games/{code}` from the live feed's `Live: false`.
 
 ## What this means for slice 2.1
 
