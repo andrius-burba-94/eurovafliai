@@ -393,8 +393,15 @@ the same heuristics as the first. **31/40** (first: 22/40).
 | 9 | Error recovery | 3 | Refusals on the tapped row in the correction voice |
 | 10 | Help and documentation | 2 | Inline sentences explain rules, but there is no single "how the league scores" page |
 
-Left open, in order: the desktop draft room's control stack above the pool
-(P1), the shell-less roll stage (P2), League Home's phone tail (P2), a
+The P1 was fixed before the PR. On a 1440×900 screen the first pool row sat
+at y=990, below the fold, under "Draft for me", the sound switch and five
+rows of filters. From `lg` the two personal switches (and the sheet nudge)
+now head the watching column, via a two-row grid where the pool spans both
+rows; Position and PIR share one line; the sound switch lost a stray top
+margin. Measured by the capture run: 890 after the filter change, 754 after
+the move. Phones keep the old order.
+
+Left open, in order: the shell-less roll stage (P2), League Home's phone tail (P2), a
 singular/plural rule for recap headlines (P3), and a scoring explainer (P3).
 
 Verification: lint, typecheck, knip and 1557 unit tests pass. Against

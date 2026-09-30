@@ -10,6 +10,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Working in this repo
 
+## Account boundary
+
+Use only the `andrius-burba-94` GitHub account for this repository. Authenticate
+the project-scoped Hostinger MCP connection with the personal account that owns
+this VPS. Never use the `andrius.burba@hostinger.com` work account or the
+work-account DEX MCP for this project. Verify the active account before any
+GitHub or Hostinger action.
+
 Project overview, stack, commands and working agreements live in
 [CLAUDE.md](CLAUDE.md). The master plan is
 [docs/EUROVAFLIAI_BLUEPRINT.md](docs/EUROVAFLIAI_BLUEPRINT.md). Read both before

@@ -297,9 +297,9 @@ export default async function DraftPage({
 
       {/* Two columns from `lg` up, one below it — the room's whole layout
           decision, and it is about what a person does rather than about
-          screen size. The left column is where you ACT: the sheet nudge, your
-          own autodraft switch, and the pool. The right column is what you
-          WATCH: the radar, the board, the commissioner's panel and the
+          screen size. The left column is where you ACT: the pool. The right
+          column opens with your own switches and the sheet nudge, then what
+          you WATCH: the radar, the board, the commissioner's panel and the
           transcript.
           
           On a phone this is one flow in the order it has always been, with
@@ -312,8 +312,13 @@ export default async function DraftPage({
           `items-start` so the shorter column does not stretch to the taller
           one's height and leave a framed Bank with a metre of empty stock
           under its last row. */}
-      <div className="flex flex-col gap-8 sm:gap-slot lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <div className="flex flex-col gap-8 sm:gap-slot">
+      {/* From `lg`, the switches about *you* head the watching column instead
+          of sitting above the pool: stacked there, they put the first player
+          at the bottom edge of a 900px laptop screen. The pool spans both rows,
+          and `1fr` on the second row keeps its height from stretching the
+          first. On a phone the three read in source order, as before. */}
+      <div className="flex flex-col gap-8 sm:gap-slot lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-8">
+        <div className="flex flex-col gap-8 empty:hidden sm:gap-slot lg:col-start-2 lg:row-start-1">
           {/* The way to a sheet for somebody who has not written one — the pool
               pins a link for everybody who has. Shown to a member only: a
               commissioner with no membership row has no roster to rank for. */}
@@ -333,8 +338,11 @@ export default async function DraftPage({
           {/* Your own switch, above the commissioner's controls: the common
               case is a member handing their own picks over, not a manager
               intervening. */}
+          {/* Side by side where there is room: stacked, the two switches and
+              their sentences cost the pool a full screen's worth of its first
+              row on a laptop. */}
           {view.you && draft.status !== "complete" ? (
-            <>
+            <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
               <AutodraftToggle
                 leagueId={id}
                 enabled={view.you.autodraftEnabled}
@@ -352,9 +360,11 @@ export default async function DraftPage({
                 overallNo={onClock?.overallNo ?? null}
                 round={onClock?.round ?? null}
               />
-            </>
+            </div>
           ) : null}
+        </div>
 
+        <div className="empty:hidden lg:col-start-1 lg:row-span-2 lg:row-start-1">
           {/* The pool stays readable while paused — you just cannot pick from
               it. Offering a button the server is about to refuse would be worse
               than not offering one. */}
@@ -392,7 +402,7 @@ export default async function DraftPage({
             </Bank>
           ) : null}
         </div>
-        <div className="flex flex-col gap-8 sm:gap-slot">
+        <div className="flex flex-col gap-8 sm:gap-slot lg:col-start-2 lg:row-start-2">
           {/* Before the board on purpose. On a phone the pick path owns the top
               of the room — clock, then a way to pick — and the radar is the first
               thing you meet when you scroll to *study* the draft rather than to

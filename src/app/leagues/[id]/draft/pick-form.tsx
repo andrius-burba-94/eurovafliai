@@ -669,18 +669,45 @@ export function PickForm({
       {/* Two rows, not one that wraps: a position is a *which*, and the three
           below it are *whethers*. Left as a single wrapping run, "Hide drafted"
           landed on the same line as G F C and read as a fourth position. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-        <span className="slot-label pb-2">Position</span>
-        {POSITIONS.map((position) => (
-          <FilterToggle
-            key={position}
-            testId={`filter-position-${position}`}
-            pressed={filters.positions.includes(position)}
-            onPressedChange={() => togglePosition(position)}
-          >
-            {position}
-          </FilterToggle>
-        ))}
+      {/* Position and PIR share a line where there is room: both are short
+          runs of *which*, each behind its own label, and on a laptop the two
+          extra rows are what pushed the first player below the fold. */}
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+          <span className="slot-label pb-2">Position</span>
+          {POSITIONS.map((position) => (
+            <FilterToggle
+              key={position}
+              testId={`filter-position-${position}`}
+              pressed={filters.positions.includes(position)}
+              onPressedChange={() => togglePosition(position)}
+            >
+              {position}
+            </FilterToggle>
+          ))}
+        </div>
+
+        {/* Reads `PIR` because the column it narrows reads `PIR`. It said
+            `Last 5` over thresholds applied to fantasy points, which was two
+            numbers away from what the row displayed. */}
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+          <span className="slot-label pb-2">PIR</span>
+          {([100, 150, 200] as const).map((floor) => (
+            <FilterToggle
+              key={floor}
+              testId={`filter-proj-${floor}`}
+              pressed={filters.minProjection === floor}
+              onPressedChange={() =>
+                setFilter(
+                  "minProjection",
+                  filters.minProjection === floor ? 0 : floor,
+                )
+              }
+            >
+              {`${floor / 10}+`}
+            </FilterToggle>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
@@ -717,28 +744,6 @@ export function PickForm({
             On my sheet
           </FilterToggle>
         ) : null}
-      </div>
-
-      {/* Reads `PIR` because the column it narrows reads `PIR`. It said
-          `Last 5` over thresholds applied to fantasy points, which was two
-          numbers away from what the row displayed. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-        <span className="slot-label pb-2">PIR</span>
-        {([100, 150, 200] as const).map((floor) => (
-          <FilterToggle
-            key={floor}
-            testId={`filter-proj-${floor}`}
-            pressed={filters.minProjection === floor}
-            onPressedChange={() =>
-              setFilter(
-                "minProjection",
-                filters.minProjection === floor ? 0 : floor,
-              )
-            }
-          >
-            {`${floor / 10}+`}
-          </FilterToggle>
-        ))}
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-3">
