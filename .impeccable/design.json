@@ -336,8 +336,6 @@
       "Do not use E2025 as a selectable fantasy season.",
       "Do not present an unverified live feed as final."
     ],
-    "openQuestions": [
-      "Enable LIVE_FETCH only after observing the official Boxscore change during an actual game."
-    ]
+    "openQuestions": []
   }
 }
