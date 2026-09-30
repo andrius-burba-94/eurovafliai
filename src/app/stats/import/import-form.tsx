@@ -10,6 +10,7 @@ import {
   Slots,
   inputStyles,
 } from "@/components/board";
+import { ImportSteps } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
 import {
   type StatImportResult,
@@ -65,6 +66,8 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
 
   return (
     <>
+      <ImportSteps current={plan ? 1 : 0} done={Boolean(applied)} />
+
       <Bank label="Paste a round" aside={season}>
         {fresh.error ? (
           <Correction testId="stat-import-error">{fresh.error}</Correction>

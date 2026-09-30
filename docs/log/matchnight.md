@@ -329,3 +329,22 @@ Verification: cheat-sheet spec (78, two new), leagues, auth, a11y, export and
 standings all pass against `next build` + `next start`. Run together with
 other files on one machine, two cheat-sheet pool-count assertions flaked once
 and passed on the file's own run.
+
+## S14 — Mapping queue and stepwise imports
+
+The plan asked for a strict one-at-a-time queue. It became a queue with a
+cursor instead: the counter, the current row and the keyboard walk are one at a
+time, but every question stays rendered and tappable. A hidden queue would let
+only the first question be answered, and the mapping specs — like a
+commissioner who came for one specific name — act on a particular row that is
+rarely first when real imports or other runs have questions waiting.
+
+Y and N submit the current row's own forms (`data-answer`), so the keyboard
+path is the same server action, confirmation and refusal as a tap. Keys are
+ignored while typing in a field. The progress bar carries `data-ready` from
+`useHydrated`, the same fact-not-duration wait the pool uses; the new spec
+walks J/K without answering, because a Y would write into a shared queue.
+
+The imports already previewed before writing, so the change is the visible
+step: `ImportSteps` (Paste, Review, Apply) in `broadcast.tsx`, derived from
+state the forms already had.

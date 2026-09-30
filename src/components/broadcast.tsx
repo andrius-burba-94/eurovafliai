@@ -198,3 +198,40 @@ export function TeamCrest({
 export function teamFieldStyle(color: TeamColor): CSSProperties {
   return { "--team": `var(--color-team-${color})` } as CSSProperties;
 }
+
+/**
+ * Where an import stands: Paste, Review, Apply. The step is derived from the
+ * form's own state — a plan on screen is Review, a stored result is done — so
+ * it can never claim a step the page is not showing.
+ */
+export function ImportSteps({ current, done = false }: { current: 0 | 1 | 2; done?: boolean }) {
+  const steps = ["Paste", "Review", "Apply"];
+  return (
+    <ol data-testid="import-steps" className="flex items-center gap-2 text-sm">
+      {steps.map((step, index) => {
+        const complete = done || index < current;
+        const here = !done && index === current;
+        return (
+          <li key={step} aria-current={here ? "step" : undefined} className="flex items-center gap-2">
+            {index > 0 ? <span aria-hidden="true" className="h-px w-5 bg-rule-strong sm:w-8" /> : null}
+            <span
+              className={`flex size-7 items-center justify-center rounded-full border text-xs font-bold ${
+                here
+                  ? "border-live bg-live text-live-ink"
+                  : complete
+                    ? "border-live text-live"
+                    : "border-rule-strong text-ink-faint"
+              }`}
+            >
+              {complete ? <span aria-hidden="true">&#10003;</span> : index + 1}
+            </span>
+            <span className={here ? "font-semibold text-ink" : complete ? "text-ink-soft" : "text-ink-faint"}>
+              {step}
+              {complete ? <span className="sr-only"> (done)</span> : null}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

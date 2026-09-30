@@ -10,6 +10,7 @@ import {
   Slots,
   inputStyles,
 } from "@/components/board";
+import { ImportSteps } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
 import {
   applyRosterCsv,
@@ -80,9 +81,12 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
       : null;
   const result = current(applied) ?? current(preview) ?? START;
   const plan = result.preview;
+  const done = Boolean(current(applied)?.applied);
 
   return (
     <>
+      <ImportSteps current={plan ? 1 : 0} done={done} />
+
       <Bank label="Roster authority" aside={`${authority} may write`}>
         {auth.error ? (
           <Correction testId="authority-error">{auth.error}</Correction>

@@ -249,6 +249,40 @@ test("an unattached code from a box score is offered the player it probably is",
   }
 });
 
+test("the questions are a queue a keyboard can walk", async ({ page, context }) => {
+  const first = personCode();
+  const second = personCode();
+  const player = await createPlayer("Queued", { person_code: "" });
+  const batches = [
+    await plantUnmatchedBatch({ code: first, name: player.name, club: TEST_CLUB, games: [201] }),
+    await plantUnmatchedBatch({ code: second, name: player.name, club: TEST_CLUB, games: [202] }),
+  ];
+
+  const commissioner = await createTestUser("queuer");
+  await createLeagueFor(commissioner, "Queue League");
+  await signIn(context, commissioner);
+
+  try {
+    await page.goto("/players/mapping");
+    const progress = page.getByTestId("mapping-progress");
+    await expect(progress).toContainText(/Question 1 of \d+/);
+
+    // Walk to the end and back; the counter follows, and exactly one row is
+    // the current one. Nothing is answered — Y would write, and other runs'
+    // questions share this page.
+    const total = Number((await progress.textContent())?.match(/of (\d+)/)?.[1]);
+    expect(total).toBeGreaterThanOrEqual(2);
+    await expect(progress).toHaveAttribute("data-ready", "true");
+    await page.keyboard.press("j");
+    await expect(progress).toContainText(`Question 2 of ${total}`);
+    await expect(page.locator('[aria-current="true"]')).toHaveCount(1);
+    await page.keyboard.press("k");
+    await expect(progress).toContainText(`Question 1 of ${total}`);
+  } finally {
+    for (const batch of batches) await removeBatch(batch);
+  }
+});
+
 test("a code whose player already carries a different one is refused", async ({
   page,
   context,
