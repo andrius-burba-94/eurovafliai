@@ -140,6 +140,7 @@ jobs:
       GOOGLE_CLIENT_ID: ci-placeholder-client-id
       GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
       STATS_FETCH: "off"
+      LIVE_FETCH: "off"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

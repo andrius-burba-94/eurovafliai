@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseLiveBoxscore } from "./boxscore";
+import { parseLiveBoxscore, personCodeOf, secondsOf } from "./boxscore";
+import inPlay from "./fixtures/e2026-game19-in-play.json";
 
-// Field names and player code padding match the official E2026 game 1 response
-// fetched on 2026-09-28. The in-game values below are synthetic until an actual
-// live game can establish how the endpoint updates.
+// Synthetic in-game values in the official field names; the real response
+// they are modelled on is the game-19 fixture beside this file.
 const response = {
   Live: true,
   ByQuarter: [
@@ -12,24 +12,90 @@ const response = {
     { Team: "ZALGIRIS KAUNAS", Quarter1: 28, Quarter2: 15, Quarter3: 16, Quarter4: 0 },
   ],
   Stats: [
-    { Team: "CRVENA ZVEZDA MERIDIANBET BELGRADE", PlayersStats: [{ Player_ID: "P011157   ", Team: "RED", Minutes: "14:08", Points: 2, Assistances: 2, TotalRebounds: 0, Valuation: -13, IsPlaying: 0 }] },
-    { Team: "ZALGIRIS KAUNAS", PlayersStats: [{ Player_ID: "P012720   ", Team: "ZAL", Minutes: "16:19", Points: 10, Assistances: 0, TotalRebounds: 2, Valuation: 11, IsPlaying: 1 }] },
+    {
+      Team: "CRVENA ZVEZDA MERIDIANBET BELGRADE",
+      PlayersStats: [{
+        Player_ID: "P011157   ", Player: "RED PLAYER", Minutes: "14:08", IsPlaying: 0,
+        Points: 2, FieldGoalsMade2: 1, FieldGoalsAttempted2: 4, Assistances: 2, TotalRebounds: 0,
+        Turnovers: 5, BlocksAgainst: 1, FoulsCommited: 4, Valuation: -9,
+      }],
+    },
+    {
+      Team: "ZALGIRIS KAUNAS",
+      PlayersStats: [{
+        Player_ID: "P012720   ", Player: "ZAL PLAYER", Minutes: "16:19", IsPlaying: 1,
+        Points: 10, FieldGoalsMade2: 2, FieldGoalsAttempted2: 4, FieldGoalsMade3: 2, FieldGoalsAttempted3: 5,
+        TotalRebounds: 2, FoulsReceived: 2, FoulsCommited: 1, Valuation: 8,
+      }],
+    },
   ],
 };
 
+describe("personCodeOf", () => {
+  it("drops the live feed's padding and P prefix so the code joins the roster's", () => {
+    expect(personCodeOf("P010781   ")).toBe("010781");
+    expect(personCodeOf("010781")).toBe("010781");
+  });
+});
+
+describe("secondsOf", () => {
+  it("reads minutes:seconds and treats DNP as zero", () => {
+    expect(secondsOf("12:20")).toBe(740);
+    expect(secondsOf("090:00")).toBe(5400);
+    expect(secondsOf("DNP")).toBe(0);
+    expect(secondsOf(null)).toBe(0);
+  });
+});
+
 describe("parseLiveBoxscore", () => {
-  it("reads provisional leader bonus, PIR and activity from official fields", () => {
-    const game = parseLiveBoxscore(response, "RED", "ZAL");
-    expect(game).toMatchObject({ live: true, localScore: 57, roadScore: 59 });
-    expect(game?.players).toEqual([
-      { personCode: "P011157", clubCode: "RED", points: 2, assists: 2, rebounds: 0, pir: -13, fantasyTenths: -130, minutes: "14:08", playing: false },
-      { personCode: "P012720", clubCode: "ZAL", points: 10, assists: 0, rebounds: 2, pir: 11, fantasyTenths: 121, minutes: "16:19", playing: true },
+  it("scores from components, with the provisional bonus for the side leading", () => {
+    const parsed = parseLiveBoxscore(response, "RED", "ZAL");
+    expect(parsed?.problems).toEqual([]);
+    expect(parsed?.game).toMatchObject({ live: true, localScore: 57, roadScore: 59 });
+    expect(parsed?.game.players).toEqual([
+      { personCode: "011157", clubCode: "RED", points: 2, assists: 2, rebounds: 0, pir: -9, fantasyTenths: -90, minutes: "14:08", playing: false },
+      { personCode: "012720", clubCode: "ZAL", points: 10, assists: 0, rebounds: 2, pir: 8, fantasyTenths: 88, minutes: "16:19", playing: true },
     ]);
   });
 
-  it("never calls a finished player in play even if the feed leaves IsPlaying set", () => {
-    const game = parseLiveBoxscore({ ...response, Live: false }, "RED", "ZAL");
-    expect(game?.players[1]?.playing).toBe(false);
+  it("agrees with the feed's own PIR on every row of a real in-play response", () => {
+    const parsed = parseLiveBoxscore(inPlay, "TEL", "BES");
+    expect(parsed).not.toBeNull();
+    expect(parsed!.problems).toEqual([]);
+    expect(parsed!.game).toMatchObject({ live: true, localScore: 42, roadScore: 50 });
+    const rows = inPlay.Stats.flatMap((side) => side.PlayersStats);
+    expect(parsed!.game.players).toHaveLength(rows.length);
+    parsed!.game.players.forEach((player, index) => {
+      expect(player.pir).toBe(rows[index]!.Valuation);
+      expect(player.personCode).toMatch(/^\d{6}$/);
+      expect(player.fantasyTenths).toBe(player.pir * (player.clubCode === "BES" ? 11 : 10));
+    });
+    expect(parsed!.game.players.find((player) => player.personCode === "010781")).toMatchObject({ clubCode: "TEL", points: 6, pir: 7, fantasyTenths: 70, minutes: "12:20" });
+  });
+
+  it("keeps a DNP row at zero and never calls it in play", () => {
+    const dnp = parseLiveBoxscore(inPlay, "TEL", "BES")!.game.players.find((player) => player.minutes === "DNP");
+    expect(dnp).toMatchObject({ points: 0, pir: 0, fantasyTenths: 0, playing: false });
+  });
+
+  it("reports a published PIR that disagrees with its components, and keeps ours", () => {
+    const wrong = structuredClone(response);
+    wrong.Stats[1]!.PlayersStats[0]!.Valuation = 12;
+    const parsed = parseLiveBoxscore(wrong, "RED", "ZAL");
+    expect(parsed?.game.players[1]).toMatchObject({ pir: 8, fantasyTenths: 88 });
+    expect(parsed?.problems).toEqual([{ personCode: "012720", message: expect.stringContaining("PIR 12 does not match the 8") }]);
+  });
+
+  it("publishes full time with nobody in play", () => {
+    const parsed = parseLiveBoxscore({ ...response, Live: false }, "RED", "ZAL");
+    expect(parsed?.game.live).toBe(false);
+    expect(parsed?.game.players.every((player) => !player.playing)).toBe(true);
+  });
+
+  it("does not publish lineups listed before tip-off", () => {
+    const pregame = structuredClone(response);
+    for (const side of pregame.Stats) for (const player of side.PlayersStats) player.Minutes = "00:00";
+    expect(parseLiveBoxscore({ ...pregame, Live: false }, "RED", "ZAL")).toBeNull();
   });
 
   it("does not publish an empty pregame box score", () => {

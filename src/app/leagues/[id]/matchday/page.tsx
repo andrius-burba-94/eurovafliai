@@ -18,6 +18,7 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { ROLE_MULTIPLIERS, ROLE_WORDS } from "@/lib/lineups/lineup";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readMatchdayData } from "@/lib/live/queries";
+import { gameStateOf, statLineOf, type GameState } from "@/lib/live/status";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { ordinal } from "@/lib/season/story";
 import { formatHundredths } from "@/lib/stats/scoring";
@@ -34,13 +35,11 @@ function requestedRound(value: string | string[] | undefined): number | null {
   return Number.isInteger(round) && round > 0 ? round : null;
 }
 
-type GameState = "final" | "live" | "stale" | "unavailable" | "scheduled";
-
 const GAME_BADGE: Record<GameState, { kind: BadgeKind; word: string }> = {
   final: { kind: "final", word: "Final" },
+  fulltime: { kind: "provisional", word: "Full time" },
   live: { kind: "live", word: "Live" },
   stale: { kind: "doubtful", word: "Feed stale" },
-  unavailable: { kind: "provisional", word: "Feed unavailable" },
   scheduled: { kind: "scheduled", word: "Scheduled" },
 };
 
@@ -83,12 +82,9 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
     return member?.teamName || member?.name || "Team";
   };
 
-  const gameState = (gameCode: number, played: boolean): GameState => {
-    const snapshot = byGame.get(gameCode);
-    if (played) return "final";
-    if (snapshot?.live) return now - Date.parse(snapshot.checked_at) > 5 * 60_000 ? "stale" : "live";
-    return snapshot ? "unavailable" : "scheduled";
-  };
+  const gameState = (gameCode: number, played: boolean): GameState =>
+    gameStateOf({ played, snapshot: byGame.get(gameCode), now });
+  const hasFullTime = matchday.fixtures.some((game) => gameState(game.game_code, Boolean(game.played)) === "fulltime");
 
   const players = [...(board?.players ?? [])]
     .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.name.localeCompare(b.name))
@@ -97,10 +93,11 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
       const state: GameState | null = fixture ? gameState(fixture.game_code, Boolean(fixture.played)) : null;
       const raw = matchday.scoresByPlayer[player.id] ?? null;
       const multiplier = player.role ? ROLE_MULTIPLIERS[player.role] : 1;
-      return { player, fixture, state, raw, counted: raw === null ? null : raw * multiplier, multiplier };
+      const line = matchday.statsByPlayer[player.id];
+      return { player, fixture, state, raw, counted: raw === null ? null : raw * multiplier, multiplier, statLine: line ? statLineOf(line) : null };
     });
   const counting = players.filter((row) => row.multiplier > 0);
-  const finished = counting.filter((row) => row.state === "final").length;
+  const finished = counting.filter((row) => row.state === "final" || row.state === "fulltime").length;
   const playing = counting.filter((row) => row.state === "live" || row.state === "stale").length;
   const toPlay = counting.filter((row) => row.state === "scheduled" || row.state === null).length;
   const statusWord = matchday.final
@@ -151,6 +148,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
               hasGameWindow={hasGameWindow}
               gameTimes={matchday.fixtures.map((game) => game.utc_date ?? "")}
               hasPlayedGames={matchday.fixtures.some((game) => game.played)}
+              hasFullTime={hasFullTime}
             />
           </div>
           <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
@@ -190,7 +188,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
             <EmptyNotice>Your roster and lineup appear here after the draft.</EmptyNotice>
           ) : (
             <ul role="list" className="flex flex-col divide-y divide-panel-border">
-              {players.map(({ player, fixture, state, raw, counted, multiplier }) => {
+              {players.map(({ player, fixture, state, raw, counted, multiplier, statLine }) => {
                 const captain = player.role === "captain";
                 const progress =
                   raw !== null && player.estimateTenths && player.estimateTenths > 0
@@ -224,6 +222,11 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                         </span>
                         {state === "scheduled" && fixture?.utc_date ? <span>{formatClock(fixture.utc_date)}</span> : null}
                       </span>
+                      {statLine ? (
+                        <span className="stat text-xs text-ink-soft" data-testid="matchday-stat-line">
+                          {statLine}
+                        </span>
+                      ) : null}
                       {progress !== null && multiplier > 0 ? (
                         <span
                           className="mt-1 block h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-stock-high"

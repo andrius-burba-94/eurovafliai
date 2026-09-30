@@ -6,6 +6,7 @@ import { createUserClient } from "@/lib/pb/server";
 import { readStandingsSnapshots } from "@/lib/stats/queries";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 
+import { personCodeOf, type LivePlayer } from "./boxscore";
 import { provisionalRanks, type ProvisionalRank, type ScoredGameLine } from "./rank";
 import { readLiveSnapshots, type LiveSnapshot } from "./store";
 
@@ -17,6 +18,8 @@ export type MatchdayData = {
   readonly snapshots: readonly LiveSnapshot[];
   readonly ranks: readonly ProvisionalRank[];
   readonly scoresByPlayer: Readonly<Record<string, number>>;
+  /** The live box-score line, until the official one is recorded for that game. */
+  readonly statsByPlayer: Readonly<Record<string, LivePlayer>>;
   readonly final: boolean;
   readonly hasScoringBasis: boolean;
 };
@@ -57,9 +60,12 @@ export async function readMatchdayData(input: {
   const byPerson = new Map(players.map((player) => [player.person_code?.trim(), player.id]));
   const finalLines: ScoredGameLine[] = finalRows.map((row) => ({ playerId: row.player, gameCode: row.game_code, fantasyTenths: row.fantasy_pts }));
   const finalKeys = new Set(finalLines.map((line) => `${line.playerId}|${line.gameCode}`));
+  const statsByPlayer: Record<string, LivePlayer> = {};
   const liveLines: ScoredGameLine[] = snapshots.flatMap((game) => game.players.flatMap((player) => {
-    const playerId = byPerson.get(player.personCode);
-    return playerId ? [{ playerId, gameCode: game.game_code, fantasyTenths: player.fantasyTenths }] : [];
+    const playerId = byPerson.get(personCodeOf(player.personCode));
+    if (!playerId) return [];
+    if (!finalKeys.has(`${playerId}|${game.game_code}`)) statsByPlayer[playerId] = player;
+    return [{ playerId, gameCode: game.game_code, fantasyTenths: player.fantasyTenths }];
   }));
   const scoresByPlayer: Record<string, number> = {};
   for (const line of [...finalLines, ...liveLines.filter((line) => !finalKeys.has(`${line.playerId}|${line.gameCode}`))]) {
@@ -73,5 +79,5 @@ export async function readMatchdayData(input: {
   const ranks = final
     ? snapshotRowsFrom(finalSnapshot!.table).sort((a, b) => b.totalHundredths - a.totalHundredths || a.memberId.localeCompare(b.memberId)).map((row, index) => ({ ...row, rank: index + 1 }))
     : provisionalRanks({ memberIds: input.memberIds, baseTotals, memberships, finalLines, liveLines, round, weights });
-  return { season: input.season, fetchedAt: new Date().toISOString(), round, fixtures, snapshots, ranks, scoresByPlayer, final, hasScoringBasis };
+  return { season: input.season, fetchedAt: new Date().toISOString(), round, fixtures, snapshots, ranks, scoresByPlayer, statsByPlayer, final, hasScoringBasis };
 }

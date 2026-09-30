@@ -56,8 +56,12 @@ export const serverEnvSchema = z.object({
    * deadlines.
    */
   STATS_FETCH: z.enum(["on", "off"]).default("on"),
-  /** Gated until the official Boxscore is observed changing during a game. */
-  LIVE_FETCH: z.enum(["on", "off"]).default("off"),
+  /**
+   * Whether the worker polls the live box score once a minute during a game
+   * window. Defaults on since the official feed was observed changing during
+   * E2026 round 2; `off` is for a dev machine or a night the feed misbehaves.
+   */
+  LIVE_FETCH: z.enum(["on", "off"]).default("on"),
   /**
    * Whether the worker reads the injury and transfer pages — slice 9.4.
    *
