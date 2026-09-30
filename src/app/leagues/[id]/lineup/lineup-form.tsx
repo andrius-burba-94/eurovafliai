@@ -33,13 +33,18 @@ import type { Position } from "@/lib/engine";
 import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 
 import { LineupCourt } from "./lineup-court";
+import { useDragToPlace, type DragState, type DropTarget } from "./lineup-drag";
 
 /**
- * Thirteen rows, one role each — slice 9.3. Since 11.3 the rows stand in
- * tiers under a court that draws the five, and a player can be moved by
- * tapping them and then their place. Each row still carries its own select and
- * captain mark: those are what the form posts, and all it needs without
- * JavaScript.
+ * Thirteen players, one role each — slice 9.3. The court draws the five and
+ * the sixth man, bench and inactive stand beside it as cards, so a whole lineup
+ * fits on one screen the way the official game's does. A player moves by drag,
+ * or by a tap on them and a tap on their place; the grid view is the same
+ * lineup as a table with a role select and a captain radio per row.
+ *
+ * What the form posts is a hidden `role:<id>` per player and one `captain`,
+ * written from state, so the court and the grid are two views of one lineup
+ * rather than two sets of fields that could disagree.
  *
  * The same pure validator the action runs is run here on every change, so the
  * refusal a wrong formation earns is visible before the round trip rather than
@@ -48,13 +53,16 @@ import { LineupCourt } from "./lineup-court";
 
 const START: LineupResult = { error: null, saved: false };
 
-/** The court's tiers, top to bottom. "Not placed" is drawn only while someone is. */
-const TIERS: readonly { role: PlacementRole | ""; label: string }[] = [
-  { role: "starter", label: "Starting five" },
-  { role: "sixth", label: "Sixth man" },
-  { role: "bench", label: "Bench" },
-  { role: "inactive", label: "Inactive" },
-  { role: "", label: "Not placed" },
+/**
+ * The tiers beside the court, top to bottom, with the columns each wants.
+ * "Not placed" leads, because it is what is left to do, and is drawn only
+ * while someone is in it.
+ */
+const TIERS: readonly { role: Exclude<PlacementRole, "starter"> | ""; label: string; columns: string }[] = [
+  { role: "", label: "Not placed", columns: "grid-cols-2" },
+  { role: "sixth", label: "Sixth man", columns: "grid-cols-2" },
+  { role: "bench", label: "Bench", columns: "grid-cols-2" },
+  { role: "inactive", label: "Inactive", columns: "grid-cols-2 @4xl:grid-cols-3" },
 ];
 
 const TEMPLATE_KEY: Readonly<Record<PlacementRole, keyof LineupTemplate>> = {
@@ -69,6 +77,14 @@ const POSITION_ORDER: Readonly<Record<Position, number>> = { G: 0, F: 1, C: 2 };
 /** "×2", "×0.5" — the multiplier, said once, beside the role that carries it. */
 function multiplierWord(role: LineupRole): string {
   return `×${ROLE_MULTIPLIERS[role]}`;
+}
+
+function surname(name: string): string {
+  return name.split(",")[0]!.trim();
+}
+
+function isPlace(value: string): value is PlacementRole | "" {
+  return value === "" || (PLACEMENT_ROLES as readonly string[]).includes(value);
 }
 
 export function LineupForm({
@@ -265,39 +281,39 @@ export function LineupForm({
     try { window.localStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
   }
 
-  // Tap to place — 11.3. One player in hand at a time; the next tap on a tier
-  // or an open court place puts them there through `place`, the same function
-  // the select calls, so the validator above sees one kind of change.
+  // Tap to place — 11.3. One player in hand at a time; the next tap on a place
+  // or a player puts them there through `place`, the same function the grid's
+  // select and a drop call, so the validator above sees one kind of change.
   const [armed, setArmed] = useState<string | null>(null);
   const armedPlayer = players.find((player) => player.id === armed) ?? null;
   const [lastMove, setLastMove] = useState("");
+  const nameOf = (id: string) => players.find((player) => player.id === id)?.name ?? "";
 
   /**
-   * With somebody in hand, tapping a player in another tier swaps the two.
-   * The usual edit of a round is "he starts, he sits"; without a swap that
-   * took four taps and passed through a six-man five the validator refused.
-   * Tapping somebody in the same tier just changes who is in hand.
+   * Two players in different places trade them. The usual edit of a round is
+   * "he starts, he sits"; without a swap that took four taps and passed through
+   * a six-man five the validator refused. Returns false when there was nothing
+   * to trade, because both already stand in the same place.
    */
+  function swap(held: string, other: string): boolean {
+    const from = places[held] ?? "";
+    const to = places[other] ?? "";
+    if (from === to) return false;
+    place(held, to);
+    place(other, from);
+    setLastMove(`${nameOf(held)} to ${PLACE_WORDS[to]}, ${nameOf(other)} to ${PLACE_WORDS[from]}.`);
+    return true;
+  }
+
+  /** Tapping somebody in the same place as the one in hand changes who is in hand. */
   function arm(playerId: string): void {
     setLastMove("");
     if (armed === null || armed === playerId) {
       setArmed(armed === playerId ? null : playerId);
       return;
     }
-    const held = places[armed] ?? "";
-    const target = places[playerId] ?? "";
-    if (held === target) {
-      setArmed(playerId);
-      return;
-    }
-    place(armed, target);
-    place(playerId, held);
-    setArmed(null);
-    const name = (id: string) =>
-      players.find((player) => player.id === id)?.name ?? "";
-    setLastMove(
-      `${name(armed)} to ${PLACE_WORDS[target]}, ${name(playerId)} to ${PLACE_WORDS[held]}.`,
-    );
+    if (swap(armed, playerId)) setArmed(null);
+    else setArmed(playerId);
   }
 
   function moveTo(role: PlacementRole | ""): void {
@@ -306,6 +322,22 @@ export function LineupForm({
     setArmed(null);
     setLastMove("");
   }
+
+  function dropOn(playerId: string, target: DropTarget): void {
+    setArmed(null);
+    setLastMove("");
+    if (target.kind === "player") {
+      swap(playerId, target.id);
+      return;
+    }
+    if (!isPlace(target.role) || (places[playerId] ?? "") === target.role) return;
+    place(playerId, target.role);
+    setLastMove(`${nameOf(playerId)} to ${PLACE_WORDS[target.role]}.`);
+  }
+
+  const { dragging, over, handle, ghostRef } = useDragToPlace(dropOn);
+  const drag: DragState = { dragging, over, handle };
+  const draggedPlayer = players.find((player) => player.id === dragging) ?? null;
 
   const groups = useMemo(() => {
     const out: Record<PlacementRole | "", LineupPlayer[]> = {
@@ -322,131 +354,80 @@ export function LineupForm({
     return out;
   }, [players, places]);
 
-  function row(player: LineupPlayer) {
-    const role = places[player.id] ?? "";
-    const isCaptain = captainId === player.id;
-    const inHand = armed === player.id;
+  function card(player: LineupPlayer) {
+    const key = `player:${player.id}`;
     return (
-      <li
-        key={player.id}
-        data-testid="lineup-row"
-        data-state={role === "" ? "waiting" : "filled"}
-        data-position={player.position}
-        className={`flex flex-col gap-2 border-b border-panel-border py-3 last:border-b-0 @sm:flex-row @sm:items-center @sm:gap-3 ${
-          inHand ? "rounded-lg bg-live-sunk/60 px-2 outline-2 -outline-offset-2 outline-live" : ""
-        }`}
-      >
-        <span className="flex min-w-0 flex-1 items-center gap-3">
-          <PositionPatch position={player.position} />
+      <li key={player.id} className="min-w-0">
+        <button
+          type="button"
+          data-testid="lineup-card"
+          data-position={player.position}
+          data-drop={key}
+          data-over={drag.over === key || undefined}
+          data-dragging={drag.dragging === player.id || undefined}
+          aria-pressed={armed === player.id}
+          aria-label={`Move ${player.name}`}
+          title={player.name}
+          onClick={() => arm(player.id)}
+          {...drag.handle(player.id)}
+          className="lineup-card lineup-drag"
+        >
           <PlayerPortrait personCode={player.personCode} name={player.name} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span title={player.name} className="line-clamp-2 text-sm leading-snug font-semibold">{player.name}</span>
-            <span className="flex flex-wrap items-center gap-x-2 text-xs text-ink-soft">
-              <span className="flex items-center gap-1">
-                <ClubCrest clubCode={player.clubCode} />
+            <span className="truncate text-sm leading-tight font-semibold">{surname(player.name)}</span>
+            <span className="flex min-w-0 items-center gap-1 text-xs text-ink-soft">
+              <span className="lineup-card-position" aria-hidden="true">{player.position}</span>
+              <span className="truncate">
                 {player.clubCode}
+                {player.fixture ? ` ${player.fixture.atHome ? "vs" : "at"} ${player.fixture.nextOpponent}` : ""}
               </span>
-              <FixtureNote fixture={player.fixture} />
-              {player.estimateTenths !== null ? (
-                <span className="stat">~{(player.estimateTenths / 10).toFixed(1)}</span>
-              ) : null}
             </span>
           </span>
-        </span>
-        <span className="flex flex-wrap items-center justify-end gap-1.5 @sm:shrink-0 @sm:flex-nowrap @lg:gap-2">
-          {/*
-            A radio group rather than thirteen toggles, because "exactly one of
-            these" is what a radio group *is*: the browser clears the previous
-            choice, arrow keys move between them, and a screen reader says
-            "3 of 13". Drawn as the gold armband it stands for.
-          */}
-          <label
-            className={`flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-live ${
-              isCaptain ? "border-gold bg-gold text-[oklch(0.22_0.04_80)]" : "border-rule text-ink-soft hover:border-gold hover:text-gold"
-            }`}
-            data-testid="lineup-captain"
-            data-checked={isCaptain ? "true" : undefined}
-          >
-            <input
-              type="radio"
-              name="captain"
-              value={player.id}
-              checked={isCaptain}
-              aria-label={`${player.name} captain`}
-              onChange={() => markCaptain(player.id)}
-              className="size-3.5 shrink-0 accent-[oklch(0.22_0.04_80)]"
-            />
-            C {multiplierWord("captain")}
-          </label>
-          <select
-            name={`role:${player.id}`}
-            value={role}
-            aria-label={`${player.name} role`}
-            data-testid="lineup-role"
-            onChange={(event) => place(player.id, event.target.value as PlacementRole | "")}
-            className="min-h-11 shrink-0 appearance-none rounded-full border border-rule bg-stock px-3 text-xs font-semibold focus:border-live focus:outline-none"
-          >
-            <option value="">Not placed</option>
-            {PLACEMENT_ROLES.map((option) => (
-              <option key={option} value={option}>
-                {ROLE_WORDS[option]} {multiplierWord(option)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            data-testid="lineup-move"
-            aria-pressed={inHand}
-            aria-label={`Move ${player.name}`}
-            onClick={() => arm(player.id)}
-            className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
-              inHand ? "bg-live text-live-ink" : "border border-rule text-ink hover:border-ink-soft"
-            }`}
-          >
-            <span aria-hidden="true">⇄</span>
-            <span className="hidden @lg:inline">{inHand ? "In hand" : "Move"}</span>
-          </button>
-        </span>
+          {player.estimateTenths !== null ? (
+            <span className="stat shrink-0 text-xs text-ink-soft">~{(player.estimateTenths / 10).toFixed(1)}</span>
+          ) : null}
+        </button>
       </li>
     );
   }
 
-  function renderTier(tier: (typeof TIERS)[number], className = "") {
+  function renderTier(tier: (typeof TIERS)[number]) {
     const members = groups[tier.role];
     const capacity = tier.role === "" ? 0 : template[TEMPLATE_KEY[tier.role]];
     if (tier.role === "" && members.length === 0) return null;
-    const canMoveHere = armed !== null && (places[armed] ?? "") !== tier.role;
+    const dropKey = `role:${tier.role}`;
+    const incoming =
+      (armed !== null && (places[armed] ?? "") !== tier.role) ||
+      (drag.dragging !== null && (places[drag.dragging] ?? "") !== tier.role);
     return (
       <section
         key={tier.role || "none"}
         aria-labelledby={`tier-${tier.role || "none"}`}
         data-testid={`lineup-tier-${tier.role || "none"}`}
-        className={`flex min-w-0 flex-col gap-1 ${className}`}
+        data-drop={dropKey}
+        data-over={drag.over === dropKey || undefined}
+        className="lineup-tier flex min-w-0 flex-col gap-1.5"
       >
-        <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <h3 id={`tier-${tier.role || "none"}`} className="display text-xl">
+        <h2 id={`tier-${tier.role || "none"}`} className="slot-label flex items-baseline justify-between gap-2">
+          <span>
             {tier.label}
-            <span className="ml-2 font-sans text-sm font-semibold tracking-normal text-ink-soft normal-case">
-              {capacity > 0 ? `${members.length}/${capacity}` : members.length}
-              {tier.role !== "" && tier.role !== "starter" ? ` · ${multiplierWord(tier.role)}` : ""}
-            </span>
-          </h3>
-          {canMoveHere ? (
-            <button
-              type="button"
-              data-testid={`lineup-to-${tier.role || "none"}`}
-              onClick={() => moveTo(tier.role)}
-              className="inline-flex min-h-11 items-center rounded-full bg-live px-4 text-sm font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-            >
-              Move here
-            </button>
-          ) : null}
-        </div>
-        <ul role="list" aria-label={tier.label} className="@container rounded-card border border-panel-border bg-stock-panel px-3">
-          {members.map(row)}
+            {tier.role !== "" ? ` ${multiplierWord(tier.role)}` : ""}
+          </span>
+          <span className="tabular-nums">{capacity > 0 ? `${members.length}/${capacity}` : members.length}</span>
+        </h2>
+        <ul role="list" aria-label={tier.label} className={`grid gap-1.5 ${tier.columns}`}>
+          {members.map(card)}
           {Array.from({ length: Math.max(0, capacity - members.length) }, (_, index) => (
-            <li key={`open-${index}`} data-testid="lineup-open" className="flex min-h-12 items-center border-b border-dashed border-rule py-2 text-sm text-ink-faint last:border-b-0">
-              Open place
+            <li key={`open-${index}`} className="min-w-0">
+              <button
+                type="button"
+                data-testid="lineup-open"
+                disabled={armed === null || !incoming}
+                onClick={() => moveTo(tier.role)}
+                className="lineup-card-open"
+              >
+                {incoming ? "Move here" : "Open"}
+              </button>
             </li>
           ))}
         </ul>
@@ -459,16 +440,73 @@ export function LineupForm({
     return { G: Math.max(0, shape[0] - five[0]), F: Math.max(0, shape[1] - five[1]), C: Math.max(0, shape[2] - five[2]) };
   })();
 
+  const tool = "inline-flex min-h-11 items-center px-1 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live";
+
   return (
-    <form action={action} className="flex flex-col gap-6 pb-28">
+    <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="leagueId" value={leagueId} />
       <input type="hidden" name="memberId" value={memberId} />
       <input type="hidden" name="season" value={season} />
       <input type="hidden" name="round" value={String(round)} />
+      {players.map((player) => (
+        <input key={player.id} type="hidden" name={`role:${player.id}`} value={places[player.id] ?? ""} />
+      ))}
+      <input type="hidden" name="captain" value={captainId} />
 
-      <Bank framed label="The court" aside={`${placed}/${players.length} placed`} testId="lineup-board">
-        <div className="flex flex-col gap-4">
-          {view === "court" ? (
+      <section aria-label="The lineup" data-testid="lineup-board" className="@container flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div role="group" aria-label="Formation, guards forwards centers" className="flex flex-wrap gap-1">
+            {FORMATIONS.map((shape) => {
+              const name = formationName(shape);
+              const on = formationName(five) === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => chooseFormation(shape)}
+                  className={`min-h-11 rounded-full border px-3 text-sm font-bold tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+                    on ? "border-ink bg-ink text-stock" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
+                  }`}
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-x-3">
+            <button type="button" onClick={showOptimization} className={`${tool} text-live hover:underline`}>Auto-Optimize preview</button>
+            <button type="button" onClick={() => setCompareOpen(true)} className={`${tool} text-live hover:underline`}>Compare players</button>
+            <button type="button" onClick={resetDraft} className={`${tool} font-normal text-ink-soft hover:text-ink`}>Reset changes</button>
+            <div role="group" aria-label="Lineup view" className="flex rounded-full border border-rule p-0.5">
+              {(["court", "grid"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={view === option}
+                  onClick={() => { setView(option); setArmed(null); }}
+                  className={`min-h-10 rounded-full px-4 text-sm font-semibold capitalize ${view === option ? "bg-stock-high text-ink" : "text-ink-soft hover:text-ink"}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {source === "carried" && carriedFrom !== null ? (
+          <p className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm text-ink" data-testid="lineup-carried">
+            This round carries round {carriedFrom}&apos;s lineup and scores at it. Save it to make it round {round}&apos;s own.
+          </p>
+        ) : null}
+        {source === "absent" ? (
+          <p className="rounded-lg bg-gold/10 px-3 py-1.5 text-sm text-ink" data-testid="lineup-absent">
+            No lineup recorded for {teamName} yet, so round {round} counts every player at 100% for now.
+          </p>
+        ) : null}
+
+        {view === "court" ? (
+          <div className="grid gap-4 @xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] @xl:items-start">
             <LineupCourt
               starters={groups.starter.map((player) => ({
                 id: player.id,
@@ -482,126 +520,94 @@ export function LineupForm({
               armedIsStarter={armed !== null && places[armed] === "starter"}
               onArm={arm}
               onPlace={() => moveTo("starter")}
+              drag={drag}
             />
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-panel-border" role="region" aria-label="Starting five grid" tabIndex={0}>
-              <table className="w-full min-w-96 text-left text-sm">
-                <thead className="bg-stock text-xs text-ink-soft">
-                  <tr>
-                    <th className="p-3 font-semibold">Position</th>
-                    <th className="p-3 font-semibold">Player</th>
-                    <th className="p-3 font-semibold">Fixture</th>
-                    <th className="p-3 font-semibold">Captain</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {groups.starter.map((player) => (
-                    <tr key={player.id} className="border-t border-panel-border">
-                      <td className="p-3"><PositionPatch position={player.position} /></td>
-                      <td className="p-3">{player.name}</td>
-                      <td className="p-3"><FixtureNote fixture={player.fixture} /></td>
-                      <td className="p-3">
-                        <button type="button" onClick={() => markCaptain(player.id)} className="min-h-11 font-semibold text-gold hover:underline">
-                          {captainId === player.id ? "Captain ×2" : "Make captain"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div role="group" aria-label="Formation, guards forwards centers" className="flex flex-wrap gap-1.5">
-              {FORMATIONS.map((shape) => {
-                const name = formationName(shape);
-                const on = formationName(five) === name;
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => chooseFormation(shape)}
-                    className={`min-h-11 rounded-full border px-3.5 text-sm font-bold tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
-                      on ? "border-ink bg-ink text-stock" : "border-rule text-ink-soft hover:border-ink-soft hover:text-ink"
-                    }`}
-                  >
-                    {name}
-                  </button>
-                );
-              })}
-            </div>
-            <div role="group" aria-label="Lineup view" className="flex rounded-full border border-rule p-0.5">
-              {(["court", "grid"] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={view === option}
-                  onClick={() => setView(option)}
-                  className={`min-h-10 rounded-full px-4 text-sm font-semibold capitalize ${view === option ? "bg-stock-high text-ink" : "text-ink-soft hover:text-ink"}`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
+            <div className="flex min-w-0 flex-col gap-3">{TIERS.map(renderTier)}</div>
           </div>
-
-          {source === "carried" && carriedFrom !== null ? (
-            <p className="rounded-lg bg-gold/10 px-3 py-2 text-sm text-ink" data-testid="lineup-carried">
-              This round carries round {carriedFrom}&apos;s lineup and scores at it. Save it to make it round {round}&apos;s own.
-            </p>
-          ) : null}
-          {source === "absent" ? (
-            <p className="rounded-lg bg-gold/10 px-3 py-2 text-sm text-ink" data-testid="lineup-absent">
-              No lineup recorded for {teamName} yet, so round {round} counts every player at 100% for now.
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-            <button type="button" onClick={showOptimization} className="min-h-11 font-semibold text-live hover:underline">Auto-Optimize preview</button>
-            <button type="button" onClick={() => setCompareOpen(true)} className="min-h-11 font-semibold text-live hover:underline">Compare players</button>
-            <button type="button" onClick={resetDraft} className="min-h-11 text-ink-soft hover:text-ink">Reset changes</button>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-panel-border" role="region" aria-label="Lineup grid" tabIndex={0}>
+            <table className="w-full min-w-[34rem] text-left text-sm">
+              <thead className="bg-stock text-xs text-ink-soft">
+                <tr>
+                  <th scope="col" className="px-3 py-2 font-semibold">Pos</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Player</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Fixture</th>
+                  <th scope="col" className="px-3 py-2 text-right font-semibold">Est.</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Captain</th>
+                  <th scope="col" className="px-3 py-2 font-semibold">Role</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Ordered by where each player stood when the page opened, so a
+                    row stays under the pointer while its role is changed. */}
+                {[...players]
+                  .sort((a, b) => ROLE_ORDER[originalPlaces[a.id] ?? ""] - ROLE_ORDER[originalPlaces[b.id] ?? ""] || POSITION_ORDER[a.position] - POSITION_ORDER[b.position])
+                  .map((player) => {
+                    const role = places[player.id] ?? "";
+                    const isCaptain = captainId === player.id;
+                    return (
+                      <tr key={player.id} data-testid="lineup-row" data-state={role === "" ? "waiting" : "filled"} data-position={player.position} className="border-t border-panel-border">
+                        <td className="px-3 py-1.5"><PositionPatch position={player.position} /></td>
+                        <td className="px-3 py-1.5">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <ClubCrest clubCode={player.clubCode} />
+                            <span className="font-semibold">{player.name}</span>
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5"><FixtureNote fixture={player.fixture} /></td>
+                        <td className="stat px-3 py-1.5 text-right text-ink-soft">
+                          {player.estimateTenths !== null ? (player.estimateTenths / 10).toFixed(1) : "—"}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {/*
+                            A radio group rather than thirteen toggles, because
+                            "exactly one of these" is what a radio group *is*:
+                            the browser clears the previous choice and arrow
+                            keys move between them.
+                          */}
+                          <label
+                            className={`flex min-h-11 w-fit cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-live ${
+                              isCaptain ? "border-gold bg-gold text-[oklch(0.22_0.04_80)]" : "border-rule text-ink-soft hover:border-gold hover:text-gold"
+                            }`}
+                            data-testid="lineup-captain"
+                            data-checked={isCaptain ? "true" : undefined}
+                          >
+                            <input
+                              type="radio"
+                              name="captain-choice"
+                              value={player.id}
+                              checked={isCaptain}
+                              aria-label={`${player.name} captain`}
+                              onChange={() => markCaptain(player.id)}
+                              className="size-3.5 shrink-0 accent-[oklch(0.22_0.04_80)]"
+                            />
+                            C {multiplierWord("captain")}
+                          </label>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <select
+                            value={role}
+                            aria-label={`${player.name} role`}
+                            data-testid="lineup-role"
+                            onChange={(event) => place(player.id, event.target.value as PlacementRole | "")}
+                            className="min-h-11 appearance-none rounded-full border border-rule bg-stock px-3 text-xs font-semibold focus:border-live focus:outline-none"
+                          >
+                            <option value="">Not placed</option>
+                            {PLACEMENT_ROLES.map((option) => (
+                              <option key={option} value={option}>
+                                {ROLE_WORDS[option]} {multiplierWord(option)}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
-
-          {/* Said once, where the next tap lands, and to a screen reader as it
-              changes: which player is in hand and how to put them down. */}
-          <div aria-live="polite" className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg bg-stock px-3 py-1">
-            {armedPlayer ? (
-              <>
-                <p className="text-sm text-ink" data-testid="lineup-in-hand">
-                  Moving {armedPlayer.name}. Tap an open place, a tier, or a player to swap.
-                </p>
-                {places[armedPlayer.id] === "starter" ? (
-                  <button type="button" onClick={() => { markCaptain(armedPlayer.id); setArmed(null); }} className="min-h-11 rounded-full border border-gold px-3 text-sm font-semibold text-gold">
-                    Make captain ×2
-                  </button>
-                ) : null}
-                <button type="button" onClick={() => setArmed(null)} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
-                  Cancel
-                </button>
-              </>
-            ) : lastMove ? (
-              <p className="text-sm text-ink" data-testid="lineup-swapped">{lastMove}</p>
-            ) : (
-              <p className="text-sm text-ink-soft">Tap a player to pick them up, then tap where they go.</p>
-            )}
-          </div>
-        </div>
-      </Bank>
-
-      {/* Two columns once each can hold a row on one line: the five beside
-          the players who come off the bench, the rest across the foot. */}
-      <div className="@container">
-        <div className="grid gap-6 @4xl:grid-cols-2 @4xl:items-start">
-          {renderTier(TIERS[0]!)}
-          <div className="flex flex-col gap-6">
-            {renderTier(TIERS[1]!)}
-            {renderTier(TIERS[2]!)}
-          </div>
-          {TIERS.slice(3).map((tier) => renderTier(tier, "@4xl:col-span-2"))}
-        </div>
-      </div>
+        )}
+      </section>
 
       {result.error ? <Correction testId="lineup-error">{result.error}</Correction> : null}
 
@@ -624,17 +630,50 @@ export function LineupForm({
       ) : null}
       {compareOpen ? <PlayerComparison players={comparison} onClose={() => setCompareOpen(false)} /> : null}
 
-      <div className="sticky bottom-(--tabs-height) z-30 -mx-5 flex flex-col gap-2 border-t border-panel-border bg-stock-sunk px-5 py-3 sm:-mx-8 sm:px-8 lg:bottom-0">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {draggedPlayer ? (
+        <div ref={ghostRef} aria-hidden="true" className="lineup-ghost" data-position={draggedPlayer.position}>
+          <PlayerPortrait personCode={draggedPlayer.personCode} name={draggedPlayer.name} />
+          <span>{surname(draggedPlayer.name)}</span>
+        </div>
+      ) : null}
+
+      <div className="sticky bottom-(--tabs-height) z-30 -mx-5 flex flex-col gap-1 border-t border-panel-border bg-stock-sunk px-5 py-2.5 sm:-mx-8 sm:px-8 lg:bottom-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-ink" data-testid="lineup-summary">
+            {/* Said once, where the eye goes after a move, and to a screen
+                reader as it changes: who is in hand and how to put them down. */}
+            <div aria-live="polite" className="text-sm">
+              {armedPlayer ? (
+                <p className="text-ink" data-testid="lineup-in-hand">
+                  Moving {armedPlayer.name}. Tap an open place, or a player to swap.
+                </p>
+              ) : lastMove ? (
+                <p className="text-ink" data-testid="lineup-swapped">{lastMove}</p>
+              ) : (
+                <p className="text-ink-soft">Drag a player, or tap one and then where they go.</p>
+              )}
+            </div>
+            <p className="text-xs text-ink-soft" data-testid="lineup-summary">
               <span className="sm:hidden">{formationName(five)} · {counts.captain} captain · {placed}/{players.length} placed</span>
               <span className="hidden sm:inline">{formationName(five)} G/F/C · {counts.captain} captain · {counts.starter} other starters · {counts.sixth} sixth · {counts.bench} bench · {counts.inactive} inactive</span>
-            </p>
-            <p className={`mt-0.5 text-xs ${dirty ? "text-gold" : "text-gain"}`}>
-              {dirty ? "Unsaved · saved on this device" : source === "recorded" || result.saved ? "Lineup recorded" : "No lineup recorded for this round"}
+              {" · "}
+              <span className={dirty ? "text-gold" : "text-gain"}>
+                {dirty ? "Unsaved · saved on this device" : source === "recorded" || result.saved ? "Lineup recorded" : "No lineup recorded for this round"}
+              </span>
             </p>
           </div>
+          {armedPlayer ? (
+            <span className="flex items-center gap-1">
+              {places[armedPlayer.id] === "starter" && captainId !== armedPlayer.id ? (
+                <button type="button" onClick={() => { markCaptain(armedPlayer.id); setArmed(null); }} className="min-h-11 rounded-full border border-gold px-3 text-sm font-semibold text-gold">
+                  Make captain ×2
+                </button>
+              ) : null}
+              <button type="button" onClick={() => setArmed(null)} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
+                Cancel
+              </button>
+            </span>
+          ) : null}
           <SubmitButton testId="record-lineup-submit" tone="live" pendingLabel="Recording…" compact>
             Record lineup
           </SubmitButton>
@@ -658,4 +697,12 @@ const PLACE_WORDS: Readonly<Record<PlacementRole | "", string>> = {
   bench: "the bench",
   inactive: "inactive",
   "": "not placed",
+};
+
+const ROLE_ORDER: Readonly<Record<PlacementRole | "", number>> = {
+  starter: 0,
+  sixth: 1,
+  bench: 2,
+  inactive: 3,
+  "": 4,
 };
