@@ -279,3 +279,25 @@ open for managers.
 Not done, and why: the plan's "Your roster / League-owned / All" filter for
 injury news. `/players/news` is global — it has no league, so it has no owner
 to filter by. The league's side panel already shows news with owners.
+
+## S12 — Draft room and roll
+
+The pick-is-in banner is a client component fed by the server's latest pick;
+it remembers the last `overallNo` it has seen and only plays on a change, so a
+first paint, a reload or a reconnect never replays an old pick. The sting
+reuses the cue switch — silent unless the member turned cues on — and stays
+quieter and shorter than the clock tone, which keeps meaning "you".
+
+A complete draft no longer puts undo and reset next to the celebration; they
+are one tap away behind "Commissioner tools", with the consequence stated.
+
+The roll kept its composition (one announcer over the filling order, figures
+in the mono face) and gained the broadcast skin: a lattice stage, the landed
+team's crest dropping in, names in the display face, crests on every drawn
+slot. Hiding the shell for a full-screen stage needs a layout outside the
+league shell and was left out; the stage fills the content column.
+
+Verification note: a long-running `next dev` (8 hours, 1.2 GB) turned the
+fully-parallel draft specs into 75 timeouts; each failing test passed alone.
+Against `next build` + `next start` (as CI runs) all 126 draft, board,
+controls, setup and roll tests pass.

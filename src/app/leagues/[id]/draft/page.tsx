@@ -7,6 +7,7 @@ import {
   PositionPatch,
 } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { TeamCrest } from "@/components/broadcast";
 import { ContextPanel } from "@/components/context-panel";
 import { DraftBoard, type BoardEntry } from "@/components/draft-board";
 import { LeagueChat } from "@/components/league-chat";
@@ -26,6 +27,7 @@ import { DraftControls } from "./draft-controls";
 import { LiveDraft } from "./live-draft";
 import { PickClock } from "./pick-clock";
 import { PickForm } from "./pick-form";
+import { PickIsIn } from "./pick-is-in";
 
 
 /**
@@ -192,11 +194,21 @@ export default async function DraftPage({
                 the whole thing grows 4px on a Pixel 7 and 12px at 1440,
                 which is the budget a band that never leaves the viewport
                 gets to spend. */}
-            <h1 className="display mt-1 text-2xl sm:text-3xl">
-              {isYourTurn
-                ? "You are on the clock"
-                : `${onClock.memberName} is on the clock`}
-            </h1>
+            <div className="mt-1 flex items-center gap-3">
+              {nameOf.get(onClock.memberId)?.style ? (
+                <TeamCrest
+                  name={onClock.memberName}
+                  color={nameOf.get(onClock.memberId)!.style.color}
+                  shape={nameOf.get(onClock.memberId)!.style.crest}
+                  size={40}
+                />
+              ) : null}
+              <h1 className="display text-2xl sm:text-4xl">
+                {isYourTurn
+                  ? "You are on the clock"
+                  : `${onClock.memberName} is on the clock`}
+              </h1>
+            </div>
             {/* The clock is the room's, not the picker's: everybody watches
                 the same number run down. It only renders while a draft is
                 live, which is the only state `onClock` is non-null in. */}
@@ -213,18 +225,19 @@ export default async function DraftPage({
           </>
         ) : (
           <>
-            <p className="slot-label">Complete</p>
-            <h1 className="display mt-1 text-3xl">
-              Every slot is filled
+            <p className="slot-label">Complete · {picks.length} picks</p>
+            <h1 className="display mt-1 text-3xl sm:text-4xl">
+              That&rsquo;s the draft
             </h1>
             {view.you ? (
-              <Link
-                href={`/leagues/${id}/standings`}
-                data-testid="enter-standings"
-                className="mt-3 inline-flex border-b border-ink/50 text-sm hover:border-ink/80"
-              >
-                Open the standings
-              </Link>
+              <span className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+                <Link href={`/leagues/${id}/standings`} data-testid="enter-standings" className="text-live hover:underline">
+                  Open the standings &rarr;
+                </Link>
+                <Link href={`/leagues/${id}/stats#draft`} className="text-live hover:underline">
+                  Steals and busts so far &rarr;
+                </Link>
+              </span>
             ) : null}
           </>
         )}
@@ -244,6 +257,22 @@ export default async function DraftPage({
           live={!isPaused && !!onClock}
         />
       </div>
+
+      <PickIsIn
+        latest={
+          picks.length > 0
+            ? {
+                overallNo: picks.at(-1)!.overallNo,
+                round: Math.ceil(picks.at(-1)!.overallNo / Math.max(1, draft.order.length)),
+                playerName: picks.at(-1)!.playerName,
+                position: picks.at(-1)!.position,
+                memberName: nameOf.get(picks.at(-1)!.memberId)?.name ?? "A team",
+                style: nameOf.get(picks.at(-1)!.memberId)?.style,
+                isAuto: picks.at(-1)!.isAuto,
+              }
+            : null
+        }
+      />
 
       {/* Renders nothing while the subscription is healthy. It is mounted
           here, high in the room, because "this board may be behind" is only
@@ -404,6 +433,32 @@ export default async function DraftPage({
               since 10.9 — see the column note above. Its member list is in draft
               order — the order the board reads across and the radar reads down —
               so the three surfaces name the same league in the same sequence. */}
+          {draft.status === "complete" && view.canManage ? (
+            <details className="group rounded-card border border-panel-border bg-stock-panel px-4 py-2" data-testid="complete-tools">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                Commissioner tools
+                <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
+              </summary>
+              <p className="pb-3 text-sm text-ink-soft">Undoing a pick or starting over rewrites a finished draft and the season built on it.</p>
+              <DraftControls
+                leagueId={id}
+                status={draft.status}
+                canManage={view.canManage}
+                picksMade={picks.length}
+                pickSeconds={draft.pick_seconds}
+                members={draft.order.map((memberId) => ({
+                  id: memberId,
+                  name: nameOf.get(memberId)?.name ?? "Unknown member",
+                  isYou: Boolean(nameOf.get(memberId)?.isYou),
+                  autodraftEnabled: Boolean(
+                    nameOf.get(memberId)?.autodraftEnabled,
+                  ),
+                }))}
+                onClockMemberId={onClock?.memberId ?? null}
+                onClockMemberName={onClock?.memberName ?? null}
+              />
+            </details>
+          ) : (
           <DraftControls
             leagueId={id}
             status={draft.status}
@@ -421,6 +476,7 @@ export default async function DraftPage({
             onClockMemberId={onClock?.memberId ?? null}
             onClockMemberName={onClock?.memberName ?? null}
           />
+          )}
 
           {/* Where the ticker was.
 

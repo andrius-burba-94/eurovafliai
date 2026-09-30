@@ -63,6 +63,8 @@ export default async function RollPage({ params }: PageProps<"/leagues/[id]">) {
       position: member.draftPosition!,
       name: member.teamName || member.name,
       isYou: member.isYou,
+      color: member.color,
+      crest: member.crest,
     }));
 
   if (inOrder.length === 0) redirect(`/leagues/${league.id}`);
