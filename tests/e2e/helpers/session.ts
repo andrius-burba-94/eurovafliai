@@ -344,6 +344,24 @@ export async function cleanupTestData(): Promise<void> {
       .catch(() => {});
   }
 
+  // A roster window pins its player the same way (`cascadeDelete: false`), and
+  // a spec that plants windows straight into the database has no pick for the
+  // sweep above to find. Two court players outlived the a11y spec this way and
+  // turned up as an extra row in every later pool count on that worker.
+  const staleWindows = await pb
+    .collection("roster_memberships")
+    .getFullList({
+      filter: `player.club_code = '${TEST_CLUB}'`,
+      requestKey: null,
+    })
+    .catch(() => []);
+  for (const row of staleWindows) {
+    await pb
+      .collection("roster_memberships")
+      .delete(row.id, { requestKey: null })
+      .catch(() => {});
+  }
+
   for (const id of created.leagues) {
     const drafts = await pb
       .collection("drafts")

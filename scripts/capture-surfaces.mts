@@ -22,7 +22,7 @@ import {
   signIn,
 } from "../tests/e2e/helpers/session";
 
-const BASE = "http://localhost:3007";
+const BASE = process.env.CAPTURE_BASE ?? "http://localhost:3007";
 const OUT = ".impeccable/review";
 
 const VIEWPORTS = [

@@ -25,6 +25,12 @@ const PHASE_LABEL: Record<Phase, string> = {
   FF: "Final Four",
 };
 
+const HONOURS = [
+  { id: "on-fire", label: "On fire", glyph: "flame", ink: "text-live", tone: "border-live/50 bg-live-sunk" },
+  { id: "crowned", label: "Crowned", glyph: "crown", ink: "text-gold", tone: "border-gold/50 bg-gold/10" },
+  { id: "spoon-collector", label: "Spoon collector", glyph: "spoon", ink: "text-wood", tone: "border-wood/60 bg-wood/15" },
+] as const;
+
 /**
  * The table (ADR-0011): a podium for the top three, the honours the league has
  * earned so far, then every member against every counted round, with each
@@ -75,7 +81,7 @@ export function StandingsTable({
 
   // Fixed tracks after the name: every row is its own grid, so an `auto`
   // column would size to that row's content and the columns would not line up.
-  const template = `minmax(11.5rem, 1fr) 4.75rem 4.25rem repeat(${rounds.length}, 4.25rem) 4.5rem`;
+  const template = `minmax(var(--team-col), 1fr) 4.75rem 4.25rem repeat(${rounds.length}, 4.25rem) 4.5rem`;
 
   const crest = (memberId: string, size: number) =>
     styles[memberId] ? (
@@ -103,7 +109,7 @@ export function StandingsTable({
       </div>
 
       {rows.length >= 3 ? (
-        <section aria-label="The podium" data-testid="standings-podium" className="grid grid-cols-[1fr_1.15fr_1fr] items-end gap-2 sm:gap-4">
+        <section aria-label="The podium" data-testid="standings-podium" className="grid grid-cols-[1fr_1.15fr_1fr] items-end gap-2 border-b-2 border-rule-strong sm:gap-4">
           {[1, 0, 2].map((index) => {
             const row = rows[index]!;
             const place = index + 1;
@@ -133,25 +139,38 @@ export function StandingsTable({
       ) : null}
 
       {badges.length > 0 ? (
-        <ul role="list" aria-label="Honours so far" data-testid="standings-badges" className="flex flex-wrap gap-2">
-          {badges.map((badge) => (
-            <li key={`${badge.id}:${badge.memberId}`}>
-              <Moment
-                kind="badge"
-                id={`badge:${leagueId}:${badge.id}:${badge.memberId}:${badge.title}`}
-                className={`flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 text-xs ${
-                  badge.id === "on-fire" ? "border-live/50 bg-live-sunk" : badge.id === "crowned" ? "border-gold/50 bg-gold/10" : "border-wood/60 bg-wood/15"
-                }`}
-              >
-                {crest(badge.memberId, 22)}
-                <Glyph
-                  name={badge.id === "on-fire" ? "flame" : badge.id === "crowned" ? "crown" : "spoon"}
-                  size={14}
-                  className={badge.id === "on-fire" ? "text-live" : badge.id === "crowned" ? "text-gold" : "text-wood"}
-                />
-                <span className="font-bold">{badge.title}</span>
-                <span className="text-ink-soft">{nameOf(badge.memberId)} · {badge.detail}</span>
-              </Moment>
+        <ul role="list" aria-label="Honours so far" data-testid="standings-badges" className="flex flex-col gap-2">
+          {HONOURS.filter((honour) => badges.some((badge) => badge.id === honour.id)).map((honour) => (
+            <li key={honour.id} className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border px-3 py-2 text-xs ${honour.tone}`}>
+              <span className="flex items-center gap-1.5 font-bold">
+                <Glyph name={honour.glyph} size={14} className={honour.ink} />
+                {honour.label}
+              </span>
+              <ul role="list" className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                {badges
+                  .filter((badge) => badge.id === honour.id)
+                  .sort((a, b) => b.tally - a.tally)
+                  .map((badge) => (
+                    <li key={badge.memberId}>
+                      <Moment
+                        kind="badge"
+                        id={`badge:${leagueId}:${badge.id}:${badge.memberId}:${badge.title}`}
+                        className="flex items-center gap-1.5"
+                      >
+                        {crest(badge.memberId, 20)}
+                        <span className="text-ink">{nameOf(badge.memberId)}</span>
+                        {badge.id !== "crowned" || badge.tally > 1 ? (
+                          <span className="stat text-ink-soft">
+                            <span aria-hidden="true">
+                              {honour.id === "on-fire" ? `${badge.tally} running` : `×${badge.tally}`}
+                            </span>
+                            <span className="sr-only">, {badge.detail}</span>
+                          </span>
+                        ) : null}
+                      </Moment>
+                    </li>
+                  ))}
+              </ul>
             </li>
           ))}
         </ul>
@@ -164,7 +183,7 @@ export function StandingsTable({
           <>
             <p className="text-xs text-ink-soft sm:hidden">Swipe sideways to compare rounds.</p>
             <BoardScroll testId="standings-table" label="The standings table">
-              <div role="table" aria-label="Points by member and round" className="min-w-full">
+              <div role="table" aria-label="Points by member and round" className="min-w-full [--team-col:11.5rem] sm:[--team-col:15rem]">
                 <div role="row" className="grid items-end" style={{ gridTemplateColumns: template }}>
                   <span role="columnheader" aria-label="Member" className="slot-label sticky left-0 z-10 self-stretch border-r border-b border-rule-strong bg-stock-panel px-2 pb-1.5">
                     Team

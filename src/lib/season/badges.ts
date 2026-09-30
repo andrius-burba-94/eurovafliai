@@ -31,6 +31,8 @@ export type Badge = {
   readonly memberId: string;
   readonly title: string;
   readonly detail: string;
+  /** The number behind it: rounds running, rounds won, spoons. */
+  readonly tally: number;
 };
 
 /** A night nobody scored crowns nobody: every row at zero is not a round. */
@@ -98,6 +100,7 @@ export function badgesFrom(snapshots: readonly RoundSnapshot[]): Badge[] {
         memberId: member.memberId,
         title: "On fire",
         detail: `Top three for ${member.topThreeStreak} rounds running`,
+        tally: member.topThreeStreak,
       });
     }
   }
@@ -108,6 +111,7 @@ export function badgesFrom(snapshots: readonly RoundSnapshot[]): Badge[] {
         memberId: member.memberId,
         title: member.roundsWon === 1 ? "Crowned" : `Crowned ×${member.roundsWon}`,
         detail: member.roundsWon === 1 ? "Won a round" : `Won ${member.roundsWon} rounds`,
+        tally: member.roundsWon,
       });
     }
   }
@@ -118,6 +122,7 @@ export function badgesFrom(snapshots: readonly RoundSnapshot[]): Badge[] {
         memberId: member.memberId,
         title: "Spoon collector",
         detail: `${member.spoons} wooden spoons`,
+        tally: member.spoons,
       });
     }
   }

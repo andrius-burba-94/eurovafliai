@@ -149,7 +149,7 @@ export function RecapBody({
 
         <div className="flex flex-col gap-6">
           <Bank framed label="Best night">
-            {night ? (
+            {night && night.fantasyTenths > 0 ? (
               <div data-testid="recap-best-night" className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-3">
                   <PlayerPortrait personCode={playerCodes[night.playerId]} name={player(night.playerId)} className="!h-16 !w-14" />

@@ -589,12 +589,13 @@ export function PickForm({
                   testId="sheet-pinned-row"
                   state="waiting"
                   nowrap
+                  className="@container"
                 >
                   <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
                     <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
                       #{player.rank}
                     </span>
-                    <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden sm:inline-grid !h-8 !w-7" />
+                    <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
                     <span className="min-w-0 truncate" title={player.name}>
                       <CardName scale="slot">{player.name}</CardName>
                     </span>
@@ -871,11 +872,14 @@ export function PickForm({
               // An armed row is never faded: `ink-faint` on the live blush is
               // 4.37:1, and the row you are about to commit is the last thing
               // that should be hard to read.
-              className={
+              // Sized by the row, not the viewport: from `lg` the pool is one
+              // column of the room, and viewport breakpoints let the extras
+              // squeeze a surname down to three letters.
+              className={`@container ${
                 (player.drafted || player.noRoom) && !isArmed
                   ? "text-ink-faint"
                   : ""
-              }
+              }`}
             >
               <span
                 className={`flex min-w-0 flex-1 items-baseline ${POOL_GAP} overflow-hidden`}
@@ -924,7 +928,7 @@ export function PickForm({
                       : formatTenths(player.averagePir)}
                   </span>
                   {player.averageGames > 0 ? (
-                    <span className="stat slot-label hidden sm:inline">
+                    <span className="stat slot-label hidden @md:inline">
                       {player.averageGames}
                     </span>
                   ) : null}
@@ -944,22 +948,22 @@ export function PickForm({
                 >
                   <CardName scale="slot">{player.name}</CardName>
                 </span>
-                <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden sm:inline-grid !h-8 !w-7" />
+                <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
                 <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
                 {/* Fantasy points are what the standings actually sum, so they
                     stay on the row rather than being hidden — named, quiet,
-                    and behind PIR. Held back below `sm` because the row cannot
+                    and behind PIR. Held back on a narrow row because it cannot
                     carry two numeric columns, a name, a club and a patch
                     inside 390px; the player page prints it at every width. */}
                 {player.averageFantasy !== null ? (
                   <span
-                    className="stat slot-label hidden shrink-0 sm:inline"
+                    className="stat slot-label hidden shrink-0 @2xl:inline"
                     data-testid="pool-proj"
                   >
                     {`FP ${formatTenths(player.averageFantasy)}`}
                   </span>
                 ) : null}
-                {/* Form, behind the number it qualifies — and `sm` and up only,
+                {/* Form, behind the number it qualifies — and on a wide row only,
                     on exactly the budget the fantasy average above it is held
                     to. The measurement in `PIR_COLUMN` is what makes this a
                     rule rather than a preference: the name absorbs the whole
@@ -971,7 +975,7 @@ export function PickForm({
                 <Sparkline
                   values={player.last5Pirs}
                   what="PIR"
-                  className="hidden h-4 w-[3.125rem] shrink-0 text-ink-soft sm:inline-flex"
+                  className="hidden h-4 w-[3.125rem] shrink-0 text-ink-soft @2xl:inline-flex"
                   testId="pool-spark"
                 />
                 <PositionPatch position={player.position} />

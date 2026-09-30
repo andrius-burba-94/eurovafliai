@@ -175,7 +175,10 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
 
       <Bank framed label="Trade history" aside={`${shown.length} recorded`}>
         {shown.length === 0 ? (
-          <EmptyNotice>No trades have been recorded for this league.</EmptyNotice>
+          <EmptyNotice>
+            No trades yet. When two teams agree a deal, record it and this page
+            keeps score of who is winning it, round by round.
+          </EmptyNotice>
         ) : (
           <ol className="flex flex-col gap-4" data-testid="deal-list">
             {shown.map((deal) => (

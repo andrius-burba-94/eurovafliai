@@ -348,3 +348,57 @@ walks J/K without answering, because a Y would write into a shared queue.
 The imports already previewed before writing, so the change is the visible
 step: `ImportSteps` (Paste, Review, Apply) in `broadcast.tsx`, derived from
 state the forms already had.
+
+## S15 — Polish and the second critique
+
+Polish, driven by the captures (`npm run capture`, now pointable at a build
+with `CAPTURE_BASE`) rather than by memory of the pages:
+
+- Standings: the sticky team column is wide enough for a crest and a real team
+  name (`--team-col`, 11.5rem on phones, 15rem from `sm`); honours group by
+  kind with a count (`Badge.tally`), so "Crowned" is one line of crests with
+  ×5 / ×2 rather than a badge per round; the podium stands on the table's rule.
+- The draft pool row was cutting surnames to three letters on desktop. Its
+  extras (games count, fantasy average, form line, portrait) were hidden by
+  *viewport* breakpoints, and from `lg` the pool is one column of the room, so
+  a 1440px screen gave the row everything a tablet does. They are container
+  queries on the row now. Second cause, same symptom: `.player-portrait` and
+  `.club-crest` were unlayered CSS, which beats every Tailwind utility, so the
+  portrait's `hidden` never applied anywhere — the reason those call sites
+  needed `!h-8 !w-7`. Both classes now sit in `@layer components`.
+- a11y runs every surface under both grounds (`test.use({ colorScheme })`), and
+  the standings honour glyph moved its label to `sr-only` text (axe refuses
+  `aria-label` on a plain `span`).
+- Test hygiene: `cleanupTestData` now deletes the test club's roster windows
+  before its players. `roster_memberships.player` does not cascade, so the
+  a11y court test's two players survived their test and appeared as an extra
+  row in every later club-filtered pool count on the same worker — the
+  "flaky" pool and cheat-sheet counts S13 recorded.
+
+### The second critique
+
+Scored from fresh captures of 18 surfaces at 1440px and on a Pixel 7, against
+the same heuristics as the first. **31/40** (first: 22/40).
+
+| # | Heuristic | Score | What holds it back |
+|---|---|---|---|
+| 1 | Visibility of system status | 4 | On-clock band, pick-is-in banner, provisional notes, live chips |
+| 2 | Match with the real world | 3 | Broadcast words throughout; a recap headline treats every team name as plural ("Rimas win") |
+| 3 | User control and freedom | 3 | Undo, start over, Escape, sheet operations; the roll still cannot be left from a shell-less stage |
+| 4 | Consistency and standards | 3 | One board vocabulary; the Player Pool page and ingest summary still read as the older admin style |
+| 5 | Error prevention | 4 | Arm-then-confirm picks, typed word to start over, sheet written only when empty |
+| 6 | Recognition over recall | 3 | One name per destination; the desktop draft room is a long single column of controls above the pool |
+| 7 | Flexibility and efficiency | 3 | Keyboard pool, J/K mapping queue, Download menu |
+| 8 | Aesthetic and minimalist design | 3 | Every page has a hero; League Home on a phone still ends in members, export and delete |
+| 9 | Error recovery | 3 | Refusals on the tapped row in the correction voice |
+| 10 | Help and documentation | 2 | Inline sentences explain rules, but there is no single "how the league scores" page |
+
+Left open, in order: the desktop draft room's control stack above the pool
+(P1), the shell-less roll stage (P2), League Home's phone tail (P2), a
+singular/plural rule for recap headlines (P3), and a scoring explainer (P3).
+
+Verification: lint, typecheck, knip and 1557 unit tests pass. Against
+`next build` + `next start`, the full Playwright suite ran at 514–519 of 544;
+the remainder were the four known local-only news tests (both projects) and
+30-second timeouts under ten parallel workers on one laptop. Every non-news
+failing file passed on its own run (205 and then 244 tests, zero failures).
