@@ -2540,3 +2540,52 @@ tenths. That is a known gap, not an equivalence: a benched 18.7 still reads
 9.4 there where the official game prints 9.35. It was left because those
 figures are not what anyone ranks by, and widening them touches a second set
 of surfaces.
+
+## 5.5 — Fantasy Challenge sync: the official game is the roster of record
+
+The league drafted here because the official game cannot draft, and then made
+every move there. Rosters were being copied across by hand after each round,
+from screenshots. The official backend (`fantaking-api.dunkest.com`) answers
+one league-wide call with every team's thirteen players, so the copy is now the
+worker's job. Its shape, checked against the real API on 30 September, is in
+[`docs/research/fantasy-challenge-api.md`](../research/fantasy-challenge-api.md).
+
+**Why it only writes during a freeze.** The official game locks rosters from a
+round's first tip-off until its games are done, and reopens them for the next
+round. A roster read on a Tuesday morning may be half-way through somebody's
+changes for Thursday; a roster read at 19:05 on Thursday is the one playing. So
+the sync applies from five minutes after the first tip-off (bids settle at the
+lock), hourly until ninety minutes after the round's last tip-off (still inside
+the last game, so still frozen), and only previews outside that. The freeze is
+taken from our own `fixtures`, because the official API publishes no deadline;
+a tip-off more than 72 hours after the round's first is a postponement and does
+not stretch the freeze into the next round's trading days.
+
+**Why it records transactions instead of overwriting rosters.** Standings,
+impact and the recap all read `roster_memberships` windows and `transactions`.
+Writing the same records a commissioner would means every surface keeps
+working, and a move synced at round 3 counts from round 3 and no earlier. The
+shape copies what the league had been recording by hand: a one-for-one swap is
+a drop and an add sharing a note, which `groupTransactionHistory` shows as one
+exchange; a two-way move between members is a trade; a one-way move is a
+release and a signing. Steps run every drop first, because `applyTransaction`
+silently skips opening a window for a player someone still holds.
+
+**Matching found a real trap on its first run.** The pool carries four stale
+`left` rows ("Lawson, Aj", "Mills, Patty", "Warren, Tj", "Washington, Tyty")
+from before those players were re-registered under passport names. The matcher
+picked them, and the plan swapped four players for themselves. It now tries
+players who have not left first. One more needed a letters-only surname rule:
+the official "Miller-Mcintyre" against our "Miller-Mc Intyre". With both, all
+104 rostered players and all eight teams match, and the diff against
+production's hand-kept rosters is empty — which is the golden test, and why
+rounds 1–2 were not backfilled.
+
+**Failure recovery.** Links (team, player) are single-field writes, backed by a
+partial unique index on `players.fantasy_id`. An apply writes its
+`fantasy_syncs` row as `applying` with every step before the first roster
+write; each run begins by finishing any `applying` row from its stored steps,
+where `applyTransaction` finds its own rows and skips windows already moved. A
+run is marked `applied` only if the league's rosters then equal the official
+ones; otherwise `failed`, and the next hourly pass tries again. The throttle
+reads `ran_at`, the pass's own clock, not PocketBase's `created`.

@@ -1,0 +1,1660 @@
+{
+ "data": [
+  {
+   "id": 2824079,
+   "name": "Monikutės Naktys",
+   "credits": 999,
+   "user": {
+    "id": 1000,
+    "first_name": "Manager",
+    "last_name": "1"
+   },
+   "players": [
+    {
+     "id": 3769,
+     "first_name": "Walter",
+     "last_name": "Tavares",
+     "jersey": "22",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 153,
+      "name": "Real Madrid",
+      "abbreviation": "RMB"
+     }
+    },
+    {
+     "id": 3777,
+     "first_name": "Will",
+     "last_name": "Clyburn",
+     "jersey": "21",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 3801,
+     "first_name": "Nicolo",
+     "last_name": "Melli",
+     "jersey": "4",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 3805,
+     "first_name": "Kendrick",
+     "last_name": "Nunn",
+     "jersey": "25",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    },
+    {
+     "id": 3874,
+     "first_name": "Tyler",
+     "last_name": "Dorsey",
+     "jersey": "22",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 3887,
+     "first_name": "Sylvain",
+     "last_name": "Francisco",
+     "jersey": "3",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    },
+    {
+     "id": 4252,
+     "first_name": "Jean",
+     "last_name": "Montero",
+     "jersey": "8",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 7201,
+     "first_name": "Dwayne",
+     "last_name": "Bacon",
+     "jersey": "3",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 7218,
+     "first_name": "Kameron",
+     "last_name": "Taylor",
+     "jersey": "1",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 174,
+      "name": "Valencia Basket",
+      "abbreviation": "VBC"
+     }
+    },
+    {
+     "id": 7328,
+     "first_name": "Kaodirichi",
+     "last_name": "Akobundu-Ehiogu",
+     "jersey": "2",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    },
+    {
+     "id": 8368,
+     "first_name": "Mamadi",
+     "last_name": "Diakite",
+     "jersey": "1",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 11513,
+     "first_name": "Damion",
+     "last_name": "Baugh",
+     "jersey": "29",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 143,
+      "name": "Kosner Baskonia Vitoria-Gasteiz",
+      "abbreviation": "KBA"
+     }
+    },
+    {
+     "id": 11538,
+     "first_name": "Mo",
+     "last_name": "Gueye",
+     "jersey": "18",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 174,
+      "name": "Valencia Basket",
+      "abbreviation": "VBC"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2824116,
+   "name": "Kalaškračiai",
+   "credits": 999,
+   "user": {
+    "id": 1001,
+    "first_name": "Manager",
+    "last_name": "2"
+   },
+   "players": [
+    {
+     "id": 3808,
+     "first_name": "Codi",
+     "last_name": "Miller-Mcintyre",
+     "jersey": "11",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 3870,
+     "first_name": "Tyrique",
+     "last_name": "Jones",
+     "jersey": "88",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 3918,
+     "first_name": "Marius",
+     "last_name": "Grigonis",
+     "jersey": "40",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    },
+    {
+     "id": 3967,
+     "first_name": "Dario",
+     "last_name": "Brizuela",
+     "jersey": "8",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 140,
+      "name": "FC Barcelona",
+      "abbreviation": "BAR"
+     }
+    },
+    {
+     "id": 4096,
+     "first_name": "Mckinley",
+     "last_name": "Wright",
+     "jersey": "25",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 4712,
+     "first_name": "Marcus",
+     "last_name": "Bingham",
+     "jersey": "30",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 7221,
+     "first_name": "Azuolas",
+     "last_name": "Tubelis",
+     "jersey": "10",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    },
+    {
+     "id": 8727,
+     "first_name": "Braxton",
+     "last_name": "Key",
+     "jersey": "12",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 8762,
+     "first_name": "Jared",
+     "last_name": "Rhoden",
+     "jersey": "8",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 150,
+      "name": "Paris Basketball",
+      "abbreviation": "PBB"
+     }
+    },
+    {
+     "id": 11491,
+     "first_name": "David",
+     "last_name": "Dejulius",
+     "jersey": "5",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 158,
+      "name": "Besiktas Istanbul",
+      "abbreviation": "BJK"
+     }
+    },
+    {
+     "id": 11503,
+     "first_name": "Marjon",
+     "last_name": "Beauchamp",
+     "jersey": "3",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 141,
+      "name": "FC Bayern Munich",
+      "abbreviation": "BAY"
+     }
+    },
+    {
+     "id": 11516,
+     "first_name": "Jae",
+     "last_name": "Crowder",
+     "jersey": "99",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 139,
+      "name": "LDLC ASVEL Villeurbanne",
+      "abbreviation": "ASV"
+     }
+    },
+    {
+     "id": 11549,
+     "first_name": "Jonas",
+     "last_name": "Valanciunas",
+     "jersey": "17",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2824586,
+   "name": "Birka Ne Plugas",
+   "credits": 869,
+   "user": {
+    "id": 1002,
+    "first_name": "Manager",
+    "last_name": "3"
+   },
+   "players": [
+    {
+     "id": 3770,
+     "first_name": "Chima",
+     "last_name": "Moneke",
+     "jersey": "95",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 144,
+      "name": "Crvena Zvezda Meridianbet Belgrade",
+      "abbreviation": "CZV"
+     }
+    },
+    {
+     "id": 3782,
+     "first_name": "Nikola",
+     "last_name": "Milutinov",
+     "jersey": "33",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 3790,
+     "first_name": "Dzanan",
+     "last_name": "Musa",
+     "jersey": "13",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 3791,
+     "first_name": "Carlik",
+     "last_name": "Jones",
+     "jersey": "1",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 152,
+      "name": "Partizan Mozzart Bet Belgrade",
+      "abbreviation": "PAR"
+     }
+    },
+    {
+     "id": 3825,
+     "first_name": "Juancho",
+     "last_name": "Hernangomez",
+     "jersey": "41",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    },
+    {
+     "id": 3892,
+     "first_name": "Rokas",
+     "last_name": "Jokubaitis",
+     "jersey": "31",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 141,
+      "name": "FC Bayern Munich",
+      "abbreviation": "BAY"
+     }
+    },
+    {
+     "id": 3898,
+     "first_name": "Ante",
+     "last_name": "Zizic",
+     "jersey": "41",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 158,
+      "name": "Besiktas Istanbul",
+      "abbreviation": "BJK"
+     }
+    },
+    {
+     "id": 3907,
+     "first_name": "Jaron",
+     "last_name": "Blossomgame",
+     "jersey": "4",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 3910,
+     "first_name": "Roman",
+     "last_name": "Sorkin",
+     "jersey": "9",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 3973,
+     "first_name": "Joel",
+     "last_name": "Parra",
+     "jersey": "44",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 140,
+      "name": "FC Barcelona",
+      "abbreviation": "BAR"
+     }
+    },
+    {
+     "id": 4884,
+     "first_name": "Jimmy",
+     "last_name": "Clark III",
+     "jersey": "2",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 7202,
+     "first_name": "Justin",
+     "last_name": "Robinson",
+     "jersey": "5",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 140,
+      "name": "FC Barcelona",
+      "abbreviation": "BAR"
+     }
+    },
+    {
+     "id": 9064,
+     "first_name": "Kessler",
+     "last_name": "Edwards",
+     "jersey": "9",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 154,
+      "name": "Virtus Bologna",
+      "abbreviation": "VIR"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2827280,
+   "name": "Visi geri nėr ką išleist",
+   "credits": 880,
+   "user": {
+    "id": 1003,
+    "first_name": "Manager",
+    "last_name": "4"
+   },
+   "players": [
+    {
+     "id": 3772,
+     "first_name": "Facundo",
+     "last_name": "Campazzo",
+     "jersey": "7",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 153,
+      "name": "Real Madrid",
+      "abbreviation": "RMB"
+     }
+    },
+    {
+     "id": 3795,
+     "first_name": "TJ",
+     "last_name": "Shorts",
+     "jersey": "0",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 174,
+      "name": "Valencia Basket",
+      "abbreviation": "VBC"
+     }
+    },
+    {
+     "id": 3799,
+     "first_name": "Zach",
+     "last_name": "Leday",
+     "jersey": "16",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 165,
+      "name": "Hapoel IBI Tel Aviv",
+      "abbreviation": "HTA"
+     }
+    },
+    {
+     "id": 3804,
+     "first_name": "Tadas",
+     "last_name": "Sedekerskis",
+     "jersey": "8",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 143,
+      "name": "Kosner Baskonia Vitoria-Gasteiz",
+      "abbreviation": "KBA"
+     }
+    },
+    {
+     "id": 3822,
+     "first_name": "Joel",
+     "last_name": "Bolomboy",
+     "jersey": "21",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 139,
+      "name": "LDLC ASVEL Villeurbanne",
+      "abbreviation": "ASV"
+     }
+    },
+    {
+     "id": 3834,
+     "first_name": "Nadir",
+     "last_name": "Hifi",
+     "jersey": "2",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 150,
+      "name": "Paris Basketball",
+      "abbreviation": "PBB"
+     }
+    },
+    {
+     "id": 3857,
+     "first_name": "Dan",
+     "last_name": "Oturu",
+     "jersey": "25",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 165,
+      "name": "Hapoel IBI Tel Aviv",
+      "abbreviation": "HTA"
+     }
+    },
+    {
+     "id": 3875,
+     "first_name": "Marko",
+     "last_name": "Guduric",
+     "jersey": "23",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 145,
+      "name": "Armani Olimpia Milan",
+      "abbreviation": "MIL"
+     }
+    },
+    {
+     "id": 3911,
+     "first_name": "Kevarrius",
+     "last_name": "Hayes",
+     "jersey": "13",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 152,
+      "name": "Partizan Mozzart Bet Belgrade",
+      "abbreviation": "PAR"
+     }
+    },
+    {
+     "id": 3926,
+     "first_name": "Filip",
+     "last_name": "Petrusev",
+     "jersey": "30",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 7197,
+     "first_name": "Oshae",
+     "last_name": "Brissett",
+     "jersey": "10",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 8808,
+     "first_name": "Eugene",
+     "last_name": "Omoruyi",
+     "jersey": "20",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 158,
+      "name": "Besiktas Istanbul",
+      "abbreviation": "BJK"
+     }
+    },
+    {
+     "id": 11517,
+     "first_name": "Tyty",
+     "last_name": "Washington",
+     "jersey": "3",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 139,
+      "name": "LDLC ASVEL Villeurbanne",
+      "abbreviation": "ASV"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2827489,
+   "name": "Tabariškių Fūros",
+   "credits": 872,
+   "user": {
+    "id": 1004,
+    "first_name": "Manager",
+    "last_name": "5"
+   },
+   "players": [
+    {
+     "id": 3766,
+     "first_name": "Sasha",
+     "last_name": "Vezenkov",
+     "jersey": "14",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 3767,
+     "first_name": "Shane",
+     "last_name": "Larkin",
+     "jersey": "0",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 3821,
+     "first_name": "Donta",
+     "last_name": "Hall",
+     "jersey": "45",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 3843,
+     "first_name": "Moses",
+     "last_name": "Wright",
+     "jersey": "5",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 145,
+      "name": "Armani Olimpia Milan",
+      "abbreviation": "MIL"
+     }
+    },
+    {
+     "id": 3888,
+     "first_name": "Sterling",
+     "last_name": "Brown",
+     "jersey": "0",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    },
+    {
+     "id": 3899,
+     "first_name": "Carsen",
+     "last_name": "Edwards",
+     "jersey": "3",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    },
+    {
+     "id": 3934,
+     "first_name": "Isaac",
+     "last_name": "Bonga",
+     "jersey": "32",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    },
+    {
+     "id": 7209,
+     "first_name": "Lamar",
+     "last_name": "Stevens",
+     "jersey": "8",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 152,
+      "name": "Partizan Mozzart Bet Belgrade",
+      "abbreviation": "PAR"
+     }
+    },
+    {
+     "id": 7269,
+     "first_name": "Austin",
+     "last_name": "Wiley",
+     "jersey": "50",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 141,
+      "name": "FC Bayern Munich",
+      "abbreviation": "BAY"
+     }
+    },
+    {
+     "id": 11507,
+     "first_name": "Amir",
+     "last_name": "Coffey",
+     "jersey": "7",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 165,
+      "name": "Hapoel IBI Tel Aviv",
+      "abbreviation": "HTA"
+     }
+    },
+    {
+     "id": 11514,
+     "first_name": "Patty",
+     "last_name": "Mills",
+     "jersey": "8",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 139,
+      "name": "LDLC ASVEL Villeurbanne",
+      "abbreviation": "ASV"
+     }
+    },
+    {
+     "id": 11522,
+     "first_name": "Keaton",
+     "last_name": "Wallace",
+     "jersey": "17",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 11526,
+     "first_name": "Guerschon",
+     "last_name": "Yabusele",
+     "jersey": "7",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2827842,
+   "name": "Laurynas Birutis",
+   "credits": 998,
+   "user": {
+    "id": 1005,
+    "first_name": "Manager",
+    "last_name": "6"
+   },
+   "players": [
+    {
+     "id": 3771,
+     "first_name": "Wade",
+     "last_name": "Baldwin",
+     "jersey": "2",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 3774,
+     "first_name": "Tornike",
+     "last_name": "Shengelia",
+     "jersey": "23",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 3775,
+     "first_name": "Shavon",
+     "last_name": "Shields",
+     "jersey": "31",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    },
+    {
+     "id": 3785,
+     "first_name": "Josh",
+     "last_name": "Nebo",
+     "jersey": "32",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 140,
+      "name": "FC Barcelona",
+      "abbreviation": "BAR"
+     }
+    },
+    {
+     "id": 3787,
+     "first_name": "Nigel",
+     "last_name": "Hayes-davis",
+     "jersey": "11",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    },
+    {
+     "id": 3794,
+     "first_name": "Kevin",
+     "last_name": "Punter",
+     "jersey": "0",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 140,
+      "name": "FC Barcelona",
+      "abbreviation": "BAR"
+     }
+    },
+    {
+     "id": 3812,
+     "first_name": "Jaylen",
+     "last_name": "Hoard",
+     "jersey": "1",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 3903,
+     "first_name": "Elijah",
+     "last_name": "Bryant",
+     "jersey": "3",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 165,
+      "name": "Hapoel IBI Tel Aviv",
+      "abbreviation": "HTA"
+     }
+    },
+    {
+     "id": 4247,
+     "first_name": "Chris",
+     "last_name": "Jones",
+     "jersey": "1",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 144,
+      "name": "Crvena Zvezda Meridianbet Belgrade",
+      "abbreviation": "CZV"
+     }
+    },
+    {
+     "id": 4280,
+     "first_name": "Marek",
+     "last_name": "Blazevic",
+     "jersey": "22",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 155,
+      "name": "Zalgiris Kaunas",
+      "abbreviation": "ZAL"
+     }
+    },
+    {
+     "id": 4882,
+     "first_name": "Daniel",
+     "last_name": "Theis",
+     "jersey": "23",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 7237,
+     "first_name": "Nathan",
+     "last_name": "Reuvers",
+     "jersey": "3",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 174,
+      "name": "Valencia Basket",
+      "abbreviation": "VBC"
+     }
+    },
+    {
+     "id": 7362,
+     "first_name": "Umoja",
+     "last_name": "Gibson",
+     "jersey": "2",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 140,
+      "name": "FC Barcelona",
+      "abbreviation": "BAR"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2831251,
+   "name": "AUSYS",
+   "credits": 697,
+   "user": {
+    "id": 1006,
+    "first_name": "Manager",
+    "last_name": "7"
+   },
+   "players": [
+    {
+     "id": 3765,
+     "first_name": "Mike",
+     "last_name": "James",
+     "jersey": "55",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 146,
+      "name": "Anadolu Efes Istanbul",
+      "abbreviation": "EFS"
+     }
+    },
+    {
+     "id": 3773,
+     "first_name": "Nikola",
+     "last_name": "Mirotic",
+     "jersey": "33",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 174,
+      "name": "Valencia Basket",
+      "abbreviation": "VBC"
+     }
+    },
+    {
+     "id": 3850,
+     "first_name": "Theo",
+     "last_name": "Maledon",
+     "jersey": "12",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 153,
+      "name": "Real Madrid",
+      "abbreviation": "RMB"
+     }
+    },
+    {
+     "id": 3864,
+     "first_name": "Timothé",
+     "last_name": "Luwawu-Cabarrot",
+     "jersey": "3",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 153,
+      "name": "Real Madrid",
+      "abbreviation": "RMB"
+     }
+    },
+    {
+     "id": 4233,
+     "first_name": "Mfiondu",
+     "last_name": "Kabengele",
+     "jersey": "17",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 4360,
+     "first_name": "Evan",
+     "last_name": "Fournier",
+     "jersey": "94",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 149,
+      "name": "Olympiacos Piraeus",
+      "abbreviation": "OLY"
+     }
+    },
+    {
+     "id": 8463,
+     "first_name": "Kai",
+     "last_name": "Jones",
+     "jersey": "88",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 146,
+      "name": "Anadolu Efes Istanbul",
+      "abbreviation": "EFS"
+     }
+    },
+    {
+     "id": 11487,
+     "first_name": "Dario",
+     "last_name": "Saric",
+     "jersey": "5",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 146,
+      "name": "Anadolu Efes Istanbul",
+      "abbreviation": "EFS"
+     }
+    },
+    {
+     "id": 11492,
+     "first_name": "Jaylen",
+     "last_name": "Nowell",
+     "jersey": "24",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 158,
+      "name": "Besiktas Istanbul",
+      "abbreviation": "BJK"
+     }
+    },
+    {
+     "id": 11504,
+     "first_name": "Johannes",
+     "last_name": "Thiemann",
+     "jersey": "32",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 141,
+      "name": "FC Bayern Munich",
+      "abbreviation": "BAY"
+     }
+    },
+    {
+     "id": 11512,
+     "first_name": "Aj",
+     "last_name": "Lawson",
+     "jersey": "00",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 143,
+      "name": "Kosner Baskonia Vitoria-Gasteiz",
+      "abbreviation": "KBA"
+     }
+    },
+    {
+     "id": 11520,
+     "first_name": "Yves",
+     "last_name": "Pons",
+     "jersey": "35",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 139,
+      "name": "LDLC ASVEL Villeurbanne",
+      "abbreviation": "ASV"
+     }
+    },
+    {
+     "id": 11527,
+     "first_name": "Tj",
+     "last_name": "Warren",
+     "jersey": "1",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 150,
+      "name": "Paris Basketball",
+      "abbreviation": "PBB"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2896035,
+   "name": "FBK KISIEL",
+   "credits": 979,
+   "user": {
+    "id": 1007,
+    "first_name": "Manager",
+    "last_name": "8"
+   },
+   "players": [
+    {
+     "id": 3768,
+     "first_name": "Mathias",
+     "last_name": "Lessort",
+     "jersey": "26",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 151,
+      "name": "Panathinaikos AKTOR Athens",
+      "abbreviation": "PAO"
+     }
+    },
+    {
+     "id": 3793,
+     "first_name": "Jordan",
+     "last_name": "Nwora",
+     "jersey": "33",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 144,
+      "name": "Crvena Zvezda Meridianbet Belgrade",
+      "abbreviation": "CZV"
+     }
+    },
+    {
+     "id": 3807,
+     "first_name": "Elie",
+     "last_name": "Okobo",
+     "jersey": "0",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 311,
+      "name": "Dubai Basketball",
+      "abbreviation": "DUB"
+     }
+    },
+    {
+     "id": 3810,
+     "first_name": "Bonzie",
+     "last_name": "Colson",
+     "jersey": "50",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 3820,
+     "first_name": "Alec",
+     "last_name": "Peters",
+     "jersey": "25",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 145,
+      "name": "Armani Olimpia Milan",
+      "abbreviation": "MIL"
+     }
+    },
+    {
+     "id": 3930,
+     "first_name": "Yam",
+     "last_name": "Madar",
+     "jersey": "26",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 148,
+      "name": "Maccabi Rapyd Tel Aviv",
+      "abbreviation": "MTA"
+     }
+    },
+    {
+     "id": 3946,
+     "first_name": "Andreas",
+     "last_name": "Obst",
+     "jersey": "13",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 141,
+      "name": "FC Bayern Munich",
+      "abbreviation": "BAY"
+     }
+    },
+    {
+     "id": 4164,
+     "first_name": "Johnathan",
+     "last_name": "Motley",
+     "jersey": "0",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 144,
+      "name": "Crvena Zvezda Meridianbet Belgrade",
+      "abbreviation": "CZV"
+     }
+    },
+    {
+     "id": 4808,
+     "first_name": "Bruno",
+     "last_name": "Fernando",
+     "jersey": "20",
+     "position": {
+      "id": 30,
+      "name": "Center"
+     },
+     "team": {
+      "id": 146,
+      "name": "Anadolu Efes Istanbul",
+      "abbreviation": "EFS"
+     }
+    },
+    {
+     "id": 7193,
+     "first_name": "Vasilije",
+     "last_name": "Micic",
+     "jersey": "22",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 165,
+      "name": "Hapoel IBI Tel Aviv",
+      "abbreviation": "HTA"
+     }
+    },
+    {
+     "id": 7203,
+     "first_name": "Miles",
+     "last_name": "Norris",
+     "jersey": "0",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 141,
+      "name": "FC Bayern Munich",
+      "abbreviation": "BAY"
+     }
+    },
+    {
+     "id": 7212,
+     "first_name": "Derrick",
+     "last_name": "Alston Jr.",
+     "jersey": "21",
+     "position": {
+      "id": 29,
+      "name": "Forward"
+     },
+     "team": {
+      "id": 154,
+      "name": "Virtus Bologna",
+      "abbreviation": "VIR"
+     }
+    },
+    {
+     "id": 8567,
+     "first_name": "Talen",
+     "last_name": "Horton-Tucker",
+     "jersey": "8",
+     "position": {
+      "id": 28,
+      "name": "Guard"
+     },
+     "team": {
+      "id": 147,
+      "name": "Fenerbahce Tarfin Istanbul",
+      "abbreviation": "FBT"
+     }
+    }
+   ]
+  }
+ ]
+}

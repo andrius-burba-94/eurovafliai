@@ -46,6 +46,7 @@ import { fetchLiveBoxscore } from "@/lib/live/boxscore";
 import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
+import { syncDueLeagues } from "@/lib/fantasy/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import { fetchSeasonAverages } from "@/lib/stats/euroleague";
@@ -110,6 +111,8 @@ const NEWS_EVERY_MS = 60 * 60_000;
 const NEWS_FIRST_AFTER_MS = 90_000;
 const LIVE_EVERY_MS = 60_000;
 const LIVE_FIRST_AFTER_MS = 95_000;
+const FANTASY_EVERY_MS = 10 * 60_000;
+const FANTASY_FIRST_AFTER_MS = 120_000;
 
 function log(message: string, level: "info" | "warn" | "error" = "info"): void {
   const line = JSON.stringify({
@@ -417,6 +420,51 @@ function main(): void {
     }, LIVE_FIRST_AFTER_MS).unref?.();
   }
 
+  /**
+   * The Fantasy Challenge roster sync, on a fourth guard: somebody else's API,
+   * and a pick deadline must never wait on it. Every ten minutes it asks
+   * whether a pass is due — `syncDueLeagues` holds the schedule (hourly inside
+   * a round's freeze, a preview every six hours outside it) — so a pass lands
+   * within ten minutes of the five-minutes-after-tip-off mark.
+   */
+  let fantasyInFlight: Promise<void> | null = null;
+  let fantasyTimer: ReturnType<typeof setInterval> | null = null;
+
+  async function fantasyPass(token: string): Promise<void> {
+    try {
+      await ensureAuth(pb, env);
+      const results = await syncDueLeagues({ pb, token, season: env.EUROLEAGUE_SEASON, now: new Date() });
+      for (const result of results) {
+        if (result.error) {
+          log(`fantasy sync · league ${result.leagueId} failed: ${result.error}`, "error");
+        } else if (result.run) {
+          const { mode, round, status, message } = result.run;
+          log(`fantasy sync · league ${result.leagueId} · ${mode} round ${round} · ${status} · ${message}`, status === "failed" ? "warn" : "info");
+        }
+      }
+    } catch (error) {
+      log(`fantasy sync pass failed: ${describeError(error)}`, "error");
+      pb.authStore.clear();
+    }
+  }
+
+  function scheduleFantasy(): void {
+    const token = env.FANTASY_CHALLENGE_TOKEN;
+    if (!token) {
+      log("fantasy roster sync is off (no FANTASY_CHALLENGE_TOKEN)");
+      return;
+    }
+    log(`fantasy roster sync on · checks every ${FANTASY_EVERY_MS / 60_000}min`);
+    const run = () => {
+      if (stopping || fantasyInFlight) return;
+      fantasyInFlight = fantasyPass(token).finally(() => { fantasyInFlight = null; });
+    };
+    setTimeout(() => {
+      run();
+      fantasyTimer = setInterval(run, FANTASY_EVERY_MS);
+    }, FANTASY_FIRST_AFTER_MS).unref?.();
+  }
+
   let statsTimer: ReturnType<typeof setInterval> | null = null;
   let newsTimer: ReturnType<typeof setInterval> | null = null;
   /**
@@ -475,6 +523,7 @@ function main(): void {
   scheduleStats();
   scheduleNews();
   scheduleLive();
+  scheduleFantasy();
   // After the schedulers, so a slow feed cannot delay the sweep starting.
   void previousSeasonOnce();
 
@@ -523,6 +572,7 @@ function main(): void {
     if (statsTimer) clearInterval(statsTimer);
     if (newsTimer) clearInterval(newsTimer);
     if (liveTimer) clearInterval(liveTimer);
+    if (fantasyTimer) clearInterval(fantasyTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

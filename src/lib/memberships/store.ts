@@ -177,14 +177,15 @@ async function findMatchingTransaction(
  * write and before the membership loop is the same leftover as a retry — we
  * find the matching row and finish the closes/opens. Unique active
  * `(league, player)` refuses a double open; a second pass skips held players.
- * Announce last and never throws.
+ * Announce last and never throws; a null announcement is a half of a move
+ * announced by its other half.
  */
 export async function applyTransaction(
   pb: PocketBase,
   leagueId: string,
   plan: ApplyPlan,
   now: Date,
-  announcement: string,
+  announcement: string | null,
   note: string,
 ): Promise<AppliedTransaction> {
   const stamp = asPbDate(now);
@@ -257,6 +258,6 @@ export async function applyTransaction(
     }
   }
 
-  await announce(pb, leagueId, announcement);
+  if (announcement) await announce(pb, leagueId, announcement);
   return { id: stored.id, created };
 }

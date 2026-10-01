@@ -70,7 +70,23 @@ export const serverEnvSchema = z.object({
    * asking without stopping the worker is a courtesy the source is owed.
    */
   NEWS_FETCH: z.enum(["on", "off"]).default("on"),
+  /**
+   * A session token for the official EuroLeague Fantasy Challenge, copied from
+   * a signed-in browser. Its owner sees every roster in their league, which is
+   * all the roster sync reads. Unset turns the sync off. Opaque and of unknown
+   * lifetime: a refused token is reported on the league's sync page, not retried.
+   */
+  FANTASY_CHALLENGE_TOKEN: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  /** The official league a commissioner is offered when linking theirs. */
+  FANTASY_CHALLENGE_LEAGUE_ID: z.preprocess(
+    blankAsUnset,
+    z.string().regex(/^\d+$/, "must be the numeric league id").optional(),
+  ),
 });
+
+function blankAsUnset(value: unknown): unknown {
+  return typeof value === "string" && value.trim() === "" ? undefined : value;
+}
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

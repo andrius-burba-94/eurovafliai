@@ -106,13 +106,22 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
         lead="Every recorded move, and what it has been worth since."
         action={
           canManage && data.league.status === "season" ? (
-            <Link
-              href={`/leagues/${id}/transactions/new`}
-              data-testid="record-trade"
-              className="inline-flex min-h-11 items-center rounded-lg bg-live px-4 text-sm font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-            >
-              Record a trade
-            </Link>
+            <span className="flex flex-wrap gap-2">
+              <Link
+                href={`/leagues/${id}/fantasy`}
+                data-testid="fantasy-sync-link"
+                className="inline-flex min-h-11 items-center rounded-lg border border-rule-strong px-4 text-sm font-bold text-ink hover:border-ink-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              >
+                Fantasy sync
+              </Link>
+              <Link
+                href={`/leagues/${id}/transactions/new`}
+                data-testid="record-trade"
+                className="inline-flex min-h-11 items-center rounded-lg bg-live px-4 text-sm font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              >
+                Record a trade
+              </Link>
+            </span>
           ) : undefined
         }
       />
