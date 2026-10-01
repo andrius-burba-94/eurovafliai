@@ -330,8 +330,7 @@ body {
   text-align: center;
   cursor: pointer;
 }
-.lineup-court-player:focus-visible,
-.lineup-court-open:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; border-radius: 0.5rem; }
+.lineup-court-player:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; border-radius: 0.5rem; }
 .lineup-court-disc {
   position: relative;
   display: grid;
@@ -395,10 +394,8 @@ body {
   border-radius: 50%;
   background: transparent;
 }
-.lineup-court-player[data-valid] .lineup-court-disc,
 .lineup-court-player[data-over] .lineup-court-disc { outline: 2px solid var(--color-live); outline-offset: 2px; }
 .lineup-court-player[data-dragging] { opacity: 0.45; }
-.lineup-court-player[aria-pressed="true"] .lineup-court-disc { background: var(--color-live-sunk); border-color: var(--color-live); }
 .lineup-court-position,
 .lineup-court-captain {
   position: absolute;
@@ -474,6 +471,8 @@ body {
 }
 .lineup-court-plate[data-live] small { color: oklch(0.5 0.2 27); }
 .lineup-court-open {
+  display: grid;
+  place-items: center;
   min-height: 2.75rem;
   width: 100%;
   border: 1px dashed var(--color-court-line);
@@ -483,7 +482,8 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
 }
-.lineup-court-open:disabled { opacity: 0.7; }
+.lineup-court-open:not([data-incoming]) { opacity: 0.7; }
+.lineup-court-open[data-incoming] { border-style: solid; border-color: var(--color-live); }
 @container (max-width: 22rem) {
   .lineup-court-row { left: 1.9rem; right: 0.35rem; }
   .lineup-court-disc { border-width: 2px; }
@@ -512,7 +512,6 @@ body {
 .lineup-ghost[data-position="C"] { --pos: var(--color-pos-c); }
 .lineup-card:hover { border-color: var(--color-rule-strong); }
 .lineup-card:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
-.lineup-card[aria-pressed="true"] { border-color: var(--color-live); background: var(--color-live-sunk); }
 .lineup-card[data-over] { outline: 2px solid var(--color-live); outline-offset: 1px; }
 .lineup-card[data-dragging] { opacity: 0.45; }
 .lineup-card .player-portrait { width: 2rem; height: 2.2rem; }
@@ -529,6 +528,8 @@ body {
   font-weight: 800;
 }
 .lineup-card-open {
+  display: grid;
+  place-items: center;
   width: 100%;
   min-height: 3.25rem;
   border: 1px dashed var(--color-rule);
@@ -536,8 +537,7 @@ body {
   color: var(--color-ink-faint);
   font-size: 0.8125rem;
 }
-.lineup-card-open:enabled { border-color: var(--color-live); color: var(--color-live); font-weight: 700; cursor: pointer; }
-.lineup-card-open:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
+.lineup-card-open[data-incoming] { border-color: var(--color-live); color: var(--color-live); font-weight: 700; }
 .lineup-tier { border-radius: 0.625rem; }
 /* Two cards to a line at every width, so the whole lineup stays on one screen;
    the tip-off stacks inside the card to leave the surname its width. */

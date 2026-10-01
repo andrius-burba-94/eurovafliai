@@ -5,13 +5,13 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
 import {
+  GAME_BADGE,
   PageHeader,
   RoundStepper,
   ScoreFigure,
   StatusBadge,
   TeamCrest,
   teamFieldStyle,
-  type BadgeKind,
 } from "@/components/broadcast";
 import { LiveFeed } from "@/components/live-feed";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
@@ -36,14 +36,6 @@ function requestedRound(value: string | string[] | undefined): number | null {
   const round = typeof value === "string" ? Number(value) : NaN;
   return Number.isInteger(round) && round > 0 ? round : null;
 }
-
-const GAME_BADGE: Record<GameState, { kind: BadgeKind; word: string }> = {
-  final: { kind: "final", word: "Final" },
-  fulltime: { kind: "provisional", word: "Full time" },
-  live: { kind: "live", word: "Live" },
-  stale: { kind: "doubtful", word: "Feed stale" },
-  scheduled: { kind: "scheduled", word: "Scheduled" },
-};
 
 /**
  * Live (Matchday) — ADR-0011. A scoreboard: a team's round total and live rank

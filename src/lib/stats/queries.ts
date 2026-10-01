@@ -2,6 +2,11 @@ import { displayName } from "@/lib/players/name";
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
+import { serverConfig } from "@/lib/config/server";
+import { roundSchedule } from "@/lib/fixtures/schedule";
+import { readStoredFixtures, scheduleRowsFrom } from "@/lib/fixtures/store";
+import { currentGameOf, type CurrentGame } from "@/lib/live/current-game";
+import { readLiveSnapshots } from "@/lib/live/store";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import type { Position } from "@/lib/engine";
@@ -312,9 +317,50 @@ export type GameLogLine = {
   gameCode: number;
 };
 
+/**
+ * The player's game in `round`, or by default in the round being played (the
+ * last round once all are). A profile without one is still a profile, so a
+ * read that fails is nothing.
+ */
+async function readCurrentGame(
+  pb: ReturnType<typeof createUserClient>,
+  round: number | undefined,
+  player: { clubCode: string; personCode: string | undefined },
+  lines: readonly { season: string; game_code: number; pir: number; fantasy_pts: number; points?: number; reb_total?: number; assists?: number; time_played?: number }[],
+): Promise<CurrentGame | null> {
+  try {
+    const season = serverConfig().EUROLEAGUE_SEASON;
+    const schedule = roundSchedule(scheduleRowsFrom(await readStoredFixtures(pb, season)), round);
+    if (!schedule) return null;
+    const snapshots = await readLiveSnapshots(pb, season, schedule.round).catch(() => []);
+    return currentGameOf({
+      round: schedule.round,
+      games: schedule.games,
+      clubCode: player.clubCode,
+      personCode: player.personCode,
+      recorded: lines
+        .filter((row) => row.season === season)
+        .map((row) => ({
+          gameCode: row.game_code,
+          pir: row.pir,
+          fantasyTenths: row.fantasy_pts,
+          points: row.points ?? 0,
+          rebounds: row.reb_total ?? 0,
+          assists: row.assists ?? 0,
+          timePlayed: row.time_played ?? 0,
+        })),
+      snapshots,
+      now: Date.now(),
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function readPlayerProfile(
   playerId: string,
-): Promise<{ player: PlayerProfile; log: GameLogLine[] } | null> {
+  options: { round?: number } = {},
+): Promise<{ player: PlayerProfile; log: GameLogLine[]; currentGame: CurrentGame | null } | null> {
   const session = await getSession();
   if (!session) return null;
 
@@ -352,6 +398,10 @@ export async function readPlayerProfile(
       pir: number;
       fantasy_pts: number;
       game_code: number;
+      points?: number;
+      reb_total?: number;
+      assists?: number;
+      time_played?: number;
     }>({
       filter: `player = '${playerId}'`,
       requestKey: null,
@@ -377,6 +427,7 @@ export async function readPlayerProfile(
     // Games, never the average: an unset column reads as 0, so a player who
     // averaged 0.0 over thirty games and a player nobody imported would look
     // identical if this keyed off the PIR.
+    const currentGame = await readCurrentGame(pb, options.round, { clubCode: record.club_code, personCode: record.person_code }, lines);
     const prevGames = record.prev_season_games ?? 0;
     const prevStats = record.prev_season_stats;
     const last5Games = record.proj_last5_games ?? 0;
@@ -426,6 +477,7 @@ export async function readPlayerProfile(
             : null,
       },
       log,
+      currentGame,
     };
   } catch {
     return null;

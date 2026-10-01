@@ -584,3 +584,32 @@ stores the real season's schedule, whose round 3 was being played that night.
 the run looked mid-round. The re-import now honours `STATS_FETCH=off`, like the
 worker.
 
+## S21 — Drag-only lineup, profile with this round
+
+The court had two ways to move a player, a drag and a tap-then-tap, and the
+tap won every argument it had with a person who only wanted to look at a
+player: a tap picked him up. With drag working on mouse and touch (the hold
+before a touch drag keeps the page scrollable), the tap is free for what people
+tried to do with it, which is open the player. `lineup-drag.ts` already
+swallowed the click a drop ends with, so a drag never also opens a profile.
+The grid view remains the path without a drag: a role select and a captain
+radio per row.
+
+The captaincy moved into the profile because it is a fact about one player and
+the profile is where that player is on screen; the sticky bar's "Make captain"
+only ever appeared with a player in hand, which no longer exists. The modal's
+`action` slot is a plain node: the lineup closes the profile by unmounting it
+and puts focus back on the card it came from.
+
+"This round" is pure (`currentGameOf`) so the recorded-over-live rule is
+tested once: a recorded box score is what the standings counted, so it wins
+over the provisional feed. The API takes `?round=` so a lineup's profile talks
+about that lineup's round rather than whatever round the season is on.
+
+Verification: lint, typecheck, knip and 1683 unit tests pass (new
+`current-game.test.ts`). The lineup spec's tap test now opens a profile, gives
+the armband from it and checks the grid's radio; the drag test asserts no
+profile opened on a drop; the matchday spec opens a live player's profile and
+reads the same stat line and 16.5 as Live. Lineup, matchday, players and a11y
+specs pass on both projects.
+

@@ -4,11 +4,14 @@ import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
+import type { CurrentGame } from "@/lib/live/current-game";
 import type { PlayerProfile, GameLogLine } from "@/lib/stats/queries";
 import { formatTenths } from "@/lib/stats/scoring";
+import { formatTipOff } from "@/lib/time/local";
+import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 
-type Profile = { player: PlayerProfile; log: GameLogLine[] };
+type Profile = { player: PlayerProfile; log: GameLogLine[]; currentGame: CurrentGame | null };
 
 export function PlayerStatsLink({
   id,
@@ -40,7 +43,23 @@ export function PlayerStatsLink({
   </>;
 }
 
-function PlayerStatsModal({ id, name, profileHref, onClose }: { id: string; name: string; profileHref: string; onClose: () => void }) {
+/** A player's profile over the page. `action` is the caller's one button for this player. */
+export function PlayerStatsModal({
+  id,
+  name,
+  profileHref,
+  onClose,
+  action,
+  round,
+}: {
+  id: string;
+  name: string;
+  profileHref: string;
+  onClose: () => void;
+  action?: ReactNode;
+  /** The round "This round" is about; the round being played when absent. */
+  round?: number;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState(false);
@@ -49,7 +68,7 @@ function PlayerStatsModal({ id, name, profileHref, onClose }: { id: string; name
     const element = dialog.current;
     if (element && !element.open) element.showModal();
     const controller = new AbortController();
-    fetch(`/api/players/${id}`, { signal: controller.signal, cache: "no-store" })
+    fetch(round ? `/api/players/${id}?round=${round}` : `/api/players/${id}`, { signal: controller.signal, cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("Profile unavailable");
         return response.json() as Promise<Profile>;
@@ -60,7 +79,7 @@ function PlayerStatsModal({ id, name, profileHref, onClose }: { id: string; name
         setError(true);
       });
     return () => controller.abort();
-  }, [id]);
+  }, [id, round]);
 
   const player = profile?.player;
   return <dialog ref={dialog} onClose={onClose} aria-labelledby="player-stats-title" className="fixed inset-0 m-auto max-h-[min(90dvh,46rem)] w-[min(92vw,36rem)] overflow-y-auto rounded-lg border border-panel-border bg-stock-panel p-5 text-ink backdrop:bg-black/70 sm:p-7" data-testid="player-stats-modal">
@@ -71,6 +90,7 @@ function PlayerStatsModal({ id, name, profileHref, onClose }: { id: string; name
       </div>
       <button type="button" onClick={() => dialog.current?.close()} aria-label="Close player stats" className="grid size-11 shrink-0 place-items-center rounded border border-rule-strong text-xl focus-visible:outline-2 focus-visible:outline-live">×</button>
     </div>
+    {action ? <div className="mt-4 flex flex-wrap gap-2">{action}</div> : null}
     {!profile && !error ? <p role="status" className="mt-6 text-sm text-ink-soft">Loading player stats…</p> : null}
     {error ? <p role="alert" className="mt-6 text-sm text-loss">Player stats are unavailable right now. <Link href={profileHref} className="underline">Open profile page</Link></p> : null}
     {player ? <>
@@ -81,11 +101,33 @@ function PlayerStatsModal({ id, name, profileHref, onClose }: { id: string; name
         <Metric label="Last-season PIR" value={player.previousSeason ? formatTenths(player.previousSeason.pir) : null} />
         <Metric label="Last-season fantasy" value={player.previousSeason?.fantasy != null ? formatTenths(player.previousSeason.fantasy) : null} />
       </div>
+      {profile!.currentGame ? <ThisRound game={profile!.currentGame} /> : null}
       <h3 className="mt-6 border-b border-panel-border pb-2 text-sm font-semibold">Recent games</h3>
       {profile!.log.length ? <ol className="divide-y divide-panel-border text-sm">{[...profile!.log].reverse().slice(0, 5).map((game) => <li key={game.id} className="flex justify-between gap-3 py-2"><span>Round {game.round} · {game.clubCode}</span><span className="tabular-nums text-ink-soft">PIR {game.pir} · FP {formatTenths(game.fantasyTenths)}</span></li>)}</ol> : <p className="mt-3 text-sm text-ink-soft">No stored games this season.</p>}
       <Link href={profileHref} className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-live underline underline-offset-4">Full profile and game log →</Link>
     </> : null}
   </dialog>;
+}
+
+function ThisRound({ game }: { game: CurrentGame }) {
+  const started = game.state !== "scheduled";
+  return <section aria-labelledby="player-this-round" data-testid="profile-this-round" className="mt-6 rounded border border-panel-border bg-stock p-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h3 id="player-this-round" className="slot-label">This round · round {game.round}</h3>
+      {started
+        ? <StatusBadge kind={GAME_BADGE[game.state].kind}>{GAME_BADGE[game.state].word}</StatusBadge>
+        : <span className="text-xs text-ink-soft">{formatTipOff(game.tipOff) ?? "Time to be confirmed"}</span>}
+    </div>
+    <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold">{game.atHome ? "vs" : "at"} <ClubCrest clubCode={game.opponent} /> {game.opponent}</p>
+    {game.line ? <div className="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+      <p className="text-xs text-ink-soft tabular-nums" data-testid="profile-stat-line">{game.line.statLine}</p>
+      <p className="flex items-baseline gap-3 tabular-nums">
+        <span className="text-sm text-ink-soft">PIR <span className="font-semibold text-ink">{game.line.pir}</span></span>
+        <span className="display-figure text-2xl" data-testid="profile-round-points">{formatTenths(game.line.fantasyTenths)}</span>
+        <span className="text-[0.625rem] font-bold tracking-[0.06em] text-ink-soft uppercase">{game.line.provisional ? "Pts so far" : "Pts"}</span>
+      </p>
+    </div> : started ? <p className="mt-2 text-sm text-ink-soft">{game.state === "final" || game.state === "fulltime" ? "Did not play." : "No box-score line yet."}</p> : null}
+  </section>;
 }
 
 function Metric({ label, value }: { label: string; value: string | null }) {

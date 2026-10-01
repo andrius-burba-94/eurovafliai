@@ -21,23 +21,16 @@ const WORDS: Record<Position, string> = { C: "Centers", F: "Forwards", G: "Guard
 export function LineupCourt({
   starters,
   openPlaces,
-  armed,
-  armedIsStarter,
-  onArm,
-  onPlace,
+  onOpen,
   drag,
 }: {
   starters: readonly CourtPlayer[];
   openPlaces: Readonly<Record<Position, number>>;
-  armed: string | null;
-  armedIsStarter: boolean;
-  onArm: (playerId: string) => void;
-  onPlace: () => void;
+  /** A click that was not the end of a drag: the player's profile. */
+  onOpen: (playerId: string, from: HTMLElement) => void;
   drag: DragState;
 }) {
-  const armedPlayer = starters.find((player) => player.id === armed);
-  const canPlace = armed !== null && !armedIsStarter;
-  const incoming = canPlace || (drag.dragging !== null && !starters.some((player) => player.id === drag.dragging));
+  const incoming = drag.dragging !== null && !starters.some((player) => player.id === drag.dragging);
   return (
     <div
       className="lineup-court hardwood"
@@ -67,10 +60,9 @@ export function LineupCourt({
                   data-drop={`player:${player.id}`}
                   data-over={drag.over === `player:${player.id}` || undefined}
                   data-dragging={drag.dragging === player.id || undefined}
-                  data-valid={(armed !== null && armed !== player.id && (!armedPlayer || armedPlayer.position === player.position)) || undefined}
-                  aria-pressed={armed === player.id}
-                  aria-label={`${displayName(player.name)}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}${armed && armed !== player.id ? ", tap to swap" : ", tap to move"}`}
-                  onClick={() => onArm(player.id)}
+                  aria-haspopup="dialog"
+                  aria-label={`${displayName(player.name)}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}`}
+                  onClick={(event) => onOpen(player.id, event.currentTarget)}
                   {...drag.handle(player.id)}
                   className="lineup-court-player lineup-drag"
                 >
@@ -101,9 +93,9 @@ export function LineupCourt({
             ))}
             {Array.from({ length: openPlaces[position] }, (_, index) => (
               <li key={`open-${index}`}>
-                <button type="button" data-testid="court-open" disabled={!canPlace} onClick={onPlace} className="lineup-court-open">
-                  {incoming ? "Start here" : "Open place"}
-                </button>
+                <span data-testid="court-open" data-incoming={incoming || undefined} className="lineup-court-open">
+                  {incoming ? "Drop here" : "Open place"}
+                </span>
               </li>
             ))}
           </ul>

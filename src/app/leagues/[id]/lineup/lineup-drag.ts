@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 /**
- * Drag a player onto a place or onto another player — the pointer half of the
- * lineup's tap-to-place. A drop calls the same functions a tap does, so the
- * validator still sees one kind of change.
+ * Drag a player onto a place or onto another player — the only way the court
+ * moves anyone. A drop calls the same `place` the grid's select does, so the
+ * validator still sees one kind of change, and the click a drop ends with is
+ * swallowed so it does not also open the player's profile.
  *
  * Targets say what they are in `data-drop`: `player:<id>` swaps, `role:<role>`
  * moves. The hit test is the element under the finger, because the targets are
