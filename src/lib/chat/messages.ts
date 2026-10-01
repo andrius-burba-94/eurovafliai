@@ -120,11 +120,11 @@ export function announceTrade(input: {
 
 export function announceExchange(input: {
   readonly teamName: string;
-  readonly released: string;
-  readonly acquired: string;
+  readonly released: readonly string[];
+  readonly acquired: readonly string[];
   readonly fromRound: number;
 }): string {
-  return `${input.teamName} exchanged ${displayName(input.released)} for ${displayName(input.acquired)}, counting from round ${input.fromRound}.`;
+  return `${input.teamName} exchanged ${nameList(input.released)} for ${nameList(input.acquired)}, counting from round ${input.fromRound}.`;
 }
 
 export function announceDrop(input: {

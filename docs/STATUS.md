@@ -55,6 +55,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S20 A round in progress is not a finished round | Done | `recomputeStandings` writes a round's snapshot after its first finished game, and every page used to treat the newest snapshot as a finished round. A pure `roundProgress` (`src/lib/fixtures/progress.ts`) now says which snapshot rounds have no game left (`complete`, `lastComplete`) and which round is being played (`current`: started, played, total). Crowns, spoons, honours, overtake moments, the Stats page and League Home's round story read only complete rounds. During a round League Home's hero is a live scorebug (provisional round score and rank from Live's own `readMatchdayData`, games played, `LIVE` while a game is on, **Watch live**); the table labels its round column "So far" and drops arrows. Recap opens on the last finished round; a round in progress stays in the picker marked "in progress" and reads provisional: a banner with games played, "X lead round N", "Leading so far" without a crown, "Sitting last" instead of the wooden spoon, no moments. With no stored schedule a snapshot round counts as finished, as before. |
 | S21 Drag-only lineup, profile with this round | Done | The court and tier cards move players by drag only; tap-to-place (a player "in hand", "Start here" / "Move here") is gone and open places are passive drop slots. A click that is not the end of a drag opens the player's profile (`PlayerStatsModal`, now exported with an `action` slot); for a starter it holds **Make captain ×2**, or says **Captain ×2** for the current one. The grid stays the keyboard and no-drag path. The profile (`readPlayerProfile`, `/api/players/[id]?round=`) gains `currentGame`, from pure `live/current-game.ts`: opponent and venue, state via `gameStateOf`, tip-off, and PIR, fantasy points and stat line from the recorded box score, else the live snapshot by `person_code`. The modal draws it as "This round" above Recent games; from a lineup it is that lineup's round. `GAME_BADGE` moved to `broadcast.tsx`. |
 | S22 Schedule tab drawn like Live's Games | Done | Live's Games tile is now `GameTile` (`src/components/game-tile.tsx`, no hooks, so the server page and the client panel share it): the `GAME_BADGE` state, the tip-off while scheduled, each club's crest and name, and the score from pure `gameScores` (live snapshot first, then the stored result). The side panel's Schedule tab draws the round as a column of these tiles with full club names. `readPanel` also reads the round's live snapshots, so a game in play shows `LIVE` and its score; `PanelGame` carries `state` and nullable scores instead of `played`. |
+| S23 One trade, one row on My Team | Done | The official game has no trades, so a sync writes every move as drops and adds. `groupTransactionHistory` (`memberships/history.ts`) now pairs **all** of one team's drops and adds from one sync (same round, each row within two minutes of the last, a note on every row, no player on both sides) at any count, and reads two teams in one round that each added a player the other dropped as one two-sided trade (`swap`). `readMemberDeals` groups the whole league's rows the same way and sums each group's impact, so My Team shows one row per deal; the dashboard's Trades tab and the Trades page use the same events. `announceExchange` takes lists. Checked against production on 1 October: its 32 rows (16 drops, 16 adds) become 14 exchanges, two of them 2-for-2 that used to split. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:
@@ -85,6 +86,9 @@ game, its badge, the line so far); a starter's profile has **Make captain ×2**.
 Moving someone is a drag; the grid view still changes any role by select.
 The side panel's **Schedule** tab shows each game as Live does: badge, crests,
 full club names, and the live score while a game is on.
+On a team page whose roster changed by a sync that swapped two players for
+two, **Transactions** shows one row, "exchanged A and B for C and D", with one
+total.
 
 **Known local-only failure.** `news.spec.ts` plants items dated 13 September; a
 local database that has run the news worker holds newer items, and the page
@@ -99,8 +103,10 @@ finished, so its crowns, ranks and records are not shown. CI has no schedule.
 The season dashboard separates member Chat, recorded Trades, injury reports, and
 EuroLeague news. Chat's count and unread state include only member messages;
 the setup lobby and draft room still show the full system transcript. A free-agent
-exchange historically stored as a drop plus an add appears as one event in the
-Trades view and full trade history when its team, round, note and time match.
+exchange stored as drops plus adds (at any count) appears as one event in the
+Trades view, full trade history and My Team when its team and round match and
+its rows were written minutes apart at most; two teams' drops and adds that
+cross in one round read as one trade.
 The underlying transaction and chat rows remain the audit record. News and
 injuries use the existing RotoWire items, split by their stored injury status.
 No PocketBase schema migration is needed for this presentation change.

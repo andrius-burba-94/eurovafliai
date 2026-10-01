@@ -277,6 +277,7 @@ export async function readMemberDeals(
   const pb = createUserClient(session.token);
   const rows = await pb.collection("transactions").getFullList<StoredTx>({
     filter: `league = '${leagueId}'`,
+    sort: "-date,-created",
     requestKey: null,
   });
   const transactions: (ImpactTransaction & { members: string[] })[] =
@@ -352,50 +353,70 @@ export async function readMemberDeals(
 
   const label = (id: string) => names.get(id) ?? id;
   const team = (id: string) => teamNames[id] ?? id;
+  const scoredById = new Map(scored.map((deal) => [deal.transactionId, deal]));
 
-  return scored.map((deal) => {
-    const tx = transactions.find((row) => row.id === deal.transactionId);
+  // Grouped over every team's rows: a swap with a friend is two teams' drops
+  // and adds, and only seeing this team's half would split it again.
+  return groupTransactionHistory(rows).flatMap((event): DealView[] => {
+    const parts = event.rows.flatMap((row) => scoredById.get(row.id) ?? []);
+    const first = parts[0];
+    if (!first) return [];
+    const inIds = parts.flatMap((part) => part.inIds);
+    const outIds = parts.flatMap((part) => part.outIds);
+    const tx = transactions.find((row) => row.id === first.transactionId);
     const other =
+      (event.swap && (event.swap.a === memberId ? event.swap.b : event.swap.a)) ??
       tx?.members.find((id) => id !== memberId) ??
       [
         ...Object.keys(tx?.playersIn ?? {}),
         ...Object.keys(tx?.playersOut ?? {}),
       ].find((id) => id !== memberId) ??
       "";
+    const type = event.swap || event.exchange ? "trade" : first.type;
     const sentence =
-      deal.type === "trade"
-        ? announceTrade({
-            teamA: team(memberId),
-            teamB: team(other),
-            sent: deal.outIds.map(label),
-            received: deal.inIds.map(label),
-            fromRound: deal.fromRound,
-          })
-        : deal.type === "drop"
+      type === "trade"
+        ? event.exchange
+          ? announceExchange({
+              teamName: team(memberId),
+              released: outIds.map(label),
+              acquired: inIds.map(label),
+              fromRound: first.fromRound,
+            })
+          : announceTrade({
+              teamA: team(memberId),
+              teamB: team(other),
+              sent: outIds.map(label),
+              received: inIds.map(label),
+              fromRound: first.fromRound,
+            })
+        : type === "drop"
           ? announceDrop({
               teamName: team(memberId),
-              players: deal.outIds.map(label),
-              fromRound: deal.fromRound,
+              players: outIds.map(label),
+              fromRound: first.fromRound,
             })
           : announceAdd({
               teamName: team(memberId),
-              players: deal.inIds.map(label),
-              fromRound: deal.fromRound,
+              players: inIds.map(label),
+              fromRound: first.fromRound,
             });
-    return {
-      id: deal.transactionId,
+    const deltaTenths = parts.reduce((sum, part) => sum + part.deltaTenths, 0);
+    const byRound = new Map<number, number>();
+    for (const part of parts) {
+      for (const row of part.byRound) {
+        byRound.set(row.round, (byRound.get(row.round) ?? 0) + row.deltaTenths);
+      }
+    }
+    return [{
+      id: first.transactionId,
       sentence,
-      impactSentence: announceImpact({
-        type: deal.type,
-        deltaTenths: deal.deltaTenths,
-      }),
-      deltaTenths: deal.deltaTenths,
-      deltaPir: deal.deltaPir,
-      byRound: deal.byRound.map((row) => ({
-        round: row.round,
-        deltaTenths: row.deltaTenths,
-      })),
-    };
+      impactSentence: announceImpact({ type, deltaTenths }),
+      deltaTenths,
+      deltaPir: parts.reduce((sum, part) => sum + part.deltaPir, 0),
+      byRound: [...byRound]
+        .sort(([a], [b]) => a - b)
+        .map(([round, tenths]) => ({ round, deltaTenths: tenths })),
+    }];
   });
 }
 
@@ -460,7 +481,7 @@ export async function readRecentTransactions(
 
   return events.flatMap((event): TransactionLine[] => {
     if (event.exchange) {
-      const { memberId, acquiredId, releasedId } = event.exchange;
+      const { memberId, acquiredIds, releasedIds } = event.exchange;
       const row = event.rows[0]!;
       return [{
         id: row.id,
@@ -468,8 +489,24 @@ export async function readRecentTransactions(
         fromRound: row.from_round,
         sentence: announceExchange({
           teamName: team(memberId),
-          released: names.get(releasedId) ?? "a player",
-          acquired: names.get(acquiredId) ?? "a player",
+          released: named(releasedIds),
+          acquired: named(acquiredIds),
+          fromRound: row.from_round,
+        }),
+      }];
+    }
+    if (event.swap) {
+      const { a, b, aSent, bSent } = event.swap;
+      const row = event.rows[0]!;
+      return [{
+        id: row.id,
+        type: "trade",
+        fromRound: row.from_round,
+        sentence: announceTrade({
+          teamA: team(a),
+          teamB: team(b),
+          sent: named(aSent),
+          received: named(bSent),
           fromRound: row.from_round,
         }),
       }];
@@ -633,7 +670,7 @@ export async function readLeagueDeals(leagueId: string, season: string): Promise
     }));
     return {
       id: first.id,
-      kind: event.exchange ? "exchange" : (first.type as LeagueDeal["kind"]),
+      kind: event.exchange ? "exchange" : event.swap ? "trade" : (first.type as LeagueDeal["kind"]),
       fromRound: first.from_round,
       date: first.date ?? "",
       note: first.note?.trim() ?? "",

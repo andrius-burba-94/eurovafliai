@@ -141,7 +141,7 @@ export function planSync(input: SyncPlanInput): SyncPlan {
 
     if (exchange) {
       moves.push(
-        announceExchange({ teamName: team, released: playerName(released[0]!), acquired: playerName(acquired[0]!), fromRound: round }),
+        announceExchange({ teamName: team, released: released.map(playerName), acquired: acquired.map(playerName), fromRound: round }),
       );
     } else {
       if (released.length > 0) moves.push(announceDrop({ teamName: team, players: released.map(playerName), fromRound: round }));
@@ -152,7 +152,7 @@ export function planSync(input: SyncPlanInput): SyncPlan {
       drops.push({
         note: shared,
         announcement: exchange
-          ? announceExchange({ teamName: team, released: playerName(released[0]!), acquired: playerName(acquired[0]!), fromRound: round })
+          ? announceExchange({ teamName: team, released: released.map(playerName), acquired: acquired.map(playerName), fromRound: round })
           : announceDrop({ teamName: team, players: released.map(playerName), fromRound: round }),
         plan: {
           type: "drop",

@@ -249,6 +249,12 @@ test("a free-agent exchange is one trade and system notices stay out of chat", a
   await expect(activity.getByRole("tabpanel", { name: "Injuries" })).toBeVisible();
   await activity.getByRole("tab", { name: "EuroLeague news" }).click();
   await expect(activity.getByRole("tabpanel", { name: "EuroLeague news" })).toBeVisible();
+
+  await page.goto(`/leagues/${league.id}/teams/${mine.id}`);
+  await expect(page.getByTestId("impact-deal")).toHaveCount(1);
+  await expect(page.getByTestId("impact-deal")).toContainText(
+    /Virtuozas exchanged .*Release Brooks.* for .*Arrival Lawson/,
+  );
 });
 
 test("the setup lobby is untouched by any of this", async ({

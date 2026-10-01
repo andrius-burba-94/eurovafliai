@@ -631,3 +631,35 @@ planted live round-38 game and finds a `LIVE` tile with its score; parallel
 workers each plant one, so it takes the first live tile. Matchday and panel
 specs pass on both projects.
 
+## S23 — One trade, one row on My Team
+
+The Trades page already folded a sync's drop and add into one exchange, but My
+Team scored each row on its own, so one deal showed as a release and a signing
+with two numbers. Before changing the rule, the production rows were read
+(read-only, 1 October): 32 rows, 16 drops and 16 adds, all written by the sync
+in three sittings. Twelve are one-for-one pairs; two are one team dropping two
+players and adding two in the same minute — the old rule only paired a single
+drop with a single add, so those two split everywhere. No row was ever a
+`trade`: the official game has none, so a swap between friends arrives as each
+team's drop and add.
+
+The rule now pairs all of one team's drops and adds in one round whose rows
+were written within two minutes of each other, provided every row has a note
+and no player appears on both sides (a release and re-signing is two moves, not
+a trade). Notes are not compared, so a pair recorded by hand with two
+differently worded notes still reads as one move. Separately, when team A dropped a player team B
+added and B dropped a player A added in the same round, the four rows are one
+two-sided trade. Swaps are matched first, so a crossing
+deal is never claimed as two exchanges. `readMemberDeals` groups the whole
+league's rows, not just this team's, because a swap's other half is someone
+else's row, then keeps the events that name this team and sums their impact
+and round deltas. Run over production's 32 rows the grouping gives 14 events,
+twelve 1-for-1 and two 2-for-2, none left alone. The sync's own chat lines are
+unchanged: a several-for-several sync still announces a drop and a signing.
+
+Verification: lint, typecheck, knip and 1691 unit tests pass (`history.test.ts`
+covers any-count syncs, separate teams, rounds and sittings, and the two-team
+swap). The season-dashboard spec now opens My Team after a planted drop and add
+and finds one transaction row reading "exchanged"; transactions and trades
+specs pass.
+
