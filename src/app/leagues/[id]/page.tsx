@@ -27,6 +27,10 @@ import { readRecentTransactions } from "@/lib/memberships/queries";
 import { serverConfig } from "@/lib/config/server";
 import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
+import { completedOnly } from "@/lib/fixtures/progress";
+import { readRoundProgress } from "@/lib/fixtures/queries";
+import { readMatchdayData } from "@/lib/live/queries";
+import { liveRound } from "@/lib/season/dashboard";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
 import { DeleteLeague } from "./delete-league";
@@ -109,15 +113,36 @@ export default async function LobbyPage({
   // already existed for the page the dashboard is replacing a door to. In
   // parallel because they are independent, and at ~10 users the cost that
   // matters is the round trip rather than the work.
-  const [snapshots, recap, transactions, panel, news] = isSeasonDashboard
+  const [snapshots, transactions, panel, news] = isSeasonDashboard
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
-        readLeagueRecap(id, season, null).catch(() => null),
         readRecentTransactions(id, teamNames).catch(() => []),
         readPanel({ leagueId: id, season, teamNames }),
         readNews(100).catch(() => []),
       ])
-    : [[], null, [], null, []];
+    : [[], [], null, []];
+  // The story, the crowns and the movement are about the last round that is
+  // over; the round still being played is the live scorebug, in Live's figures.
+  const progress = isSeasonDashboard
+    ? await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round))
+    : null;
+  const live = progress ? liveRound(progress) : null;
+  const [recap, matchday] = progress
+    ? await Promise.all([
+        progress.lastComplete === null
+          ? null
+          : readLeagueRecap(id, season, progress.lastComplete).catch(() => null),
+        live
+          ? readMatchdayData({
+              leagueId: id,
+              memberIds: members.map((member) => member.id),
+              season,
+              requestedRound: live.round,
+              token: session.token,
+            }).catch(() => null)
+          : null,
+      ])
+    : [null, null];
 
   return (
     <AppShell
@@ -171,7 +196,18 @@ export default async function LobbyPage({
           leagueId={league.id}
           leagueName={league.name}
           season={season}
-          snapshots={snapshots}
+          snapshots={progress ? completedOnly(snapshots, progress) : []}
+          live={
+            live && matchday
+              ? {
+                  round: live.round,
+                  played: live.played,
+                  total: live.total,
+                  onAir: matchday.snapshots.some((game) => game.live),
+                  ranks: matchday.ranks,
+                }
+              : null
+          }
           recap={recap?.recap ?? null}
           playerNames={recap?.playerNames ?? {}}
           playerCodes={recap?.playerCodes ?? {}}

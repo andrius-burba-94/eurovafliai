@@ -66,7 +66,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
       <AppShell current="stats" league={navLeagueFrom(data)} measure="wide" testId="league-stats">
         <PageHeader eyebrow={data.league.name} title="League stats" />
         <Bank framed label="The season in numbers">
-          <EmptyNotice testId="stats-empty">No round has been counted yet. Records, profiles and leaders arrive with the first scored night.</EmptyNotice>
+          <EmptyNotice testId="stats-empty">No round has finished yet. Records, profiles and leaders arrive once the first round&apos;s last game is played.</EmptyNotice>
         </Bank>
       </AppShell>
     );
@@ -74,7 +74,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
 
   const { stats } = page;
   const { records } = stats;
-  const badges = badgesFrom(snapshots);
+  const badges = badgesFrom(snapshots.filter((snapshot) => stats.rounds.includes(snapshot.round)));
 
   const record = (label: string, who: ReactNode, value: string, detail: string, testId: string) => (
     <div data-testid={testId} className="flex flex-col gap-2 rounded-xl border border-panel-border bg-stock-panel p-4">
@@ -125,7 +125,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
 
   return (
     <AppShell current="stats" league={navLeagueFrom(data)} measure="wide" testId="league-stats">
-      <PageHeader eyebrow={data.league.name} title="League stats" lead={`The season so far, after ${stats.rounds.length} counted round${stats.rounds.length === 1 ? "" : "s"}.`} />
+      <PageHeader eyebrow={data.league.name} title="League stats" lead={`The season so far, after ${stats.rounds.length} finished round${stats.rounds.length === 1 ? "" : "s"}.`} />
 
       <nav aria-label="Topics" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
         {TOPICS.map(([anchor, label]) => (

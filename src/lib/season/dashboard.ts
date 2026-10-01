@@ -16,6 +16,8 @@
  * second rounding rule gets into a codebase.
  */
 
+import type { CurrentRound, RoundProgress } from "@/lib/fixtures/progress";
+
 /** One member's line in the table, as the dashboard draws it. */
 export type DashboardStanding = {
   readonly memberId: string;
@@ -74,6 +76,19 @@ export function dashboardStandings({
   );
 
   return rows.map((row, index) => ({ ...row, position: index + 1 }));
+}
+
+/**
+ * The round League Home draws as a live scorebug, or null between rounds.
+ *
+ * Only a started round after the last finished one: a postponed game keeps an
+ * old round open for weeks, and that is not the round anybody is watching.
+ */
+export function liveRound(progress: RoundProgress): CurrentRound | null {
+  const current = progress.current;
+  if (!current?.started) return null;
+  if (progress.lastComplete !== null && current.round <= progress.lastComplete) return null;
+  return current;
 }
 
 /**

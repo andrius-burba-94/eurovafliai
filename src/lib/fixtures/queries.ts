@@ -6,6 +6,7 @@ import {
   nextFixturesByClub,
   roundFixturesByClub,
 } from "./schedule";
+import { roundProgress, type RoundProgress } from "./progress";
 import { readStoredFixtures, scheduleRowsFrom } from "./store";
 import type { PlayerFixture } from "./types";
 
@@ -44,6 +45,20 @@ export async function readNextFixtures(
     // players somebody came to see for a fixture nobody had before today.
     return EMPTY;
   }
+}
+
+/**
+ * Which snapshot rounds are finished, and the round being played. With no
+ * readable schedule every snapshot counts as finished, which is what the pages
+ * showed before this existed.
+ */
+export async function readRoundProgress(
+  season: string,
+  token: string,
+  snapshotRounds: readonly number[],
+): Promise<RoundProgress> {
+  const fixtures = await seasonRows(season, token).catch(() => []);
+  return roundProgress({ fixtures, snapshotRounds, now: Date.now() });
 }
 
 /** Each club's game in one round — what a lineup for that round is about. */

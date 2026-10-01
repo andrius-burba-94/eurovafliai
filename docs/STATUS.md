@@ -52,6 +52,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S17 Lineup on one screen | Done | The page header is one toolbar (team or picker, round stepper, tip-off); with no `?round=` the page opens the current round (earliest with a game to play) instead of round 1. The court stands beside Sixth man, Bench and Inactive as compact cards, and its width is bounded by the viewport's height so the lineup fits one window. Players move by drag (mouse at once, touch after a short hold) or tap. The grid view is now the whole lineup as a table with a role select and captain radio per row — the court's cards no longer carry them. The form posts hidden fields from state, so without JavaScript the lineup can be read but not changed. |
 | S18 Live points on the lineup, watching any team | Done | Once a round tips off, each court name tag becomes a scoreboard plate (surname over the round's points, split by the position colour, `LIVE` while the game is on, the tip-off clock until it starts, `DNP` after) and the tier cards and grid show the same figure. It is the Live page's number: one `readRoundScores` and one pure `playerRoundOf` feed both, counted at the multiplier of where the player stands now. The lineup toolbar shows the feed status and refreshes on new snapshots. On Live, any member picks whose team to watch (the lineup's "Whose team" picker, now a shared `TeamPicker`) or taps a row in the table; the scoreboard names the team with its crest and colour. The lineup page's picker is still commissioner and deputies only. The tier cards lost their coloured left border (a DESIGN.md ban); the position patch already says G/F/C. |
 | S19 Names first name first | Done | Every screen prints a player as "Alexander Vezenkov", not the stored "Vezenkov, Alexander": one pure `displayName` (and `surname`, which replaces three local copies, including the board's `boardName`) in `src/lib/players/name.ts`, applied where a name is drawn. New chat lines (picks, trades, drops, adds, lineups) and sync summaries use it too. The stored name, matching, search, sorting, CSV exports and chat lines already posted are unchanged. The mapping queue still shows stored names, because it compares records. A name with no comma passes through whole. |
+| S20 A round in progress is not a finished round | Done | `recomputeStandings` writes a round's snapshot after its first finished game, and every page used to treat the newest snapshot as a finished round. A pure `roundProgress` (`src/lib/fixtures/progress.ts`) now says which snapshot rounds have no game left (`complete`, `lastComplete`) and which round is being played (`current`: started, played, total). Crowns, spoons, honours, overtake moments, the Stats page and League Home's round story read only complete rounds. During a round League Home's hero is a live scorebug (provisional round score and rank from Live's own `readMatchdayData`, games played, `LIVE` while a game is on, **Watch live**); the table labels its round column "So far" and drops arrows. Recap opens on the last finished round; a round in progress stays in the picker marked "in progress" and reads provisional: a banner with games played, "X lead round N", "Leading so far" without a crown, "Sitting last" instead of the wooden spoon, no moments. With no stored schedule a snapshot round counts as finished, as before. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:
@@ -74,10 +75,17 @@ or tap its row in the table; the scoreboard says **Watching** and its name.
 Every player name reads first name first ("Alexander Vezenkov"), on the
 lineup, the draft board's tooltips, Stats, Recap and in new chat lines; a
 results CSV from **Download** still says "Vezenkov, Alexander".
+While a round still has a game to play, League Home's hero shows that round's
+score so far and **Watch live**, its story is the previous round, and Recap
+opens on the last finished round, with the open one marked "in progress".
 
 **Known local-only failure.** `news.spec.ts` plants items dated 13 September; a
 local database that has run the news worker holds newer items, and the page
 shows the newest 40, so the planted row is off the list. CI starts empty.
+Likewise `season-dashboard.spec.ts` and `league-stats.spec.ts` seed snapshots
+for rounds 1–2 of the current season: on a local database whose ingested
+schedule still has a round 2 game to play, that round is (correctly) not
+finished, so its crowns, ranks and records are not shown. CI has no schedule.
 
 ## League activity
 

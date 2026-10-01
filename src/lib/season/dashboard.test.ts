@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dashboardStandings, seasonLabel } from "./dashboard";
+import { dashboardStandings, liveRound, seasonLabel } from "./dashboard";
 
 const TEAMS = { a: "Virtuozas", b: "Vafliai", c: "Krosas" };
 
@@ -129,5 +129,23 @@ describe("seasonLabel", () => {
 
   it("hands back anything it cannot read, rather than inventing a season", () => {
     expect(seasonLabel("not-a-season")).toBe("not-a-season");
+  });
+});
+
+describe("liveRound", () => {
+  const round = (n: number, started: boolean) => ({ round: n, started, played: 4, total: 10 });
+
+  it("is the started round after the last finished one", () => {
+    expect(liveRound({ complete: [1, 2], lastComplete: 2, current: round(3, true) })).toEqual(round(3, true));
+    expect(liveRound({ complete: [], lastComplete: null, current: round(1, true) })).toEqual(round(1, true));
+  });
+
+  it("is nothing between rounds or after the season", () => {
+    expect(liveRound({ complete: [1, 2], lastComplete: 2, current: round(3, false) })).toBeNull();
+    expect(liveRound({ complete: [1, 2], lastComplete: 2, current: null })).toBeNull();
+  });
+
+  it("does not bring back a round held open by a postponed game", () => {
+    expect(liveRound({ complete: [1, 3, 4], lastComplete: 4, current: round(2, true) })).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import { ScoreFigure, TeamCrest } from "@/components/broadcast";
 import { BoardScroll } from "@/components/board-scroll";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
+import { completedOnly } from "@/lib/fixtures/progress";
 import { badgesFrom, honoursByRound } from "@/lib/season/badges";
 import { formatHundredths } from "@/lib/stats/scoring";
 import {
@@ -39,6 +40,7 @@ const HONOURS = [
  */
 export function StandingsTable({
   snapshots,
+  complete,
   names,
   styles,
   leagueId,
@@ -46,6 +48,8 @@ export function StandingsTable({
   viewerMemberId,
 }: {
   snapshots: RoundSnapshot[];
+  /** Rounds with no game left; only these crown a winner or earn a badge. */
+  complete: readonly number[];
   names: Record<string, string>;
   styles: Record<string, TeamStyle>;
   leagueId: string;
@@ -74,8 +78,10 @@ export function StandingsTable({
               a.memberId.localeCompare(b.memberId),
           )
           .map((row) => row.memberId);
-  const winners = new Map(honoursByRound(shown).map((round) => [round.round, new Set(round.winners)]));
-  const badges = badgesFrom(shown);
+  const finished = completedOnly(shown, { complete });
+  const winners = new Map(honoursByRound(finished).map((round) => [round.round, new Set(round.winners)]));
+  const badges = badgesFrom(finished);
+  const latestOpen = latestRound !== undefined && !complete.includes(latestRound);
   const leader = rows[0]?.totalHundredths ?? 0;
   const nameOf = (memberId: string) => names[memberId] ?? memberId;
 
@@ -191,7 +197,13 @@ export function StandingsTable({
                   <span role="columnheader" className="slot-label border-b border-rule-strong px-2 pb-1.5 text-right">Total</span>
                   <span role="columnheader" className="slot-label border-b border-rule-strong px-2 pb-1.5 text-right">Gap</span>
                   {rounds.map((round) => (
-                    <span key={round} role="columnheader" aria-label={`Round ${round}`} className="stat slot-label border-b border-rule-strong px-2 pb-1.5 text-right">
+                    <span
+                      key={round}
+                      role="columnheader"
+                      aria-label={complete.includes(round) ? `Round ${round}` : `Round ${round}, so far`}
+                      className="stat slot-label flex flex-col items-end border-b border-rule-strong px-2 pb-1.5 text-right"
+                    >
+                      {complete.includes(round) ? null : <span className="text-[0.625rem] text-live">So far</span>}
                       R{round}
                     </span>
                   ))}
@@ -207,7 +219,7 @@ export function StandingsTable({
                       key={row.memberId}
                       kind="overtake"
                       id={`overtake:${leagueId}:${latestRound}:${index + 1}`}
-                      playing={mine && moved > 0}
+                      playing={mine && moved > 0 && !latestOpen}
                       role="row"
                       testId="standings-row"
                       className={`grid items-center border-b border-rule/60 ${mine ? "bg-live-sunk" : ""}`}

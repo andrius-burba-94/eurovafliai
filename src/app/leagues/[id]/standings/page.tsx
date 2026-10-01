@@ -11,6 +11,7 @@ import {
 } from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
+import { readRoundProgress } from "@/lib/fixtures/queries";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readProvisionalRounds } from "@/lib/lineups/queries";
@@ -62,6 +63,13 @@ export default async function StandingsPage({
       snapshots.flatMap((snap) => snap.table.map((row) => row.memberId)),
     ),
   ];
+  const progress = await readRoundProgress(
+    season,
+    session.token,
+    snapshots.map((snap) => snap.round),
+  );
+  const latestRound = snapshots.at(-1)?.round;
+  const latestOpen = latestRound !== undefined && !progress.complete.includes(latestRound);
   const provisional =
     snapshots.length > 0
       ? await readProvisionalRounds({
@@ -92,7 +100,13 @@ export default async function StandingsPage({
       <PageHeader
         eyebrow={data.league.name}
         title="Standings"
-        lead={snapshots.length > 0 ? `After round ${snapshots.at(-1)!.round}. Each round's winner is in gold.` : undefined}
+        lead={
+          latestRound === undefined
+            ? undefined
+            : latestOpen
+              ? `Round ${latestRound} is still being played, so its column is points so far. Each finished round's winner is in gold.`
+              : `After round ${latestRound}. Each round's winner is in gold.`
+        }
         action={<DownloadMenu leagueId={data.league.id} />}
       />
 
@@ -153,6 +167,7 @@ export default async function StandingsPage({
           ) : null}
           <StandingsTable
             snapshots={snapshots}
+            complete={progress.complete}
             names={names}
             styles={stylesById(data.members)}
             leagueId={id}

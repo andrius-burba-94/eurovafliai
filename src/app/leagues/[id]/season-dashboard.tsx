@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Bank, Door, EmptyNotice, Slot, Slots } from "@/components/board";
-import { PageHeader, ScoreFigure, TeamCrest, teamFieldStyle } from "@/components/broadcast";
+import { PageHeader, ScoreFigure, StatusBadge, TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
+import type { ProvisionalRank } from "@/lib/live/rank";
 import type { PanelData } from "@/lib/panel/types";
 import { dashboardStandings, seasonLabel } from "@/lib/season/dashboard";
 import { movementOf, ordinal, roundStory } from "@/lib/season/story";
@@ -37,6 +38,7 @@ export function SeasonDashboard({
   leagueName,
   season,
   snapshots,
+  live,
   recap,
   playerNames,
   playerCodes,
@@ -49,7 +51,10 @@ export function SeasonDashboard({
   leagueId: string;
   leagueName: string;
   season: string;
+  /** Finished rounds only; the round being played arrives as `live`. */
   snapshots: readonly RoundSnapshot[];
+  live: LiveRound | null;
+  /** The last finished round's recap. */
   recap: Recap | null;
   playerNames: Readonly<Record<string, string>>;
   playerCodes: Readonly<Record<string, string>>;
@@ -62,14 +67,24 @@ export function SeasonDashboard({
 }) {
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.at(-2) ?? null;
-  const standings = dashboardStandings({
-    totals: Object.fromEntries((latest?.table ?? []).map((row) => [row.memberId, row.totalHundredths])),
-    previous: previous
-      ? Object.fromEntries(previous.table.map((row) => [row.memberId, row.totalHundredths]))
-      : null,
-    teamNames,
-    youMemberId,
-  });
+  // While a round is played the table is Live's provisional one, so the hero
+  // and the rows cannot disagree; its round column is that round so far.
+  const standings = live
+    ? dashboardStandings({
+        totals: Object.fromEntries(live.ranks.map((row) => [row.memberId, row.totalHundredths])),
+        previous: Object.fromEntries(live.ranks.map((row) => [row.memberId, row.totalHundredths - row.roundHundredths])),
+        teamNames,
+        youMemberId,
+      })
+    : dashboardStandings({
+        totals: Object.fromEntries((latest?.table ?? []).map((row) => [row.memberId, row.totalHundredths])),
+        previous: previous
+          ? Object.fromEntries(previous.table.map((row) => [row.memberId, row.totalHundredths]))
+          : null,
+        teamNames,
+        youMemberId,
+      });
+  const yourLive = live && youMemberId ? standings.find((row) => row.memberId === youMemberId) ?? null : null;
   const leaderTotal = standings[0]?.totalHundredths ?? 0;
   const movement = youMemberId ? movementOf(snapshots, youMemberId, teamNames) : null;
   const story = roundStory(recap);
@@ -88,7 +103,7 @@ export function SeasonDashboard({
   return (
     <>
       <PageHeader
-        eyebrow={`${seasonLabel(season)} season${latest ? ` · after round ${latest.round}` : ""}`}
+        eyebrow={`${seasonLabel(season)} season${live ? ` · round ${live.round} in progress` : latest ? ` · after round ${latest.round}` : ""}`}
         title={leagueName}
       />
 
@@ -103,13 +118,38 @@ export function SeasonDashboard({
           <div className="relative flex flex-col gap-5">
             <div className="flex items-center gap-3">
               {you.style ? <TeamCrest name={you.name} color={you.style.color} shape={you.style.crest} size={52} /> : null}
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="slot-label">Your team</p>
                 <p className="display truncate text-2xl sm:text-3xl">{you.name}</p>
               </div>
+              {live ? (
+                live.onAir ? (
+                  <StatusBadge kind="live" testId="dashboard-live-badge">Live</StatusBadge>
+                ) : (
+                  <StatusBadge kind="provisional" testId="dashboard-live-badge">In progress</StatusBadge>
+                )
+              ) : null}
             </div>
 
-            {movement ? (
+            {live && yourLive ? (
+              <div className="flex flex-wrap items-end gap-x-8 gap-y-3" data-testid="dashboard-scorebug">
+                <div>
+                  <p className="slot-label">Round {live.round} so far</p>
+                  <ScoreFigure size="xl" testId="dashboard-round-score">
+                    {formatHundredths(yourLive.roundHundredths ?? 0)}
+                  </ScoreFigure>
+                </div>
+                <div className="flex flex-col gap-1 pb-1">
+                  <p className="slot-label">Live rank</p>
+                  <ScoreFigure size="md" testId="dashboard-rank">
+                    {ordinal(yourLive.position)}
+                  </ScoreFigure>
+                  <p className="text-sm text-ink-soft">
+                    <span className="stat text-ink">{formatHundredths(yourLive.totalHundredths)}</span> total, provisional
+                  </p>
+                </div>
+              </div>
+            ) : movement ? (
               <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
                 <div>
                   <p className="slot-label">Rank</p>
@@ -145,20 +185,51 @@ export function SeasonDashboard({
               <p className="text-sm text-ink-soft">No round has been scored yet. Your rank arrives after the first counted night.</p>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-ink-soft">
-                {nextRound && nextTip
-                  ? `Round ${nextRound} tips off ${formatTipOff(nextTip)}`
-                  : "Set who starts and who is captain before each round."}
-              </p>
-              <Link
-                href={`/leagues/${leagueId}/lineup`}
-                data-testid="hero-lineup"
-                className="inline-flex min-h-11 items-center rounded-lg bg-live px-5 text-sm font-bold text-live-ink transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-              >
-                Set lineup
-              </Link>
-            </div>
+            {live ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <p className="text-sm text-ink" data-testid="dashboard-games-played">
+                    Round {live.round} · {live.played} of {live.total} {live.total === 1 ? "game" : "games"} played
+                  </p>
+                  <span aria-hidden="true" className="flex gap-1">
+                    {Array.from({ length: live.total }, (_, index) => (
+                      <span key={index} className={`h-1.5 w-4 rounded-full ${index < live.played ? "bg-ink" : "bg-ink/15"}`} />
+                    ))}
+                  </span>
+                </div>
+                <span className="flex items-center gap-1">
+                  <Link
+                    href={`/leagues/${leagueId}/lineup`}
+                    data-testid="hero-lineup"
+                    className="inline-flex min-h-11 items-center px-3 text-sm font-semibold text-ink underline decoration-ink/40 underline-offset-4 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                  >
+                    Lineup
+                  </Link>
+                  <Link
+                    href={`/leagues/${leagueId}/matchday`}
+                    data-testid="hero-watch-live"
+                    className="inline-flex min-h-11 items-center rounded-lg bg-live px-5 text-sm font-bold text-live-ink transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                  >
+                    Watch live
+                  </Link>
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-ink-soft">
+                  {nextRound && nextTip
+                    ? `Round ${nextRound} tips off ${formatTipOff(nextTip)}`
+                    : "Set who starts and who is captain before each round."}
+                </p>
+                <Link
+                  href={`/leagues/${leagueId}/lineup`}
+                  data-testid="hero-lineup"
+                  className="inline-flex min-h-11 items-center rounded-lg bg-live px-5 text-sm font-bold text-live-ink transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                >
+                  Set lineup
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       ) : null}
@@ -191,7 +262,13 @@ export function SeasonDashboard({
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-x-6">
         <Bank
           label="League standings"
-          aside={latest ? <span data-testid="dashboard-round">Round {latest.round}</span> : undefined}
+          aside={
+            live ? (
+              <span data-testid="dashboard-round">Round {live.round} so far</span>
+            ) : latest ? (
+              <span data-testid="dashboard-round">Round {latest.round}</span>
+            ) : undefined
+          }
           framed
         >
           {standings.length === 0 ? (
@@ -239,7 +316,7 @@ export function SeasonDashboard({
                 );
                 return (
                   <Slot key={row.memberId} testId="dashboard-standing" state="filled" nowrap>
-                    {row.isYou && movement && movement.moved > 0 && latest ? (
+                    {!live && row.isYou && movement && movement.moved > 0 && latest ? (
                       <Moment kind="overtake" id={`overtake:${leagueId}:${latest.round}:${movement.rank}`} as="span" className="flex w-full">
                         {content}
                       </Moment>
@@ -340,7 +417,9 @@ export function SeasonDashboard({
             </div>
           ) : (
             <EmptyNotice testId="dashboard-news-empty">
-              Nothing to report yet. A round&rsquo;s story arrives with the first night this league counts.
+              {live
+                ? `Round ${live.round} is still being played. Its story arrives with the last game.`
+                : "Nothing to report yet. A round\u2019s story arrives with the first night this league counts."}
             </EmptyNotice>
           )}
           <Slots>
@@ -359,6 +438,15 @@ export function SeasonDashboard({
     </>
   );
 }
+
+export type LiveRound = {
+  readonly round: number;
+  readonly played: number;
+  readonly total: number;
+  /** A game's live feed is running. */
+  readonly onAir: boolean;
+  readonly ranks: readonly ProvisionalRank[];
+};
 
 function TeamLink({ href, name, isYou }: { href: string; name: string; isYou: boolean }) {
   return (
