@@ -7,6 +7,7 @@ import { Bank, FilterToggle, Sparkline } from "@/components/board";
 import { ScoreFigure, TeamCrest } from "@/components/broadcast";
 import { BoardScroll } from "@/components/board-scroll";
 import { Glyph } from "@/components/glyphs";
+import { HONOURS, HonourChip } from "@/components/honour-chip";
 import { Moment } from "@/components/moment";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { badgesFrom, honoursByRound } from "@/lib/season/badges";
@@ -25,12 +26,6 @@ const PHASE_LABEL: Record<Phase, string> = {
   PO: "Playoffs",
   FF: "Final Four",
 };
-
-const HONOURS = [
-  { id: "on-fire", label: "On fire", glyph: "flame", ink: "text-live", tone: "border-live/50 bg-live-sunk" },
-  { id: "crowned", label: "Crowned", glyph: "crown", ink: "text-gold", tone: "border-gold/50 bg-gold/10" },
-  { id: "spoon-collector", label: "Spoon collector", glyph: "spoon", ink: "text-wood", tone: "border-wood/60 bg-wood/15" },
-] as const;
 
 /**
  * The table (ADR-0011): a podium for the top three, the honours the league has
@@ -148,10 +143,7 @@ export function StandingsTable({
         <ul role="list" aria-label="Honours so far" data-testid="standings-badges" className="flex flex-col gap-2">
           {HONOURS.filter((honour) => badges.some((badge) => badge.id === honour.id)).map((honour) => (
             <li key={honour.id} className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border px-3 py-2 text-xs ${honour.tone}`}>
-              <span className="flex items-center gap-1.5 font-bold">
-                <Glyph name={honour.glyph} size={14} className={honour.ink} />
-                {honour.label}
-              </span>
+              <HonourChip id={honour.id} />
               <ul role="list" className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 {badges
                   .filter((badge) => badge.id === honour.id)

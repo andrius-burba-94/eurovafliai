@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
+import { FULL_WEIGHTS, lineupWeights, resolveLineups, type LineupWeights } from "@/lib/lineups/lineup";
 
-import { leagueStats, type StatsInput } from "./league-stats";
+import { headToHead, leagueStats, type StatsInput } from "./league-stats";
 import type { RoundSnapshot } from "./standings";
 
 const snap = (round: number, rows: [string, number, number][]): RoundSnapshot => ({
@@ -46,10 +46,10 @@ const input: StatsInput = {
   windows,
   weights,
   picks: [
-    { overallNo: 1, round: 1, memberId: "a", playerId: "p1", isAuto: false },
-    { overallNo: 2, round: 1, memberId: "b", playerId: "p3", isAuto: false },
-    { overallNo: 3, round: 2, memberId: "b", playerId: "p4", isAuto: true },
-    { overallNo: 4, round: 2, memberId: "a", playerId: "p2", isAuto: false },
+    { overallNo: 1, round: 1, memberId: "a", playerId: "p1" },
+    { overallNo: 2, round: 1, memberId: "b", playerId: "p3" },
+    { overallNo: 3, round: 2, memberId: "b", playerId: "p4" },
+    { overallNo: 4, round: 2, memberId: "a", playerId: "p2" },
   ],
   positions: { p1: "G", p2: "F", p3: "C", p4: "G", p5: "F" },
 };
@@ -100,8 +100,113 @@ describe("leagueStats draft", () => {
     const { draft } = leagueStats(input);
     // p2 was a's late pick but left after round 1: only its 100 counts for a.
     expect(draft.steals.map((pick) => [pick.playerId, pick.tenths])).toEqual([["p2", 100], ["p4", 50]]);
-    expect(draft.autoPicks).toBe(1);
-    expect(draft.autoAverageTenths).toBe(50);
+    expect(draft.busts.map((pick) => pick.playerId)).toEqual(["p3", "p1"]);
+  });
+});
+
+describe("leagueStats counts finished rounds only", () => {
+  it("ignores a night from a round still being played", () => {
+    const stats = leagueStats({ ...input, lines: [...lines, { playerId: "p1", round: 3, fantasyTenths: 999 }] });
+    expect(stats.records.bestNight?.tenths).toBe(200);
+    expect(stats.players.overall.find((row) => row.playerId === "p1")?.tenths).toBe(280);
+  });
+});
+
+describe("leagueStats waffle board", () => {
+  it("places every team in every round, ordered by the table", () => {
+    const { waffle } = leagueStats(input);
+    expect(waffle).toEqual({
+      rounds: [1, 2],
+      teams: 2,
+      rows: [
+        { memberId: "a", places: [1, 2] },
+        { memberId: "b", places: [2, 1] },
+      ],
+    });
+  });
+
+  it("leaves a night nobody scored blank", () => {
+    const { waffle } = leagueStats({ ...input, snapshots: [snap(1, [["a", 0, 0], ["b", 0, 0]])] });
+    expect(waffle.rows.map((row) => row.places)).toEqual([[null], [null]]);
+  });
+});
+
+describe("headToHead", () => {
+  it("counts rounds won each way and the margin of each", () => {
+    expect(headToHead(input.snapshots, "a", "b")).toEqual({
+      a: "a",
+      b: "b",
+      aWins: 1,
+      bWins: 1,
+      ties: 0,
+      rounds: [
+        { round: 1, marginHundredths: 25000 },
+        { round: 2, marginHundredths: -22000 },
+      ],
+    });
+  });
+
+  it("skips a round one of the two did not play", () => {
+    expect(headToHead([snap(1, [["a", 100, 100]])], "a", "b").rounds).toEqual([]);
+  });
+});
+
+describe("hindsight, captain regret and club loyalty", () => {
+  // m's seven: three guards, two forwards, two centers.
+  const positions = { g1: "G", g2: "G", g3: "G", f1: "F", f2: "F", c1: "C", c2: "C" } as const;
+  const squad = Object.keys(positions);
+  const slots = { starters: ["g3", "g2", "f1", "f2", "c1"], captain: "g3", sixth: ["c2"], bench: ["g1"], inactive: [] };
+  const lineups = resolveLineups({ recorded: [{ memberId: "m", round: 1, slots }], rounds: [1, 2], memberIds: ["m", "n"] });
+  const round1: Record<string, [number, string]> = {
+    g1: [100, "OLY"], g2: [80, "OLY"], g3: [10, "PAN"], f1: [60, "PAN"], f2: [50, "MAD"], c1: [40, "MAD"], c2: [90, "MAD"],
+  };
+  const statsFor = () =>
+    leagueStats({
+      snapshots: [snap(1, [["m", 39000, 39000], ["n", 10000, 10000]]), snap(2, [["m", 40000, 79000], ["n", 0, 10000]])],
+      lines: [
+        ...Object.entries(round1).map(([playerId, [fantasyTenths, clubCode]]) => ({ playerId, round: 1, fantasyTenths, clubCode })),
+        // g3 changed clubs before round 2 and, captained again, scored everything.
+        { playerId: "g3", round: 2, fantasyTenths: 200, clubCode: "OLY" },
+      ],
+      windows: squad.map((playerId) => ({ memberId: "m", playerId, from_round: 1 })),
+      weights: lineupWeights(lineups),
+      lineups,
+      picks: [],
+      positions,
+    });
+
+  it("replays each recorded round with the best legal lineup the squad allowed", () => {
+    // Round 1 best: 2-2-1 with g1 captain, c1 sixth, g3 on the bench = 525.0;
+    // what was set scored 390.0. Round 2 was already perfect at 400.0.
+    expect(statsFor().hindsight).toEqual([
+      { memberId: "m", rounds: 2, actualTenths: 790, bestTenths: 925, iqPercent: 85, worst: { round: 1, lostTenths: 135 } },
+    ]);
+  });
+
+  it("weighs the armband against the best starter of the five", () => {
+    expect(statsFor().captains).toEqual([
+      { memberId: "m", rounds: 2, perfect: 1, regretTenths: 70, worst: { round: 1, captainId: "g3", bestId: "g2", regretTenths: 70 } },
+    ]);
+  });
+
+  it("does not judge a round with no lineup", () => {
+    const stats = statsFor();
+    expect(stats.hindsight.map((row) => row.memberId)).toEqual(["m"]);
+    expect(stats.captains.map((row) => row.memberId)).toEqual(["m"]);
+  });
+
+  it("counts points for the club a player wore that night", () => {
+    expect(statsFor().clubs).toEqual([
+      {
+        memberId: "m",
+        totalTenths: 790,
+        clubs: [
+          { clubCode: "OLY", tenths: 530 },
+          { clubCode: "MAD", tenths: 180 },
+          { clubCode: "PAN", tenths: 80 },
+        ],
+      },
+    ]);
   });
 });
 

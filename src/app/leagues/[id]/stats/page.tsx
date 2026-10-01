@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
 import { PageHeader, ScoreFigure, TeamCrest } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
+import { HonourChip } from "@/components/honour-chip";
 import { PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
@@ -15,42 +16,52 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { readLeagueDeals } from "@/lib/memberships/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { badgesFrom } from "@/lib/season/badges";
-import type { PlayerLeader } from "@/lib/stats/league-stats";
+import { headToHead, type PlayerLeader } from "@/lib/stats/league-stats";
 import { readLeagueStats } from "@/lib/stats/league-stats-queries";
-import { readStandingsSnapshots } from "@/lib/stats/queries";
 import { formatHundredths, formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
+
+import {
+  CaptainRegretView,
+  ClubLoyaltyView,
+  DraftValueView,
+  HeadToHeadView,
+  HindsightView,
+  WaffleBoardView,
+  type Who,
+} from "./sections";
 
 const TOPICS = [
   ["records", "Records"],
   ["teams", "Teams"],
+  ["h2h", "Head-to-head"],
   ["lineups", "Lineups"],
   ["draft", "Draft"],
   ["players", "Players"],
+  ["clubs", "Clubs"],
   ["deals", "Deals"],
 ] as const;
 
 /**
- * League Stats (ADR-0011, S10): the season in numbers — records, team
- * profiles, how well lineups were set, what the draft was worth, the players
- * of the season and the market. Every figure is derived in
- * `src/lib/stats/league-stats.ts` from rows the app already stores.
+ * League Stats (ADR-0011, S10): the season in numbers — every team's finish
+ * per round, records, team profiles, how well lineups and captains were set,
+ * what the draft was worth, the players of the season, the clubs that carried
+ * each team and the market. Every figure is derived in
+ * `src/lib/stats/league-stats.ts` from rows the app already stores, over
+ * finished rounds only.
  */
-export default async function StatsPage({ params }: PageProps<"/leagues/[id]/stats">) {
+export default async function StatsPage({ params, searchParams }: PageProps<"/leagues/[id]/stats">) {
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
   const { id } = await params;
+  const query = await searchParams;
   const data = await getLeagueWithMembers(id);
   if (!data) notFound();
   const you = data.members.find((member) => member.isYou);
   if (!you || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
 
   const season = serverConfig().EUROLEAGUE_SEASON;
-  const [page, deals, snapshots] = await Promise.all([
-    readLeagueStats(id, season),
-    readLeagueDeals(id, season),
-    readStandingsSnapshots(id, season),
-  ]);
+  const [page, deals] = await Promise.all([readLeagueStats(id, season), readLeagueDeals(id, season)]);
   const styles = stylesById(data.members);
   const team = (memberId: string | null) => {
     if (!memberId) return "Free agent";
@@ -74,7 +85,13 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
 
   const { stats } = page;
   const { records } = stats;
-  const badges = badgesFrom(snapshots.filter((snapshot) => stats.rounds.includes(snapshot.round)));
+  const badges = badgesFrom(page.snapshots);
+  const who: Who = { team, crest, player, you: you.id };
+  const ranked = stats.waffle.rows.map((row) => row.memberId);
+  const known = (raw: string | string[] | undefined) => (typeof raw === "string" && ranked.includes(raw) ? raw : null);
+  const left = known(query.a) ?? (ranked.includes(you.id) ? you.id : ranked[0]);
+  const right = known(query.b) ?? ranked.find((memberId) => memberId !== left);
+  const h2h = left && right ? headToHead(page.snapshots, left, right) : null;
 
   const record = (label: string, who: ReactNode, value: string, detail: string, testId: string) => (
     <div data-testid={testId} className="flex flex-col gap-2 rounded-xl border border-panel-border bg-stock-panel p-4">
@@ -127,6 +144,8 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
     <AppShell current="stats" league={navLeagueFrom(data)} measure="wide" testId="league-stats">
       <PageHeader eyebrow={data.league.name} title="League stats" lead={`The season so far, after ${stats.rounds.length} finished round${stats.rounds.length === 1 ? "" : "s"}.`} />
 
+      <WaffleBoardView waffle={stats.waffle} who={who} />
+
       <nav aria-label="Topics" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
         {TOPICS.map(([anchor, label]) => (
           <a key={anchor} href={`#${anchor}`} className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-rule px-3.5 text-sm font-semibold text-ink-soft hover:border-ink-soft hover:text-ink">
@@ -147,10 +166,9 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
         {badges.length > 0 ? (
           <ul role="list" aria-label="Honours so far" className="flex flex-wrap gap-2">
             {badges.map((badge) => (
-              <li key={`${badge.id}:${badge.memberId}`} className="flex items-center gap-2 rounded-full border border-panel-border bg-stock-panel py-1 pr-3 pl-1 text-xs">
+              <li key={`${badge.id}:${badge.memberId}`} className="flex items-center gap-2 rounded-full border border-panel-border bg-stock-panel py-0.5 pr-3 pl-1 text-xs">
                 {crest(badge.memberId, 22)}
-                <Glyph name={badge.id === "on-fire" ? "flame" : badge.id === "crowned" ? "crown" : "spoon"} size={14} className={badge.id === "on-fire" ? "text-live" : badge.id === "crowned" ? "text-gold" : "text-wood"} />
-                <span className="font-bold">{badge.title}</span>
+                <HonourChip id={badge.id} title={badge.title} />
                 <span className="text-ink-soft">{team(badge.memberId)}</span>
               </li>
             ))}
@@ -198,6 +216,10 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
         </Bank>
       </section>
 
+      <section id="h2h" className="scroll-mt-20">
+        <HeadToHeadView h2h={h2h} teams={ranked} action={`/leagues/${id}/stats#h2h`} who={who} />
+      </section>
+
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <section id="lineups" className="scroll-mt-20">
           <Bank framed label="Lineup efficiency" aside="Recorded rounds only">
@@ -224,38 +246,18 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
           </Bank>
         </section>
 
-        <section id="draft" className="scroll-mt-20">
-          <Bank framed label="Draft value" aside="Points for the drafting team">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <p className="slot-label text-gain">Steals · late picks</p>
-                {stats.draft.steals.map((pick) => (
-                  <p key={pick.overallNo} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate"><span className="stat text-ink-faint">#{pick.overallNo}</span> {displayName(player(pick.playerId)?.name ?? "A player")}</span>
-                    <span className="stat font-bold">{formatTenths(pick.tenths)}</span>
-                  </p>
-                ))}
-              </div>
-              <div className="flex flex-col gap-2">
-                <p className="slot-label text-loss">Busts · early picks</p>
-                {stats.draft.busts.map((pick) => (
-                  <p key={pick.overallNo} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate"><span className="stat text-ink-faint">#{pick.overallNo}</span> {displayName(player(pick.playerId)?.name ?? "A player")}</span>
-                    <span className="stat font-bold">{formatTenths(pick.tenths)}</span>
-                  </p>
-                ))}
-              </div>
-            </div>
-            {stats.draft.autoPicks > 0 ? (
-              <p className="text-sm text-ink-soft">
-                Autodraft made {stats.draft.autoPicks} pick{stats.draft.autoPicks === 1 ? "" : "s"}, averaging{" "}
-                <span className="stat text-ink">{formatTenths(stats.draft.autoAverageTenths ?? 0)}</span> against{" "}
-                <span className="stat text-ink">{formatTenths(stats.draft.humanAverageTenths ?? 0)}</span> for picks people made.
-              </p>
-            ) : null}
-          </Bank>
+        <section id="captains" className="scroll-mt-20">
+          <CaptainRegretView rows={stats.captains} who={who} />
         </section>
       </div>
+
+      <section id="hindsight" className="scroll-mt-20">
+        <HindsightView rows={stats.hindsight} who={who} />
+      </section>
+
+      <section id="draft" className="scroll-mt-20">
+        <DraftValueView draft={stats.draft} who={who} />
+      </section>
 
       <section id="players" className="scroll-mt-20">
         <Bank framed label="Players of the season" aside="Fantasy points">
@@ -282,6 +284,10 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
             ))}
           </div>
         </Bank>
+      </section>
+
+      <section id="clubs" className="scroll-mt-20">
+        <ClubLoyaltyView rows={stats.clubs} clubNames={page.clubNames} who={who} />
       </section>
 
       <section id="deals" className="scroll-mt-20">
