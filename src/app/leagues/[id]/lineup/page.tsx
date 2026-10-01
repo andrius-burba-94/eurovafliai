@@ -151,6 +151,7 @@ export default async function LineupPage({
           players={board.players}
           comparison={comparison}
           source={board.source}
+          official={board.official}
           carriedFrom={board.carriedFrom}
           template={data.settings.lineup_template}
         />

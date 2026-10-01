@@ -46,7 +46,7 @@ import { fetchLiveBoxscore } from "@/lib/live/boxscore";
 import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
-import { syncDueLeagues } from "@/lib/fantasy/store";
+import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import { fetchSeasonAverages } from "@/lib/stats/euroleague";
@@ -425,7 +425,10 @@ function main(): void {
    * and a pick deadline must never wait on it. Every ten minutes it asks
    * whether a pass is due — `syncDueLeagues` holds the schedule (hourly inside
    * a round's freeze, a preview every six hours outside it) — so a pass lands
-   * within ten minutes of the five-minutes-after-tip-off mark.
+   * within ten minutes of the five-minutes-after-tip-off mark. Lineups follow
+   * the rosters in the same pass, so a frozen round's lineups are checked
+   * against the roster that was just synced; `syncDueLineups` holds their
+   * schedule (`lineupRoundsDue`).
    */
   let fantasyInFlight: Promise<void> | null = null;
   let fantasyTimer: ReturnType<typeof setInterval> | null = null;
@@ -433,13 +436,14 @@ function main(): void {
   async function fantasyPass(token: string): Promise<void> {
     try {
       await ensureAuth(pb, env);
-      const results = await syncDueLeagues({ pb, token, season: env.EUROLEAGUE_SEASON, now: new Date() });
-      for (const result of results) {
+      const rosters = await syncDueLeagues({ pb, token, season: env.EUROLEAGUE_SEASON, now: new Date() });
+      const lineups = await syncDueLineups({ pb, token, season: env.EUROLEAGUE_SEASON, now: new Date() });
+      for (const result of [...rosters, ...lineups]) {
         if (result.error) {
           log(`fantasy sync · league ${result.leagueId} failed: ${result.error}`, "error");
         } else if (result.run) {
-          const { mode, round, status, message } = result.run;
-          log(`fantasy sync · league ${result.leagueId} · ${mode} round ${round} · ${status} · ${message}`, status === "failed" ? "warn" : "info");
+          const { kind, mode, round, status, message } = result.run;
+          log(`fantasy sync · league ${result.leagueId} · ${kind} · ${mode} round ${round} · ${status} · ${message}`, status === "failed" ? "warn" : "info");
         }
       }
     } catch (error) {
@@ -451,10 +455,10 @@ function main(): void {
   function scheduleFantasy(): void {
     const token = env.FANTASY_CHALLENGE_TOKEN;
     if (!token) {
-      log("fantasy roster sync is off (no FANTASY_CHALLENGE_TOKEN)");
+      log("fantasy roster and lineup sync is off (no FANTASY_CHALLENGE_TOKEN)");
       return;
     }
-    log(`fantasy roster sync on · checks every ${FANTASY_EVERY_MS / 60_000}min`);
+    log(`fantasy roster and lineup sync on · checks every ${FANTASY_EVERY_MS / 60_000}min`);
     const run = () => {
       if (stopping || fantasyInFlight) return;
       fantasyInFlight = fantasyPass(token).finally(() => { fantasyInFlight = null; });

@@ -96,6 +96,7 @@ export function LineupForm({
   players,
   comparison,
   source,
+  official,
   carriedFrom,
   template,
 }: {
@@ -107,6 +108,7 @@ export function LineupForm({
   players: readonly LineupPlayer[];
   comparison: readonly ComparisonPlayer[];
   source: LineupSource;
+  official: boolean;
   carriedFrom: number | null;
   template: LineupTemplate;
 }) {
@@ -658,7 +660,15 @@ export function LineupForm({
               <span className="hidden sm:inline">{formationName(five)} G/F/C · {counts.captain} captain · {counts.starter} other starters · {counts.sixth} sixth · {counts.bench} bench · {counts.inactive} inactive</span>
               {" · "}
               <span className={dirty ? "text-gold" : "text-gain"}>
-                {dirty ? "Unsaved · saved on this device" : source === "recorded" || result.saved ? "Lineup recorded" : "No lineup recorded for this round"}
+                {dirty
+                  ? "Unsaved · saved on this device"
+                  : result.saved
+                    ? "Lineup recorded"
+                    : official
+                      ? "Lineup from the Fantasy Challenge"
+                      : source === "recorded"
+                        ? "Lineup recorded"
+                        : "No lineup recorded for this round"}
               </span>
             </p>
           </div>

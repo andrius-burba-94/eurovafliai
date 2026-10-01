@@ -50,11 +50,17 @@ export default async function FantasySyncPage({ params }: PageProps<"/leagues/[i
   if (!view) notFound();
   const linked = data.league.fantasy_league_id ?? "";
   const latest = view.runs[0] ?? null;
-  const questions = latest?.status === "blocked" ? latest.questions : [];
+  const asking = (["rosters", "lineups"] as const).flatMap((kind) => {
+    const newest = view.runs.find((run) => run.kind === kind);
+    return newest?.status === "blocked" ? newest.questions : [];
+  });
+  const questionKey = (question: (typeof asking)[number]) =>
+    question.kind === "team" ? question.fantasyTeamId : question.kind === "player" ? question.fantasyPlayerId : question.memberId;
+  const questions = asking.filter((question, index) => asking.findIndex((other) => questionKey(other) === questionKey(question)) === index);
 
   const schedule =
     view.decision.mode === "apply"
-      ? `Round ${view.decision.round} is under way, so the official rosters are frozen. The sync writes any change it finds, hourly until the round's last game.`
+      ? `Round ${view.decision.round} is under way, so the official rosters are frozen. The sync writes any change it finds, and every team's official lineup, hourly until the round's last game.`
       : view.window && view.firstApplyAt
         ? `Round ${view.window.round} tips off ${formatTipOff(view.window.lockAt)}. The sync writes from ${formatTipOff(view.firstApplyAt)}, then hourly through the round; until then it only previews.`
         : "No upcoming round is in the schedule, so the sync only previews.";
@@ -64,7 +70,7 @@ export default async function FantasySyncPage({ params }: PageProps<"/leagues/[i
       <PageHeader
         eyebrow={`${data.league.name} · Trades`}
         title="Fantasy Challenge sync"
-        lead="Moves happen in the official game. Once a round tips off, its rosters are the ones playing, and this keeps the league's in step with them."
+        lead="Moves and lineups happen in the official game. Once a round tips off, its rosters and lineups are the ones playing, and this keeps the league's in step with them."
       />
 
       <Bank framed label="Official league" aside={view.tokenSet ? "Token set" : "No token"}>
@@ -97,7 +103,7 @@ export default async function FantasySyncPage({ params }: PageProps<"/leagues/[i
           <ul role="list" className="flex flex-col gap-4">
             {questions.map((question) => (
               <li
-                key={question.kind === "team" ? question.fantasyTeamId : question.kind === "player" ? question.fantasyPlayerId : question.memberId}
+                key={questionKey(question)}
                 className="border-t border-panel-border pt-4 first:border-t-0 first:pt-0"
               >
                 <QuestionForm leagueId={id} question={question} />
@@ -119,6 +125,7 @@ export default async function FantasySyncPage({ params }: PageProps<"/leagues/[i
                 <li key={run.id} data-testid="fantasy-run" data-status={run.status} className="flex flex-col gap-2 rounded-xl border border-panel-border bg-stock p-3">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
                     <span className={`rounded-full px-2 py-0.5 font-bold ${STATUS_TONE[run.status]}`}>{STATUS_WORD[run.status]}</span>
+                    <span className="font-semibold">{run.kind === "lineups" ? "Lineups" : "Rosters"}</span>
                     {run.round > 0 ? <span className="font-semibold">Round {run.round}</span> : null}
                     <span>{ranAt(run)}</span>
                   </p>
