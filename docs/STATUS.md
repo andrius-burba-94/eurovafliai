@@ -97,16 +97,33 @@ sync, commissioner and deputies). Recording a trade by hand stays, for the
 same people, as the correction path.
 
 On 30 September the real official rosters matched production's hand-recorded
-ones exactly, so rounds 1–2 need no backfill (that test is golden). Not synced:
-**lineups** (the official game hides other managers' lineups, 403), so they stay
-here. The first freeze to exercise the write path is E2026 round 3.
+ones exactly, so rounds 1–2 need no roster backfill (that test is golden). The
+first freeze to exercise the write path is E2026 round 3.
+
+**Lineups sync too (5.5b).** Each team's round lineup is read from the official
+game's `/roster/preview` (the one lineup endpoint that answers for other
+managers' teams) and stored with `source = synced`, replacing a hand-typed one:
+court positions 1–5 the five, 6 the sixth man, 7–10 the bench, the unnamed
+three inactive; the formation is checked against our positions by
+`validateLineup`. Hourly through a round's freeze after the roster pass, once
+more after the freeze closes, and any finished round never synced is filled in,
+so **rounds 1–2 backfill themselves on the first worker pass after deploy**. A
+lineup player no roster sync has linked (traded away before 30 September) is
+matched from the lineup; one it cannot place is asked on the Fantasy sync page.
+Each run's report (Trades → Fantasy sync, "Lineups") sets our round total beside
+the official one per team. Migration `1790300000`. Manual repair:
+`npm run lineups:sync -- --rounds=1,2`.
 
 **Try it on localhost.** Put `FANTASY_CHALLENGE_TOKEN` and
 `FANTASY_CHALLENGE_LEAGUE_ID` in `.env`, `npm run dev`, then as commissioner of
 a league in season open **Trades → Fantasy sync**, press **Link league**, then
 **Preview now**. A local league whose team names differ from the official ones
 asks which member each official team is; answer and preview again. Outside a
-freeze nothing is written but the run.
+freeze nothing is written but the run. The same button reads the lineups of
+every finished round not yet synced; a local league with made-up rosters
+reports each team as refused ("names a player who is not on the roster"),
+which is the refusal working. `npx vitest run src/lib/fantasy/lineup.test.ts`
+replays the real round-2 lineups against the official totals.
 
 ## Landed: arena visual redesign (visual rules superseded by ADR-0011)
 
@@ -1496,6 +1513,7 @@ season two is on the horizon.
 | **5.2a Adds and drops can be saved** | done | — | **Every add and drop had been refused by the database since 5.2.** `players_in` / `players_out` were required JSON, and a drop writes `{}` for nobody arriving (an add, for nobody leaving), which PocketBase treats as blank. Only trades could be recorded; found recording the first real free-agent swaps after E2026 round 1. Migration `1789800000` makes both optional; `members` stays required. `pb:verify` now saves a one-sided add and drop as the superuser: its only one-sided write had been a member-token create, which is refused by the rule whether or not the payload is valid |
 | **5.3 Impact tracking** | done | — | Live in − out from box scores, from `from_round` onward, all phases. Fantasy tenths are the headline; PIR sits under them. No new collection and no chart library: a wrapping `R2 -4.3` run. Team page lists that member's deals; a drop's counterfactual is the out sum. `?season=` matches standings |
 | **5.5 Fantasy Challenge sync** | done | — | The official game's rosters become transactions, written only inside a round's freeze; previews outside it. Migration `1790200000` (link fields, `fantasy_syncs`). An apply stores its steps as `applying` before the first roster write and the next run finishes it; it is marked applied only when the rosters then equal the official ones. See the section near the top |
+| **5.5b Official lineup sync** | done | — | Round lineups read from `/roster/preview` and written as `source = synced` (one upserted row per team), then standings recomputed; the report sets our round total beside the official one. Hourly in a freeze, once after it closes, and finished rounds never synced are filled in — rounds 1–2 on the first pass after deploy. Unlinked lineup players matched from the lineup, else asked. Migration `1790300000` (`synced`, `fantasy_syncs.kind`). Production verification of the round-2 totals: see `docs/log/verification.md` |
 | **5.4 Weekly recap** | done | — | One Euroleague night. Rank is that round's tenths from `standings_snapshots`, not season-to-date. **Best night** is the highest `fantasy_pts` among players whose window covers the round (a traded-in player can win). **Biggest swing** is the covering deal with the largest absolute `impactForMember` delta that night, shown from the side that gained. No new collection; no chat announce on ingest. `/leagues/[id]/recap?round=&season=` |
 
 ## Phase 8 — Hardening & ops polish
@@ -1669,7 +1687,8 @@ touch should be fixed by that slice rather than deferred again.
 | ~~**The depth scale is prose, and nothing enforces it**~~ | **Closed by 10.4.** `src/app/depth-scale.test.ts` reads every `.ts`/`.tsx` under `src/` and fails on a radius that is not the one token, on any shadow/gradient/blur class, and on a card-block material spelled out anywhere but `board.tsx` — which is what reduces "is a block nested in a block?" to one file. It reads source rather than measuring values because **Tailwind emits an unknown utility as nothing at all**, so a stray `rounded-lg` renders a rounded button and a hand-rolled `card-block-2` renders an unstyled `<li>`. Proven by injecting a violation and watching three assertions fail, not by watching the suite go green. **Still open**, and narrower: the recursive nest is closed, but two *different* callers composing one block into another is left to code review | A residual review dependency for the cross-component nest |
 | **The vibrant position hues have never been simulated under CVD** | 3.2's critique measured the *muted* guard and center washes as pixel-identical under severity-1.0 deuteranopia (ΔE76 = 0.00). 10.1 made the hues vibrant and colour into a scanning signal, which raises the stakes rather than lowering them, and the new values have not been re-simulated. The Letter-Always Rule is kept without exception and is now the actual carrier, so nothing is *unreadable* — but if cyan/emerald/amber separate no better than steel/olive/plum did, then the colour is decoration with a job title and the design's own claim about scannability is only true for some readers | Nothing; an untested claim, with the fallback still in place |
 | **Nothing writes `lineup_template`** | 9.3 reads the lineup shape from league settings — 5 starters, 1 sixth, 4 bench, 3 inactive — and no surface sets it, exactly like `roster_template`, which has been read-from-settings and never written since 2.2. So every league runs the official shape, which is the shape every league wants. The check that matters is enforced where it bites: `recordLineup` refuses when the lineup template and the roster template disagree, rather than a schema refinement that would quietly reset *every* other setting to its default on one bad number | Nothing today; a league that wanted an 11-man roster would need the setting written before its lineups made sense |
-| **A lineup is per round and typed by hand** | 9.3's entry surface takes one round at a time, because that is how the official site is read: somebody looks at a past round and copies what it says. There is no "apply this to every remaining round" and no import. Carry-forward covers the common case — arrange once and it holds until you change it — but a league correcting ten past rounds types ten lineups | Nothing; ten rounds of typing rather than one |
+| **A lineup is per round and typed by hand** | **Closed for a linked league by 5.5b**: lineups come from the official game. A league not linked to the Fantasy Challenge still types one round at a time, with carry-forward | Nothing for the linked league |
+| **The lineup sync counts matchday ids** | The official game lists no matchdays, so a round's id is the current matchday's id minus the rounds between (1528, 1529, 1530 for rounds 1–3). If the game ever skips an id — a playoff phase is the likely place — every later round reads the wrong matchday. The guard is the report: a lineup naming players outside that round's roster is refused, and a wrong matchday's official totals sit visibly beside ours | A wrong-round lineup is refused when the rosters differ; when they do not, it is written and the report's totals disagree, which is the signal to look |
 | **The official 6-players-from-one-club limit is not enforced** | The Draft Mode rulebook caps a roster at six players from any one EuroLeague club, and `isLegalPick` only knows the G/F/C roster template. So the app will happily let somebody draft seven Olympiacos players and the official site would refuse the same squad. Found while reading the rulebook for Phase 9 and deliberately not built into 9.1, which is about what a row *shows* rather than what a pick may be — it belongs with the engine's legality rules and wants `buildPickOrder`-grade tests across formats | Nothing mechanical; a league that mirrors the official site could build a squad the site rejects |
 | **Trades are not confined to commissioner-opened windows** | The official rules only allow trades in windows between rounds; our `transactions` accept any `from_round`. 5.2's "record, do not broker" stance makes this less severe than it sounds — a commissioner is typing in what already happened — but nothing stops a deal being recorded into a round that was already played | Nothing; the commissioner is the window |
 | **A third of the pool has no projection at all on draft night** | Measured on a full E2025 backfill (6,902 game lines, 0 corrections) against the live E2026 pool, and **re-measured unchanged after 9.1 imported last season from the official feed: 222 of 326 active players carry an average PIR, and 104 do not.** 22 of those have no `person_code` yet, so nothing can attach; the other 82 have a code and simply did not play a Euroleague game last season — arrivals from the NBA, from domestic leagues, and young players being promoted. Autodraft treats a missing projection as worse than −2, and the pool's 10+/15+/20+ filters drop them, so **a genuine signing ranks below a fringe player who logged garbage minutes in May**. This is not a bug in 4.4 — it is what ranking a new season on an old one means — but it is the strongest argument for writing a cheat sheet before draft night, because a sheet is read before any projection is | Nothing mechanical; it distorts the *first* draft and nothing after it |
