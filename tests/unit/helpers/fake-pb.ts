@@ -34,8 +34,12 @@ export type FakeDb = Record<string, FakeRecord[]>;
  *
  * `whereEmpty` is a partial unique: only rows whose named field is unset
  * (null, undefined, or "") take part — `idx_roster_memberships_active_player`.
+ * `whereSet` is the opposite: only rows where it is set — `idx_players_fantasy_id`.
  */
-export type UniqueIndex = string[] | { fields: string[]; whereEmpty: string };
+export type UniqueIndex =
+  | string[]
+  | { fields: string[]; whereEmpty: string }
+  | { fields: string[]; whereSet: string };
 
 /** Mirrors the unique indexes the migrations declare. */
 const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
@@ -67,6 +71,8 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // `unique(season, game_code)` — 10.7's schedule. A pass runs every fifteen
   // minutes over four hundred rows and must not copy a single one of them.
   fixtures: [["season", "game_code"]],
+  // Partial unique `fantasy_id` while set — one pool row per official player.
+  players: [{ fields: ["fantasy_id"], whereSet: "fantasy_id" }],
 };
 
 /**
@@ -104,8 +110,10 @@ function uniqueApplies(
   record: Record<string, unknown>,
 ): boolean {
   if (Array.isArray(spec)) return true;
-  const value = record[spec.whereEmpty];
-  return value === undefined || value === null || value === "";
+  const field = "whereEmpty" in spec ? spec.whereEmpty : spec.whereSet;
+  const value = record[field];
+  const empty = value === undefined || value === null || value === "";
+  return "whereEmpty" in spec ? empty : !empty;
 }
 
 function uniqueFields(spec: UniqueIndex): string[] {
@@ -245,6 +253,18 @@ export function fakePb(options: {
         onlySupported(options, []);
         const found = rows(collection).find((record) => record.id === id);
         if (!found) throw notFound(collection, id);
+        const merged = { ...found, ...body };
+        for (const spec of unique[collection] ?? []) {
+          if (!uniqueApplies(spec, merged)) continue;
+          const fields = uniqueFields(spec);
+          const clash = rows(collection).some(
+            (record) =>
+              record.id !== id &&
+              uniqueApplies(spec, record) &&
+              fields.every((field) => record[field] === merged[field]),
+          );
+          if (clash) throw notUnique(fields);
+        }
         Object.assign(found, body);
         writes.push(`update ${collection}:${id}`);
         return { ...found } as T;

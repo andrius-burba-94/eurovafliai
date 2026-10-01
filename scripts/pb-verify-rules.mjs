@@ -53,6 +53,7 @@ const created = {
   player_news: [],
   fixtures: [],
   live_game_snapshots: [],
+  fantasy_syncs: [],
 };
 
 const su = new PocketBase(url);
@@ -1552,7 +1553,44 @@ try {
   check(await rejects(() => su.collection("live_game_snapshots").create(liveSnapshot, { requestKey: null })),
     "a duplicate season/game snapshot is refused");
 
+  // --- 5.5 Fantasy Challenge sync -------------------------------------------
+  check(!!byName.fantasy_syncs, "fantasy_syncs collection exists");
+  check(
+    byName.fantasy_syncs.createRule === null &&
+      byName.fantasy_syncs.updateRule === null &&
+      byName.fantasy_syncs.deleteRule === null,
+    "sync runs are worker-write-only",
+  );
+  const fantasyId = `v${stamp}`;
+  await su.collection("players").update(playerOne.id, { fantasy_id: fantasyId }, { requestKey: null });
+  check(
+    await rejects(() => su.collection("players").update(playerTwo.id, { fantasy_id: fantasyId }, { requestKey: null })),
+    "two pool players cannot claim one official player",
+  );
+  check(
+    !(await rejects(() => su.collection("players").update(playerTwo.id, { fantasy_id: "" }, { requestKey: null }))),
+    "any number of pool players may be unlinked",
+  );
+  const syncRun = await su.collection("fantasy_syncs").create(
+    { league: league.id, mode: "preview", round: 3, ran_at: "2026-10-01 09:00:00.000Z", status: "preview", message: "verify" },
+    { requestKey: null },
+  );
+  created.fantasy_syncs.push(syncRun.id);
+  check((await listCount(aliceClient, "fantasy_syncs")) === 1, "the commissioner reads her league's sync runs");
+  check((await listCount(carolClient, "fantasy_syncs")) === 0, "a member of another league cannot read them");
+  check(
+    await rejects(() =>
+      aliceClient.collection("fantasy_syncs").create(
+        { league: league.id, mode: "apply", round: 3, ran_at: "2026-10-01 09:00:00.000Z", status: "applied", message: "" },
+        { requestKey: null },
+      ),
+    ),
+    "a member cannot invent a sync run",
+  );
+
 } finally {
+  for (const id of created.fantasy_syncs)
+    await su.collection("fantasy_syncs").delete(id, { requestKey: null }).catch(() => {});
   // Leave the database as we found it, in reverse dependency order.
   for (const id of created.live_game_snapshots)
     await su.collection("live_game_snapshots").delete(id, { requestKey: null }).catch(() => {});

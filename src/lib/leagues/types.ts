@@ -12,6 +12,8 @@ export type LeagueRecord = RecordModel & {
   invite_code: string;
   settings: unknown;
   status: "setup" | "drafting" | "season" | "complete";
+  /** The official Fantasy Challenge league this one mirrors; empty when not synced. */
+  fantasy_league_id?: string;
 };
 
 /** A `league_members` record, optionally with its user expanded. */
