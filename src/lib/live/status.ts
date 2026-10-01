@@ -1,4 +1,4 @@
-import { formatClock } from "@/lib/time/local";
+import { formatClock, formatMonthDay } from "@/lib/time/local";
 
 import type { LivePlayer } from "./boxscore";
 
@@ -103,7 +103,9 @@ export function roundPointsOf(round: PlayerRound | undefined, multiplier: number
   if (!round || round.state === null) return { kind: "note", text: "No game", live: false, spoken: "no game this round" };
   if (round.state === "scheduled") {
     const clock = formatClock(round.tipOff);
-    return { kind: "note", text: clock ?? "Later", live: false, spoken: clock ? `plays at ${clock}` : "plays later" };
+    const date = formatMonthDay(round.tipOff);
+    if (!clock) return { kind: "note", text: "Later", live: false, spoken: "plays later" };
+    return { kind: "note", text: `${date} ${clock}`, live: false, spoken: `plays on ${date} at ${clock}` };
   }
   const live = round.state === "live" || round.state === "stale";
   if (round.tenths === null && !live) return { kind: "note", text: "DNP", live: false, spoken: "did not play" };
