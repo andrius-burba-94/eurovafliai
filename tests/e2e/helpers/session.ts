@@ -5,6 +5,13 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 import PocketBase from "pocketbase";
 
 import { parseServerEnv } from "../../../src/lib/config/schema";
+import { displayName } from "../../../src/lib/players/name";
+
+/**
+ * A planted player's name as the screen prints it: "E2e Locked" for the stored
+ * "Locked, E2e". Inputs a person types (a sheet, a search) keep the stored form.
+ */
+export const shown = displayName;
 
 /**
  * Signing in for E2E, without Google.

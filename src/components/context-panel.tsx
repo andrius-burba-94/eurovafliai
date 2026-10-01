@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useRef, useState, type KeyboardEvent } from "react";
@@ -196,11 +197,11 @@ function News({ items }: { items: PanelData["news"] }) {
                     name={item.name}
                     className="text-sm font-semibold uppercase tracking-[0.06em] underline decoration-ink/50 underline-offset-4 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                   >
-                    {item.name}
+                    {displayName(item.name)}
                   </PlayerStatsLink>
                 ) : (
                   <span className="text-sm font-semibold uppercase tracking-[0.06em]">
-                    {item.name}
+                    {displayName(item.name)}
                   </span>
                 )}
                 {item.status ? (

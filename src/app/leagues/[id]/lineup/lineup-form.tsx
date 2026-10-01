@@ -32,6 +32,7 @@ import type { LineupPlayer } from "@/lib/lineups/queries";
 import { optimizeLineup, type Optimization } from "@/lib/lineups/optimize";
 import { roundPointsOf, type PlayerRound, type RoundPoints } from "@/lib/live/status";
 import type { Position } from "@/lib/engine";
+import { displayName, surname } from "@/lib/players/name";
 import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 
 import { LineupCourt } from "./lineup-court";
@@ -80,10 +81,6 @@ const POSITION_ORDER: Readonly<Record<Position, number>> = { G: 0, F: 1, C: 2 };
 /** "×2", "×0.5" — the multiplier, said once, beside the role that carries it. */
 function multiplierWord(role: LineupRole): string {
   return `×${ROLE_MULTIPLIERS[role]}`;
-}
-
-function surname(name: string): string {
-  return name.split(",")[0]!.trim();
 }
 
 function isPlace(value: string): value is PlacementRole | "" {
@@ -295,7 +292,7 @@ export function LineupForm({
   const [armed, setArmed] = useState<string | null>(null);
   const armedPlayer = players.find((player) => player.id === armed) ?? null;
   const [lastMove, setLastMove] = useState("");
-  const nameOf = (id: string) => players.find((player) => player.id === id)?.name ?? "";
+  const nameOf = (id: string) => displayName(players.find((player) => player.id === id)?.name ?? "");
 
   /**
    * Two players in different places trade them. The usual edit of a round is
@@ -383,8 +380,8 @@ export function LineupForm({
           data-over={drag.over === key || undefined}
           data-dragging={drag.dragging === player.id || undefined}
           aria-pressed={armed === player.id}
-          aria-label={points ? `Move ${player.name}, ${points.spoken}` : `Move ${player.name}`}
-          title={player.name}
+          aria-label={points ? `Move ${displayName(player.name)}, ${points.spoken}` : `Move ${displayName(player.name)}`}
+          title={displayName(player.name)}
           onClick={() => arm(player.id)}
           {...drag.handle(player.id)}
           data-layout={layout}
@@ -578,7 +575,7 @@ export function LineupForm({
                         <td className="px-3 py-1.5">
                           <span className="flex min-w-0 items-center gap-2">
                             <ClubCrest clubCode={player.clubCode} />
-                            <span className="font-semibold">{player.name}</span>
+                            <span className="font-semibold">{displayName(player.name)}</span>
                           </span>
                         </td>
                         <td className="px-3 py-1.5"><FixtureNote fixture={player.fixture} /></td>
@@ -609,7 +606,7 @@ export function LineupForm({
                               name="captain-choice"
                               value={player.id}
                               checked={isCaptain}
-                              aria-label={`${player.name} captain`}
+                              aria-label={`${displayName(player.name)} captain`}
                               onChange={() => markCaptain(player.id)}
                               className="size-3.5 shrink-0 accent-[oklch(0.22_0.04_80)]"
                             />
@@ -619,7 +616,7 @@ export function LineupForm({
                         <td className="px-3 py-1.5">
                           <select
                             value={role}
-                            aria-label={`${player.name} role`}
+                            aria-label={`${displayName(player.name)} role`}
                             data-testid="lineup-role"
                             onChange={(event) => place(player.id, event.target.value as PlacementRole | "")}
                             className="min-h-11 appearance-none rounded-full border border-rule bg-stock px-3 text-xs font-semibold focus:border-live focus:outline-none"
@@ -648,10 +645,10 @@ export function LineupForm({
           <p className="text-sm text-ink-soft">
             Proposed {preview.formation} G/F/C · estimated {(preview.scoreHalfTenths / 20).toFixed(2)} fantasy points. Nothing is recorded until you save.
           </p>
-          <p className="text-sm">Captain: {players.find((player) => preview.roles[player.id] === "captain")?.name ?? "—"}</p>
+          <p className="text-sm">Captain: {displayName(players.find((player) => preview.roles[player.id] === "captain")?.name ?? "—")}</p>
           {preview.unknownIds.length > 0 ? (
             <p className="text-sm text-gold">
-              No estimate: {preview.unknownIds.map((id) => players.find((player) => player.id === id)?.name ?? id).join(", ")}. Counted as zero in this preview.
+              No estimate: {preview.unknownIds.map((id) => displayName(players.find((player) => player.id === id)?.name ?? id)).join(", ")}. Counted as zero in this preview.
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
@@ -677,7 +674,7 @@ export function LineupForm({
             <div aria-live="polite" className="text-sm">
               {armedPlayer ? (
                 <p className="text-ink" data-testid="lineup-in-hand">
-                  Moving {armedPlayer.name}. Tap an open place, or a player to swap.
+                  Moving {displayName(armedPlayer.name)}. Tap an open place, or a player to swap.
                 </p>
               ) : lastMove ? (
                 <p className="text-ink" data-testid="lineup-swapped">{lastMove}</p>

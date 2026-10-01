@@ -111,8 +111,8 @@ describe("syncRoundLineups", () => {
     expect(run).toMatchObject({ kind: "lineups", mode: "apply", round: 2, status: "applied" });
     expect(run.message).toBe("2 of 2 lineups for round 2 from the official game. Every round total matches the official one.");
     expect(run.moves).toEqual([
-      "Laurynas Birutis: 2-2-1 · captain Bryant, Elijah · 159.9 here, 159.9 official.",
-      "Monikutės Naktys: 3-1-1 · captain Montero, Jean · 149.15 here, 149.15 official.",
+      "Laurynas Birutis: 2-2-1 · captain Elijah Bryant · 159.9 here, 159.9 official.",
+      "Monikutės Naktys: 3-1-1 · captain Jean Montero · 149.15 here, 149.15 official.",
     ]);
     const stored = fake.rows("round_lineups").find((row) => row.member === "m_a");
     expect(stored).toMatchObject({ league: LEAGUE, season: SEASON, round: 2, source: "synced", recorded_by: "" });
@@ -139,7 +139,7 @@ describe("syncRoundLineups", () => {
     const run = await syncRoundLineups({ pb: fake.client, leagueId: LEAGUE, token: "tok", season: SEASON, round: 2, now: NOW, doFetch: officialGame().doFetch });
     expect(run.status).toBe("applied");
     expect(run.message).toMatch(/1 round total differs from the official one\.$/);
-    expect(run.moves[0]).toBe("Laurynas Birutis: 2-2-1 · captain Bryant, Elijah · 158.9 here, 159.9 official (-1).");
+    expect(run.moves[0]).toBe("Laurynas Birutis: 2-2-1 · captain Elijah Bryant · 158.9 here, 159.9 official (-1).");
   });
 
   it("links a lineup player no roster sync has seen, by name and club, and stores the link", async () => {

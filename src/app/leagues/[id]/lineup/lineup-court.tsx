@@ -1,6 +1,7 @@
 import type { Position } from "@/lib/engine";
 import type { RoundPoints } from "@/lib/live/status";
 import { PlayerPortrait } from "@/components/official-media";
+import { displayName, surname } from "@/lib/players/name";
 
 import type { DragState } from "./lineup-drag";
 
@@ -68,7 +69,7 @@ export function LineupCourt({
                   data-dragging={drag.dragging === player.id || undefined}
                   data-valid={(armed !== null && armed !== player.id && (!armedPlayer || armedPlayer.position === player.position)) || undefined}
                   aria-pressed={armed === player.id}
-                  aria-label={`${player.name}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}${armed && armed !== player.id ? ", tap to swap" : ", tap to move"}`}
+                  aria-label={`${displayName(player.name)}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}${armed && armed !== player.id ? ", tap to swap" : ", tap to move"}`}
                   onClick={() => onArm(player.id)}
                   {...drag.handle(player.id)}
                   className="lineup-court-player lineup-drag"
@@ -80,7 +81,7 @@ export function LineupCourt({
                   </span>
                   {player.points ? (
                     <span className="lineup-court-plate" data-testid="court-points" data-live={player.points.live || undefined}>
-                      <strong title={player.name}>{surname(player.name)}</strong>
+                      <strong title={displayName(player.name)}>{surname(player.name)}</strong>
                       <span className="lineup-court-score" data-kind={player.points.kind}>
                         {player.points.kind === "figure" ? (
                           <>
@@ -93,7 +94,7 @@ export function LineupCourt({
                       </span>
                     </span>
                   ) : (
-                    <strong title={player.name}>{surname(player.name)}</strong>
+                    <strong title={displayName(player.name)}>{surname(player.name)}</strong>
                   )}
                 </button>
               </li>
@@ -110,8 +111,4 @@ export function LineupCourt({
       ))}
     </div>
   );
-}
-
-function surname(name: string): string {
-  return name.split(",")[0]!.trim();
 }

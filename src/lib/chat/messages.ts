@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import { formatSignedTenths } from "@/lib/stats/scoring";
 
 /**
@@ -18,7 +19,8 @@ import { formatSignedTenths } from "@/lib/stats/scoring";
  *
  * - **A whole sentence, ending in a full stop.** These sit in a run with
  *   people's own messages and a verbless fragment reads like a broken one.
- * - **Names as written**, never truncated here; the surface truncates.
+ * - **Names as written**, never truncated here; the surface truncates. A
+ *   player reads first name first, whatever order the pool stores.
  * - **No "you".** The same row is read by twelve people, and a line that says
  *   "you" is wrong for eleven of them. `announcePick` therefore names the team,
  *   not the reader.
@@ -41,7 +43,7 @@ export function announcePick(input: {
   // keeping: a member coming back to their phone wants to know whether the app
   // picked for them.
   const verb = input.isAuto ? "autodrafted" : "drafted";
-  return `${input.teamName} ${verb} ${input.playerName} at ${at(input.overallNo)}, round ${input.round}.`;
+  return `${input.teamName} ${verb} ${displayName(input.playerName)} at ${at(input.overallNo)}, round ${input.round}.`;
 }
 
 export function announcePause(paused: boolean): string {
@@ -98,7 +100,8 @@ export function announceComplete(rounds: number): string {
   return `The draft is complete after ${rounds} ${rounds === 1 ? "round" : "rounds"}. Rosters are set.`;
 }
 
-function nameList(names: readonly string[]): string {
+function nameList(stored: readonly string[]): string {
+  const names = stored.map(displayName);
   if (names.length === 0) return "nobody";
   if (names.length === 1) return names[0]!;
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
@@ -121,7 +124,7 @@ export function announceExchange(input: {
   readonly acquired: string;
   readonly fromRound: number;
 }): string {
-  return `${input.teamName} exchanged ${input.released} for ${input.acquired}, counting from round ${input.fromRound}.`;
+  return `${input.teamName} exchanged ${displayName(input.released)} for ${displayName(input.acquired)}, counting from round ${input.fromRound}.`;
 }
 
 export function announceDrop(input: {
@@ -152,7 +155,7 @@ export function announceLineup(input: {
   readonly captainName: string;
   readonly round: number;
 }): string {
-  return `${input.teamName} set a round ${input.round} lineup, with ${input.captainName} as captain.`;
+  return `${input.teamName} set a round ${input.round} lineup, with ${displayName(input.captainName)} as captain.`;
 }
 
 export function announceImpact(input: {

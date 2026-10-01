@@ -7,6 +7,7 @@ import {
   createTestUser,
   signIn,
   superuser,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -113,7 +114,7 @@ test("an injury item marks the player in the pool, and links back to who said it
 
   const row = itemRow(page, headline);
   await expect(row).toBeVisible();
-  await expect(row).toContainText(player.name);
+  await expect(row).toContainText(shown(player.name));
   // The fact, not the article: body part and date, and their link for the rest.
   await expect(row).toContainText("Knee");
   await expect(row).toContainText("13 Sep 2026");
@@ -131,7 +132,7 @@ test("an injury item marks the player in the pool, and links back to who said it
   await page.goto("/players");
   await page.getByTestId("pool-search").fill(player.name);
   await expect(
-    page.getByTestId("pool-player").filter({ hasText: player.name }),
+    page.getByTestId("pool-player").filter({ hasText: shown(player.name) }),
   ).toContainText("injured");
 });
 
@@ -216,7 +217,7 @@ test("a published name nobody answers to becomes a mapping question", async ({
   await row.getByTestId(`news-choice-${slug}`).selectOption(player.id);
   await row.getByTestId(`news-attach-${slug}`).click();
 
-  await expect(page.getByTestId("mapping-done")).toContainText(player.name, {
+  await expect(page.getByTestId("mapping-done")).toContainText(shown(player.name), {
     timeout: 20_000,
   });
   // Answered questions leave the list — the same rule the other two halves

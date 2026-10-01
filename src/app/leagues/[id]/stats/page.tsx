@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -94,7 +95,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
   const playerWho = (playerId: string) => (
     <span className="flex min-w-0 items-center gap-2">
       <PlayerPortrait personCode={player(playerId)?.personCode} name={player(playerId)?.name ?? "A player"} />
-      <span className="truncate font-semibold">{player(playerId)?.name ?? "A player"}</span>
+      <span className="truncate font-semibold">{displayName(player(playerId)?.name ?? "A player")}</span>
     </span>
   );
   const leaderRows = (rows: readonly PlayerLeader[], unit: string) => (
@@ -104,7 +105,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
           <span className="stat w-4 text-xs text-ink-faint">{index + 1}</span>
           <PlayerPortrait personCode={player(row.playerId)?.personCode} name={player(row.playerId)?.name ?? "A player"} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-semibold">{player(row.playerId)?.name ?? "A player"}</span>
+            <span className="truncate text-sm font-semibold">{displayName(player(row.playerId)?.name ?? "A player")}</span>
             <span className="flex items-center gap-1.5 text-xs text-ink-soft">
               {player(row.playerId)?.position ? <PositionPatch position={player(row.playerId)!.position} /> : null}
               {crest(row.ownerId, 16)}
@@ -230,7 +231,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
                 <p className="slot-label text-gain">Steals · late picks</p>
                 {stats.draft.steals.map((pick) => (
                   <p key={pick.overallNo} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate"><span className="stat text-ink-faint">#{pick.overallNo}</span> {player(pick.playerId)?.name ?? "A player"}</span>
+                    <span className="min-w-0 truncate"><span className="stat text-ink-faint">#{pick.overallNo}</span> {displayName(player(pick.playerId)?.name ?? "A player")}</span>
                     <span className="stat font-bold">{formatTenths(pick.tenths)}</span>
                   </p>
                 ))}
@@ -239,7 +240,7 @@ export default async function StatsPage({ params }: PageProps<"/leagues/[id]/sta
                 <p className="slot-label text-loss">Busts · early picks</p>
                 {stats.draft.busts.map((pick) => (
                   <p key={pick.overallNo} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate"><span className="stat text-ink-faint">#{pick.overallNo}</span> {player(pick.playerId)?.name ?? "A player"}</span>
+                    <span className="min-w-0 truncate"><span className="stat text-ink-faint">#{pick.overallNo}</span> {displayName(player(pick.playerId)?.name ?? "A player")}</span>
                     <span className="stat font-bold">{formatTenths(pick.tenths)}</span>
                   </p>
                 ))}

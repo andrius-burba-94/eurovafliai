@@ -1,5 +1,6 @@
 "use server";
 
+import { displayName } from "@/lib/players/name";
 import { revalidatePath } from "next/cache";
 
 import { getSuperuserClient } from "@/lib/pb/superuser";
@@ -63,7 +64,7 @@ export async function attachNewsName(
 
   return {
     error: null,
-    done: `${attached} item${attached === 1 ? "" : "s"} now belong${attached === 1 ? "s" : ""} to ${player.name}. The next pass decides whether any of them changes their status.`,
+    done: `${attached} item${attached === 1 ? "" : "s"} now belong${attached === 1 ? "s" : ""} to ${displayName(player.name)}. The next pass decides whether any of them changes their status.`,
   };
 }
 
@@ -100,11 +101,11 @@ export async function markPlayerFit(
   if (!player) return { error: "That player is no longer in the pool." };
   if (player.status === "left") {
     return {
-      error: `${player.name} is marked as having left the league, which is not an injury. A roster sync is what brings them back.`,
+      error: `${displayName(player.name)} is marked as having left the league, which is not an injury. A roster sync is what brings them back.`,
     };
   }
   if (player.status === "active") {
-    return { error: `${player.name} is already available.` };
+    return { error: `${displayName(player.name)} is already available.` };
   }
 
   await spendItemsFor(pb, playerId);
@@ -118,7 +119,7 @@ export async function markPlayerFit(
 
   return {
     error: null,
-    done: `${player.name} is available again. The stored items stay, and none of them will flag them a second time.`,
+    done: `${displayName(player.name)} is available again. The stored items stay, and none of them will flag them a second time.`,
   };
 }
 

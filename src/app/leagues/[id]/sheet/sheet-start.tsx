@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { useState, useTransition } from "react";
 
 import { Correction, PositionPatch } from "@/components/board";
@@ -74,12 +75,12 @@ export function SheetSuggestions({
         {players.map((player) => (
           <li key={player.id} className="flex min-h-12 items-center gap-3 px-3 py-1.5">
             <PositionPatch position={player.position} />
-            <span className="min-w-0 flex-1 truncate font-semibold">{player.name}</span>
+            <span className="min-w-0 flex-1 truncate font-semibold">{displayName(player.name)}</span>
             <span className="slot-label hidden text-ink-soft sm:inline">{player.club}</span>
             <span className="stat w-10 text-right text-sm tabular-nums">{pir(player.tenths)}</span>
             <button
               type="button"
-              aria-label={`Add ${player.name} to your sheet`}
+              aria-label={`Add ${displayName(player.name)} to your sheet`}
               disabled={pending && adding === player.id}
               onClick={() => {
                 setAdding(player.id);

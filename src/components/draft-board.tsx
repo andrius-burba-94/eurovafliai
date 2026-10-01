@@ -3,6 +3,7 @@ import type { BoardShape, Position } from "@/lib/engine";
 import { CardName } from "./board";
 import { BoardScroll } from "./board-scroll";
 import { TeamCrest, teamFieldStyle } from "@/components/broadcast";
+import { displayName, surname } from "@/lib/players/name";
 import type { TeamStyle } from "@/lib/teams/identity";
 
 /**
@@ -84,19 +85,6 @@ const PATCH_WASH: Record<Position, string> = {
   F: "bg-pos-f/10",
   C: "bg-pos-c/10",
 };
-
-/**
- * What a board writes in a slot: the surname.
- *
- * Ingestion stores "Surname, First" (`normalize.ts`), which is already the
- * order a board wants — it just does not have room for the rest. A name with no
- * comma is written whole rather than guessed at, because a CSV-imported pool
- * may not follow the API's convention and "Nando De Colo" must not become "De".
- */
-export function boardName(playerName: string): string {
-  const comma = playerName.indexOf(",");
-  return comma === -1 ? playerName : playerName.slice(0, comma).trim();
-}
 
 export function DraftBoard({
   shape,
@@ -295,10 +283,10 @@ export function DraftBoard({
                     {entry ? (
                       <span
                         className="min-w-0 truncate"
-                        title={entry.playerName}
+                        title={displayName(entry.playerName)}
                       >
                         <CardName scale="slot">
-                          {boardName(entry.playerName)}
+                          {surname(entry.playerName)}
                         </CardName>
                       </span>
                     ) : null}

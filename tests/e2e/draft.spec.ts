@@ -21,6 +21,7 @@ import {
   superuser,
   TEST_CLUB,
   rollOrder,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -229,7 +230,7 @@ test("the member on the clock picks, and the draft advances", async ({
   // truncates it. Asserting here rather than on the board is the faithful
   // translation, and it exercises the surface that replaced the one this line
   // used to read.
-  await expect(page.getByTestId("chat-latest")).toContainText(players[0]!.name);
+  await expect(page.getByTestId("chat-latest")).toContainText(shown(players[0]!.name));
   await expect(
     page.locator('[data-board-slot][data-state="filled"]'),
   ).toHaveCount(1);
@@ -466,13 +467,13 @@ test("the commissioner undoes a pick, and the board goes back", async ({
   // which is the difference between a record and a view. The ticker this line
   // used to read was derived from `picks`, so it forgot; chat is a transcript.
   const board = page.getByTestId("draft-board");
-  const shown = (name: string) => name.split(",")[0]!;
-  await expect(board).toContainText(shown(players[0]!.name));
-  await expect(board).not.toContainText(shown(players[1]!.name));
+  const onBoard = (name: string) => name.split(",")[0]!;
+  await expect(board).toContainText(onBoard(players[0]!.name));
+  await expect(board).not.toContainText(onBoard(players[1]!.name));
 
   await page.getByTestId("chat-toggle").click();
-  await expect(page.getByTestId("chat-list")).toContainText(players[0]!.name);
-  await expect(page.getByTestId("chat-list")).toContainText(players[1]!.name);
+  await expect(page.getByTestId("chat-list")).toContainText(shown(players[0]!.name));
+  await expect(page.getByTestId("chat-list")).toContainText(shown(players[1]!.name));
   await expect(page.getByTestId("on-the-clock")).toContainText(/paused/i);
 
   // And the two undone players are pickable again.
@@ -639,7 +640,7 @@ test("a pick by somebody else moves the room, with nobody reloading", async ({
   // The board's cell truncates a long name, so the *sentence* is where the full
   // one lives — and it arrived over the same subscription with nobody
   // reloading, which is what this spec is really about.
-  await expect(page.getByTestId("chat-latest")).toContainText(players[0].name);
+  await expect(page.getByTestId("chat-latest")).toContainText(shown(players[0].name));
   // The clock moved on to the next member, which is the part that was wrong.
   await expect(page.getByTestId("on-the-clock")).toContainText("Pick 2");
 });
@@ -826,7 +827,7 @@ test("a tap arms a pick; it does not draft anybody", async ({
   // line of its own. 3.7's critique measured that.
   await expect(page.getByTestId("confirm-pick-go")).toHaveAttribute(
     "aria-label",
-    `Draft ${players[0]!.name}`,
+    `Draft ${shown(players[0]!.name)}`,
   );
   // And `confirm-pick-who` appears **iff** it carries something the button does
   // not — a manager spending somebody else's turn. Asserted as the biconditional
@@ -1143,7 +1144,7 @@ test("choosing from the pinned shortlist names whose turn it spends", async ({
   );
   await expect(page.getByTestId("confirm-pick-go")).toHaveAttribute(
     "aria-label",
-    `Draft ${wanted.name}`,
+    `Draft ${shown(wanted.name)}`,
   );
 
   // And when it is not your turn, the band names whose turn is being spent.

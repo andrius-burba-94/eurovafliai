@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
@@ -130,7 +131,7 @@ function NewsList({ items, kind }: { items: readonly NewsItem[]; kind: "injuries
           {items.map((item) => (
             <Slot key={item.id} testId={`activity-${kind}-item`}>
               <span className="flex min-w-0 flex-col gap-1">
-                <span className="text-sm font-semibold text-ink">{item.name}</span>
+                <span className="text-sm font-semibold text-ink">{displayName(item.name)}</span>
                 <span className="text-sm break-words text-ink-soft">{item.headline}</span>
                 {item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="slot-label self-start underline decoration-ink/40 underline-offset-4">Source ↗</a> : null}
               </span>

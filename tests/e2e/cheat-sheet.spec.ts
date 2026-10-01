@@ -12,6 +12,7 @@ import {
   superuser,
   TEST_CLUB,
   rollOrder,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -1033,9 +1034,9 @@ test("a reorder reaches the room's pool", async ({ page, context }) => {
   await expect(page.getByTestId("pick-pool")).toBeVisible();
 
   const rows = page.getByTestId("pool-row");
-  await expect(rows.nth(0)).toContainText(c.name);
-  await expect(rows.nth(1)).toContainText(a.name);
-  await expect(rows.nth(2)).toContainText(b.name);
+  await expect(rows.nth(0)).toContainText(shown(c.name));
+  await expect(rows.nth(1)).toContainText(shown(a.name));
+  await expect(rows.nth(2)).toContainText(shown(b.name));
   await expect(rows.nth(0).getByTestId("pool-sheet-rank")).toHaveText("#1");
 });
 
@@ -1378,7 +1379,7 @@ test("an empty sheet can start from the PIR ranking", async ({ page, context }) 
 
   // On the sheet, not necessarily #1: the other project's run of this test
   // plants its own Seedstar with the same average at the same moment.
-  await expect(page.getByTestId("sheet-list")).toContainText(star.name);
+  await expect(page.getByTestId("sheet-list")).toContainText(shown(star.name));
   // Nothing to start from once there is a sheet: the button would overwrite it.
   await expect(page.getByTestId("sheet-start")).toHaveCount(0);
 });
@@ -1401,7 +1402,7 @@ test("a player not on the sheet can be added from the suggestions", async ({
 
   const suggestions = page.getByTestId("sheet-suggestions");
   await expect(suggestions).toContainText("Suggestee");
-  await suggestions.getByRole("button", { name: `Add ${top.name} to your sheet` }).click();
+  await suggestions.getByRole("button", { name: `Add ${shown(top.name)} to your sheet` }).click();
 
   const rows = page.getByTestId("sheet-row");
   await expect(rows).toHaveCount(2);

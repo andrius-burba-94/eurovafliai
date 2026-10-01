@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useMemo, useState } from "react";
@@ -148,7 +149,7 @@ export function PlayerPoolList({
                 <PositionPatch position={player.position} />
                 <PlayerPortrait personCode={player.personCode} name={player.name} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <CardName scale="slot">{player.name}</CardName>
+                  <CardName scale="slot">{displayName(player.name)}</CardName>
                   <span className="text-sm text-ink-soft">
                     <ClubCrest clubCode={player.club} /> {player.club}
                     {player.status !== "active" ? ` · ${player.status}` : ""}

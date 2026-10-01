@@ -5,6 +5,7 @@ import {
   createPlayer,
   createTestUser,
   signIn,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -40,7 +41,7 @@ test("a member sees the pool, its clubs and a player's badges", async ({
   await expect(page.getByTestId("players")).toBeVisible();
 
   await page.getByTestId("pool-search").fill(planted.name);
-  const row = page.getByTestId("pool-player").filter({ hasText: planted.name });
+  const row = page.getByTestId("pool-player").filter({ hasText: shown(planted.name) });
   await expect(row).toBeVisible();
   // The badges slice 2.1 owes: which front door wrote the row, whether a
   // commissioner has claimed it, and whether it still lacks a person code.

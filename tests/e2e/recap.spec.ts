@@ -9,6 +9,7 @@ import {
   signIn,
   superuser,
   TEST_CLUB,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -220,7 +221,7 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   await expect(rows.nth(1)).toContainText("Chief FC");
   await expect(rows.nth(1).getByTestId("recap-tenths")).toHaveText("0.7");
 
-  await expect(page.getByTestId("recap-best-night")).toContainText(star.name);
+  await expect(page.getByTestId("recap-best-night")).toContainText(shown(star.name));
   await expect(page.getByTestId("recap-best-night")).toContainText("Other FC");
   await expect(page.getByTestId("recap-best-night")).toContainText("5.0");
 
@@ -237,7 +238,7 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   await expect(page).toHaveURL(/round=1/);
   await expect(rows.first()).toContainText("Chief FC");
   await expect(rows.first().getByTestId("recap-tenths")).toHaveText("14.2");
-  await expect(page.getByTestId("recap-best-night")).toContainText(star.name);
+  await expect(page.getByTestId("recap-best-night")).toContainText(shown(star.name));
   await expect(page.getByTestId("recap-best-night")).toContainText("Chief FC");
   await expect(page.getByTestId("recap-swing-empty")).toBeVisible();
 });

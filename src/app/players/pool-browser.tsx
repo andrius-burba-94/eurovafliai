@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { useMemo, useState } from "react";
 
 import { Bank, FilterToggle, PositionPatch } from "@/components/board";
@@ -80,7 +81,7 @@ export function PoolBrowser({ players, clubs }: {
         <PlayerPortrait personCode={player.person_code} name={player.name} />
         <div className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">
-            <PlayerStatsLink id={player.id} name={player.name} className="block truncate text-sm font-semibold text-ink hover:text-live focus-visible:outline-2 focus-visible:outline-live">{player.name}</PlayerStatsLink>
+            <PlayerStatsLink id={player.id} name={player.name} className="block truncate text-sm font-semibold text-ink hover:text-live focus-visible:outline-2 focus-visible:outline-live">{displayName(player.name)}</PlayerStatsLink>
             {badge ? <StatusBadge kind={badge.kind}>{player.status}</StatusBadge> : null}
           </span>
           <p className="flex items-center gap-1 truncate text-xs text-ink-soft"><ClubCrest clubCode={player.club_code} />{player.club_name || player.club_code}<span className="text-ink-faint"> · {player.source}{player.manual_lock ? " · locked" : ""}{!player.person_code ? " · no code" : ""}</span></p>
@@ -89,7 +90,7 @@ export function PoolBrowser({ players, clubs }: {
           <span className="stat text-sm font-bold">{player.pirTenths === undefined ? "—" : formatTenths(player.pirTenths)}</span>
           <span className="text-[0.6875rem] text-ink-faint">{player.pirSource === "last5" ? "PIR · form" : player.pirSource === "prev" ? "PIR · last yr" : "PIR"}</span>
         </span>
-        <PlayerStatsLink id={player.id} name={player.name} ariaLabel={`View ${player.name} stats`} className="grid size-11 place-items-center text-live focus-visible:outline-2 focus-visible:outline-live">→</PlayerStatsLink>
+        <PlayerStatsLink id={player.id} name={player.name} ariaLabel={`View ${displayName(player.name)} stats`} className="grid size-11 place-items-center text-live focus-visible:outline-2 focus-visible:outline-live">→</PlayerStatsLink>
       </li>;
     })}</ul> : <p className="py-4 text-sm text-ink-soft">No players match these filters.</p>}
     {limit < filtered.length ? <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="min-h-11 self-start rounded-lg border border-rule-strong px-4 text-sm font-semibold text-ink hover:border-ink-soft">Show more players</button> : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useActionState } from "react";
 
@@ -113,7 +114,7 @@ export function NewsBoard({
                       name={player.name}
                       className="min-w-0 underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                     >
-                      <CardName scale="slot">{player.name}</CardName>
+                      <CardName scale="slot">{displayName(player.name)}</CardName>
                     </PlayerStatsLink>
                     <StatusBadge kind={availabilityBadge(player.status)?.kind ?? "out"}>
                       {availabilityBadge(player.status)?.word ?? player.status}
@@ -125,7 +126,7 @@ export function NewsBoard({
                       testId={`mark-fit-${player.id}`}
                       compact
                       pendingLabel="Clearing…"
-                      ariaLabel={`${player.name} is available again`}
+                      ariaLabel={`${displayName(player.name)} is available again`}
                     >
                       Available again
                     </SubmitButton>
@@ -164,10 +165,10 @@ export function NewsBoard({
                         name={item.player.name}
                         className="min-w-0 underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                       >
-                        <CardName scale="slot">{item.player.name}</CardName>
+                        <CardName scale="slot">{displayName(item.player.name)}</CardName>
                       </PlayerStatsLink>
                     ) : (
-                      <CardName scale="slot">{item.name}</CardName>
+                      <CardName scale="slot">{displayName(item.name)}</CardName>
                     )}
                     {badge ? (
                       <StatusBadge kind={badge.kind} testId="news-status">

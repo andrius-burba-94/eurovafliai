@@ -10,6 +10,7 @@ import {
   signIn,
   superuser,
   rollOrder,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -195,7 +196,7 @@ for (const colorScheme of ["dark", "light"] as const) {
 
       await signIn(context, user);
       await page.goto(`/leagues/${league.id}/lineup?season=E2099&round=1`);
-      await page.getByRole("button", { name: `Move ${players[0]!.name}` }).click();
+      await page.getByRole("button", { name: `Move ${shown(players[0]!.name)}` }).click();
       await page.getByTestId("court-open").first().click();
       await expect(
         page.getByTestId("lineup-court").getByTestId("court-player"),

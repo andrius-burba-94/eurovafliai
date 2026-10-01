@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { useEffect, useRef, useState } from "react";
 
 import { PositionPatch } from "@/components/board";
@@ -108,7 +109,7 @@ export function PickIsIn({ latest }: { latest: LandedPick | null }) {
       <span data-moment-part="body" className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
         {shown.style ? <TeamCrest name={shown.memberName} color={shown.style.color} shape={shown.style.crest} size={34} /> : null}
         <span className="min-w-0">
-          <span className="display block truncate text-xl leading-tight">{shown.playerName}</span>
+          <span className="display block truncate text-xl leading-tight">{displayName(shown.playerName)}</span>
           <span className="flex items-center gap-1.5 text-xs text-ink-soft">
             <PositionPatch position={shown.position} />
             to <span className="font-semibold text-ink">{shown.memberName}</span>

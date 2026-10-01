@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import { normalizeName } from "@/lib/rosters/normalize";
 
 import type { FantasyPlayer, FantasyTeam } from "./parse";
@@ -103,7 +104,7 @@ function sameJersey(pool: PoolPlayer, player: FantasyPlayer): boolean {
 }
 
 export function playerLabel(pool: PoolPlayer): string {
-  return `${pool.name} · ${pool.clubCode}${pool.dorsal ? ` #${pool.dorsal}` : ""}`;
+  return `${displayName(pool.name)} · ${pool.clubCode}${pool.dorsal ? ` #${pool.dorsal}` : ""}`;
 }
 
 function byLabel(a: Choice, b: Choice): number {

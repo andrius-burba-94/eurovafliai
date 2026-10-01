@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -64,7 +65,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
             <li key={playerId} className="flex min-w-0 items-center gap-2">
               <PlayerPortrait personCode={player?.personCode} name={player?.name ?? "A player"} />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-semibold">{player?.name ?? "A player"}</span>
+                <span className="truncate text-sm font-semibold">{player ? displayName(player.name) : "A player"}</span>
                 <span className="flex items-center gap-1.5 text-xs text-ink-soft">
                   {player?.position ? <PositionPatch position={player.position} /> : null}
                   {player?.clubCode ?? ""}

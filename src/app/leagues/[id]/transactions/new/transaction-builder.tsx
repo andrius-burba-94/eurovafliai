@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { useActionState, useMemo, useState } from "react";
 
 import {
@@ -248,7 +249,7 @@ export function TransactionBuilder({
                   >
                     <PositionPatch position={seat.position} />
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
-                      <CardName>{seat.name}</CardName>
+                      <CardName>{displayName(seat.name)}</CardName>
                       <span className="text-sm text-ink-soft">{seat.clubName}</span>
                     </span>
                   </button>
@@ -298,7 +299,7 @@ export function TransactionBuilder({
                   >
                     <PositionPatch position={seat.position} />
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
-                      <CardName>{seat.name}</CardName>
+                      <CardName>{displayName(seat.name)}</CardName>
                       <span className="text-sm text-ink-soft">{seat.clubName}</span>
                     </span>
                   </button>
@@ -345,7 +346,7 @@ export function TransactionBuilder({
                     >
                       <PositionPatch position={seat.position} />
                       <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <CardName>{seat.name}</CardName>
+                        <CardName>{displayName(seat.name)}</CardName>
                         <span className="text-sm text-ink-soft">
                           {seat.clubName}
                         </span>
@@ -399,7 +400,7 @@ export function TransactionBuilder({
                       >
                         <PositionPatch position={player.position} />
                         <span className="flex min-w-0 flex-1 flex-col gap-1">
-                          <CardName>{player.name}</CardName>
+                          <CardName>{displayName(player.name)}</CardName>
                           <span className="text-sm text-ink-soft">
                             {player.club}
                           </span>

@@ -9,6 +9,7 @@ import {
   createTestUser,
   signIn,
   superuser,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -92,7 +93,7 @@ test("a member opens a roster from the season lobby", async ({
   await expect(
     page.getByRole("region", { name: "The roster", exact: true }),
   ).toHaveAttribute("data-framed", "true");
-  await expect(page.getByTestId("roster-player")).toContainText(star.name);
+  await expect(page.getByTestId("roster-player")).toContainText(shown(star.name));
   await expect(page.getByTestId("roster-player")).toContainText("#1");
   // The fixture line is read with the viewer's own token, so this is also the
   // only place the `fixtures` read rule is exercised the way a member does it.
