@@ -1,4 +1,5 @@
 import type { Position } from "@/lib/engine";
+import type { RoundPoints } from "@/lib/live/status";
 import { PlayerPortrait } from "@/components/official-media";
 
 import type { DragState } from "./lineup-drag";
@@ -9,6 +10,8 @@ export type CourtPlayer = {
   readonly personCode?: string;
   readonly position: Position;
   readonly isCaptain: boolean;
+  /** Absent until a game of the round has tipped off. */
+  readonly points?: RoundPoints;
 };
 
 const ROWS: readonly Position[] = ["C", "F", "G"];
@@ -38,6 +41,7 @@ export function LineupCourt({
     <div
       className="lineup-court hardwood"
       data-testid="lineup-court"
+      data-scored={starters.some((player) => player.points) || undefined}
       data-drop="role:starter"
       data-over={drag.over === "role:starter" || undefined}
       role="group"
@@ -64,7 +68,7 @@ export function LineupCourt({
                   data-dragging={drag.dragging === player.id || undefined}
                   data-valid={(armed !== null && armed !== player.id && (!armedPlayer || armedPlayer.position === player.position)) || undefined}
                   aria-pressed={armed === player.id}
-                  aria-label={`${player.name}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${armed && armed !== player.id ? ", tap to swap" : ", tap to move"}`}
+                  aria-label={`${player.name}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}${armed && armed !== player.id ? ", tap to swap" : ", tap to move"}`}
                   onClick={() => onArm(player.id)}
                   {...drag.handle(player.id)}
                   className="lineup-court-player lineup-drag"
@@ -74,7 +78,23 @@ export function LineupCourt({
                     <span className="lineup-court-position" aria-hidden="true">{position}</span>
                     {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C&times;2</span> : null}
                   </span>
-                  <strong title={player.name}>{surname(player.name)}</strong>
+                  {player.points ? (
+                    <span className="lineup-court-plate" data-testid="court-points" data-live={player.points.live || undefined}>
+                      <strong title={player.name}>{surname(player.name)}</strong>
+                      <span className="lineup-court-score" data-kind={player.points.kind}>
+                        {player.points.kind === "figure" ? (
+                          <>
+                            <b>{player.points.text}</b>
+                            <small>{player.points.live ? "Live" : "Pts"}</small>
+                          </>
+                        ) : (
+                          player.points.text
+                        )}
+                      </span>
+                    </span>
+                  ) : (
+                    <strong title={player.name}>{surname(player.name)}</strong>
+                  )}
                 </button>
               </li>
             ))}

@@ -1,17 +1,19 @@
 import { notFound, redirect } from "next/navigation";
 
-import { Bank, EmptyNotice, selectStyles } from "@/components/board";
+import { Bank, EmptyNotice } from "@/components/board";
 import { RoundStepper } from "@/components/broadcast";
 import { AppShell } from "@/components/app-shell";
 import { ContextPanel } from "@/components/context-panel";
+import { LiveFeed } from "@/components/live-feed";
 import { resolveSeason, SeasonControl } from "@/components/season-control";
-import { SubmitButton } from "@/components/submit-button";
+import { TeamPicker } from "@/components/team-picker";
 import { readComparisonPlayers } from "@/lib/stats/comparison-queries";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readLineupBoard } from "@/lib/lineups/queries";
+import { readLineupLive } from "@/lib/live/queries";
 import { readPanel } from "@/lib/panel/queries";
 import { formatTipOff } from "@/lib/time/local";
 
@@ -74,7 +76,12 @@ export default async function LineupPage({
   const board = drafted
     ? await readLineupBoard({ leagueId: id, memberId, season, round })
     : null;
-  const comparison = board ? await readComparisonPlayers(board.players, season, session.token) : [];
+  const [comparison, live] = board
+    ? await Promise.all([
+        readComparisonPlayers(board.players, season, session.token),
+        readLineupLive({ season, round, players: board.players, token: session.token }),
+      ])
+    : [[], null];
   const firstTip = (panel.schedule?.round === round ? panel.schedule.games : [])
     .map((game) => game.tipOff)
     .filter((stamp): stamp is string => Boolean(stamp))
@@ -96,20 +103,13 @@ export default async function LineupPage({
           {canManage ? `Lineup: ${teamName}` : teamName}
         </h1>
         {canManage ? (
-          <form method="get" action={`/leagues/${id}/lineup`} className="flex min-w-0 items-center gap-2" data-testid="lineup-picker">
-            <input type="hidden" name="season" value={season} />
-            <input type="hidden" name="round" value={String(round)} />
-            <select name="member" aria-label="Whose team" defaultValue={memberId} data-testid="lineup-member" className={`${selectStyles} max-w-56 min-w-0 font-semibold`}>
-              {data.members.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.teamName.trim() ? row.teamName : row.name}
-                </option>
-              ))}
-            </select>
-            <SubmitButton testId="lineup-show" tone="ink" pendingLabel="Opening…" compact>
-              Show
-            </SubmitButton>
-          </form>
+          <TeamPicker
+            action={`/leagues/${id}/lineup`}
+            keep={{ season, round: String(round) }}
+            members={data.members}
+            value={memberId}
+            testId="lineup"
+          />
         ) : null}
         <RoundStepper
           round={round}
@@ -117,7 +117,22 @@ export default async function LineupPage({
           hrefFor={(next) => `/leagues/${id}/lineup?${new URLSearchParams({ season, round: String(next), member: memberId })}`}
           testId="lineup-stepper"
         />
-        {tipOff ? <p className="text-sm text-ink-soft">Tips off {tipOff}</p> : null}
+        {live && !live.final && (live.underway || live.hasGameWindow) ? (
+          <LiveFeed
+            testId="lineup-feed-status"
+            authToken={session.token}
+            season={season}
+            round={round}
+            checkedAt={live.checkedAt}
+            final={live.final}
+            hasGameWindow={live.hasGameWindow}
+            gameTimes={live.gameTimes}
+            hasPlayedGames={live.hasPlayedGames}
+            hasFullTime={live.hasFullTime}
+          />
+        ) : tipOff ? (
+          <p className="text-sm text-ink-soft">Tips off {tipOff}</p>
+        ) : null}
       </div>
 
       <SeasonControl
@@ -150,6 +165,7 @@ export default async function LineupPage({
           round={round}
           players={board.players}
           comparison={comparison}
+          live={live?.underway ? live.byPlayer : null}
           source={board.source}
           official={board.official}
           carriedFrom={board.carriedFrom}

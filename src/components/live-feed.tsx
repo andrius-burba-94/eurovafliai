@@ -9,7 +9,12 @@ import { feedStatus } from "@/lib/live/status";
 
 const COALESCE_MS = 250;
 
-export function MatchdayLive({ authToken, season, round, checkedAt, final, hasGameWindow, gameTimes, hasPlayedGames, hasFullTime }: {
+/**
+ * The provisional feed's status line, and the reason a live page keeps up: a
+ * new snapshot for the round refreshes the server render it sits in.
+ */
+export function LiveFeed({ authToken, season, round, checkedAt, final, hasGameWindow, gameTimes, hasPlayedGames, hasFullTime, testId = "matchday-feed-status" }: {
+  testId?: string;
   authToken: string;
   season: string;
   round: number;
@@ -72,7 +77,7 @@ export function MatchdayLive({ authToken, season, round, checkedAt, final, hasGa
     <p
       className={`text-xs ${status.alert ? "text-gold" : "text-ink-soft"}`}
       role="status"
-      data-testid="matchday-feed-status"
+      data-testid={testId}
       data-live={subscribed && connected ? "true" : "false"}
     >
       {status.label}

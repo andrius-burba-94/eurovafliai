@@ -8,6 +8,7 @@ import {
   FixtureNote,
   PositionPatch,
 } from "@/components/board";
+import { StatusBadge } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
 import { PlayerComparison } from "@/components/player-comparison";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/lineups/lineup";
 import type { LineupPlayer } from "@/lib/lineups/queries";
 import { optimizeLineup, type Optimization } from "@/lib/lineups/optimize";
+import { roundPointsOf, type PlayerRound, type RoundPoints } from "@/lib/live/status";
 import type { Position } from "@/lib/engine";
 import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 
@@ -95,6 +97,7 @@ export function LineupForm({
   round,
   players,
   comparison,
+  live,
   source,
   official,
   carriedFrom,
@@ -107,6 +110,8 @@ export function LineupForm({
   round: number;
   players: readonly LineupPlayer[];
   comparison: readonly ComparisonPlayer[];
+  /** Each player's round once it has tipped off; null before, so the board stays a plan. */
+  live: Readonly<Record<string, PlayerRound>> | null;
   source: LineupSource;
   official: boolean;
   carriedFrom: number | null;
@@ -356,8 +361,16 @@ export function LineupForm({
     return out;
   }, [players, places]);
 
+  /** Counted at the place the player stands in now, so a move shows what it is worth. */
+  function pointsOf(playerId: string): RoundPoints | undefined {
+    if (!live) return undefined;
+    const role: LineupRole | "" = captainId === playerId ? "captain" : (places[playerId] ?? "");
+    return roundPointsOf(live[playerId], role ? ROLE_MULTIPLIERS[role] : 1);
+  }
+
   function card(player: LineupPlayer) {
     const key = `player:${player.id}`;
+    const points = pointsOf(player.id);
     return (
       <li key={player.id} className="min-w-0">
         <button
@@ -368,7 +381,7 @@ export function LineupForm({
           data-over={drag.over === key || undefined}
           data-dragging={drag.dragging === player.id || undefined}
           aria-pressed={armed === player.id}
-          aria-label={`Move ${player.name}`}
+          aria-label={points ? `Move ${player.name}, ${points.spoken}` : `Move ${player.name}`}
           title={player.name}
           onClick={() => arm(player.id)}
           {...drag.handle(player.id)}
@@ -385,7 +398,9 @@ export function LineupForm({
               </span>
             </span>
           </span>
-          {player.estimateTenths !== null ? (
+          {points ? (
+            <CardPoints points={points} />
+          ) : player.estimateTenths !== null ? (
             <span className="stat shrink-0 text-xs text-ink-soft">~{(player.estimateTenths / 10).toFixed(1)}</span>
           ) : null}
         </button>
@@ -516,6 +531,7 @@ export function LineupForm({
                 personCode: player.personCode,
                 position: player.position,
                 isCaptain: captainId === player.id,
+                points: pointsOf(player.id),
               }))}
               openPlaces={openShape}
               armed={armed}
@@ -535,6 +551,7 @@ export function LineupForm({
                   <th scope="col" className="px-3 py-2 font-semibold">Player</th>
                   <th scope="col" className="px-3 py-2 font-semibold">Fixture</th>
                   <th scope="col" className="px-3 py-2 text-right font-semibold">Est.</th>
+                  {live ? <th scope="col" className="px-3 py-2 text-right font-semibold">Round</th> : null}
                   <th scope="col" className="px-3 py-2 font-semibold">Captain</th>
                   <th scope="col" className="px-3 py-2 font-semibold">Role</th>
                 </tr>
@@ -560,6 +577,11 @@ export function LineupForm({
                         <td className="stat px-3 py-1.5 text-right text-ink-soft">
                           {player.estimateTenths !== null ? (player.estimateTenths / 10).toFixed(1) : "—"}
                         </td>
+                        {live ? (
+                          <td className="px-3 py-1.5 text-right">
+                            <CardPoints points={pointsOf(player.id)!} />
+                          </td>
+                        ) : null}
                         <td className="px-3 py-1.5">
                           {/*
                             A radio group rather than thirteen toggles, because
@@ -698,6 +720,22 @@ export function LineupForm({
         </div>
       </div>
     </form>
+  );
+}
+
+/** The round's figure at the end of a card, with the LIVE bug while the game is on. */
+function CardPoints({ points }: { points: RoundPoints }) {
+  if (points.kind === "note") {
+    return <span className="stat shrink-0 text-xs text-ink-soft" data-testid="lineup-points">{points.text}</span>;
+  }
+  return (
+    <span className="inline-flex shrink-0 flex-col items-end gap-1" data-testid="lineup-points" data-live={points.live || undefined}>
+      <span className="flex items-baseline gap-0.5">
+        <span className="display-figure text-xl">{points.text}</span>
+        {points.live ? null : <span className="text-[0.625rem] font-bold tracking-[0.06em] text-ink-soft uppercase">Pts</span>}
+      </span>
+      {points.live ? <StatusBadge kind="live">Live</StatusBadge> : null}
+    </span>
   );
 }
 
