@@ -86,6 +86,17 @@ test("the lineup shows a player's live round points, read from the same feed as 
   await expect(thisRound.getByText("Live", { exact: true })).toBeVisible();
   await expect(thisRound.getByTestId("profile-stat-line")).toHaveText("12 PTS · 4 REB · 3 AST · PIR 15 · 18:20");
   await expect(thisRound.getByTestId("profile-round-points")).toHaveText("16.5");
+  await page.keyboard.press("Escape");
+
+  // The side panel's Schedule draws the same game as Live's Games: badge and score.
+  const toggle = page.getByTestId("panel-toggle");
+  if (await toggle.isVisible()) await toggle.click();
+  await page.getByTestId("panel-tab-schedule").click();
+  // Parallel workers plant their own live game in the same round, so any one will do.
+  const tile = page.locator('[data-testid="panel-game"][data-state="live"]').first();
+  await expect(tile.getByText("Live", { exact: true })).toBeVisible();
+  await expect(tile).toContainText("44");
+  await expect(tile).toContainText("40");
 });
 
 test("any member can watch another team's round on Live, from the picker or the table", async ({ page, context }, testInfo) => {

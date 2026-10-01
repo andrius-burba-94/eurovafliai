@@ -1,4 +1,5 @@
 import type { PlayerFixture } from "@/lib/fixtures/types";
+import type { GameState } from "@/lib/live/status";
 import type { PoolPlayer } from "@/lib/pool/search";
 
 /**
@@ -12,9 +13,10 @@ export type PanelGame = {
   readonly away: string;
   readonly homeName: string;
   readonly awayName: string;
-  readonly played: boolean;
-  readonly homeScore: number;
-  readonly awayScore: number;
+  readonly state: GameState;
+  /** The live feed's score while it has one, then the result; null before tip-off. */
+  readonly homeScore: number | null;
+  readonly awayScore: number | null;
   /** ISO instant, or null while the feed has not timed the game. */
   readonly tipOff: string | null;
 };
