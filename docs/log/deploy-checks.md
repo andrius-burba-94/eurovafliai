@@ -117,3 +117,19 @@ rather than in a follow-up PR because 3.4a had not merged when it ran.
 
 **Phase 1 — walking skeleton** — auth, league creation, join-by-code, the
 design foundation, the live lobby and the deploy all landed long ago.
+
+**5.5b (official lineups) was checked against the official table, not against
+itself.** The deploy of `2dcc064` logged `Migrations changed — restarting
+eurovafliai-pb` and `worker is online`. Before it, production's round 2 was
+scored on round 1's hand-typed lineups (only round 1 had any): Laurynas Birutis
+145.1 and Kalaškračiai 79.15 where the official game says 159.9 and 94.15. The
+worker's first fantasy pass, two minutes after start, logged `lineups · apply
+round 1 / 2 / 3 · applied · 8 of 8 lineups … Every round total matches the
+official one`. Read from the database afterwards (read-only, Python's
+`sqlite3` with `mode=ro`, since the box has no `sqlite3` binary): every
+`round_lineups` row for rounds 1–3 is `synced`, and round 2's snapshot is
+159.9 / 149.15 / 140.55 / 139.15 / 127.25 / 110.9 / 95.25 / 94.15 — the official
+round-2 table to the hundredth, team for team. Round 1 moved by one typing
+slip: Monikutės Naktys 165.7 → 164.6, which is the official figure. The run
+report on the Fantasy sync page lists each team's formation and captain with
+both totals; four of the five formations appear in round 2 alone.
