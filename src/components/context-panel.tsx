@@ -6,9 +6,9 @@ import { PlayerStatsLink } from "@/components/player-stats-link";
 import { useRef, useState, type KeyboardEvent } from "react";
 
 import { EmptyNotice, Slot, Slots } from "@/components/board";
+import { GameTile } from "@/components/game-tile";
 import { PlayerPoolList } from "@/components/player-pool-list";
-import type { PanelData, PanelGame } from "@/lib/panel/types";
-import { formatTipOff } from "@/lib/time/local";
+import type { PanelData } from "@/lib/panel/types";
 
 /**
  * The side panel's body: Players, Schedule and News as an ARIA tablist —
@@ -140,39 +140,20 @@ function Schedule({ schedule }: { schedule: PanelData["schedule"] }) {
   }
   return (
     <div className="flex flex-col gap-3" data-testid="panel-schedule">
-      <p className="slot-label">Round {schedule.round}</p>
-      <Slots label={`Round ${schedule.round} games`}>
+      <p className="slot-label">Round {schedule.round} · Vilnius time</p>
+      <ul role="list" aria-label={`Round ${schedule.round} games`} className="flex flex-col gap-2">
         {schedule.games.map((game) => (
-          <GameRow key={game.code} game={game} />
+          <GameTile
+            key={game.code}
+            testId="panel-game"
+            state={game.state}
+            tipOff={game.tipOff}
+            home={{ code: game.home, name: game.homeName, score: game.homeScore }}
+            away={{ code: game.away, name: game.awayName, score: game.awayScore }}
+          />
         ))}
-      </Slots>
+      </ul>
     </div>
-  );
-}
-
-function GameRow({ game }: { game: PanelGame }) {
-  return (
-    <Slot testId="panel-game" state={game.played ? "filled" : "waiting"}>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm text-ink">
-          <abbr title={game.homeName} className="no-underline">
-            {game.home}
-          </abbr>{" "}
-          <span className="text-ink-soft">vs</span>{" "}
-          <abbr title={game.awayName} className="no-underline">
-            {game.away}
-          </abbr>
-        </span>
-        <span className="text-sm text-ink-soft">
-          {formatTipOff(game.tipOff) ?? "Time to come"}
-        </span>
-      </span>
-      {game.played ? (
-        <span className="stat text-sm">
-          {game.homeScore}&ndash;{game.awayScore}
-        </span>
-      ) : null}
-    </Slot>
   );
 }
 

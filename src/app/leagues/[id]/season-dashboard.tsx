@@ -95,7 +95,7 @@ export function SeasonDashboard({
   const you = youMemberId ? { name: nameOf(youMemberId), style: styleOf(youMemberId) } : null;
   const yourNight = youMemberId ? recap?.rows.findIndex((row) => row.memberId === youMemberId) ?? -1 : -1;
 
-  const upcoming = schedule?.games.filter((game) => !game.played && game.tipOff) ?? [];
+  const upcoming = schedule?.games.filter((game) => game.state === "scheduled" && game.tipOff) ?? [];
   const nextTip = upcoming.map((game) => game.tipOff!).sort()[0] ?? null;
   const nextRound =
     upcoming.length > 0 && (!latest || schedule!.round > latest.round) ? schedule!.round : null;

@@ -613,3 +613,21 @@ profile opened on a drop; the matchday spec opens a live player's profile and
 reads the same stat line and 16.5 as Live. Lineup, matchday, players and a11y
 specs pass on both projects.
 
+## S22 — Schedule tab drawn like Live's Games
+
+The panel's Schedule was a list of "OLY vs PAN" with a time, and only a final
+score once the result was stored, so during a round it said nothing about the
+games being played. Live already drew a game well. The tile moved to
+`components/game-tile.tsx` without hooks so the server-rendered Live page and
+the client-rendered panel draw the same thing, and the score rule (feed first,
+then result) is one tested `gameScores`. The panel's read gained one query, the
+round's live snapshots, and works out each game's state on the server with the
+same `gameStateOf` as Live. The dashboard's "next tip-off" now looks only at
+games still scheduled, which is what it meant.
+
+Verification: lint, typecheck, knip and 1686 unit tests pass (new
+`game-tile.test.ts`). The matchday spec opens the lineup's side panel on a
+planted live round-38 game and finds a `LIVE` tile with its score; parallel
+workers each plant one, so it takes the first live tile. Matchday and panel
+specs pass on both projects.
+

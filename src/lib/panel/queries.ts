@@ -4,6 +4,9 @@ import { getSession } from "@/lib/auth/session";
 import { DRAFTABLE_PLAYERS_FILTER } from "@/lib/drafts/pipeline";
 import { nextFixturesByClub, roundSchedule } from "@/lib/fixtures/schedule";
 import { readStoredFixtures, scheduleRowsFrom } from "@/lib/fixtures/store";
+import { gameScores } from "@/components/game-tile";
+import { gameStateOf } from "@/lib/live/status";
+import { readLiveSnapshots } from "@/lib/live/store";
 import { readNews } from "@/lib/news/queries";
 import { createUserClient } from "@/lib/pb/server";
 import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
@@ -51,6 +54,10 @@ export async function readPanel({
   ]);
 
   const schedule = roundSchedule(fixtureRows, round);
+  const snapshots = new Map(
+    (schedule ? await readLiveSnapshots(pb, season, schedule.round).catch(() => []) : []).map((row) => [row.game_code, row]),
+  );
+  const now = Date.now();
   const clubNames = new Map(
     players.map((player) => [player.club, player.clubName ?? player.club]),
   );
@@ -61,17 +68,21 @@ export async function readPanel({
     schedule: schedule
       ? {
           round: schedule.round,
-          games: schedule.games.map((game) => ({
-            code: game.gameCode,
-            home: game.localClub,
-            away: game.roadClub,
-            homeName: clubNames.get(game.localClub) ?? game.localClub,
-            awayName: clubNames.get(game.roadClub) ?? game.roadClub,
-            played: game.played,
-            homeScore: game.localScore,
-            awayScore: game.roadScore,
-            tipOff: game.utcDate,
-          })),
+          games: schedule.games.map((game) => {
+            const snapshot = snapshots.get(game.gameCode);
+            const scores = gameScores({ snapshot, played: game.played, localScore: game.localScore, roadScore: game.roadScore });
+            return {
+              code: game.gameCode,
+              home: game.localClub,
+              away: game.roadClub,
+              homeName: clubNames.get(game.localClub) ?? game.localClub,
+              awayName: clubNames.get(game.roadClub) ?? game.roadClub,
+              state: gameStateOf({ played: game.played, snapshot, now }),
+              homeScore: scores.home,
+              awayScore: scores.away,
+              tipOff: game.utcDate,
+            };
+          }),
         }
       : null,
     news: (news ?? []).map((item) => ({

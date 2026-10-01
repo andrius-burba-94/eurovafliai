@@ -13,6 +13,7 @@ import {
   TeamCrest,
   teamFieldStyle,
 } from "@/components/broadcast";
+import { GameTile, gameScores } from "@/components/game-tile";
 import { LiveFeed } from "@/components/live-feed";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { TeamPicker } from "@/components/team-picker";
@@ -27,7 +28,7 @@ import { navLeagueFrom } from "@/lib/nav/items";
 import { ordinal } from "@/lib/season/story";
 import { formatHundredths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
-import { formatClock, formatTipOff } from "@/lib/time/local";
+import { formatClock } from "@/lib/time/local";
 
 /** The regular season's rounds; the stepper walks them. */
 const REGULAR_SEASON_ROUNDS = 38;
@@ -296,36 +297,21 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
             ) : (
               <ul role="list" className="grid grid-cols-2 gap-2">
                 {matchday.fixtures.map((fixture) => {
-                  const state = gameState(fixture.game_code, Boolean(fixture.played));
-                  const snapshot = byGame.get(fixture.game_code);
-                  const score = (side: "local" | "road") =>
-                    snapshot
-                      ? side === "local"
-                        ? snapshot.localScore
-                        : snapshot.roadScore
-                      : fixture.played
-                        ? side === "local"
-                          ? fixture.local_score
-                          : fixture.road_score
-                        : null;
+                  const scores = gameScores({
+                    snapshot: byGame.get(fixture.game_code),
+                    played: Boolean(fixture.played),
+                    localScore: fixture.local_score ?? 0,
+                    roadScore: fixture.road_score ?? 0,
+                  });
                   return (
-                    <li key={fixture.id} data-testid="matchday-game" className="flex flex-col gap-1.5 rounded-lg border border-panel-border bg-stock p-2.5">
-                      <span className="flex items-center justify-between gap-2">
-                        <StatusBadge kind={GAME_BADGE[state].kind}>{GAME_BADGE[state].word}</StatusBadge>
-                        {state === "scheduled" ? (
-                          <span className="text-xs text-ink-soft">{formatTipOff(fixture.utc_date) ?? "Time to be confirmed"}</span>
-                        ) : null}
-                      </span>
-                      {(["local", "road"] as const).map((side) => (
-                        <span key={side} className="flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1.5 text-sm font-bold">
-                            <ClubCrest clubCode={side === "local" ? fixture.local_club : fixture.road_club} />
-                            {side === "local" ? fixture.local_club : fixture.road_club}
-                          </span>
-                          <span className="stat text-sm font-bold">{score(side) ?? ""}</span>
-                        </span>
-                      ))}
-                    </li>
+                    <GameTile
+                      key={fixture.id}
+                      testId="matchday-game"
+                      state={gameState(fixture.game_code, Boolean(fixture.played))}
+                      tipOff={fixture.utc_date || null}
+                      home={{ code: fixture.local_club, score: scores.home }}
+                      away={{ code: fixture.road_club, score: scores.away }}
+                    />
                   );
                 })}
               </ul>
