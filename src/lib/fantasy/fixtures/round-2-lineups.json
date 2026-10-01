@@ -1,0 +1,674 @@
+{
+  "2827842": {
+    "data": {
+      "formation_id": 27,
+      "pts": 159.9,
+      "players": [
+        {
+          "id": 4882,
+          "first_name": "Daniel",
+          "last_name": "Theis",
+          "jersey": "23",
+          "court_position": 1,
+          "is_captain": false,
+          "pts": 14,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 148,
+            "name": "Maccabi Rapyd Tel Aviv"
+          }
+        },
+        {
+          "id": 3812,
+          "first_name": "Jaylen",
+          "last_name": "Hoard",
+          "jersey": "1",
+          "court_position": 2,
+          "is_captain": false,
+          "pts": 10,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 148,
+            "name": "Maccabi Rapyd Tel Aviv"
+          }
+        },
+        {
+          "id": 7237,
+          "first_name": "Nathan",
+          "last_name": "Reuvers",
+          "jersey": "3",
+          "court_position": 3,
+          "is_captain": false,
+          "pts": 7.7,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 174,
+            "name": "Valencia Basket"
+          }
+        },
+        {
+          "id": 3903,
+          "first_name": "Elijah",
+          "last_name": "Bryant",
+          "jersey": "3",
+          "court_position": 4,
+          "is_captain": true,
+          "pts": 34.1,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 165,
+            "name": "Hapoel IBI Tel Aviv"
+          }
+        },
+        {
+          "id": 3794,
+          "first_name": "Kevin",
+          "last_name": "Punter",
+          "jersey": "0",
+          "court_position": 5,
+          "is_captain": false,
+          "pts": 28,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 140,
+            "name": "FC Barcelona"
+          }
+        },
+        {
+          "id": 3771,
+          "first_name": "Wade",
+          "last_name": "Baldwin",
+          "jersey": "2",
+          "court_position": 6,
+          "is_captain": false,
+          "pts": 24.2,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 147,
+            "name": "Fenerbahce Tarfin Istanbul"
+          }
+        },
+        {
+          "id": 3774,
+          "first_name": "Tornike",
+          "last_name": "Shengelia",
+          "jersey": "23",
+          "court_position": 7,
+          "is_captain": false,
+          "pts": 3.3,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 311,
+            "name": "Dubai Basketball"
+          }
+        },
+        {
+          "id": 4280,
+          "first_name": "Marek",
+          "last_name": "Blazevic",
+          "jersey": "22",
+          "court_position": 8,
+          "is_captain": false,
+          "pts": 3,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 155,
+            "name": "Zalgiris Kaunas"
+          }
+        },
+        {
+          "id": 3775,
+          "first_name": "Shavon",
+          "last_name": "Shields",
+          "jersey": "31",
+          "court_position": 9,
+          "is_captain": false,
+          "pts": 3.3,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 147,
+            "name": "Fenerbahce Tarfin Istanbul"
+          }
+        },
+        {
+          "id": 4247,
+          "first_name": "Chris",
+          "last_name": "Jones",
+          "jersey": "1",
+          "court_position": 10,
+          "is_captain": false,
+          "pts": 6,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 144,
+            "name": "Crvena Zvezda Meridianbet Belgrade"
+          }
+        }
+      ]
+    }
+  },
+  "2824079": {
+    "data": {
+      "formation_id": 31,
+      "pts": 149.15,
+      "players": [
+        {
+          "id": 3769,
+          "first_name": "Walter",
+          "last_name": "Tavares",
+          "jersey": "22",
+          "court_position": 1,
+          "is_captain": false,
+          "pts": 14,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 153,
+            "name": "Real Madrid"
+          }
+        },
+        {
+          "id": 7201,
+          "first_name": "Dwayne",
+          "last_name": "Bacon",
+          "jersey": "3",
+          "court_position": 2,
+          "is_captain": false,
+          "pts": 20.9,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 311,
+            "name": "Dubai Basketball"
+          }
+        },
+        {
+          "id": 4252,
+          "first_name": "Jean",
+          "last_name": "Montero",
+          "jersey": "8",
+          "court_position": 3,
+          "is_captain": true,
+          "pts": 23.1,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 149,
+            "name": "Olympiacos Piraeus"
+          }
+        },
+        {
+          "id": 3874,
+          "first_name": "Tyler",
+          "last_name": "Dorsey",
+          "jersey": "22",
+          "court_position": 4,
+          "is_captain": false,
+          "pts": 8.8,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 149,
+            "name": "Olympiacos Piraeus"
+          }
+        },
+        {
+          "id": 3887,
+          "first_name": "Sylvain",
+          "last_name": "Francisco",
+          "jersey": "3",
+          "court_position": 5,
+          "is_captain": false,
+          "pts": 27.5,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 151,
+            "name": "Panathinaikos AKTOR Athens"
+          }
+        },
+        {
+          "id": 3801,
+          "first_name": "Nicolo",
+          "last_name": "Melli",
+          "jersey": "4",
+          "court_position": 6,
+          "is_captain": false,
+          "pts": 15.4,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 147,
+            "name": "Fenerbahce Tarfin Istanbul"
+          }
+        },
+        {
+          "id": 7218,
+          "first_name": "Kameron",
+          "last_name": "Taylor",
+          "jersey": "1",
+          "court_position": 7,
+          "is_captain": false,
+          "pts": 14.3,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 174,
+            "name": "Valencia Basket"
+          }
+        },
+        {
+          "id": 11513,
+          "first_name": "Damion",
+          "last_name": "Baugh",
+          "jersey": "29",
+          "court_position": 8,
+          "is_captain": false,
+          "pts": 3,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 143,
+            "name": "Kosner Baskonia Vitoria-Gasteiz"
+          }
+        },
+        {
+          "id": 3777,
+          "first_name": "Will",
+          "last_name": "Clyburn",
+          "jersey": "21",
+          "court_position": 9,
+          "is_captain": false,
+          "pts": 7.7,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 147,
+            "name": "Fenerbahce Tarfin Istanbul"
+          }
+        },
+        {
+          "id": 8368,
+          "first_name": "Mamadi",
+          "last_name": "Diakite",
+          "jersey": "1",
+          "court_position": 10,
+          "is_captain": false,
+          "pts": 7.7,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 311,
+            "name": "Dubai Basketball"
+          }
+        }
+      ]
+    }
+  },
+  "2824586": {
+    "data": {
+      "formation_id": 28,
+      "pts": 140.55,
+      "players": [
+        {
+          "id": 3898,
+          "first_name": "Ante",
+          "last_name": "Zizic",
+          "jersey": "41",
+          "court_position": 1,
+          "is_captain": false,
+          "pts": 9.9,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 158,
+            "name": "Besiktas Istanbul"
+          }
+        },
+        {
+          "id": 3910,
+          "first_name": "Roman",
+          "last_name": "Sorkin",
+          "jersey": "9",
+          "court_position": 2,
+          "is_captain": false,
+          "pts": 12,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 148,
+            "name": "Maccabi Rapyd Tel Aviv"
+          }
+        },
+        {
+          "id": 9064,
+          "first_name": "Kessler",
+          "last_name": "Edwards",
+          "jersey": "9",
+          "court_position": 3,
+          "is_captain": false,
+          "pts": 13,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 154,
+            "name": "Virtus Bologna"
+          }
+        },
+        {
+          "id": 3791,
+          "first_name": "Carlik",
+          "last_name": "Jones",
+          "jersey": "1",
+          "court_position": 4,
+          "is_captain": true,
+          "pts": 28.6,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 152,
+            "name": "Partizan Mozzart Bet Belgrade"
+          }
+        },
+        {
+          "id": 4884,
+          "first_name": "Jimmy",
+          "last_name": "Clark III",
+          "jersey": "2",
+          "court_position": 5,
+          "is_captain": false,
+          "pts": 19,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 148,
+            "name": "Maccabi Rapyd Tel Aviv"
+          }
+        },
+        {
+          "id": 3770,
+          "first_name": "Chima",
+          "last_name": "Moneke",
+          "jersey": "95",
+          "court_position": 6,
+          "is_captain": false,
+          "pts": 12,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 144,
+            "name": "Crvena Zvezda Meridianbet Belgrade"
+          }
+        },
+        {
+          "id": 3892,
+          "first_name": "Rokas",
+          "last_name": "Jokubaitis",
+          "jersey": "31",
+          "court_position": 7,
+          "is_captain": false,
+          "pts": 13,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 141,
+            "name": "FC Bayern Munich"
+          }
+        },
+        {
+          "id": 3907,
+          "first_name": "Jaron",
+          "last_name": "Blossomgame",
+          "jersey": "4",
+          "court_position": 8,
+          "is_captain": false,
+          "pts": 9.9,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 311,
+            "name": "Dubai Basketball"
+          }
+        },
+        {
+          "id": 7202,
+          "first_name": "Justin",
+          "last_name": "Robinson",
+          "jersey": "5",
+          "court_position": 9,
+          "is_captain": false,
+          "pts": 5,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 140,
+            "name": "FC Barcelona"
+          }
+        },
+        {
+          "id": 3973,
+          "first_name": "Joel",
+          "last_name": "Parra",
+          "jersey": "44",
+          "court_position": 10,
+          "is_captain": false,
+          "pts": 7,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 140,
+            "name": "FC Barcelona"
+          }
+        }
+      ]
+    }
+  },
+  "2827280": {
+    "data": {
+      "formation_id": 30,
+      "pts": 95.25,
+      "players": [
+        {
+          "id": 3822,
+          "first_name": "Joel",
+          "last_name": "Bolomboy",
+          "jersey": "21",
+          "court_position": 1,
+          "is_captain": false,
+          "pts": 6,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 139,
+            "name": "LDLC ASVEL Villeurbanne"
+          }
+        },
+        {
+          "id": 3799,
+          "first_name": "Zach",
+          "last_name": "Leday",
+          "jersey": "16",
+          "court_position": 2,
+          "is_captain": false,
+          "pts": 14.3,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 165,
+            "name": "Hapoel IBI Tel Aviv"
+          }
+        },
+        {
+          "id": 8808,
+          "first_name": "Eugene",
+          "last_name": "Omoruyi",
+          "jersey": "20",
+          "court_position": 3,
+          "is_captain": true,
+          "pts": 7.7,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 158,
+            "name": "Besiktas Istanbul"
+          }
+        },
+        {
+          "id": 7197,
+          "first_name": "Oshae",
+          "last_name": "Brissett",
+          "jersey": "10",
+          "court_position": 4,
+          "is_captain": false,
+          "pts": 8,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 148,
+            "name": "Maccabi Rapyd Tel Aviv"
+          }
+        },
+        {
+          "id": 3795,
+          "first_name": "TJ",
+          "last_name": "Shorts",
+          "jersey": "0",
+          "court_position": 5,
+          "is_captain": false,
+          "pts": 22,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 174,
+            "name": "Valencia Basket"
+          }
+        },
+        {
+          "id": 3875,
+          "first_name": "Marko",
+          "last_name": "Guduric",
+          "jersey": "23",
+          "court_position": 6,
+          "is_captain": false,
+          "pts": 14.3,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 145,
+            "name": "Armani Olimpia Milan"
+          }
+        },
+        {
+          "id": 3857,
+          "first_name": "Dan",
+          "last_name": "Oturu",
+          "jersey": "25",
+          "court_position": 7,
+          "is_captain": false,
+          "pts": 9.9,
+          "position": {
+            "name": "Center"
+          },
+          "team": {
+            "id": 165,
+            "name": "Hapoel IBI Tel Aviv"
+          }
+        },
+        {
+          "id": 11517,
+          "first_name": "Tyty",
+          "last_name": "Washington",
+          "jersey": "3",
+          "court_position": 8,
+          "is_captain": false,
+          "pts": 0,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 139,
+            "name": "LDLC ASVEL Villeurbanne"
+          }
+        },
+        {
+          "id": 3834,
+          "first_name": "Nadir",
+          "last_name": "Hifi",
+          "jersey": "2",
+          "court_position": 9,
+          "is_captain": false,
+          "pts": 14,
+          "position": {
+            "name": "Guard"
+          },
+          "team": {
+            "id": 150,
+            "name": "Paris Basketball"
+          }
+        },
+        {
+          "id": 3926,
+          "first_name": "Filip",
+          "last_name": "Petrusev",
+          "jersey": "30",
+          "court_position": 10,
+          "is_captain": false,
+          "pts": 6.6,
+          "position": {
+            "name": "Forward"
+          },
+          "team": {
+            "id": 311,
+            "name": "Dubai Basketball"
+          }
+        }
+      ]
+    }
+  }
+}

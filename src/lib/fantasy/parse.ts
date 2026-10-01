@@ -28,10 +28,17 @@ export type FantasyTeam = {
 
 const POSITIONS: Record<string, Position> = { Guard: "G", Forward: "F", Center: "C" };
 
-const id = z.union([z.number().int(), z.string().min(1)]).transform(String);
+function positionFrom(name: string): Position {
+  const position = POSITIONS[name.trim()];
+  if (!position) throw new Error(`The Fantasy Challenge lists a position we do not know: ${name}.`);
+  return position;
+}
+
+export const id = z.union([z.number().int(), z.string().min(1)]).transform(String);
 const text = z.string().nullish().transform((value) => value?.trim() ?? "");
 
-const playerSchema = z.object({
+/** One official player as both the rosters and a lineup carry him. */
+export const playerSchema = z.object({
   id,
   first_name: text,
   last_name: z.string().min(1).transform((value) => value.trim()),
@@ -39,6 +46,17 @@ const playerSchema = z.object({
   position: z.object({ name: z.string() }),
   team: z.object({ id, name: z.string() }),
 });
+
+export function fantasyPlayerFrom(player: z.infer<typeof playerSchema>): FantasyPlayer {
+  return {
+    id: player.id,
+    firstName: player.first_name,
+    lastName: player.last_name,
+    jersey: player.jersey,
+    position: positionFrom(player.position.name),
+    club: { id: player.team.id, name: player.team.name.trim() },
+  };
+}
 
 const rostersSchema = z.object({
   data: z.array(
@@ -61,19 +79,6 @@ export function parseLeagueRosters(raw: unknown): FantasyTeam[] {
     id: team.id,
     name: team.name.trim(),
     manager: [team.user?.first_name, team.user?.last_name].filter(Boolean).join(" "),
-    players: team.players.map((player) => {
-      const position = POSITIONS[player.position.name.trim()];
-      if (!position) {
-        throw new Error(`The Fantasy Challenge lists a position we do not know: ${player.position.name}.`);
-      }
-      return {
-        id: player.id,
-        firstName: player.first_name,
-        lastName: player.last_name,
-        jersey: player.jersey,
-        position,
-        club: { id: player.team.id, name: player.team.name.trim() },
-      };
-    }),
+    players: team.players.map(fantasyPlayerFrom),
   }));
 }
