@@ -48,7 +48,7 @@ describe("a pick, announced", () => {
 
   it("names the team, the player and the place", () => {
     expect(announcePick(pick)).toBe(
-      "B Ballers drafted Sloukas, Kostas at #7, round 1.",
+      "B Ballers drafted Kostas Sloukas at #7, round 1.",
     );
   });
 
@@ -56,7 +56,7 @@ describe("a pick, announced", () => {
     // The ticker's one editorial contribution, kept: somebody coming back to
     // their phone wants to know whether the app picked for them.
     expect(announcePick({ ...pick, isAuto: true })).toBe(
-      "B Ballers autodrafted Sloukas, Kostas at #7, round 1.",
+      "B Ballers autodrafted Kostas Sloukas at #7, round 1.",
     );
   });
 
@@ -165,7 +165,7 @@ describe("a recorded transaction", () => {
         fromRound: 2,
       }),
     ).toBe(
-      "Chief FC traded Nunn to B Ballers for Sloukas, Kostas, counting from round 2.",
+      "Chief FC traded Nunn to B Ballers for Kostas Sloukas, counting from round 2.",
     );
   });
 

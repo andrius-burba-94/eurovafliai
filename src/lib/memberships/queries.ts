@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import "server-only";
 
 import {
@@ -327,7 +328,7 @@ export async function readMemberDeals(
       fields: "id,name",
       requestKey: null,
     });
-    for (const person of people) names.set(person.id, person.name);
+    for (const person of people) names.set(person.id, displayName(person.name));
   }
 
   const weights = await readLineupWeights(
@@ -449,7 +450,7 @@ export async function readRecentTransactions(
         fields: "id,name",
         requestKey: null,
       });
-    for (const player of players) names.set(player.id, player.name);
+    for (const player of players) names.set(player.id, displayName(player.name));
   }
   // A player whose row is gone still has to appear: a deal with a blank in it
   // is confusing, a deal that vanished is worse.

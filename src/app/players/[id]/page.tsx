@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -112,7 +113,7 @@ export default async function PlayerPage({
               <ClubCrest clubCode={player.clubCode} />
               {player.clubName || player.clubCode}
             </span>
-            <h1 className="display min-w-0 text-4xl break-words sm:text-5xl">{player.name}</h1>
+            <h1 className="display min-w-0 text-4xl break-words sm:text-5xl">{displayName(player.name)}</h1>
             <span className="flex flex-wrap items-center gap-2">
               <PositionPatch position={player.position} />
               {availabilityBadge(player.status) ? (
@@ -256,7 +257,7 @@ export default async function PlayerPage({
           a publisher has not mentioned them — see 9.4's notes. */}
       {news.length > 0 ? (
         <Bank label="In the news" aside={`${news.length}`}>
-          <Slots testId="player-news-rows" label={`News about ${player.name}`}>
+          <Slots testId="player-news-rows" label={`News about ${displayName(player.name)}`}>
             {news.map((item) => (
               <Slot key={item.id} testId="player-news" state="filled">
                 <span className="flex min-w-0 flex-1 flex-col gap-1">

@@ -9,6 +9,7 @@ import {
   signIn,
   superuser,
   TEST_CLUB,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -190,7 +191,7 @@ test("a counted round ranks the members who scored it", async ({
 
   await rows.first().getByTestId("standings-team").click();
   await expect(page).toHaveURL(/season=E2099/);
-  await expect(page.getByTestId("roster-player")).toContainText(star.name);
+  await expect(page.getByTestId("roster-player")).toContainText(shown(star.name));
 
   await expect(page.getByTestId("season-select").locator('option[value="E2025"]')).toHaveCount(0);
   // E2025 is not a fantasy season: the page falls back to the current one,
@@ -223,7 +224,7 @@ test("a signed-in member reads a player's stored game log", async ({
 
   await page.goto("/players");
   await page.getByTestId("pool-search").fill(planted.name);
-  await page.getByRole("link", { name: planted.name, exact: true }).click();
+  await page.getByRole("link", { name: shown(planted.name), exact: true }).click();
   await expect(page.getByTestId("player-stats-modal")).toBeVisible();
   await page.getByTestId("player-stats-modal").getByRole("link", { name: /Full profile/ }).click();
 

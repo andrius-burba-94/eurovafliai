@@ -518,3 +518,28 @@ Verification: lint, typecheck, knip and 1660 unit tests pass (new cases for
 points on a lineup card, and a member watching another team by picker and by
 table) and `lineup.spec` pass on both projects. Screenshots at 390px in both
 grounds and at 1440px checked the plates against the Live page's figures.
+
+## S19 — Names first name first
+
+The pool stores "Surname, First" because that is the order the Euroleague feed
+gives, and matching, search, sorting and the CSV exports are built on it. People
+read "First Surname", and "Vezenkov, Alexander" on every card read like a
+spreadsheet. So the swap is display-only: `displayName` in
+`src/lib/players/name.ts` turns the stored form round at the point a name is
+drawn, and nothing that is stored or exported moves. A name with no comma (a
+CSV-imported pool may not follow the feed) passes through whole, the same rule
+the board's surname already followed; `surname` now lives beside it and
+replaces the lineup's two unguarded copies and the board's `boardName`.
+
+Chat sentences format inside `chat/messages.ts`, so every caller (the pick
+pipeline, recorded trades, the fantasy sync, the recap's swing line) gets it at
+once; formatting an already formatted name changes nothing. Lines already in
+chat keep the order they were posted in. The mapping queue keeps stored names on
+purpose: it compares a pool record with a feed record.
+
+Verification: lint, typecheck, knip and 1665 unit tests pass (new `name.test.ts`;
+six sentence tests updated to the new order). E2E gained `shown(name)` in
+`helpers/session.ts`; the touched specs pass on both projects, except
+`news.spec.ts`, which fails the same way on `main` (the local-only failure
+STATUS.md already records). Seven draft tests timed out under the full
+parallel run and passed on a rerun with two workers.

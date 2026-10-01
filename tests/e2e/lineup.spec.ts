@@ -9,6 +9,7 @@ import {
   signIn,
   superuser,
   type TestUser,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -134,10 +135,10 @@ async function assign(
 ): Promise<void> {
   await showGrid(page);
   if (role === "captain") {
-    await page.getByLabel(`${player.name} captain`).check();
+    await page.getByLabel(`${shown(player.name)} captain`).check();
     return;
   }
-  await page.getByLabel(`${player.name} role`).selectOption(role);
+  await page.getByLabel(`${shown(player.name)} role`).selectOption(role);
 }
 
 /** The official 2-2-1, with the first guard as captain. */
@@ -284,7 +285,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
   await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   const captainOf = (index: number) =>
-    page.getByLabel(`${planted.players[index]!.name} captain`);
+    page.getByLabel(`${shown(planted.players[index]!.name)} captain`);
   await showGrid(page);
 
   // Marking a captain places them too: the captaincy is a mark on a starter,
@@ -292,7 +293,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
   // control that exists to produce an error message.
   await captainOf(0).check();
   await expect(captainOf(0)).toBeChecked();
-  await expect(page.getByLabel(`${planted.players[0]!.name} role`)).toHaveValue(
+  await expect(page.getByLabel(`${shown(planted.players[0]!.name)} role`)).toHaveValue(
     "starter",
   );
 
@@ -305,7 +306,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
   // Benching the captain gives up the armband with the place. Without this the
   // form would post a captain who is not among the starters and earn a refusal
   // naming a role no control on the page displays any more.
-  await page.getByLabel(`${planted.players[3]!.name} role`).selectOption("bench");
+  await page.getByLabel(`${shown(planted.players[3]!.name)} role`).selectOption("bench");
   await expect(captainOf(3)).not.toBeChecked();
   await expect(page.getByTestId("lineup-summary")).toContainText("0 captain");
 
@@ -319,7 +320,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
   await page.reload();
   await showGrid(page);
   await expect(captainOf(0)).toBeChecked();
-  await expect(page.getByLabel(`${planted.players[0]!.name} role`)).toHaveValue(
+  await expect(page.getByLabel(`${shown(planted.players[0]!.name)} role`)).toHaveValue(
     "starter",
   );
 });
@@ -345,12 +346,12 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   const center = planted.players[6]!;
   const bench = page.getByTestId("lineup-tier-bench");
   const moveButton = (player: { name: string }) =>
-    page.getByRole("button", { name: `Move ${player.name}` });
+    page.getByRole("button", { name: `Move ${shown(player.name)}` });
 
   // Into the five, by the court.
   await moveButton(guard).click();
   await expect(moveButton(guard)).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("lineup-in-hand")).toContainText(guard.name);
+  await expect(page.getByTestId("lineup-in-hand")).toContainText(shown(guard.name));
   await court.getByTestId("court-open").first().click();
   await expect(court.getByTestId("court-player")).toHaveCount(1);
   await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "G");
@@ -361,12 +362,12 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   await court.getByTestId("court-player").click();
   await bench.getByTestId("lineup-open").first().click();
   await expect(court.getByTestId("court-player")).toHaveCount(0);
-  await expect(bench.getByRole("button", { name: `Move ${guard.name}` })).toBeVisible();
+  await expect(bench.getByRole("button", { name: `Move ${shown(guard.name)}` })).toBeVisible();
 
   // The grid's select drives the same state, and the court follows it.
   await showGrid(page);
-  await page.getByLabel(`${center.name} role`).selectOption("starter");
-  await expect(page.getByLabel(`${guard.name} role`)).toHaveValue("bench");
+  await page.getByLabel(`${shown(center.name)} role`).selectOption("starter");
+  await expect(page.getByLabel(`${shown(guard.name)} role`)).toHaveValue("bench");
   await showCourt(page);
   await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "C");
 
@@ -374,9 +375,9 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   await moveButton(guard).click();
   await court.getByTestId("court-player").click();
   await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "G");
-  await expect(bench.getByRole("button", { name: `Move ${center.name}` })).toBeVisible();
+  await expect(bench.getByRole("button", { name: `Move ${shown(center.name)}` })).toBeVisible();
   await expect(page.getByTestId("lineup-swapped")).toContainText(
-    `${guard.name} to the five`,
+    `${shown(guard.name)} to the five`,
   );
   await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
 });
@@ -400,7 +401,7 @@ test("a player dragged onto the court starts, and dragged onto a starter swaps w
   const guard = planted.players[0]!;
   const center = planted.players[6]!;
   async function dragOnto(from: { name: string }, to: Locator) {
-    const source = await page.getByRole("button", { name: `Move ${from.name}` }).boundingBox();
+    const source = await page.getByRole("button", { name: `Move ${shown(from.name)}` }).boundingBox();
     const target = await to.boundingBox();
     if (!source || !target) throw new Error("nothing to drag");
     await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
@@ -411,11 +412,11 @@ test("a player dragged onto the court starts, and dragged onto a starter swaps w
 
   await dragOnto(guard, court);
   await expect(court.getByTestId("court-player")).toHaveCount(1);
-  await expect(page.getByTestId("lineup-swapped")).toContainText(`${guard.name} to the five`);
+  await expect(page.getByTestId("lineup-swapped")).toContainText(`${shown(guard.name)} to the five`);
 
   await dragOnto(center, court.getByTestId("court-player"));
   await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "C");
-  await expect(page.getByTestId("lineup-tier-none").getByRole("button", { name: `Move ${guard.name}` })).toBeVisible();
+  await expect(page.getByTestId("lineup-tier-none").getByRole("button", { name: `Move ${shown(guard.name)}` })).toBeVisible();
   // A drag is not also a tap: nobody is left in hand.
   await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
   if (process.env.REDESIGN_CAPTURE) {

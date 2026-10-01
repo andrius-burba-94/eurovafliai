@@ -243,7 +243,7 @@ test("a free-agent exchange is one trade and system notices stay out of chat", a
   await activity.getByRole("tab", { name: "Trades" }).click();
   await expect(activity.getByTestId("dashboard-transaction")).toHaveCount(1);
   await expect(activity.getByTestId("dashboard-transaction")).toContainText(
-    /Virtuozas exchanged Release Brooks.* for Arrival Lawson.*counting from round 2\./,
+    /Virtuozas exchanged .*Release Brooks.* for .*Arrival Lawson.*counting from round 2\./,
   );
   await activity.getByRole("tab", { name: "Injuries" }).click();
   await expect(activity.getByRole("tabpanel", { name: "Injuries" })).toBeVisible();

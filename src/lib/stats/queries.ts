@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
@@ -200,7 +201,7 @@ export async function readLeagueRecap(
       requestKey: null,
     });
     for (const person of people) {
-      playerNames[person.id] = person.name;
+      playerNames[person.id] = displayName(person.name);
       if (person.person_code) playerCodes[person.id] = person.person_code;
     }
   }

@@ -1,5 +1,6 @@
 "use server";
 
+import { displayName } from "@/lib/players/name";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -328,7 +329,7 @@ export async function makePick(
   // still draft one, filling a roster slot with somebody who will never appear
   // in a Euroleague box score again.
   if (player.status === "left") {
-    return refuse(`${player.name} has left the Euroleague.`);
+    return refuse(`${displayName(player.name)} has left the Euroleague.`);
   }
 
   const rosterPositions = await rosterPositionsOf(pb, picks, onClock.memberId);

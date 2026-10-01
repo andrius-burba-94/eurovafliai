@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import type PocketBase from "pocketbase";
 
 import { readStoredFixtures } from "@/lib/fixtures/store";
@@ -261,7 +262,7 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
     target.set(resolution.teams.get(team.id)!, team.players.map((player) => resolution.players.get(player.id)!));
   }
   const teamNames = new Map(members.map((member) => [member.id, member.teamName]));
-  const playerNames = new Map(pool.map((player) => [player.id, player.name]));
+  const playerNames = new Map(pool.map((player) => [player.id, displayName(player.name)]));
   const plan = planSync({
     round: decision.round ?? 0,
     seats,
@@ -458,7 +459,7 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
     ...pool.filter((row) => row.fantasyId).map((row) => [row.fantasyId, row.id] as const),
     ...links.map((link) => [link.fantasyId, link.playerId] as const),
   ]);
-  const playerName = new Map(pool.map((row) => [row.id, row.name]));
+  const playerName = new Map(pool.map((row) => [row.id, displayName(row.name)]));
 
   const written: { memberId: string; team: string; summary: string; officialHundredths: number }[] = [];
   for (const { memberId, team, squad, lineup } of fetched) {

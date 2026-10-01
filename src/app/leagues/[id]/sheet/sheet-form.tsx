@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import {
@@ -333,7 +334,7 @@ export function SheetForm({
                             <option value="">Leave this line out</option>
                             {row.candidates.map((candidate) => (
                               <option key={candidate.id} value={candidate.id}>
-                                {candidate.name} · {candidate.club} ·{" "}
+                                {displayName(candidate.name)} · {candidate.club} ·{" "}
                                 {candidate.position}
                               </option>
                             ))}
@@ -392,9 +393,9 @@ export function SheetForm({
                       </span>
                       <span
                         className="min-w-0 truncate"
-                        title={row.player?.name}
+                        title={row.player ? displayName(row.player.name) : undefined}
                       >
-                        <CardName scale="slot">{row.player?.name}</CardName>
+                        <CardName scale="slot">{row.player ? displayName(row.player.name) : null}</CardName>
                       </span>
                       <span className="slot-label">{row.player?.club}</span>
                       {row.player ? (

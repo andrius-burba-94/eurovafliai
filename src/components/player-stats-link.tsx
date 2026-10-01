@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
@@ -66,7 +67,7 @@ function PlayerStatsModal({ id, name, profileHref, onClose }: { id: string; name
     <div className="flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <PlayerPortrait personCode={player?.personCode} name={player?.name ?? name} className="!h-[4.5rem] !w-16" />
-        <div className="min-w-0"><p className="slot-label text-live">Player profile</p><h2 id="player-stats-title" className="truncate text-xl font-semibold">{player?.name ?? name}</h2>{player ? <p className="mt-1 flex items-center gap-1 text-sm text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubName} · {player.position}</p> : null}</div>
+        <div className="min-w-0"><p className="slot-label text-live">Player profile</p><h2 id="player-stats-title" className="truncate text-xl font-semibold">{displayName(player?.name ?? name)}</h2>{player ? <p className="mt-1 flex items-center gap-1 text-sm text-ink-soft"><ClubCrest clubCode={player.clubCode} />{player.clubName} · {player.position}</p> : null}</div>
       </div>
       <button type="button" onClick={() => dialog.current?.close()} aria-label="Close player stats" className="grid size-11 shrink-0 place-items-center rounded border border-rule-strong text-xl focus-visible:outline-2 focus-visible:outline-live">×</button>
     </div>

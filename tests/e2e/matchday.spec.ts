@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { addMemberTo, cleanupTestData, createFixture, createLeagueFor, createPlayer, createTestUser, signIn, superuser } from "./helpers/session";
+import { addMemberTo, cleanupTestData, createFixture, createLeagueFor, createPlayer, createTestUser, signIn, superuser, shown } from "./helpers/session";
 
 const snapshots: string[] = [];
 
@@ -51,7 +51,7 @@ test("a live snapshot scores the lineup and prints its box-score line, then full
 
   await signIn(context, owner);
   await page.goto(`/leagues/${league.id}/matchday?round=38`);
-  const row = page.getByTestId("matchday-player").filter({ hasText: star.name });
+  const row = page.getByTestId("matchday-player").filter({ hasText: shown(star.name) });
   await expect(row.getByTestId("matchday-stat-line")).toHaveText("12 PTS · 4 REB · 3 AST · PIR 15 · 18:20");
   await expect(row).toContainText("16.5");
   await expect(row.getByText("Live", { exact: true })).toBeVisible();
@@ -100,7 +100,7 @@ test("any member can watch another team's round on Live, from the picker or the 
   await page.getByTestId("matchday-show").click();
   await expect(page).toHaveURL(new RegExp(`member=${theirs.id}`));
   await expect(page.getByTestId("matchday-team")).not.toHaveText("Other Five");
-  await expect(page.getByTestId("matchday-player").filter({ hasText: star.name })).toContainText("16.5");
+  await expect(page.getByTestId("matchday-player").filter({ hasText: shown(star.name) })).toContainText("16.5");
 
   await page.getByTestId("matchday-table-team").filter({ hasText: "Other Five" }).click();
   await expect(page.getByTestId("matchday-team")).toHaveText("Other Five");

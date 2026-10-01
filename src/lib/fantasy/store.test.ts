@@ -111,7 +111,7 @@ describe("runFantasySync", () => {
 
     expect(calls).toEqual(["https://fantaking-api.dunkest.com/api/v1/fantasy-leagues/147/rosters"]);
     expect(run.status).toBe("applied");
-    expect(run.moves).toEqual(["Alpha exchanged Sloukas, Konstantinos for Grant, Jerian, counting from round 3."]);
+    expect(run.moves).toEqual(["Alpha exchanged Konstantinos Sloukas for Jerian Grant, counting from round 3."]);
     expect(open(fake)).toEqual(["m_a:p_grant", "m_a:p_nunn", "m_b:p_vezenkov"]);
     expect(fake.rows("roster_memberships").find((row) => row.id === "rm_2")).toMatchObject({ to_round: 3 });
     expect(fake.rows("transactions").map((row) => row.type)).toEqual(["drop", "add"]);

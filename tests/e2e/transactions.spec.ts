@@ -9,6 +9,7 @@ import {
   signIn,
   superuser,
   TEST_CLUB,
+  shown,
 } from "./helpers/session";
 
 /**
@@ -206,8 +207,8 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
     .getByTestId("enter-team")
     .filter({ hasText: "Chief FC" })
     .click();
-  await expect(page.getByTestId("roster-player")).toContainText(role.name);
-  await expect(page.getByTestId("roster-player")).not.toContainText(star.name);
+  await expect(page.getByTestId("roster-player")).toContainText(shown(role.name));
+  await expect(page.getByTestId("roster-player")).not.toContainText(shown(star.name));
   await page.goto(`/leagues/${league.id}/teams/${chief.id}?season=E2099`);
   await expect(page.getByTestId("impact-delta")).toHaveText("-4.3");
   await expect(page.getByTestId("impact-deal")).toContainText(
@@ -220,8 +221,8 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
     .getByTestId("enter-team")
     .filter({ hasText: "Other FC" })
     .click();
-  await expect(page.getByTestId("roster-player")).toContainText(star.name);
-  await expect(page.getByTestId("roster-player")).not.toContainText(role.name);
+  await expect(page.getByTestId("roster-player")).toContainText(shown(star.name));
+  await expect(page.getByTestId("roster-player")).not.toContainText(shown(role.name));
 
   await page.goto(`/leagues/${league.id}/standings?season=E2099`);
   await expect(page.getByTestId("standings-table")).toBeVisible();

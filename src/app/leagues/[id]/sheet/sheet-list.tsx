@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import {
   useEffect,
   useMemo,
@@ -289,14 +290,14 @@ export function SheetList({
     if (at.rank === held.rank) {
       // Dropped where it already was. Say so rather than announcing a change
       // that did not happen.
-      setMessage(`${held.name} is already #${held.rank} of ${total}.`);
+      setMessage(`${displayName(held.name)} is already #${held.rank} of ${total}.`);
       setHeldId(null);
       return;
     }
     focusWanted.current = held.id;
     run(
       operation,
-      `${held.name}, number ${at.rank} of ${at.size}, tier ${at.tier}.`,
+      `${displayName(held.name)}, number ${at.rank} of ${at.size}, tier ${at.tier}.`,
       false,
       held.id,
     );
@@ -316,12 +317,12 @@ export function SheetList({
     const operation: SheetOperation = { kind: "nudge", playerId: held.id, by };
     const at = placeAfter(operation, held.id);
     if (at.rank === held.rank) {
-      setMessage(`${held.name} is already #${held.rank} of ${total}.`);
+      setMessage(`${displayName(held.name)} is already #${held.rank} of ${total}.`);
       return;
     }
     run(
       operation,
-      `${held.name}, number ${at.rank} of ${at.size}, tier ${at.tier}.`,
+      `${displayName(held.name)}, number ${at.rank} of ${at.size}, tier ${at.tier}.`,
       true,
     );
   };
@@ -342,13 +343,13 @@ export function SheetList({
     // DESIGN.md says so where the board's own auto-scroll is exempted.
     rowRefs.current.get(row.id)?.scrollIntoView({ block: "center" });
     setMessage(
-      `${row.name} picked up, number ${row.rank} of ${total}. Move it, or choose a row to drop it on.`,
+      `${displayName(row.name)} picked up, number ${row.rank} of ${total}. Move it, or choose a row to drop it on.`,
     );
   };
 
   const putDown = () => {
     if (held) {
-      setMessage(`${held.name} put down at number ${held.rank}.`);
+      setMessage(`${displayName(held.name)} put down at number ${held.rank}.`);
       focusWanted.current = held.id;
     }
     setHeldId(null);
@@ -378,7 +379,7 @@ export function SheetList({
     if (neighbour) focusWanted.current = neighbour.id;
     run(
       { kind: "remove", playerId: held.id },
-      `${held.name} removed. ${total - 1} ${total - 1 === 1 ? "player" : "players"} still ranked. Put them back with the undo below.`,
+      `${displayName(held.name)} removed. ${total - 1} ${total - 1 === 1 ? "player" : "players"} still ranked. Put them back with the undo below.`,
       false,
     );
     setUndone(gone);
@@ -393,7 +394,7 @@ export function SheetList({
       atRank: undone.rank,
     };
     focusWanted.current = undone.playerId;
-    run(operation, `${undone.name} put back at number ${undone.rank}.`, false);
+    run(operation, `${displayName(undone.name)} put back at number ${undone.rank}.`, false);
     setUndone(null);
   };
 
@@ -403,8 +404,8 @@ export function SheetList({
     run(
       { kind: "break", atRank: held.rank },
       starts
-        ? `Tier break removed. ${held.name} joins the tier above.`
-        : `Tier break added. ${held.name} starts tier ${held.tier + 1}.`,
+        ? `Tier break removed. ${displayName(held.name)} joins the tier above.`
+        : `Tier break added. ${displayName(held.name)} starts tier ${held.tier + 1}.`,
       true,
     );
   };
@@ -725,9 +726,9 @@ export function SheetList({
                             were corrected for exactly this. */}
                         <span
                           className="min-w-0 flex-1 truncate"
-                          title={row.name}
+                          title={displayName(row.name)}
                         >
-                          <CardName scale="slot">{row.name}</CardName>
+                          <CardName scale="slot">{displayName(row.name)}</CardName>
                         </span>
                         {row.club ? (
                           <span className="slot-label shrink-0">
@@ -786,7 +787,7 @@ export function SheetList({
               a player's name; the sentence around it is a sentence. */}
           {held ? (
             <p className="text-sm text-ink-soft" data-testid="sheet-bar-held">
-              <CardName scale="slot">{held.name}</CardName> in hand &middot;{" "}
+              <CardName scale="slot">{displayName(held.name)}</CardName> in hand &middot;{" "}
               <span className="tabular-nums">
                 #{held.rank} of {total}
               </span>
@@ -799,7 +800,7 @@ export function SheetList({
           {undone && !held ? (
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm text-ink-soft">
-                Removed <CardName scale="slot">{undone.name}</CardName>.
+                Removed <CardName scale="slot">{displayName(undone.name)}</CardName>.
               </p>
               <button
                 type="button"

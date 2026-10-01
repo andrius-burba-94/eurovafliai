@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -68,7 +69,7 @@ export default async function TeamPage({
     readPanel({ leagueId: id, season, teamNames }),
   ]);
   const template = data.settings.roster_template;
-  const displayName = member.teamName.trim() ? member.teamName : member.name;
+  const teamTitle = member.teamName.trim() ? member.teamName : member.name;
   const played = roster.filter((player) => player.games > 0);
   const top = [...played].sort((a, b) => b.seasonTenths - a.seasonTenths)[0];
   const low = [...played].sort((a, b) => a.seasonTenths / a.games - b.seasonTenths / b.games)[0];
@@ -87,10 +88,10 @@ export default async function TeamPage({
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <TeamCrest name={displayName} color={member.color} shape={member.crest} size={64} />
+          <TeamCrest name={teamTitle} color={member.color} shape={member.crest} size={64} />
           <div className="min-w-0">
             <p className="slot-label text-live">{data.league.name} / {member.isYou ? "My team" : "Team"}</p>
-            <h1 className="display mt-1 min-w-0 text-4xl break-words sm:text-5xl">{displayName}</h1>
+            <h1 className="display mt-1 min-w-0 text-4xl break-words sm:text-5xl">{teamTitle}</h1>
             <p className="mt-2 text-sm text-ink-soft">{member.name} · {roster.length} of {rosterSize} players</p>
           </div>
         </div>
@@ -110,7 +111,7 @@ export default async function TeamPage({
               <PlayerPortrait personCode={top.personCode} name={top.name} />
               <span className="min-w-0">
                 <span className="slot-label block text-gain">Carrying you</span>
-                <span className="block truncate font-semibold">{top.name}</span>
+                <span className="block truncate font-semibold">{displayName(top.name)}</span>
               </span>
             </span>
             <ScoreFigure size="sm">{formatTenths(top.seasonTenths)}</ScoreFigure>
@@ -120,7 +121,7 @@ export default async function TeamPage({
               <PlayerPortrait personCode={low.personCode} name={low.name} />
               <span className="min-w-0">
                 <span className="slot-label block text-loss">On thin ice</span>
-                <span className="block truncate font-semibold">{low.name}</span>
+                <span className="block truncate font-semibold">{displayName(low.name)}</span>
               </span>
             </span>
             <ScoreFigure size="sm">{formatTenths(low.seasonTenths)}</ScoreFigure>
@@ -134,7 +135,7 @@ export default async function TeamPage({
             No players are on this roster yet. Slots fill from the draft, then from recorded trades.
           </EmptyNotice>
         ) : (
-          <ul role="list" aria-label={`${displayName} roster`} data-testid="roster-list" className="flex flex-col">
+          <ul role="list" aria-label={`${teamTitle} roster`} data-testid="roster-list" className="flex flex-col">
             {(["G", "F", "C"] as const).map((position) => {
               const group = roster.filter((player) => player.position === position).sort((a, b) => b.seasonTenths - a.seasonTenths);
               return (
@@ -157,7 +158,7 @@ export default async function TeamPage({
                             <PlayerPortrait personCode={player.personCode} name={player.name} />
                             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                               <span className="flex min-w-0 items-center gap-2">
-                                <span className="truncate text-sm font-semibold">{player.name}</span>
+                                <span className="truncate text-sm font-semibold">{displayName(player.name)}</span>
                                 {badge ? <StatusBadge kind={badge.kind}>{badge.word}</StatusBadge> : null}
                               </span>
                               <span className="flex flex-wrap items-center gap-x-2 text-xs text-ink-soft">
@@ -190,7 +191,7 @@ export default async function TeamPage({
 
       <ImpactList
         deals={deals}
-        teamName={displayName}
+        teamName={teamTitle}
         leagueId={id}
         canManage={viewerCanManage}
         season={data.league.status === "season"}
@@ -199,11 +200,11 @@ export default async function TeamPage({
       {member.isYou || viewerCanManage ? (
         <details className="group rounded-xl border border-panel-border bg-stock-panel px-4 py-3" data-testid="edit-crest">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
-            {member.isYou ? "Your crest" : `${displayName}'s crest`}
+            {member.isYou ? "Your crest" : `${teamTitle}'s crest`}
             <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
           </summary>
           <div className="pt-3 pb-1">
-            <TeamIdentityPicker leagueId={id} memberId={member.id} name={displayName} color={member.color} crest={member.crest} />
+            <TeamIdentityPicker leagueId={id} memberId={member.id} name={teamTitle} color={member.color} crest={member.crest} />
           </div>
         </details>
       ) : null}

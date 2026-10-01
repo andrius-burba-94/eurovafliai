@@ -1,5 +1,6 @@
 "use client";
 
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { useMemo, useState, type KeyboardEvent } from "react";
@@ -197,13 +198,13 @@ function ChooseButton({
     <button
       type="button"
       onClick={() =>
-        arm({ playerId: player.id, playerName: player.name, forTeamName })
+        arm({ playerId: player.id, playerName: displayName(player.name), forTeamName })
       }
       data-testid={testId}
       // Follows the visible label. It was static `Choose …` while the button
       // read `Chosen`, which is a WCAG 2.5.3 Label-in-Name mismatch and offers
       // a screen reader the chance to "choose" a row already chosen.
-      aria-label={`${isArmed ? "Chosen" : "Choose"} ${player.name}${ariaSuffix}`}
+      aria-label={`${isArmed ? "Chosen" : "Choose"} ${displayName(player.name)}${ariaSuffix}`}
       // **Ink, not marker, even when chosen.** The armed row's own `slot-live`
       // rule already carries the state, and the band carries the *act* — so a
       // marker border here made two marker-red primary actions on one surface,
@@ -507,7 +508,7 @@ export function PickForm({
       // the same mechanism a thumb uses rather than a second one beside it.
       arm({
         playerId: row.id,
-        playerName: row.name,
+        playerName: displayName(row.name),
         forTeamName: view.isYourTurn ? null : (view.clockMemberName ?? null),
       });
     }
@@ -596,8 +597,8 @@ export function PickForm({
                       #{player.rank}
                     </span>
                     <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
-                    <span className="min-w-0 truncate" title={player.name}>
-                      <CardName scale="slot">{player.name}</CardName>
+                    <span className="min-w-0 truncate" title={displayName(player.name)}>
+                      <CardName scale="slot">{displayName(player.name)}</CardName>
                     </span>
                     <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
                     <PositionPatch position={player.position} />
@@ -949,9 +950,9 @@ export function PickForm({
                   className={`min-w-0 truncate ${
                     player.drafted ? "line-through decoration-1" : ""
                   }`}
-                  title={player.name}
+                  title={displayName(player.name)}
                 >
-                  <CardName scale="slot">{player.name}</CardName>
+                  <CardName scale="slot">{displayName(player.name)}</CardName>
                 </span>
                 <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
                 <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>

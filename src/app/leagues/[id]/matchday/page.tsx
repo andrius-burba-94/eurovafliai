@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -250,7 +251,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                       ) : null}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
-                      <span className="truncate text-sm font-semibold">{player.name}</span>
+                      <span className="truncate text-sm font-semibold">{displayName(player.name)}</span>
                       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
                         <PositionPatch position={player.position} />
                         <span className={captain ? "font-semibold text-gold" : ""}>
