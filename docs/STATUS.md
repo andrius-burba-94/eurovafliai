@@ -81,6 +81,33 @@ The underlying transaction and chat rows remain the audit record. News and
 injuries use the existing RotoWire items, split by their stored injury status.
 No PocketBase schema migration is needed for this presentation change.
 
+## Fantasy Challenge sync (5.5)
+
+The league drafts here and makes every move in the official EuroLeague Fantasy
+Challenge. The worker reads the official league's rosters (one call,
+`/fantasy-leagues/{id}/rosters`, with `FANTASY_CHALLENGE_TOKEN`) and records the
+differences as ordinary transactions: a one-for-one free-agent swap as a drop and
+an add that Trades shows as one exchange, a two-way move as a trade. It **writes
+only inside a round's freeze** (5 minutes after the first tip-off, then hourly
+until 90 minutes after the round's last tip-off) and **previews** every six hours
+otherwise. Teams and players are matched once and the links stored
+(`league_members.fantasy_team_id`, `players.fantasy_id`); anything it cannot
+place blocks the sync and is asked on `/leagues/<id>/fantasy` (Trades → Fantasy
+sync, commissioner and deputies). Recording a trade by hand stays, for the
+same people, as the correction path.
+
+On 30 September the real official rosters matched production's hand-recorded
+ones exactly, so rounds 1–2 need no backfill (that test is golden). Not synced:
+**lineups** (the official game hides other managers' lineups, 403), so they stay
+here. The first freeze to exercise the write path is E2026 round 3.
+
+**Try it on localhost.** Put `FANTASY_CHALLENGE_TOKEN` and
+`FANTASY_CHALLENGE_LEAGUE_ID` in `.env`, `npm run dev`, then as commissioner of
+a league in season open **Trades → Fantasy sync**, press **Link league**, then
+**Preview now**. A local league whose team names differ from the official ones
+asks which member each official team is; answer and preview again. Outside a
+freeze nothing is written but the run.
+
 ## Landed: arena visual redesign (visual rules superseded by ADR-0011)
 
 The user approved the interactive site concept on 28 September 2026. The implementation branch is **not production**. [ADR-0009](adr/ADR-0009-arena-redesign.md) records the new design and the product boundaries; earlier ADRs remain available.
@@ -1468,6 +1495,7 @@ season two is on the horizon.
 | **5.2 Transactions** | done | — | **Record, do not broker.** Commissioner or deputy writes a trade or an add/drop; there is no offer queue. N-for-N only; drop may leave a hole; add needs a vacancy and an unsigned player. Intent row first (`transactions`), then close windows (`to_date` + exclusive `to_round`), then open, then `announce()` which never throws. Standings join `from_round`/`to_round` so a trade at round 2 leaves round 1 with the old owner. Open draft windows still own every round, so an E2025 backfill matches 4.5 until the first close. `/leagues/[id]/transactions/new` is the builder |
 | **5.2a Adds and drops can be saved** | done | — | **Every add and drop had been refused by the database since 5.2.** `players_in` / `players_out` were required JSON, and a drop writes `{}` for nobody arriving (an add, for nobody leaving), which PocketBase treats as blank. Only trades could be recorded; found recording the first real free-agent swaps after E2026 round 1. Migration `1789800000` makes both optional; `members` stays required. `pb:verify` now saves a one-sided add and drop as the superuser: its only one-sided write had been a member-token create, which is refused by the rule whether or not the payload is valid |
 | **5.3 Impact tracking** | done | — | Live in − out from box scores, from `from_round` onward, all phases. Fantasy tenths are the headline; PIR sits under them. No new collection and no chart library: a wrapping `R2 -4.3` run. Team page lists that member's deals; a drop's counterfactual is the out sum. `?season=` matches standings |
+| **5.5 Fantasy Challenge sync** | done | — | The official game's rosters become transactions, written only inside a round's freeze; previews outside it. Migration `1790200000` (link fields, `fantasy_syncs`). An apply stores its steps as `applying` before the first roster write and the next run finishes it; it is marked applied only when the rosters then equal the official ones. See the section near the top |
 | **5.4 Weekly recap** | done | — | One Euroleague night. Rank is that round's tenths from `standings_snapshots`, not season-to-date. **Best night** is the highest `fantasy_pts` among players whose window covers the round (a traded-in player can win). **Biggest swing** is the covering deal with the largest absolute `impactForMember` delta that night, shown from the side that gained. No new collection; no chat announce on ingest. `/leagues/[id]/recap?round=&season=` |
 
 ## Phase 8 — Hardening & ops polish
@@ -1615,6 +1643,8 @@ touch should be fixed by that slice rather than deferred again.
 
 | # | What | Blocks |
 |---|---|---|
+| **The Fantasy Challenge token expires by hand** | `FANTASY_CHALLENGE_TOKEN` is a browser session token of unknown lifetime; password login is not available to an SSO account. A refused token is a `failed` run saying so on the sync page and in the worker log, and nothing is written; replacing it means editing the VPS `.env` and restarting both PM2 apps | Rosters stop syncing until somebody notices |
+| **The sync page has no E2E spec** | It talks to somebody else's API, which CI must not. Covered by unit tests over the real 30 September rosters and pool, and `fake-pb` store tests; the page itself is checked by hand | Nothing; a UI regression would be caught late |
 | **A failed league delete has already destroyed the board** | Found in production, and the fix below is only half of it. `deleteLeague` is four writes with no transaction, and the *destructive* ones come first: roster windows, then drafts (taking their picks), then the league. So a step-3 failure leaves a league whose board is gone — which is exactly what happened on the box, twice, before the blocker was understood. It is now idempotent (every step deletes by league filter, so the same click finishes the job) and `pb:verify` fails CI on a new blocker rather than letting production find it — but **ordering cannot be fixed into atomicity**: PocketBase has no transactions, and the cascade is the only thing that removes members, chat and sheets, so the league record has to go last. A pre-flight that proves the delete will succeed before anything is destroyed is the real fix and is not written | Nothing today; a delete that fails for a *new* reason still takes the board with it |
 | **The route error boundary promises more than it knows** | "Something on this page broke. The board itself is unchanged" is true of the read paths it was written for and false of a partial multi-step write — the league delete above said it while the draft was already gone. Copy on every surface, so it is recorded rather than changed on the way past: either the sentence drops its second clause, or the actions that can half-fail say so themselves | Nothing mechanical; a reassurance that can be wrong |
 | **`E2E_PORT` and `NEXT_PUBLIC_APP_URL` can disagree, and the failure is a *false pass*** | Found in 10.4 while running the gate. `/auth/callback` redirects to the **absolute** configured origin (`NEXT_PUBLIC_APP_URL`, `http://localhost:3007`), so running the suite on another port sends the browser somewhere the suite is not. With 3007 empty this is loud: `ERR_CONNECTION_REFUSED`, four failures. With a dev server on 3007 it is silent and worse — the two callback specs assert a **path** regex, which the *other* server satisfies, so they go green while testing a different build. The run STATUS previously recorded used `E2E_PORT=3011`, so those two results should be treated as unproven before 10.4. Two real fixes exist: derive the redirect from the request origin, or have the config refuse a port mismatch. Neither is written; for now the suite runs on the default port | Nothing today, but two security specs are only as trustworthy as the port they ran on |
