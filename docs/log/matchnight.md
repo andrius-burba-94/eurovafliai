@@ -477,3 +477,44 @@ also pick the player up.
 Verification: lint, typecheck, knip and 1557 unit tests pass; `lineup.spec`
 (with a new mouse-drag test at 1600 × 1000) and the lineup `a11y.spec` (court
 and grid) pass on both projects.
+
+## S18 — Live points on the lineup, watching any team
+
+The lineup page showed the plan and nothing of the night. Once any game of the
+round has a recorded result or a live snapshot, each court name tag becomes a
+two-part plate, after the official game's own: the surname on the court's dark
+ink, the round's points beneath on paper, split by a rule in the position's
+colour. A game in play prints `LIVE` beside the figure rather than leaning on a
+red dot, a player still to play shows his tip-off clock, and a finished game
+without a line reads `DNP`. The disc gives up a little height while plates are
+drawn so three rows still fit the court. Tier cards and the grid show the same
+figure; a live card carries the red LIVE badge.
+
+The number is the Live page's, not a second calculation. `readMatchdayData`
+was split so its per-player half (`readRoundScores`: recorded box score wins
+over the live line for the same game) also feeds `readLineupLive`, and both
+pages find a player's game and state through one pure `playerRoundOf`. The
+lineup counts at the multiplier of where the player stands *now*, so dragging
+someone to the bench halves his figure before anything is saved. The feed
+component moved to `src/components/live-feed.tsx` and sits in the lineup
+toolbar while the round is under way, so new snapshots refresh the page.
+
+Live opens on your team, as before, and any member can now watch another one:
+the "Whose team" picker (extracted from the lineup page as `TeamPicker`) sits in
+the header beside the round stepper, and every row of the table is a link. The
+scoreboard names the watched team with its crest and takes its colour
+(`team-field`), and the table lights the watched row and marks yours "you".
+Watching only reads, and every read already went through the viewer's own
+token, which the league's rules allow for any member, so no rule changed. The
+lineup page's picker stays commissioner and deputies only, because there it
+opens a form that writes; "Open their lineup" on Live is offered to the same
+people.
+
+The tier cards' 3px coloured left border went: DESIGN.md refuses side stripes,
+and the card already prints its position letter in a patch.
+
+Verification: lint, typecheck, knip and 1660 unit tests pass (new cases for
+`playerRoundOf` and `roundPointsOf`); `matchday.spec` (two new tests: live
+points on a lineup card, and a member watching another team by picker and by
+table) and `lineup.spec` pass on both projects. Screenshots at 390px in both
+grounds and at 1440px checked the plates against the Live page's figures.
