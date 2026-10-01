@@ -82,7 +82,7 @@ describe("a player's round points", () => {
     expect(roundPointsOf({ state: "final", tenths: null, tipOff: null }, 1)).toMatchObject({ kind: "note", text: "DNP" });
   });
   it("shows the tip-off clock for a game still to play", () => {
-    expect(roundPointsOf({ state: "scheduled", tenths: null, tipOff: "2026-09-29T17:45:00.000Z" }, 1)).toMatchObject({ kind: "note", text: "20:45", spoken: "plays at 20:45" });
+    expect(roundPointsOf({ state: "scheduled", tenths: null, tipOff: "2026-09-29T17:45:00.000Z" }, 1)).toMatchObject({ kind: "note", text: "9/29 20:45", spoken: "plays on 9/29 at 20:45" });
   });
   it("says so when the club has no game", () => {
     expect(roundPointsOf({ state: null, tenths: null, tipOff: null }, 1).text).toBe("No game");

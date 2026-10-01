@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatClock, formatTipOff } from "./local";
+import { formatClock, formatMonthDay, formatTipOff } from "./local";
 
 describe("league-time formatting", () => {
   it("reads an instant in Vilnius time, summer and winter", () => {
@@ -12,8 +12,14 @@ describe("league-time formatting", () => {
     expect(formatTipOff("2026-10-01T17:30:00.000Z")).toBe("Thu 1 Oct, 20:30");
   });
 
+  it("writes the date as month/day in league time", () => {
+    expect(formatMonthDay("2026-10-01T17:30:00.000Z")).toBe("10/1");
+    expect(formatMonthDay("2026-09-30T22:30:00.000Z")).toBe("10/1");
+  });
+
   it("says nothing for a missing or unreadable instant", () => {
     expect(formatClock(undefined)).toBeNull();
     expect(formatTipOff("not a date")).toBeNull();
+    expect(formatMonthDay(null)).toBeNull();
   });
 });
