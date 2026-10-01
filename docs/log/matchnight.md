@@ -663,3 +663,46 @@ swap). The season-dashboard spec now opens My Team after a planted drop and add
 and finds one transaction row reading "exchanged"; transactions and trades
 specs pass.
 
+## S24 — Stats you would open twice
+
+Stats was a record book people read once. The new hero is the waffle board,
+the one view that answers "how has everyone's season gone" at a glance; each
+cell prints its rank so the gold-to-red tint is never the only signal, and the
+tint is mixed into the panel so the number reads in both grounds. The four new
+sections each ask a question the league argues about: was my lineup wrong
+(hindsight), was my captain wrong (regret), how do I do against him
+(head-to-head), and whose players carried me (clubs).
+
+Hindsight uses the lineup optimizer the Lineup page already ships, fed the
+round's real points instead of estimates, so "best" means the best legal
+formation with its own captain, sixth man and bench. A carried lineup that
+never named a new arrival scores him at 100%, which can beat every legal
+lineup; the best is then taken as what actually happened rather than
+reporting over 100%. Rounds nobody recorded (everyone at 100%) are not judged,
+same as Lineup efficiency. Captain regret needs to know the five starters, not
+just who scored ×1, so the read now resolves the lineups once and hands both
+the weights and the slots to the pure layer. Club loyalty counts the club on
+the box score, so a player who moves mid-season credits each club for its own
+nights; a line without a club code falls back to the player's current club.
+
+While building this, `leagueStats` turned out to count every box-score line of
+the season, including the round being played, even though S20 had narrowed
+the snapshots to finished rounds. It now drops lines from rounds with no
+finished snapshot before any section sees them, so records, leaders and the
+new sections agree on what "the season so far" is.
+
+The honours explainer is a small client component because the plan's "CSS
+popover" alone cannot open on a phone: mobile has no hover, and Safari does
+not focus a tapped button. Hover is CSS; keyboard focus opens it only when
+`:focus-visible` matches (so a mouse click is not counted twice); tap toggles;
+Escape and blur close it. Draft value no longer compares autodraft with
+people; `StatsPick` and the picks read lost `is_auto` with it.
+
+Verification: lint, typecheck, knip and 1700 unit tests pass (`league-stats.test.ts`
+works the waffle, head-to-head, hindsight 790 of 925 = 85%, captain regret
+and club loyalty out by hand on a seven-man squad). `league-stats.spec` checks
+the waffle, head-to-head and its form, a tap on an honour and the new empty
+states. Run against a fresh PocketBase (as CI does) the stats, standings and
+season-dashboard specs pass on both projects; on a local database whose
+schedule still has a round 2 game to play they fail as already noted in STATUS.
+

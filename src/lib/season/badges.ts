@@ -26,6 +26,13 @@ export type MemberHonours = {
 
 export type BadgeId = "on-fire" | "crowned" | "spoon-collector";
 
+/** What each honour means, in the words of the thresholds `badgesFrom` applies. */
+export const HONOUR_MEANING: Readonly<Record<BadgeId, string>> = {
+  "on-fire": "Top three in three or more rounds in a row.",
+  crowned: "Won a round.",
+  "spoon-collector": "Finished last in two or more rounds.",
+};
+
 export type Badge = {
   readonly id: BadgeId;
   readonly memberId: string;

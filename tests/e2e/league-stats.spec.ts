@@ -44,6 +44,29 @@ test("League Stats reads the season's records and team profiles from the counted
   await expect(page.getByTestId("stats-teams").locator("tbody tr")).toHaveCount(2);
   // Nobody recorded a lineup, and the page says so rather than printing zeros.
   await expect(page.getByTestId("stats-lineups-empty")).toBeVisible();
+  await expect(page.getByTestId("stats-hindsight-empty")).toBeVisible();
+  await expect(page.getByTestId("stats-captains-empty")).toBeVisible();
+  await expect(page.getByTestId("stats-draft-empty")).toBeVisible();
+
+  // The waffle board: the table's order down, each round's finish across.
+  const waffle = page.getByTestId("stats-waffle");
+  await expect(waffle.getByTestId("waffle-row")).toHaveCount(2);
+  await expect(waffle.getByTestId("waffle-row").first()).toContainText("Chief FC");
+  await expect(waffle.getByTestId("waffle-row").first().getByTestId("waffle-cell")).toHaveText(["1", "2"]);
+
+  // Each team won one round, and the viewer is on the left by default.
+  await expect(page.getByTestId("h2h-score")).toHaveText("1–1");
+  await expect(page.getByTestId("h2h-round")).toHaveCount(2);
+  await page.getByTestId("h2h-a").selectOption({ label: "Mate FC" });
+  await page.getByTestId("h2h-b").selectOption({ label: "Chief FC" });
+  await page.getByRole("button", { name: "Compare" }).click();
+  await expect(page).toHaveURL(/[?&]a=.*#h2h$/);
+  await expect(page.getByTestId("h2h-a")).toHaveValue(members[1]!.id);
+
+  // An honour says what it means when tapped, for a phone with no hover.
+  const crowned = page.getByTestId("honour-chip-crowned").first();
+  await crowned.click();
+  await expect(page.getByRole("tooltip", { name: "Won a round." }).first()).toBeVisible();
 });
 
 test("League Stats admits it is empty before a round is counted", async ({ page, context }) => {

@@ -1,5 +1,6 @@
 import type { Position } from "@/lib/engine";
-import type { LineupWeights } from "@/lib/lineups/lineup";
+import { DEFAULT_LINEUP_TEMPLATE, type LineupTemplate, type LineupWeights, type ResolvedLineup } from "@/lib/lineups/lineup";
+import { optimizeLineup } from "@/lib/lineups/optimize";
 import { coversRound } from "@/lib/memberships/from";
 import { memberHonours } from "@/lib/season/badges";
 
@@ -24,21 +25,30 @@ export type StatsWindow = {
   readonly to_date?: string | null;
 };
 
-export type StatsLine = { readonly playerId: string; readonly round: number; readonly fantasyTenths: number };
+export type StatsLine = {
+  readonly playerId: string;
+  readonly round: number;
+  readonly fantasyTenths: number;
+  /** The club he played that game for, so a mid-season move counts for the right one. */
+  readonly clubCode?: string;
+};
 
 export type StatsPick = {
   readonly overallNo: number;
   readonly round: number;
   readonly memberId: string;
   readonly playerId: string;
-  readonly isAuto: boolean;
 };
 
 export type StatsInput = {
+  /** Finished rounds only. Every section counts these rounds and no others. */
   readonly snapshots: readonly RoundSnapshot[];
   readonly lines: readonly StatsLine[];
   readonly windows: readonly StatsWindow[];
   readonly weights: LineupWeights;
+  /** Each member's lineup per round, for who started and who wore the armband. */
+  readonly lineups?: readonly ResolvedLineup[];
+  readonly template?: LineupTemplate;
   readonly picks: readonly StatsPick[];
   readonly positions: Readonly<Record<string, Position>>;
 };
@@ -83,9 +93,51 @@ export type DraftPickValue = StatsPick & { readonly tenths: number };
 export type DraftValue = {
   readonly steals: readonly DraftPickValue[];
   readonly busts: readonly DraftPickValue[];
-  readonly autoAverageTenths: number | null;
-  readonly humanAverageTenths: number | null;
-  readonly autoPicks: number;
+};
+
+/** Every team's finish in every finished round, ordered by the table. */
+export type WaffleBoard = {
+  readonly rounds: readonly number[];
+  readonly teams: number;
+  readonly rows: readonly {
+    readonly memberId: string;
+    /** 1 + the teams that outscored them that night; null for a night nobody scored. */
+    readonly places: readonly (number | null)[];
+  }[];
+};
+
+/** What a team's lineups scored against the best lineup its own squad allowed, looking back. */
+export type Hindsight = {
+  readonly memberId: string;
+  readonly rounds: number;
+  readonly actualTenths: number;
+  readonly bestTenths: number;
+  /** Actual over best, whole percent; null when the squad scored nothing at all. */
+  readonly iqPercent: number | null;
+  /** The round that left most on the table. */
+  readonly worst: { readonly round: number; readonly lostTenths: number } | null;
+};
+
+export type CaptainRegret = {
+  readonly memberId: string;
+  readonly rounds: number;
+  /** Rounds where the armband was on the best starter that night. */
+  readonly perfect: number;
+  /** The captain's bonus the best starter would have added, summed. */
+  readonly regretTenths: number;
+  readonly worst: {
+    readonly round: number;
+    readonly captainId: string;
+    readonly bestId: string;
+    readonly regretTenths: number;
+  } | null;
+};
+
+export type ClubLoyalty = {
+  readonly memberId: string;
+  readonly totalTenths: number;
+  /** Counted points by EuroLeague club, most first. */
+  readonly clubs: readonly { readonly clubCode: string; readonly tenths: number }[];
 };
 
 export type PlayerLeader = {
@@ -111,6 +163,10 @@ export type LeagueStats = {
   readonly lineups: readonly LineupEfficiency[];
   readonly draft: DraftValue;
   readonly players: PlayerLeaders;
+  readonly waffle: WaffleBoard;
+  readonly hindsight: readonly Hindsight[];
+  readonly captains: readonly CaptainRegret[];
+  readonly clubs: readonly ClubLoyalty[];
 };
 
 function ownerAt(windows: readonly StatsWindow[], playerId: string, round: number): string | null {
@@ -225,15 +281,168 @@ function draftValue(input: StatsInput): DraftValue {
   const rounds = Math.max(0, ...input.picks.map((pick) => pick.round));
   const late = valued.filter((pick) => pick.round > rounds / 2);
   const early = valued.filter((pick) => pick.round <= Math.max(1, Math.floor(rounds / 4)));
-  const average = (rows: readonly DraftPickValue[]) =>
-    rows.length ? Math.round(rows.reduce((sum, row) => sum + row.tenths, 0) / rows.length) : null;
-  const auto = valued.filter((pick) => pick.isAuto);
   return {
     steals: [...late].sort((a, b) => b.tenths - a.tenths || a.overallNo - b.overallNo).slice(0, 3),
     busts: [...early].sort((a, b) => a.tenths - b.tenths || a.overallNo - b.overallNo).slice(0, 3),
-    autoAverageTenths: average(auto),
-    humanAverageTenths: average(valued.filter((pick) => !pick.isAuto)),
-    autoPicks: auto.length,
+  };
+}
+
+function placeIn(snapshot: RoundSnapshot, memberId: string): number | null {
+  const mine = snapshot.table.find((row) => row.memberId === memberId);
+  if (!mine || !snapshot.table.some((row) => row.roundHundredths > 0)) return null;
+  return 1 + snapshot.table.filter((row) => row.roundHundredths > mine.roundHundredths).length;
+}
+
+function waffleBoard(snapshots: readonly RoundSnapshot[]): WaffleBoard {
+  const latest = snapshots.at(-1);
+  const members = [...new Set(snapshots.flatMap((snapshot) => snapshot.table.map((row) => row.memberId)))];
+  const total = (memberId: string) => latest?.table.find((row) => row.memberId === memberId)?.totalHundredths ?? 0;
+  return {
+    rounds: snapshots.map((snapshot) => snapshot.round),
+    teams: members.length,
+    rows: members
+      .sort((a, b) => total(b) - total(a) || a.localeCompare(b))
+      .map((memberId) => ({ memberId, places: snapshots.map((snapshot) => placeIn(snapshot, memberId)) })),
+  };
+}
+
+function squadAt(windows: readonly StatsWindow[], memberId: string, round: number): string[] {
+  return [...new Set(windows.filter((window) => window.memberId === memberId && coversRound(window, round)).map((window) => window.playerId))];
+}
+
+function pointsByRound(lines: readonly StatsLine[]): Map<number, Map<string, number>> {
+  const out = new Map<number, Map<string, number>>();
+  for (const line of lines) {
+    const round = out.get(line.round) ?? new Map<string, number>();
+    round.set(line.playerId, (round.get(line.playerId) ?? 0) + line.fantasyTenths);
+    out.set(line.round, round);
+  }
+  return out;
+}
+
+/**
+ * Each recorded round replayed with the squad's real points: `optimizeLineup`
+ * finds the best legal lineup, and the gap to what was set is what hindsight
+ * says was left behind. A round nobody recorded scored everyone at 100% and
+ * is not judged.
+ */
+function hindsight(input: StatsInput, rounds: readonly number[], points: Map<number, Map<string, number>>): Hindsight[] {
+  const template = input.template ?? DEFAULT_LINEUP_TEMPLATE;
+  const members = [...new Set(input.windows.map((window) => window.memberId))];
+  return members
+    .map((memberId) => {
+      let actualHalf = 0;
+      let bestHalf = 0;
+      let counted = 0;
+      let worst: Hindsight["worst"] = null;
+      for (const round of rounds) {
+        if (input.weights.sourceFor(memberId, round) === "absent") continue;
+        const squad = squadAt(input.windows, memberId, round).filter((id) => input.positions[id]);
+        const night = points.get(round);
+        const scored = (id: string) => night?.get(id) ?? 0;
+        const best = optimizeLineup(
+          squad.map((id) => ({ id, position: input.positions[id]!, estimateTenths: scored(id), currentRole: null })),
+          template,
+        );
+        if (!best) continue;
+        const actual = squad.reduce((sum, id) => sum + Math.round(scored(id) * input.weights.multiplierFor(memberId, round, id) * 2), 0);
+        // An arrival a carried lineup never named scores at 100%, which can beat
+        // any legal lineup; hindsight cannot ask for less than what happened.
+        const ceiling = Math.max(best.scoreHalfTenths, actual);
+        actualHalf += actual;
+        bestHalf += ceiling;
+        counted += 1;
+        const lostTenths = Math.round((ceiling - actual) / 2);
+        if (lostTenths > 0 && (!worst || lostTenths > worst.lostTenths)) worst = { round, lostTenths };
+      }
+      return {
+        memberId,
+        rounds: counted,
+        actualTenths: Math.round(actualHalf / 2),
+        bestTenths: Math.round(bestHalf / 2),
+        iqPercent: bestHalf > 0 ? Math.round((actualHalf / bestHalf) * 100) : null,
+        worst,
+      };
+    })
+    .filter((row) => row.rounds > 0)
+    .sort((a, b) => (b.iqPercent ?? -1) - (a.iqPercent ?? -1) || a.memberId.localeCompare(b.memberId));
+}
+
+/** The armband against the best starter of the same five, round by round. */
+function captainRegret(input: StatsInput, rounds: readonly number[], points: Map<number, Map<string, number>>): CaptainRegret[] {
+  const counted = new Set(rounds);
+  const byMember = new Map<string, { rounds: number; perfect: number; regretTenths: number; worst: CaptainRegret["worst"] }>();
+  for (const lineup of input.lineups ?? []) {
+    if (lineup.source === "absent" || !lineup.slots?.captain || !counted.has(lineup.round)) continue;
+    const owned = new Set(squadAt(input.windows, lineup.memberId, lineup.round));
+    const starters = lineup.slots.starters.filter((id) => owned.has(id));
+    if (!owned.has(lineup.slots.captain) || starters.length === 0) continue;
+    const night = points.get(lineup.round);
+    const scored = (id: string) => night?.get(id) ?? 0;
+    const captainId = lineup.slots.captain;
+    const bestId = [...starters].sort((a, b) => scored(b) - scored(a) || Number(b === captainId) - Number(a === captainId) || a.localeCompare(b))[0]!;
+    const regret = Math.max(0, scored(bestId) - scored(captainId));
+    const entry = byMember.get(lineup.memberId) ?? { rounds: 0, perfect: 0, regretTenths: 0, worst: null };
+    entry.rounds += 1;
+    if (regret === 0) entry.perfect += 1;
+    entry.regretTenths += regret;
+    if (regret > 0 && (!entry.worst || regret > entry.worst.regretTenths)) {
+      entry.worst = { round: lineup.round, captainId, bestId, regretTenths: regret };
+    }
+    byMember.set(lineup.memberId, entry);
+  }
+  return [...byMember.entries()]
+    .map(([memberId, entry]) => ({ memberId, ...entry }))
+    .sort((a, b) => a.regretTenths - b.regretTenths || a.memberId.localeCompare(b.memberId));
+}
+
+/** Counted points by the club each player wore that night. */
+function clubLoyalty(input: StatsInput, lines: readonly StatsLine[]): ClubLoyalty[] {
+  const byMember = new Map<string, Map<string, number>>();
+  for (const line of lines) {
+    if (!line.clubCode) continue;
+    const owner = ownerAt(input.windows, line.playerId, line.round);
+    if (!owner) continue;
+    const counted = line.fantasyTenths * input.weights.multiplierFor(owner, line.round, line.playerId);
+    if (counted === 0) continue;
+    const clubs = byMember.get(owner) ?? new Map<string, number>();
+    clubs.set(line.clubCode, (clubs.get(line.clubCode) ?? 0) + counted);
+    byMember.set(owner, clubs);
+  }
+  return [...byMember.entries()]
+    .map(([memberId, clubs]) => {
+      const rows = [...clubs.entries()]
+        .map(([clubCode, tenths]) => ({ clubCode, tenths: Math.round(tenths) }))
+        .sort((a, b) => b.tenths - a.tenths || a.clubCode.localeCompare(b.clubCode));
+      return { memberId, totalTenths: rows.reduce((sum, row) => sum + row.tenths, 0), clubs: rows };
+    })
+    .sort((a, b) => b.totalTenths - a.totalTenths || a.memberId.localeCompare(b.memberId));
+}
+
+export type HeadToHead = {
+  readonly a: string;
+  readonly b: string;
+  readonly aWins: number;
+  readonly bWins: number;
+  readonly ties: number;
+  /** Per finished round both teams played: a's round score minus b's. */
+  readonly rounds: readonly { readonly round: number; readonly marginHundredths: number }[];
+};
+
+/** Two teams, round by round: who outscored whom, and by how much. */
+export function headToHead(snapshots: readonly RoundSnapshot[], a: string, b: string): HeadToHead {
+  const rounds = snapshots.flatMap((snapshot) => {
+    const left = snapshot.table.find((row) => row.memberId === a);
+    const right = snapshot.table.find((row) => row.memberId === b);
+    return left && right ? [{ round: snapshot.round, marginHundredths: left.roundHundredths - right.roundHundredths }] : [];
+  });
+  return {
+    a,
+    b,
+    aWins: rounds.filter((row) => row.marginHundredths > 0).length,
+    bWins: rounds.filter((row) => row.marginHundredths < 0).length,
+    ties: rounds.filter((row) => row.marginHundredths === 0).length,
+    rounds,
   };
 }
 
@@ -282,13 +491,21 @@ function playerLeaders(input: StatsInput): PlayerLeaders {
   };
 }
 
-export function leagueStats(input: StatsInput): LeagueStats {
+export function leagueStats(raw: StatsInput): LeagueStats {
+  const rounds = raw.snapshots.map((snapshot) => snapshot.round);
+  const finished = new Set(rounds);
+  const input: StatsInput = { ...raw, lines: raw.lines.filter((line) => finished.has(line.round)) };
+  const points = pointsByRound(input.lines);
   return {
-    rounds: input.snapshots.map((snapshot) => snapshot.round),
+    rounds,
     records: records(input),
     teams: teamProfiles(input),
     lineups: lineupEfficiency(input),
     draft: draftValue(input),
     players: playerLeaders(input),
+    waffle: waffleBoard(input.snapshots),
+    hindsight: hindsight(input, rounds, points),
+    captains: captainRegret(input, rounds, points),
+    clubs: clubLoyalty(input, input.lines),
   };
 }
