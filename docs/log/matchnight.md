@@ -543,3 +543,44 @@ six sentence tests updated to the new order). E2E gained `shown(name)` in
 `news.spec.ts`, which fails the same way on `main` (the local-only failure
 STATUS.md already records). Seven draft tests timed out under the full
 parallel run and passed on a rerun with two workers.
+
+## S20 — A round in progress is not a finished round
+
+`recomputeStandings` writes a round's snapshot after the round's first recorded
+game, so it can update the table all evening. Every reader took the newest
+snapshot as a finished round: League Home told the story of a round half
+played, Recap crowned a winner with four games to go, and the standings drew
+crowns, spoons and "on fire" for it. The snapshot is right to exist early; the
+readers were wrong to treat it as final.
+
+So the fact moved into one pure function. `roundProgress` takes the season's
+fixtures and the league's snapshot rounds and returns the set of rounds that
+are over (a snapshot and no unplayed game; a set, not a threshold, because a
+postponed game keeps its round open while later rounds finish) and the round
+being played, using the lineup's existing "earliest round with a game to play"
+rule. With no stored schedule every snapshot round counts as finished, which is
+what the pages did before, so a league whose fixtures were never ingested loses
+nothing. `completedOnly` filters snapshots for anything that crowns.
+
+League Home's hero, during a round, is a live scorebug in Live's own numbers
+(`readMatchdayData`), so Home and Live can never disagree; the story and ticker
+are about the last finished round. Recap keeps the open round in its picker and
+says what it is: provisional banner, "lead" for "win", "Sitting last" for the
+spoon, and no crown or spoon moment, since a moment plays once and a crown
+taken back at the last game cannot be un-played.
+
+Verification: lint, typecheck, knip and 1677 unit tests pass (new
+`progress.test.ts`, `liveRound` cases in `dashboard.test.ts`). A new recap E2E
+plants one played and one unplayed round-2 game in a season of its own per
+project (fixtures are season-wide, so a shared season would reopen a round
+under another spec) and passes on both projects. Locally `season-dashboard` and
+`league-stats` fail on this machine's real schedule, where round 2 still has
+games to play; STATUS.md records it beside the news spec.
+
+CI then failed the same two dashboard specs on a fresh database. Attaching a
+person code on the mapping page re-imports that player's games, and the import
+stores the real season's schedule, whose round 3 was being played that night.
+`player-mapping.spec` did that under `STATS_FETCH=off`, so every E2026 league in
+the run looked mid-round. The re-import now honours `STATS_FETCH=off`, like the
+worker.
+

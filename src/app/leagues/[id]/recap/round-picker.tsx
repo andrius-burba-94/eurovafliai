@@ -2,18 +2,21 @@ import Link from "next/link";
 
 /**
  * Every counted round as a chip, newest last — a round is picked, never typed.
- * Links, so the page works before JavaScript and a round is a URL to share.
+ * Links, so the page works before JavaScript and a round is a URL to share. A
+ * round with a game left says so on its chip.
  */
 export function RoundPicker({
   leagueId,
   season,
   round,
   rounds,
+  complete,
 }: {
   leagueId: string;
   season: string;
   round: number;
   rounds: readonly number[];
+  complete: readonly number[];
 }) {
   return (
     <nav aria-label="Counted rounds" data-testid="recap-rounds" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
@@ -28,6 +31,11 @@ export function RoundPicker({
           }`}
         >
           R{n}
+          {complete.includes(n) ? null : (
+            <span className={`ml-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.06em] ${n === round ? "text-stock/80" : "text-live"}`}>
+              in progress
+            </span>
+          )}
         </Link>
       ))}
     </nav>

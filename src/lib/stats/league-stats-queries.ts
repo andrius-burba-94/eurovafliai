@@ -2,6 +2,8 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import { completedOnly } from "@/lib/fixtures/progress";
+import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 
@@ -54,11 +56,12 @@ export async function readLeagueStats(leagueId: string, season: string): Promise
         requestKey: null,
       })
     : [];
+  const progress = await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round));
   const memberIds = [...new Set(windows.map((row) => row.member))];
   const weights = await readLineupWeights(pb, leagueId, code, [...new Set(lines.map((line) => line.round))], memberIds);
 
   const stats = leagueStats({
-    snapshots,
+    snapshots: completedOnly(snapshots, progress),
     lines: lines.map((line) => ({ playerId: line.player, round: line.round, fantasyTenths: line.fantasy_pts })),
     windows: windows.map((row) => ({ memberId: row.member, playerId: row.player, from_round: row.from_round, to_round: row.to_round, to_date: row.to_date })),
     weights,

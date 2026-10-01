@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Bank, Slot, Slots } from "@/components/board";
-import { ScoreFigure, TeamCrest, teamFieldStyle } from "@/components/broadcast";
+import { ScoreFigure, StatusBadge, TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
@@ -25,6 +25,7 @@ export function RecapBody({
   playerCodes,
   leagueId,
   season,
+  open,
 }: {
   recap: Recap;
   names: Readonly<Record<string, string>>;
@@ -33,6 +34,8 @@ export function RecapBody({
   playerCodes: Readonly<Record<string, string>>;
   leagueId: string;
   season: string;
+  /** Set while the round has a game left; its counts when it is the current round. */
+  open: { played: number | null; total: number | null } | null;
 }) {
   const team = (id: string) => names[id] ?? id;
   const player = (id: string) => playerNames[id] ?? id;
@@ -58,21 +61,52 @@ export function RecapBody({
 
   return (
     <>
+      {open ? (
+        <p
+          data-testid="recap-in-progress"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-gold/40 bg-gold/10 px-3.5 py-3 text-sm text-ink"
+        >
+          <StatusBadge kind="provisional">In progress</StatusBadge>
+          {open.played !== null && open.total !== null
+            ? `${open.played} of ${open.total} ${open.total === 1 ? "game" : "games"} played · provisional. Nobody wins or takes the spoon until the last game.`
+            : "A game of this round is still to be played, so these figures are provisional."}
+        </p>
+      ) : null}
+
       {story ? (
         <header className="flex flex-col gap-2" data-testid="recap-headline">
           <p className="display text-3xl leading-none sm:text-5xl">
-            {team(story.winner.memberId)} win round {story.round}
+            {team(story.winner.memberId)} {open ? "lead" : "win"} round {story.round}
             {story.margin !== null && story.margin > 0 ? ` by ${formatHundredths(story.margin)}` : ""}
           </p>
           {story.spoon ? (
             <p className="text-sm text-ink-soft sm:text-base">
-              {team(story.spoon.memberId)} take the wooden spoon with {formatHundredths(story.spoon.hundredths)}.
+              {open
+                ? `${team(story.spoon.memberId)} are sitting last with ${formatHundredths(story.spoon.hundredths)}.`
+                : `${team(story.spoon.memberId)} take the wooden spoon with ${formatHundredths(story.spoon.hundredths)}.`}
             </p>
           ) : null}
         </header>
       ) : null}
 
-      {story ? (
+      {story && open ? (
+        <div
+          data-testid="recap-leader"
+          className="team-field relative overflow-hidden rounded-card border border-panel-border p-4 sm:p-6"
+          style={styles[story.winner.memberId] ? teamFieldStyle(styles[story.winner.memberId]!.color) : undefined}
+        >
+          <div className="relative flex items-center justify-between gap-4">
+            <span className="flex min-w-0 items-center gap-4">
+              {crest(story.winner.memberId, 64)}
+              <span className="min-w-0">
+                <span className="slot-label block">Leading so far</span>
+                <span className="display line-clamp-2 block text-2xl sm:text-3xl">{team(story.winner.memberId)}</span>
+              </span>
+            </span>
+            <ScoreFigure size="md" className="sm:text-6xl">{formatHundredths(story.winner.hundredths)}</ScoreFigure>
+          </div>
+        </div>
+      ) : story ? (
         <Moment
           kind="sweep"
           id={`crown:${leagueId}:${story.round}`}
@@ -123,8 +157,8 @@ export function RecapBody({
                       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
                           {team(row.memberId)}
-                          {index === 0 && story ? <Glyph name="crown" size={13} className="text-gold" /> : null}
-                          {last && story?.spoon ? <Glyph name="spoon" size={13} className="text-wood" /> : null}
+                          {index === 0 && story && !open ? <Glyph name="crown" size={13} className="text-gold" /> : null}
+                          {last && story?.spoon && !open ? <Glyph name="spoon" size={13} className="text-wood" /> : null}
                         </span>
                         <span className="block h-1.5 overflow-hidden rounded-full bg-stock-high" aria-hidden="true">
                           <span
@@ -170,7 +204,17 @@ export function RecapBody({
             )}
           </Bank>
 
-          {story?.spoon ? (
+          {story?.spoon && open ? (
+            <Bank framed label="Sitting last">
+              <div data-testid="recap-last" className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2 font-semibold">
+                  {crest(story.spoon.memberId, 22)}
+                  <span className="truncate">{team(story.spoon.memberId)}</span>
+                </span>
+                <span className="stat text-ink-soft">{formatHundredths(story.spoon.hundredths)}</span>
+              </div>
+            </Bank>
+          ) : story?.spoon ? (
             <Bank framed label="Wooden spoon">
               <div data-testid="recap-spoon" className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-3">

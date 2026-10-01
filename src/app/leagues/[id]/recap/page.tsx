@@ -11,7 +11,8 @@ import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
-import { readLeagueRecap } from "@/lib/stats/queries";
+import { readRoundProgress } from "@/lib/fixtures/queries";
+import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { stylesById } from "@/lib/teams/identity";
 
 import { RecapBody } from "./recap-body";
@@ -44,10 +45,24 @@ export default async function RecapPage({
   const viewerIsMember = data.members.some((member) => member.isYou);
   if (!viewerIsMember) notFound();
 
-  const page =
+  // With no round asked for, the last round that is over: a round still being
+  // played is offered in the picker, marked, but is not the front page.
+  const progress =
     data.league.status === "season"
-      ? await readLeagueRecap(id, season, requestedRound)
+      ? await readRoundProgress(
+          season,
+          session.token,
+          (await readStandingsSnapshots(id, season).catch(() => [])).map((snap) => snap.round),
+        )
       : null;
+  const page = progress
+    ? await readLeagueRecap(id, season, requestedRound ?? progress.lastComplete)
+    : null;
+  const open = page && progress && !progress.complete.includes(page.recap.round)
+    ? progress.current?.round === page.recap.round
+      ? { played: progress.current.played, total: progress.current.total }
+      : { played: null, total: null }
+    : null;
 
   const names = Object.fromEntries(
     data.members.map((member) => [
@@ -119,6 +134,7 @@ export default async function RecapPage({
             season={season}
             round={page.recap.round}
             rounds={page.countedRounds}
+            complete={progress?.complete ?? page.countedRounds}
           />
           <RecapBody
             recap={page.recap}
@@ -128,6 +144,7 @@ export default async function RecapPage({
             playerCodes={page.playerCodes}
             leagueId={id}
             season={season}
+            open={open}
           />
         </>
       ) : null}
