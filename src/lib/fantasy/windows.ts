@@ -78,3 +78,45 @@ export function syncDue(
   if (decision.mode === "apply") return lastApplyAt === null || now - lastApplyAt >= APPLY_EVERY_MS;
   return lastRunAt === null || now - lastRunAt >= PREVIEW_EVERY_MS;
 }
+
+export type LineupRunRef = {
+  readonly round: number;
+  readonly ranAt: number;
+  readonly status: string;
+};
+
+/**
+ * Which rounds' lineups to read from the official game now.
+ *
+ * A frozen round hourly, like its rosters. A finished round once more after
+ * its freeze closes, which is the pass its standings keep, and which is also
+ * how a round from before the lineup sync existed is filled in. A finished
+ * round none of whose passes since closing applied is tried again four times
+ * a day, so a refused token or an unanswered question heals once fixed.
+ *
+ * `force` is a person pressing "Sync now": the frozen round and every
+ * unfinished one at once, whatever ran a minute ago.
+ */
+export function lineupRoundsDue(
+  now: number,
+  windows: readonly RoundWindow[],
+  runs: readonly LineupRunRef[],
+  force = false,
+): number[] {
+  const due: number[] = [];
+  for (const window of windows) {
+    if (now < window.lockAt + APPLY_AFTER_LOCK_MS) continue;
+    const mine = runs.filter((run) => run.round === window.round);
+    const last = Math.max(Number.NEGATIVE_INFINITY, ...mine.map((run) => run.ranAt));
+    if (now <= window.closesAt) {
+      if (force || now - last >= APPLY_EVERY_MS) due.push(window.round);
+      continue;
+    }
+    const sinceClose = mine.filter((run) => run.ranAt > window.closesAt);
+    if (sinceClose.length === 0) due.push(window.round);
+    else if (sinceClose.every((run) => run.status !== "applied") && (force || now - last >= PREVIEW_EVERY_MS)) {
+      due.push(window.round);
+    }
+  }
+  return due;
+}

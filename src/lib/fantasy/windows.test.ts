@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { APPLY_EVERY_MS, PREVIEW_EVERY_MS, roundWindows, syncDue, syncModeAt } from "./windows";
+import { APPLY_EVERY_MS, lineupRoundsDue, PREVIEW_EVERY_MS, roundWindows, syncDue, syncModeAt } from "./windows";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -83,5 +83,51 @@ describe("syncDue", () => {
     expect(syncDue(now, preview, null, now - PREVIEW_EVERY_MS + 60_000)).toBe(false);
     expect(syncDue(now, preview, null, now - PREVIEW_EVERY_MS)).toBe(true);
     expect(syncDue(now, preview, null, null)).toBe(true);
+  });
+});
+
+describe("lineupRoundsDue", () => {
+  const windows = roundWindows(fixtures);
+  const now = at("2026-10-01T17:00:00Z");
+  const round2ClosedAt = at("2026-09-30T19:45:00Z");
+
+  it("fills in a finished round never synced, and the frozen round, but not one still to come", () => {
+    expect(lineupRoundsDue(now, windows, [])).toEqual([2, 3]);
+  });
+
+  it("does not read a round in the five minutes after its lock", () => {
+    expect(lineupRoundsDue(at("2026-10-01T16:02:00Z"), windows, [])).toEqual([2]);
+  });
+
+  it("reads the frozen round hourly", () => {
+    const recent = [{ round: 3, ranAt: now - APPLY_EVERY_MS + 60_000, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, recent)).toEqual([2]);
+    const hourAgo = [{ round: 3, ranAt: now - APPLY_EVERY_MS, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, hourAgo)).toEqual([2, 3]);
+  });
+
+  it("reads a finished round once more after its freeze closes, then leaves it", () => {
+    const duringFreeze = [{ round: 2, ranAt: round2ClosedAt - 60_000, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, duringFreeze)).toContain(2);
+    const afterClose = [...duringFreeze, { round: 2, ranAt: round2ClosedAt + 60_000, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, afterClose)).not.toContain(2);
+  });
+
+  it("retries a finished round whose passes since closing all failed, four times a day", () => {
+    const failed = [{ round: 2, ranAt: now - PREVIEW_EVERY_MS + 60_000, status: "failed" }];
+    expect(lineupRoundsDue(now, windows, failed)).not.toContain(2);
+    const failedLongAgo = [{ round: 2, ranAt: now - PREVIEW_EVERY_MS, status: "blocked" }];
+    expect(lineupRoundsDue(now, windows, failedLongAgo)).toContain(2);
+  });
+
+  it("on a forced pass, reads the frozen round and every unfinished one whatever just ran", () => {
+    const justRan = [
+      { round: 2, ranAt: now - 60_000, status: "blocked" },
+      { round: 3, ranAt: now - 60_000, status: "applied" },
+    ];
+    expect(lineupRoundsDue(now, windows, justRan)).toEqual([]);
+    expect(lineupRoundsDue(now, windows, justRan, true)).toEqual([2, 3]);
+    const finished = [{ round: 2, ranAt: now - 60_000, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, finished, true)).toEqual([3]);
   });
 });
