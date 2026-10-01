@@ -56,15 +56,16 @@ import { useDragToPlace, type DragState, type DropTarget } from "./lineup-drag";
 const START: LineupResult = { error: null, saved: false };
 
 /**
- * The tiers beside the court, top to bottom, with the columns each wants.
- * "Not placed" leads, because it is what is left to do, and is drawn only
- * while someone is in it.
+ * The tiers beside the court, top to bottom. "Not placed" leads, because it is
+ * what is left to do, and is drawn only while someone is in it. Cards take as
+ * many columns as keep a name and a matchup whole; inactive players score
+ * nothing, so they are listed one to a line, below the cards that count.
  */
-const TIERS: readonly { role: Exclude<PlacementRole, "starter"> | ""; label: string; columns: string }[] = [
-  { role: "", label: "Not placed", columns: "grid-cols-2" },
-  { role: "sixth", label: "Sixth man", columns: "grid-cols-2" },
-  { role: "bench", label: "Bench", columns: "grid-cols-2" },
-  { role: "inactive", label: "Inactive", columns: "grid-cols-2 @4xl:grid-cols-3" },
+const TIERS: readonly { role: Exclude<PlacementRole, "starter"> | ""; label: string; layout: "cards" | "rows" }[] = [
+  { role: "", label: "Not placed", layout: "cards" },
+  { role: "sixth", label: "Sixth man", layout: "cards" },
+  { role: "bench", label: "Bench", layout: "cards" },
+  { role: "inactive", label: "Inactive", layout: "rows" },
 ];
 
 const TEMPLATE_KEY: Readonly<Record<PlacementRole, keyof LineupTemplate>> = {
@@ -368,9 +369,10 @@ export function LineupForm({
     return roundPointsOf(live[playerId], role ? ROLE_MULTIPLIERS[role] : 1);
   }
 
-  function card(player: LineupPlayer) {
+  function card(player: LineupPlayer, layout: "cards" | "rows") {
     const key = `player:${player.id}`;
     const points = pointsOf(player.id);
+    const matchup = player.fixture ? `${player.clubCode} ${player.fixture.atHome ? "vs" : "at"} ${player.fixture.nextOpponent}` : player.clubCode;
     return (
       <li key={player.id} className="min-w-0">
         <button
@@ -385,21 +387,27 @@ export function LineupForm({
           title={player.name}
           onClick={() => arm(player.id)}
           {...drag.handle(player.id)}
+          data-layout={layout}
           className="lineup-card lineup-drag"
         >
           <PlayerPortrait personCode={player.personCode} name={player.name} />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm leading-tight font-semibold">{surname(player.name)}</span>
-            <span className="flex min-w-0 items-center gap-1 text-xs text-ink-soft">
+          {layout === "rows" ? (
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="min-w-0 truncate text-sm font-semibold">{surname(player.name)}</span>
               <span className="lineup-card-position" aria-hidden="true">{player.position}</span>
-              <span className="truncate">
-                {player.clubCode}
-                {player.fixture ? ` ${player.fixture.atHome ? "vs" : "at"} ${player.fixture.nextOpponent}` : ""}
+              <span className="min-w-0 truncate text-xs text-ink-soft">{matchup}</span>
+            </span>
+          ) : (
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-sm leading-tight font-semibold">{surname(player.name)}</span>
+              <span className="flex min-w-0 items-center gap-1 text-xs text-ink-soft">
+                <span className="lineup-card-position" aria-hidden="true">{player.position}</span>
+                <span className="truncate">{matchup}</span>
               </span>
             </span>
-          </span>
+          )}
           {points ? (
-            <CardPoints points={points} />
+            <CardPoints points={points} stacked={layout === "cards"} />
           ) : player.estimateTenths !== null ? (
             <span className="stat shrink-0 text-xs text-ink-soft">~{(player.estimateTenths / 10).toFixed(1)}</span>
           ) : null}
@@ -432,8 +440,8 @@ export function LineupForm({
           </span>
           <span className="tabular-nums">{capacity > 0 ? `${members.length}/${capacity}` : members.length}</span>
         </h2>
-        <ul role="list" aria-label={tier.label} className={`grid gap-1.5 ${tier.columns}`}>
-          {members.map(card)}
+        <ul role="list" aria-label={tier.label} data-layout={tier.layout} className="lineup-tier-list">
+          {members.map((player) => card(player, tier.layout))}
           {Array.from({ length: Math.max(0, capacity - members.length) }, (_, index) => (
             <li key={`open-${index}`} className="min-w-0">
               <button
@@ -724,7 +732,15 @@ export function LineupForm({
 }
 
 /** The round's figure at the end of a card, with the LIVE bug while the game is on. */
-function CardPoints({ points }: { points: RoundPoints }) {
+function CardPoints({ points, stacked = false }: { points: RoundPoints; stacked?: boolean }) {
+  if (points.kind === "note" && points.tipOff && stacked) {
+    return (
+      <span className="stat flex shrink-0 flex-col items-end text-xs leading-tight" data-testid="lineup-points">
+        <span className="text-ink-soft">{points.tipOff.date}</span>
+        <span className="font-semibold text-ink">{points.tipOff.clock}</span>
+      </span>
+    );
+  }
   if (points.kind === "note") {
     return <span className="stat shrink-0 text-xs text-ink-soft" data-testid="lineup-points">{points.text}</span>;
   }

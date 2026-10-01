@@ -315,6 +315,9 @@ body {
   gap: 0.25rem;
 }
 .lineup-court-players li { width: min(31%, 8.5rem); min-width: 0; }
+/* A row of one or two has the room a row of three shares, so its plates take it
+   and a long surname reads whole on a narrow court. */
+.lineup-court-players:not(:has(> li:nth-child(3))) li { width: min(46%, 10rem); }
 .lineup-court-player {
   display: grid;
   width: 100%;
@@ -536,6 +539,18 @@ body {
 .lineup-card-open:enabled { border-color: var(--color-live); color: var(--color-live); font-weight: 700; cursor: pointer; }
 .lineup-card-open:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
 .lineup-tier { border-radius: 0.625rem; }
+/* Two cards to a line at every width, so the whole lineup stays on one screen;
+   the tip-off stacks inside the card to leave the surname its width. */
+.lineup-tier-list {
+  display: grid;
+  gap: 0.375rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.lineup-tier-list[data-layout="rows"] { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+.lineup-card[data-layout="rows"],
+.lineup-tier-list[data-layout="rows"] .lineup-card-open { min-height: 2.75rem; }
+.lineup-card[data-layout="rows"] { padding-block: 0.2rem; }
+.lineup-card[data-layout="rows"] .player-portrait { width: 1.75rem; height: 1.9rem; }
 .lineup-tier[data-over] { outline: 2px dashed var(--color-live); outline-offset: 4px; }
 
 /* A finger has to be able to hold a player without the page selecting text,
