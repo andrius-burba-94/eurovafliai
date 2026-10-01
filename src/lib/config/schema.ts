@@ -46,7 +46,8 @@ export const serverEnvSchema = z.object({
     .regex(/^E\d{4}$/, "must look like E2026")
     .default("E2026"),
   /**
-   * Whether the worker fetches box scores at all.
+   * Whether the worker fetches box scores at all, and whether attaching a
+   * person code on the mapping page re-imports the games that named it.
    *
    * Defaults **on**, because the whole point of 4.3 is that nobody has to
    * remember. It exists for two honest cases: a dev machine that should not

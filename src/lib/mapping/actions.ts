@@ -422,7 +422,11 @@ export async function attachStatCode(
     .update(playerId, { person_code: personCode }, { requestKey: null });
 
   let imported = "";
-  if (games.length > 0) {
+  if (games.length > 0 && serverConfig().STATS_FETCH === "off") {
+    // The re-import also stores the real season schedule, which tells every
+    // league which round is being played; with fetching off nothing may.
+    imported = " Box-score fetching is off here, so those games were not re-imported.";
+  } else if (games.length > 0) {
     try {
       const report = await ingestFinishedGames({
         pb,

@@ -577,3 +577,10 @@ under another spec) and passes on both projects. Locally `season-dashboard` and
 `league-stats` fail on this machine's real schedule, where round 2 still has
 games to play; STATUS.md records it beside the news spec.
 
+CI then failed the same two dashboard specs on a fresh database. Attaching a
+person code on the mapping page re-imports that player's games, and the import
+stores the real season's schedule, whose round 3 was being played that night.
+`player-mapping.spec` did that under `STATS_FETCH=off`, so every E2026 league in
+the run looked mid-round. The re-import now honours `STATS_FETCH=off`, like the
+worker.
+
