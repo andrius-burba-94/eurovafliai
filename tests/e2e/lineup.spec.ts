@@ -117,7 +117,7 @@ async function score(
  * with an exclusive radio, because the captaincy is not a sixth place on the
  * team sheet. So this helper reads "captain" as *starter, and marked*, which is
  * what the rulebook means by it. The select and the radio live in the grid view;
- * the court moves players by tap and drag.
+ * the court moves players by drag, and a tap opens a profile.
  */
 async function showGrid(page: Page): Promise<void> {
   const grid = page.getByRole("button", { name: "grid", exact: true });
@@ -325,7 +325,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
   );
 });
 
-test("a tap picks a player up and a second tap puts them down — on the court or in a tier", async ({
+test("a tap opens the player's profile, and the profile makes a starter captain", async ({
   page,
   context,
 }) => {
@@ -339,47 +339,43 @@ test("a tap picks a player up and a second tap puts them down — on the court o
   const court = page.getByTestId("lineup-court");
   await expect(court).toBeVisible();
   await expect(court.getByTestId("court-player")).toHaveCount(0);
+  // Open places are where a drag lands, not buttons.
   await expect(court.getByTestId("court-open")).toHaveCount(5);
-  await expect(court.getByTestId("court-open").first()).toBeDisabled();
+  await expect(court.getByRole("button")).toHaveCount(0);
 
   const guard = planted.players[0]!;
   const center = planted.players[6]!;
-  const bench = page.getByTestId("lineup-tier-bench");
-  const moveButton = (player: { name: string }) =>
-    page.getByRole("button", { name: `Move ${shown(player.name)}` });
+  const modal = page.getByTestId("player-stats-modal");
 
-  // Into the five, by the court.
-  await moveButton(guard).click();
-  await expect(moveButton(guard)).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("lineup-in-hand")).toContainText(shown(guard.name));
-  await court.getByTestId("court-open").first().click();
-  await expect(court.getByTestId("court-player")).toHaveCount(1);
-  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "G");
-  await expect(court.getByTestId("court-open")).toHaveCount(4);
-  await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
-
-  // Out of it again, by an open place in a tier — the court token is the handle too.
-  await court.getByTestId("court-player").click();
-  await bench.getByTestId("lineup-open").first().click();
+  // A tap on somebody not in the five: their profile, and no captaincy to give.
+  await page.getByTestId("lineup-tier-none").getByRole("button", { name: shown(center.name) }).click();
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole("heading", { name: shown(center.name) })).toBeVisible();
+  await expect(modal.getByTestId("profile-make-captain")).toHaveCount(0);
+  await modal.getByRole("button", { name: "Close player stats" }).click();
+  await expect(modal).toHaveCount(0);
+  // The tap moved nobody.
   await expect(court.getByTestId("court-player")).toHaveCount(0);
-  await expect(bench.getByRole("button", { name: `Move ${shown(guard.name)}` })).toBeVisible();
 
-  // The grid's select drives the same state, and the court follows it.
+  // A starter's profile carries the armband.
   await showGrid(page);
-  await page.getByLabel(`${shown(center.name)} role`).selectOption("starter");
-  await expect(page.getByLabel(`${shown(guard.name)} role`)).toHaveValue("bench");
+  await page.getByLabel(`${shown(guard.name)} role`).selectOption("starter");
   await showCourt(page);
-  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "C");
-
-  // A bench player in hand, a starter tapped: the two trade places.
-  await moveButton(guard).click();
   await court.getByTestId("court-player").click();
-  await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "G");
-  await expect(bench.getByRole("button", { name: `Move ${shown(center.name)}` })).toBeVisible();
-  await expect(page.getByTestId("lineup-swapped")).toContainText(
-    `${shown(guard.name)} to the five`,
-  );
-  await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
+  await expect(modal.getByRole("heading", { name: shown(guard.name) })).toBeVisible();
+  await modal.getByTestId("profile-make-captain").click();
+  await expect(modal).toHaveCount(0);
+  await expect(court.getByTestId("court-player")).toHaveAttribute("data-captain", "true");
+  await expect(page.getByTestId("lineup-swapped")).toContainText(`${shown(guard.name)} is captain`);
+
+  await court.getByTestId("court-player").click();
+  await expect(modal.getByTestId("profile-captain")).toBeVisible();
+  await expect(modal.getByTestId("profile-make-captain")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(modal).toHaveCount(0);
+
+  await showGrid(page);
+  await expect(page.getByLabel(`${shown(guard.name)} captain`)).toBeChecked();
 });
 
 test.describe("on a screen that holds the whole lineup", () => {
@@ -401,7 +397,7 @@ test("a player dragged onto the court starts, and dragged onto a starter swaps w
   const guard = planted.players[0]!;
   const center = planted.players[6]!;
   async function dragOnto(from: { name: string }, to: Locator) {
-    const source = await page.getByRole("button", { name: `Move ${shown(from.name)}` }).boundingBox();
+    const source = await page.getByRole("button", { name: shown(from.name) }).boundingBox();
     const target = await to.boundingBox();
     if (!source || !target) throw new Error("nothing to drag");
     await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
@@ -416,9 +412,9 @@ test("a player dragged onto the court starts, and dragged onto a starter swaps w
 
   await dragOnto(center, court.getByTestId("court-player"));
   await expect(court.getByTestId("court-player")).toHaveAttribute("data-position", "C");
-  await expect(page.getByTestId("lineup-tier-none").getByRole("button", { name: `Move ${shown(guard.name)}` })).toBeVisible();
-  // A drag is not also a tap: nobody is left in hand.
-  await expect(page.getByTestId("lineup-in-hand")).toHaveCount(0);
+  await expect(page.getByTestId("lineup-tier-none").getByRole("button", { name: shown(guard.name) })).toBeVisible();
+  // A drag is not also a tap: no profile opened on the drop.
+  await expect(page.getByTestId("player-stats-modal")).toHaveCount(0);
   if (process.env.REDESIGN_CAPTURE) {
     await page.getByRole("button", { name: "2-2-1", exact: true }).click();
     await page.screenshot({ path: "/tmp/eurovafliai-lineup-wide.png" });

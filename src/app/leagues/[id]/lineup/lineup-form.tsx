@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Bank,
@@ -11,6 +11,7 @@ import {
 import { StatusBadge } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
 import { PlayerComparison } from "@/components/player-comparison";
+import { PlayerStatsModal } from "@/components/player-stats-link";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { recordLineup, type LineupResult } from "@/lib/lineups/actions";
 import { arrangeFormation } from "@/lib/lineups/formation";
@@ -41,9 +42,10 @@ import { useDragToPlace, type DragState, type DropTarget } from "./lineup-drag";
 /**
  * Thirteen players, one role each — slice 9.3. The court draws the five and
  * the sixth man, bench and inactive stand beside it as cards, so a whole lineup
- * fits on one screen the way the official game's does. A player moves by drag,
- * or by a tap on them and a tap on their place; the grid view is the same
- * lineup as a table with a role select and a captain radio per row.
+ * fits on one screen the way the official game's does. A player moves by drag;
+ * a tap opens their profile, which holds the captain button. The grid view is
+ * the same lineup as a table with a role select and a captain radio per row,
+ * and is the path for a keyboard or a hand that cannot drag.
  *
  * What the form posts is a hidden `role:<id>` per player and one `captain`,
  * written from state, so the court and the grid are two views of one lineup
@@ -252,7 +254,6 @@ export function LineupForm({
     setPlaces({ ...arranged.places });
     setCaptainId(arranged.captainId);
     setDirty(true);
-    setArmed(null);
   }
 
   const placed = assignments.length;
@@ -280,17 +281,16 @@ export function LineupForm({
   function resetDraft(): void {
     setPlaces(originalPlaces);
     setCaptainId(originalCaptain);
-    setArmed(null);
     setPreview(null);
     setDirty(false);
     try { window.localStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
   }
 
-  // Tap to place — 11.3. One player in hand at a time; the next tap on a place
-  // or a player puts them there through `place`, the same function the grid's
-  // select and a drop call, so the validator above sees one kind of change.
-  const [armed, setArmed] = useState<string | null>(null);
-  const armedPlayer = players.find((player) => player.id === armed) ?? null;
+  // A drop moves through `place`, the same function the grid's select calls, so
+  // the validator above sees one kind of change.
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const profilePlayer = players.find((player) => player.id === profileId) ?? null;
+  const opener = useRef<HTMLElement | null>(null);
   const [lastMove, setLastMove] = useState("");
   const nameOf = (id: string) => displayName(players.find((player) => player.id === id)?.name ?? "");
 
@@ -310,26 +310,17 @@ export function LineupForm({
     return true;
   }
 
-  /** Tapping somebody in the same place as the one in hand changes who is in hand. */
-  function arm(playerId: string): void {
-    setLastMove("");
-    if (armed === null || armed === playerId) {
-      setArmed(armed === playerId ? null : playerId);
-      return;
-    }
-    if (swap(armed, playerId)) setArmed(null);
-    else setArmed(playerId);
+  function openProfile(playerId: string, from: HTMLElement): void {
+    opener.current = from;
+    setProfileId(playerId);
   }
 
-  function moveTo(role: PlacementRole | ""): void {
-    if (armed === null) return;
-    place(armed, role);
-    setArmed(null);
-    setLastMove("");
+  function closeProfile(): void {
+    setProfileId(null);
+    opener.current?.focus();
   }
 
   function dropOn(playerId: string, target: DropTarget): void {
-    setArmed(null);
     setLastMove("");
     if (target.kind === "player") {
       swap(playerId, target.id);
@@ -379,10 +370,10 @@ export function LineupForm({
           data-drop={key}
           data-over={drag.over === key || undefined}
           data-dragging={drag.dragging === player.id || undefined}
-          aria-pressed={armed === player.id}
-          aria-label={points ? `Move ${displayName(player.name)}, ${points.spoken}` : `Move ${displayName(player.name)}`}
+          aria-haspopup="dialog"
+          aria-label={points ? `${displayName(player.name)}, ${points.spoken}` : displayName(player.name)}
           title={displayName(player.name)}
-          onClick={() => arm(player.id)}
+          onClick={(event) => openProfile(player.id, event.currentTarget)}
           {...drag.handle(player.id)}
           data-layout={layout}
           className="lineup-card lineup-drag"
@@ -418,9 +409,7 @@ export function LineupForm({
     const capacity = tier.role === "" ? 0 : template[TEMPLATE_KEY[tier.role]];
     if (tier.role === "" && members.length === 0) return null;
     const dropKey = `role:${tier.role}`;
-    const incoming =
-      (armed !== null && (places[armed] ?? "") !== tier.role) ||
-      (drag.dragging !== null && (places[drag.dragging] ?? "") !== tier.role);
+    const incoming = drag.dragging !== null && (places[drag.dragging] ?? "") !== tier.role;
     return (
       <section
         key={tier.role || "none"}
@@ -441,15 +430,9 @@ export function LineupForm({
           {members.map((player) => card(player, tier.layout))}
           {Array.from({ length: Math.max(0, capacity - members.length) }, (_, index) => (
             <li key={`open-${index}`} className="min-w-0">
-              <button
-                type="button"
-                data-testid="lineup-open"
-                disabled={armed === null || !incoming}
-                onClick={() => moveTo(tier.role)}
-                className="lineup-card-open"
-              >
-                {incoming ? "Move here" : "Open"}
-              </button>
+              <span data-testid="lineup-open" data-incoming={incoming || undefined} className="lineup-card-open">
+                {incoming ? "Drop here" : "Open"}
+              </span>
             </li>
           ))}
         </ul>
@@ -506,7 +489,7 @@ export function LineupForm({
                   key={option}
                   type="button"
                   aria-pressed={view === option}
-                  onClick={() => { setView(option); setArmed(null); }}
+                  onClick={() => setView(option)}
                   className={`min-h-10 rounded-full px-4 text-sm font-semibold capitalize ${view === option ? "bg-stock-high text-ink" : "text-ink-soft hover:text-ink"}`}
                 >
                   {option}
@@ -539,10 +522,7 @@ export function LineupForm({
                 points: pointsOf(player.id),
               }))}
               openPlaces={openShape}
-              armed={armed}
-              armedIsStarter={armed !== null && places[armed] === "starter"}
-              onArm={arm}
-              onPlace={() => moveTo("starter")}
+              onOpen={openProfile}
               drag={drag}
             />
             <div className="flex min-w-0 flex-col gap-3">{TIERS.map(renderTier)}</div>
@@ -658,6 +638,35 @@ export function LineupForm({
         </Bank>
       ) : null}
       {compareOpen ? <PlayerComparison players={comparison} onClose={() => setCompareOpen(false)} /> : null}
+      {profilePlayer ? (
+        <PlayerStatsModal
+          id={profilePlayer.id}
+          name={profilePlayer.name}
+          profileHref={`/players/${profilePlayer.id}`}
+          round={round}
+          onClose={closeProfile}
+          action={
+            places[profilePlayer.id] !== "starter" ? null : captainId === profilePlayer.id ? (
+              <span data-testid="profile-captain" className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-gold px-4 text-sm font-bold text-[oklch(0.22_0.04_80)]">
+                Captain ×2
+              </span>
+            ) : (
+              <button
+                type="button"
+                data-testid="profile-make-captain"
+                onClick={() => {
+                  markCaptain(profilePlayer.id);
+                  setLastMove(`${displayName(profilePlayer.name)} is captain.`);
+                  closeProfile();
+                }}
+                className="inline-flex min-h-11 items-center rounded-full border border-gold px-4 text-sm font-semibold text-gold hover:bg-gold/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+              >
+                Make captain ×2
+              </button>
+            )
+          }
+        />
+      ) : null}
 
       {draggedPlayer ? (
         <div ref={ghostRef} aria-hidden="true" className="lineup-ghost" data-position={draggedPlayer.position}>
@@ -670,16 +679,12 @@ export function LineupForm({
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="min-w-0 flex-1">
             {/* Said once, where the eye goes after a move, and to a screen
-                reader as it changes: who is in hand and how to put them down. */}
+                reader as it changes. */}
             <div aria-live="polite" className="text-sm">
-              {armedPlayer ? (
-                <p className="text-ink" data-testid="lineup-in-hand">
-                  Moving {displayName(armedPlayer.name)}. Tap an open place, or a player to swap.
-                </p>
-              ) : lastMove ? (
+              {lastMove ? (
                 <p className="text-ink" data-testid="lineup-swapped">{lastMove}</p>
               ) : (
-                <p className="text-ink-soft">Drag a player, or tap one and then where they go.</p>
+                <p className="text-ink-soft">Drag a player to move them. Tap one for their profile.</p>
               )}
             </div>
             <p className="text-xs text-ink-soft" data-testid="lineup-summary">
@@ -699,18 +704,6 @@ export function LineupForm({
               </span>
             </p>
           </div>
-          {armedPlayer ? (
-            <span className="flex items-center gap-1">
-              {places[armedPlayer.id] === "starter" && captainId !== armedPlayer.id ? (
-                <button type="button" onClick={() => { markCaptain(armedPlayer.id); setArmed(null); }} className="min-h-11 rounded-full border border-gold px-3 text-sm font-semibold text-gold">
-                  Make captain ×2
-                </button>
-              ) : null}
-              <button type="button" onClick={() => setArmed(null)} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
-                Cancel
-              </button>
-            </span>
-          ) : null}
           <SubmitButton testId="record-lineup-submit" tone="live" pendingLabel="Recording…" compact>
             Record lineup
           </SubmitButton>

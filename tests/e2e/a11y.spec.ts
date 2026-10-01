@@ -196,8 +196,9 @@ for (const colorScheme of ["dark", "light"] as const) {
 
       await signIn(context, user);
       await page.goto(`/leagues/${league.id}/lineup?season=E2099&round=1`);
-      await page.getByRole("button", { name: `Move ${shown(players[0]!.name)}` }).click();
-      await page.getByTestId("court-open").first().click();
+      await page.getByRole("button", { name: "grid", exact: true }).click();
+      await page.getByLabel(`${shown(players[0]!.name)} role`).selectOption("starter");
+      await page.getByRole("button", { name: "court", exact: true }).click();
       await expect(
         page.getByTestId("lineup-court").getByTestId("court-player"),
       ).toHaveCount(1);

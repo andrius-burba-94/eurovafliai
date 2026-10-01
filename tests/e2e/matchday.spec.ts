@@ -78,6 +78,14 @@ test("the lineup shows a player's live round points, read from the same feed as 
   await expect(card.getByTestId("lineup-points")).toContainText("16.5");
   await expect(card.getByText("Live", { exact: true })).toBeVisible();
   await expect(page.getByTestId("lineup-feed-status")).toHaveAttribute("data-live", "true");
+
+  // His profile, opened from the card, shows the same game and line.
+  await card.click();
+  const thisRound = page.getByTestId("player-stats-modal").getByTestId("profile-this-round");
+  await expect(thisRound).toContainText("round 38");
+  await expect(thisRound.getByText("Live", { exact: true })).toBeVisible();
+  await expect(thisRound.getByTestId("profile-stat-line")).toHaveText("12 PTS · 4 REB · 3 AST · PIR 15 · 18:20");
+  await expect(thisRound.getByTestId("profile-round-points")).toHaveText("16.5");
 });
 
 test("any member can watch another team's round on Live, from the picker or the table", async ({ page, context }, testInfo) => {

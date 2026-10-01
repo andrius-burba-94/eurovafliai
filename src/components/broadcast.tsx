@@ -5,6 +5,7 @@
  */
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
+import type { GameState } from "@/lib/live/status";
 
 import {
   TEAM_INK,
@@ -101,6 +102,15 @@ export function StatusBadge({
     </span>
   );
 }
+
+/** A game's state as its badge, the same words on Live, the panel and a profile. */
+export const GAME_BADGE: Record<GameState, { kind: BadgeKind; word: string }> = {
+  final: { kind: "final", word: "Final" },
+  fulltime: { kind: "provisional", word: "Full time" },
+  live: { kind: "live", word: "Live" },
+  stale: { kind: "doubtful", word: "Feed stale" },
+  scheduled: { kind: "scheduled", word: "Scheduled" },
+};
 
 /** A player's availability, as the badge the pool and the court both show. */
 export function availabilityBadge(status: string | undefined): { kind: BadgeKind; word: string } | null {
