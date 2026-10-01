@@ -78,7 +78,7 @@ describe("planSync", () => {
       note: step.note,
       date,
     }));
-    expect(groupTransactionHistory(rows)[0]?.exchange).toEqual({ memberId: "a", acquiredId: "p9", releasedId: "p2" });
+    expect(groupTransactionHistory(rows)[0]?.exchange).toEqual({ memberId: "a", acquiredIds: ["p9"], releasedIds: ["p2"] });
   });
 
   it("closes the released window at the round and opens the signing from it", () => {
