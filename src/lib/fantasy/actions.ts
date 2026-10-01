@@ -10,14 +10,15 @@ import type { LeagueRecord, MemberRecord } from "@/lib/leagues/types";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
 import { fetchLeagueRosters } from "./client";
-import { decideSync, runFantasySync } from "./store";
+import { decideSync, runFantasySync, syncDueLineups } from "./store";
 
 /**
  * The commissioner's side of the Fantasy Challenge sync: link the league,
  * answer what the matcher could not, and sync on demand.
  *
- * Each action is a single write, or `runFantasySync` — whose own
- * failure-recovery story covers the multi-write case.
+ * Each action is a single write, or `runFantasySync` and `syncRoundLineups` (by
+ * way of `syncDueLineups`) — whose own failure-recovery stories cover the
+ * multi-write case.
  */
 
 export type FantasyActionResult = { error: string | null; done: string | null };
@@ -133,13 +134,22 @@ export async function syncFantasyNow(
 
   try {
     const now = new Date();
+    const decision = await decideSync(managed.pb, config.EUROLEAGUE_SEASON, now);
     const run = await runFantasySync({
       pb: managed.pb,
       leagueId,
       token: config.FANTASY_CHALLENGE_TOKEN,
       season: config.EUROLEAGUE_SEASON,
-      decision: await decideSync(managed.pb, config.EUROLEAGUE_SEASON, now),
+      decision,
       now,
+    });
+    await syncDueLineups({
+      pb: managed.pb,
+      leagueId,
+      token: config.FANTASY_CHALLENGE_TOKEN,
+      season: config.EUROLEAGUE_SEASON,
+      now: new Date(),
+      force: true,
     });
     revalidatePath(`/leagues/${leagueId}`, "layout");
     return { error: null, done: run.id };

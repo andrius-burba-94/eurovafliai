@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { FantasyTokenRefused, fetchLeagueRosters } from "./client";
+import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueRosters, fetchRoundLineup } from "./client";
 import rostersJson from "./fixtures/league-rosters.json";
+import lineupsJson from "./fixtures/round-2-lineups.json";
+import teamsJson from "./fixtures/user-fantasy-teams.json";
 
 vi.mock("@/lib/euroleague/http", () => ({ sleep: () => Promise.resolve() }));
 
@@ -51,5 +53,37 @@ describe("fetchLeagueRosters", () => {
   it("refuses a response of the wrong shape", async () => {
     const doFetch = (async () => new Response(JSON.stringify({ data: [{ id: 1 }] }), { status: 200 })) as typeof fetch;
     await expect(fetchLeagueRosters("tok", "147", doFetch)).rejects.toThrow(/changed shape/);
+  });
+});
+
+function serving(body: unknown, status = 200) {
+  const calls: string[] = [];
+  const doFetch = (async (url: string) => {
+    calls.push(url);
+    return new Response(JSON.stringify(body), { status });
+  }) as typeof fetch;
+  return { doFetch, calls };
+}
+
+describe("fetchRoundLineup", () => {
+  it("reads another manager's lineup through the league-visible preview", async () => {
+    const { doFetch, calls } = serving(lineupsJson["2827842"]);
+    const lineup = await fetchRoundLineup("tok", "2827842", 1529, doFetch);
+    expect(calls).toEqual(["https://fantaking-api.dunkest.com/api/v1/fantasy-teams/2827842/matchdays/1529/roster/preview"]);
+    expect(lineup.pts).toBe(159.9);
+    expect(lineup.players).toHaveLength(10);
+  });
+
+  it("names the team whose lineup was refused", async () => {
+    const { doFetch } = serving({}, 403);
+    await expect(fetchRoundLineup("tok", "2827842", 1529, doFetch)).rejects.toThrow(/team 2827842's lineup \(403\)/);
+  });
+});
+
+describe("fetchCurrentMatchday", () => {
+  it("asks for the token owner's EuroLeague Draft Mode teams", async () => {
+    const { doFetch, calls } = serving(teamsJson);
+    await expect(fetchCurrentMatchday("tok", "147868", doFetch)).resolves.toEqual({ id: 1530, number: 3 });
+    expect(calls).toEqual(["https://fantaking-api.dunkest.com/api/v1/user/fantasy-teams?league=10&game_mode=2"]);
   });
 });

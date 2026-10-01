@@ -1,0 +1,21 @@
+{
+  "data": [
+    {
+      "id": 2824079,
+      "name": "Monikutės Naktys",
+      "created_on_matchday_id": 1528,
+      "matchday": {
+        "id": 1530,
+        "number": 3
+      },
+      "position": null,
+      "pts": 0,
+      "total_pts": 313.75,
+      "fantasy_league": {
+        "id": 147868,
+        "name": "Eurovafliai 26-27"
+      },
+      "jersey_url": null
+    }
+  ]
+}

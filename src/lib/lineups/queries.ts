@@ -27,6 +27,7 @@ type LineupRecord = {
   member: string;
   round: number;
   slots: unknown;
+  source?: string;
 };
 
 type MembershipRow = {
@@ -78,6 +79,8 @@ export type LineupPlayer = {
 export type LineupBoard = {
   readonly players: readonly LineupPlayer[];
   readonly source: LineupSource;
+  /** The round's own lineup was read from the official game rather than typed here. */
+  readonly official: boolean;
   /** The round a carried lineup was actually typed for. */
   readonly carriedFrom: number | null;
 };
@@ -91,7 +94,7 @@ async function readLineupRecords(
   const scope = memberId ? ` && member = '${memberId}'` : "";
   return pb.collection("round_lineups").getFullList<LineupRecord>({
     filter: `league = '${leagueId}' && season = "${season}"${scope}`,
-    fields: "member,round,slots",
+    fields: "member,round,slots,source",
     requestKey: null,
   });
 }
@@ -182,6 +185,9 @@ export async function readLineupBoard(input: {
       role: roles.get(player.id) ?? null,
     })),
     source: resolved?.source ?? "absent",
+    official:
+      resolved?.source === "recorded" &&
+      records.some((row) => row.round === input.round && row.source === "synced"),
     carriedFrom,
   };
 }

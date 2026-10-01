@@ -129,7 +129,9 @@ export type LineupWrite = {
   readonly season: string;
   readonly round: number;
   readonly slots: LineupSlots;
+  /** Empty when nobody typed it: the Fantasy Challenge sync. */
   readonly recordedBy: string;
+  readonly source?: "recorded" | "synced";
 };
 
 export async function writeLineup(
@@ -142,7 +144,7 @@ export async function writeLineup(
     season: write.season,
     round: write.round,
     slots: write.slots,
-    source: "recorded",
+    source: write.source ?? "recorded",
     recorded_by: write.recordedBy,
   };
   const where =

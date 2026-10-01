@@ -2589,3 +2589,64 @@ where `applyTransaction` finds its own rows and skips windows already moved. A
 run is marked `applied` only if the league's rosters then equal the official
 ones; otherwise `failed`, and the next hourly pass tries again. The throttle
 reads `ran_at`, the pass's own clock, not PocketBase's `created`.
+
+## 5.5b — Lineups from the official game, because the table was right only by luck
+
+With rosters syncing, the round-2 standings still disagreed with the official
+table. The scoring was never the problem: 9.3's multipliers (captain ×2, five
+and sixth man ×1, bench ×0.5, inactive ×0) are the official game's. The
+lineups were. A round nobody had typed scored all thirteen at 100% or carried
+an older round's lineup, and 5.5 had written lineups off as unreadable, because
+every team endpoint under `/fantasy-teams/{id}/` answered 403 for other
+managers' teams.
+
+**One endpoint does answer.** The official site lets any league member open
+another team from the standings, and that view calls
+`/fantasy-teams/{id}/matchdays/{matchday}/roster/preview`, which returns the
+formation, the round total and ten players with a court position and a captain
+flag. The three inactive players are simply absent. Read that way — 1–5 the
+five, 6 the sixth man, 7–10 the bench, the absent three inactive — the players'
+own points reproduced all 16 team-rounds of rounds 1–2 to the hundredth against
+the official round table. Round 2 alone used four of the five formations, which
+is why the formation has to come from the lineup and not from a default.
+
+**Why it validates instead of copying.** The parse refuses rather than guesses:
+an unlinked player, a captain count other than one, or a five that our own
+positions say is not one of the five legal formations. `validateLineup` is the
+same gate a hand-typed lineup goes through, so a synced lineup can never be one
+the lineup page would refuse, and a team that fails keeps whatever it was
+scored at before.
+
+**The trap the real database found.** Run against a throwaway PocketBase with
+the real player pool and one team seeded with its official roster, that team's
+round-2 lineup named Blazevic, who had left that roster before
+5.5's first sync on 30 September and so had never been linked. Rounds 1–2 would
+have been refused for every team with a departed player. The lineup carries the
+same name, jersey and club fields the rosters do, so the lineup sync now runs
+5.5's matcher on unlinked lineup players, with its rule that a pool row claimed
+by exactly one official player is linked and anything else is asked on the
+Fantasy sync page.
+
+**Why it backfills itself.** The VPS is reached by a deploy, not by hand, so
+the schedule fills in any finished round with no lineup pass since it closed.
+Rounds 1–2 are therefore synced on the first worker pass after this deploy, and
+every later round gets one last pass after its freeze closes. A round whose
+passes since closing all fell short of `applied` is retried four times a day,
+and "Sync now" retries at once. The report, one `fantasy_syncs` row with
+`kind = lineups`, sets our round total beside the official one per team. A
+difference does not block: the lineup is the official one either way, so a gap
+points at our box-score points or a round still being played. `kind` exists so
+a lineup pass cannot push back the roster schedule, which throttles on its own
+runs only.
+
+**Failure recovery.** Player links first (single-field writes behind the
+partial unique index on `players.fantasy_id`), then one `round_lineups` upsert
+per team on the `(league, member, season, round)` unique index, then standings,
+then the report. A pass that dies part-way leaves no report, so the round is
+still due and the next pass repeats the same writes.
+
+**Matchday ids are counted, not looked up.** The game publishes no list of
+matchdays; the current one comes from the token owner's own team, and round
+*n* is the current id minus the rounds between. That held for 1528–1530 and is
+carried as a debt row, because a skipped id in a later phase would misalign
+every round after it.
