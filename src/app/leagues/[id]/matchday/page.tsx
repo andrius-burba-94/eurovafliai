@@ -9,23 +9,24 @@ import {
   ScoreFigure,
   StatusBadge,
   TeamCrest,
+  teamFieldStyle,
   type BadgeKind,
 } from "@/components/broadcast";
+import { LiveFeed } from "@/components/live-feed";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { TeamPicker } from "@/components/team-picker";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { ROLE_MULTIPLIERS, ROLE_WORDS } from "@/lib/lineups/lineup";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readMatchdayData } from "@/lib/live/queries";
-import { gameStateOf, statLineOf, type GameState } from "@/lib/live/status";
+import { gameStateOf, playerRoundOf, statLineOf, type GameState } from "@/lib/live/status";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { ordinal } from "@/lib/season/story";
 import { formatHundredths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
 import { formatClock, formatTipOff } from "@/lib/time/local";
-
-import { MatchdayLive } from "./matchday-live";
 
 /** The regular season's rounds; the stepper walks them. */
 const REGULAR_SEASON_ROUNDS = 38;
@@ -44,10 +45,14 @@ const GAME_BADGE: Record<GameState, { kind: BadgeKind; word: string }> = {
 };
 
 /**
- * Live (Matchday) — ADR-0011. A scoreboard: your round total and live rank
- * first, then your five with each player's counted points, then the games and
+ * Live (Matchday) — ADR-0011. A scoreboard: a team's round total and live rank
+ * first, then its five with each player's counted points, then the games and
  * the provisional table. Every live figure says it is provisional until the
  * finished-game pipeline has recorded the round.
+ *
+ * It opens on your team; any member can watch another one, from the picker or
+ * by tapping its row in the table. Watching reads, never writes, so unlike the
+ * lineup page there is no permission to check beyond being in the league.
  */
 export default async function MatchdayPage({ params, searchParams }: PageProps<"/leagues/[id]/matchday">) {
   const session = await getSession();
@@ -66,17 +71,28 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
     requestedRound: requestedRound(query.round),
     token: session.token,
   });
-  const board = await readLineupBoard({ leagueId: id, memberId: you.id, season, round: matchday.round });
+  const asked = typeof query.member === "string" ? query.member : you.id;
+  const watched = data.members.find((member) => member.id === asked) ?? you;
+  const watchingYou = watched.id === you.id;
+  const canManage = data.isCommissioner || you.canManage;
+  const board = await readLineupBoard({ leagueId: id, memberId: watched.id, season, round: matchday.round });
+  const hrefFor = (next: { round?: number; member?: string }) => {
+    const params = new URLSearchParams({ round: String(next.round ?? matchday.round) });
+    const member = next.member ?? watched.id;
+    if (member !== you.id) params.set("member", member);
+    return `/leagues/${id}/matchday?${params}`;
+  };
   const byGame = new Map(matchday.snapshots.map((row) => [row.game_code, row]));
   const now = Date.parse(matchday.fetchedAt);
   const hasGameWindow = matchday.fixtures.some((game) => {
     const tip = Date.parse(game.utc_date ?? "");
     return Number.isFinite(tip) && now >= tip - 5 * 60_000 && now < tip + 4 * 60 * 60_000;
   });
-  const yourRank = matchday.hasScoringBasis ? matchday.ranks.find((row) => row.memberId === you.id) : undefined;
+  const watchedRank = matchday.hasScoringBasis ? matchday.ranks.find((row) => row.memberId === watched.id) : undefined;
   const hasLiveScores = matchday.snapshots.some((row) => row.live);
   const hasRoundScores = matchday.ranks.some((row) => row.roundHundredths !== 0);
   const styles = stylesById(data.members);
+  const watchedStyle = styles[watched.id];
   const teamName = (memberId: string) => {
     const member = data.members.find((row) => row.id === memberId);
     return member?.teamName || member?.name || "Team";
@@ -89,9 +105,13 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
   const players = [...(board?.players ?? [])]
     .sort((a, b) => roleOrder(a.role) - roleOrder(b.role) || a.name.localeCompare(b.name))
     .map((player) => {
-      const fixture = matchday.fixtures.find((game) => game.local_club === player.clubCode || game.road_club === player.clubCode);
-      const state: GameState | null = fixture ? gameState(fixture.game_code, Boolean(fixture.played)) : null;
-      const raw = matchday.scoresByPlayer[player.id] ?? null;
+      const { fixture, state, tenths: raw } = playerRoundOf({
+        clubCode: player.clubCode,
+        fixtures: matchday.fixtures,
+        snapshots: byGame,
+        tenths: matchday.scoresByPlayer[player.id] ?? null,
+        now,
+      });
       const multiplier = player.role ? ROLE_MULTIPLIERS[player.role] : 1;
       const line = matchday.statsByPlayer[player.id];
       return { player, fixture, state, raw, counted: raw === null ? null : raw * multiplier, multiplier, statLine: line ? statLineOf(line) : null };
@@ -116,21 +136,39 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
         eyebrow={data.league.name}
         title="Live"
         action={
-          <RoundStepper
-            round={matchday.round}
-            max={Math.max(REGULAR_SEASON_ROUNDS, matchday.round)}
-            hrefFor={(round) => `/leagues/${id}/matchday?round=${round}`}
-          />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <TeamPicker
+              action={`/leagues/${id}/matchday`}
+              keep={{ round: String(matchday.round) }}
+              members={data.members}
+              value={watched.id}
+              testId="matchday"
+            />
+            <RoundStepper
+              round={matchday.round}
+              max={Math.max(REGULAR_SEASON_ROUNDS, matchday.round)}
+              hrefFor={(round) => hrefFor({ round })}
+            />
+          </div>
         }
       />
 
       <section
-        aria-label="Matchday status"
+        aria-label={`${teamName(watched.id)}, matchday status`}
         data-testid="matchday-scoreboard"
-        className="relative overflow-hidden rounded-card border border-panel-border bg-stock-panel p-4 sm:p-6"
+        data-member={watched.id}
+        className="team-field relative overflow-hidden rounded-card border border-panel-border p-4 sm:p-6"
+        style={watchedStyle ? teamFieldStyle(watchedStyle.color) : undefined}
       >
         <div aria-hidden="true" className="lattice pointer-events-none absolute inset-0" />
         <div className="relative flex flex-col gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {watchedStyle ? <TeamCrest name={teamName(watched.id)} color={watchedStyle.color} shape={watchedStyle.crest} size={44} /> : null}
+            <div className="min-w-0">
+              <p className="slot-label">{watchingYou ? "Your team" : "Watching"}</p>
+              <p className="display truncate text-2xl sm:text-3xl" data-testid="matchday-team">{teamName(watched.id)}</p>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             {matchday.final ? (
               <StatusBadge kind="final">Final · round {matchday.round}</StatusBadge>
@@ -139,7 +177,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
             ) : (
               <StatusBadge kind="provisional">Round {matchday.round}</StatusBadge>
             )}
-            <MatchdayLive
+            <LiveFeed
               authToken={session.token}
               season={season}
               round={matchday.round}
@@ -155,13 +193,13 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
             <div>
               <p className="slot-label">This round</p>
               <ScoreFigure size="xl" testId="matchday-total">
-                {yourRank ? formatHundredths(yourRank.roundHundredths) : "—"}
+                {watchedRank ? formatHundredths(watchedRank.roundHundredths) : "—"}
               </ScoreFigure>
             </div>
             <div className="pb-1">
               <p className="slot-label">{statusWord}</p>
               <p className="display text-3xl">
-                {yourRank ? `${ordinal(yourRank.rank)} of ${matchday.ranks.length}` : "No score yet"}
+                {watchedRank ? `${ordinal(watchedRank.rank)} of ${matchday.ranks.length}` : "No score yet"}
               </p>
             </div>
           </div>
@@ -183,9 +221,11 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)] xl:items-start">
-        <Bank framed label="Your lineup" aside={board?.source === "recorded" ? "Recorded" : "Everyone at 100%"}>
+        <Bank framed label={watchingYou ? "Your lineup" : `${teamName(watched.id)} lineup`} aside={board?.source === "recorded" ? "Recorded" : "Everyone at 100%"}>
           {players.length === 0 ? (
-            <EmptyNotice>Your roster and lineup appear here after the draft.</EmptyNotice>
+            <EmptyNotice>
+              {watchingYou ? "Your roster and lineup appear here after the draft." : `${teamName(watched.id)} has nobody on its roster for this round.`}
+            </EmptyNotice>
           ) : (
             <ul role="list" className="flex flex-col divide-y divide-panel-border">
               {players.map(({ player, fixture, state, raw, counted, multiplier, statLine }) => {
@@ -246,12 +286,14 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
               })}
             </ul>
           )}
-          <Link
-            href={`/leagues/${id}/lineup?round=${matchday.round}`}
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-live hover:underline"
-          >
-            Review lineup &rarr;
-          </Link>
+          {watchingYou || canManage ? (
+            <Link
+              href={`/leagues/${id}/lineup?${new URLSearchParams({ round: String(matchday.round), ...(watchingYou ? {} : { member: watched.id }) })}`}
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-live hover:underline"
+            >
+              {watchingYou ? "Review lineup" : "Open their lineup"} &rarr;
+            </Link>
+          ) : null}
         </Bank>
 
         <div className="flex min-w-0 flex-col gap-6">
@@ -305,13 +347,25 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                 {matchday.ranks.map((row) => {
                   const style = styles[row.memberId];
                   const mine = row.memberId === you.id;
+                  const shown = row.memberId === watched.id;
                   return (
-                    <li key={row.memberId} className={`flex items-center gap-2.5 py-2 text-sm ${mine ? "font-semibold" : ""}`}>
-                      <span className="stat w-5 text-ink-faint">{row.rank}</span>
-                      {style ? <TeamCrest name={teamName(row.memberId)} color={style.color} shape={style.crest} size={22} /> : null}
-                      <span className={`min-w-0 flex-1 truncate ${mine ? "text-live" : ""}`}>{teamName(row.memberId)}</span>
-                      <span className="stat text-xs text-ink-soft">{formatHundredths(row.roundHundredths)}</span>
-                      <span className="stat w-16 text-right">{formatHundredths(row.totalHundredths)}</span>
+                    <li key={row.memberId}>
+                      <Link
+                        href={hrefFor({ member: row.memberId })}
+                        aria-current={shown ? "true" : undefined}
+                        aria-label={`Watch ${teamName(row.memberId)}, ${ordinal(row.rank)}`}
+                        data-testid="matchday-table-team"
+                        className={`-mx-2 flex min-h-11 items-center gap-2.5 rounded-md px-2 text-sm transition-colors hover:bg-stock-high focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live ${mine ? "font-semibold" : ""} ${shown ? "bg-live-sunk" : ""}`}
+                      >
+                        <span className="stat w-5 text-ink-faint">{row.rank}</span>
+                        {style ? <TeamCrest name={teamName(row.memberId)} color={style.color} shape={style.crest} size={22} /> : null}
+                        <span className={`min-w-0 flex-1 truncate ${shown ? "text-live" : ""}`}>
+                          {teamName(row.memberId)}
+                          {mine && !shown ? <span className="ml-1.5 text-xs font-normal text-ink-soft">you</span> : null}
+                        </span>
+                        <span className="stat text-xs text-ink-soft">{formatHundredths(row.roundHundredths)}</span>
+                        <span className="stat w-16 text-right">{formatHundredths(row.totalHundredths)}</span>
+                      </Link>
                     </li>
                   );
                 })}

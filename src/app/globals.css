@@ -422,6 +422,54 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Once the round tips off, the name tag becomes a scoreboard plate: surname on
+ * the court's dark ink, the round's points on paper beneath, split by the
+ * position's colour. The disc gives up a little height so three rows of plates
+ * still fit the court. Both inks are fixed, like the court's other labels,
+ * because the hardwood does not change with the device's ground. */
+.lineup-court[data-scored] .lineup-court-disc {
+  width: clamp(2.25rem, 12cqi, 4rem);
+  height: clamp(2.25rem, 12cqi, 4rem);
+}
+.lineup-court[data-scored] .lineup-court-player { gap: 0.2rem; }
+.lineup-court-plate {
+  display: grid;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.3rem;
+  box-shadow: 0 1px 3px oklch(0.16 0.022 262 / 0.4);
+}
+.lineup-court-plate strong { border-radius: 0; }
+.lineup-court-score {
+  display: flex;
+  min-height: clamp(1.25rem, 5.5cqi, 1.875rem);
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.3rem 0.1rem;
+  border-top: 2px solid var(--pos, var(--color-ink-soft));
+  background: var(--color-team-ink-light);
+  color: var(--color-team-ink-dark);
+  font-size: clamp(0.625rem, 2.4cqi, 0.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.lineup-court-score[data-kind="note"] { align-items: center; color: oklch(0.42 0.025 262); }
+.lineup-court-score b {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 4.6cqi, 1.5rem);
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.lineup-court-score small {
+  font-size: clamp(0.5625rem, 2cqi, 0.6875rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(0.42 0.025 262);
+}
+.lineup-court-plate[data-live] small { color: oklch(0.5 0.2 27); }
 .lineup-court-open {
   min-height: 2.75rem;
   width: 100%;
@@ -438,7 +486,7 @@ body {
   .lineup-court-disc { border-width: 2px; }
 }
 
-/* The players off the court: one card each, the position on its edge. */
+/* The players off the court: one card each, the position in its patch. */
 .lineup-card {
   display: flex;
   width: 100%;
@@ -447,7 +495,6 @@ body {
   gap: 0.5rem;
   padding: 0.3rem 0.5rem 0.3rem 0.4rem;
   border: 1px solid var(--color-panel-border);
-  border-left: 3px solid var(--pos, var(--color-ink-soft));
   border-radius: 0.5rem;
   background: var(--color-stock-panel);
   color: var(--color-ink);
@@ -460,7 +507,7 @@ body {
 .lineup-ghost[data-position="F"] { --pos: var(--color-pos-f); }
 .lineup-card[data-position="C"],
 .lineup-ghost[data-position="C"] { --pos: var(--color-pos-c); }
-.lineup-card:hover { border-color: var(--color-rule-strong); border-left-color: var(--pos, var(--color-ink-soft)); }
+.lineup-card:hover { border-color: var(--color-rule-strong); }
 .lineup-card:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
 .lineup-card[aria-pressed="true"] { border-color: var(--color-live); background: var(--color-live-sunk); }
 .lineup-card[data-over] { outline: 2px solid var(--color-live); outline-offset: 1px; }
