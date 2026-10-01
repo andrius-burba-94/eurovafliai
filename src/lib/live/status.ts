@@ -92,6 +92,8 @@ export type RoundPoints = {
   readonly live: boolean;
   /** The whole state as a sentence, for a reader that cannot see the dot. */
   readonly spoken: string;
+  /** A scheduled tip-off split into date and clock, for a card that stacks them. */
+  readonly tipOff?: { readonly date: string; readonly clock: string };
 };
 
 /**
@@ -104,8 +106,14 @@ export function roundPointsOf(round: PlayerRound | undefined, multiplier: number
   if (round.state === "scheduled") {
     const clock = formatClock(round.tipOff);
     const date = formatMonthDay(round.tipOff);
-    if (!clock) return { kind: "note", text: "Later", live: false, spoken: "plays later" };
-    return { kind: "note", text: `${date} ${clock}`, live: false, spoken: `plays on ${date} at ${clock}` };
+    if (!clock || !date) return { kind: "note", text: "Later", live: false, spoken: "plays later" };
+    return {
+      kind: "note",
+      text: `${date} ${clock}`,
+      live: false,
+      spoken: `plays on ${date} at ${clock}`,
+      tipOff: { date, clock },
+    };
   }
   const live = round.state === "live" || round.state === "stale";
   if (round.tenths === null && !live) return { kind: "note", text: "DNP", live: false, spoken: "did not play" };
