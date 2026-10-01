@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { feedStatus, gameStateOf, statLineOf } from "./status";
+import { feedStatus, gameStateOf, playerRoundOf, roundPointsOf, statLineOf } from "./status";
 
 const now = Date.parse("2026-09-29T18:00:00.000Z");
 const base = { final: false, connected: true, checkedAt: [] as string[], now, hasGameWindow: true, gameTimes: ["2026-09-29T17:55:00.000Z"], hasPlayedGames: false };
@@ -40,6 +40,53 @@ describe("matchday game state", () => {
   });
   it("is scheduled with no snapshot", () => {
     expect(gameStateOf({ played: false, snapshot: undefined, now })).toBe("scheduled");
+  });
+});
+
+describe("a player's round", () => {
+  const fixtures = [
+    { game_code: 1, local_club: "ZAL", road_club: "OLY", played: true, utc_date: "2026-09-29T16:00:00.000Z" },
+    { game_code: 2, local_club: "MAD", road_club: "BAR", played: false, utc_date: "2026-09-29T17:30:00.000Z" },
+    { game_code: 3, local_club: "PAN", road_club: "FEN", played: false, utc_date: "2026-09-29T19:00:00.000Z" },
+  ];
+  const snapshots = new Map([[2, { live: true, checked_at: "2026-09-29T17:59:00.000Z" }]]);
+  const of = (clubCode: string, tenths: number | null) => playerRoundOf({ clubCode, fixtures, snapshots, tenths, now });
+
+  it("finds the game from either side and keeps the recorded points", () => {
+    expect(of("OLY", 152)).toMatchObject({ state: "final", tenths: 152, fixture: { game_code: 1 } });
+  });
+  it("calls a game with a fresh snapshot live", () => {
+    expect(of("MAD", 41)).toMatchObject({ state: "live", tenths: 41 });
+  });
+  it("carries the tip-off of a game still to play", () => {
+    expect(of("FEN", null)).toEqual({ fixture: fixtures[2], state: "scheduled", tenths: null, tipOff: "2026-09-29T19:00:00.000Z" });
+  });
+  it("has no state for a club without a game", () => {
+    expect(of("ASV", null)).toEqual({ fixture: null, state: null, tenths: null, tipOff: null });
+  });
+});
+
+describe("a player's round points", () => {
+  it("counts the role's multiplier the way the Live page does", () => {
+    expect(roundPointsOf({ state: "final", tenths: 171, tipOff: null }, 2)).toEqual({ kind: "figure", text: "34.2", live: false, spoken: "34.2 points" });
+    expect(roundPointsOf({ state: "final", tenths: 171, tipOff: null }, 0.5).text).toBe("8.6");
+  });
+  it("marks a game in play live, stale included, and reads no line yet as zero", () => {
+    expect(roundPointsOf({ state: "live", tenths: 41, tipOff: null }, 1)).toMatchObject({ text: "4.1", live: true, spoken: "4.1 points, live" });
+    expect(roundPointsOf({ state: "stale", tenths: null, tipOff: null }, 1)).toMatchObject({ kind: "figure", text: "0.0", live: true });
+  });
+  it("says full time while the official box score is pending", () => {
+    expect(roundPointsOf({ state: "fulltime", tenths: -10, tipOff: null }, 1)).toMatchObject({ text: "-1.0", live: false, spoken: "-1.0 points, full time" });
+  });
+  it("calls a finished game without a line DNP", () => {
+    expect(roundPointsOf({ state: "final", tenths: null, tipOff: null }, 1)).toMatchObject({ kind: "note", text: "DNP" });
+  });
+  it("shows the tip-off clock for a game still to play", () => {
+    expect(roundPointsOf({ state: "scheduled", tenths: null, tipOff: "2026-09-29T17:45:00.000Z" }, 1)).toMatchObject({ kind: "note", text: "20:45", spoken: "plays at 20:45" });
+  });
+  it("says so when the club has no game", () => {
+    expect(roundPointsOf({ state: null, tenths: null, tipOff: null }, 1).text).toBe("No game");
+    expect(roundPointsOf(undefined, 1).text).toBe("No game");
   });
 });
 
