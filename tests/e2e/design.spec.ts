@@ -64,18 +64,17 @@ test("a held ground survives a reload and ignores the device", async ({ page, co
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
 
-  // From `lg` the sidebar's one button cycles System → Light → Dark; below it
-  // the More sheet spells the three out. Each waits for the hydrated choice.
+  // From `lg` the sidebar's one button opens System, Light and Dark upward;
+  // below it the More sheet spells the three out. Each waits for the hydrated
+  // choice.
   const sidebar = await page.getByTestId("theme-switch").isVisible();
   const choose = async (choice: "system" | "light" | "dark") => {
     if (sidebar) {
-      const button = page.getByTestId("theme-switch");
-      for (let step = 0; step < 3 && (await button.getAttribute("data-choice")) !== choice; step++) {
-        const before = await button.getAttribute("data-choice");
-        await button.click();
-        await expect(button).not.toHaveAttribute("data-choice", before ?? "");
-      }
-      await expect(button).toHaveAttribute("data-choice", choice);
+      await page.getByTestId("theme-switch-button").click();
+      await expect(page.getByTestId("theme-switch-button-panel")).toBeVisible();
+      await page.getByTestId(`theme-switch-${choice}`).click();
+      await expect(page.getByTestId("theme-switch-button-panel")).toBeHidden();
+      await expect(page.getByTestId("theme-switch")).toHaveAttribute("data-choice", choice);
     } else {
       await page.getByTestId("more-menu").click();
       await page.getByTestId(`theme-switch-more-${choice}`).check({ force: true });

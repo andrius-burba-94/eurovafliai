@@ -17,7 +17,7 @@ import {
  * menuitem semantics that a list of links does not need and a screen reader
  * would then announce wrongly. Tab walks it; Escape closes it and puts focus
  * back on the button; a click outside closes it (and only closes it);
- * following a link closes it.
+ * following a link, or pressing anything marked `data-close`, closes it.
  *
  * The contents render only while open, so a closed menu contributes nothing to
  * the page — no second "Sign out" in the accessibility tree, no duplicate test
@@ -94,7 +94,7 @@ export function Menu({
           data-testid={testId ? `${testId}-panel` : undefined}
           className={panelClassName}
           onClick={(event) => {
-            if ((event.target as HTMLElement).closest("a")) setOpen(false);
+            if ((event.target as HTMLElement).closest("a, [data-close]")) setOpen(false);
           }}
         >
           {children}
