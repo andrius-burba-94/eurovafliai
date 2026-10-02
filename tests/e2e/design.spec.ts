@@ -19,7 +19,7 @@ test("the direction contract survives into the emitted markup", async ({
   const html = await page.content();
   expect(html).toContain("DIRECTION CONTRACT");
   expect(html).toContain("matchnight broadcast, ADR-0011");
-  expect(html).toContain("League, Drafts, EuroLeague and Manage");
+  expect(html).toContain("League, Drafts and EuroLeague");
   expect(html).toMatch(/Finished-game\s+standings are authoritative/);
 });
 

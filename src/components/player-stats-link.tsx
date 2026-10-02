@@ -9,6 +9,7 @@ import type { PlayerProfile, GameLogLine } from "@/lib/stats/queries";
 import { formatTenths } from "@/lib/stats/scoring";
 import { formatTipOff } from "@/lib/time/local";
 import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
+import { usePlayerHref } from "@/components/league-links";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 
 type Profile = { player: PlayerProfile; log: GameLogLine[]; currentGame: CurrentGame | null };
@@ -30,6 +31,8 @@ export function PlayerStatsLink({
 }) {
   const [open, setOpen] = useState(false);
   const link = useRef<HTMLAnchorElement>(null);
+  const playerHref = usePlayerHref();
+  const profileHref = href ?? playerHref(id);
 
   function show(event: MouseEvent<HTMLAnchorElement>): void {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -38,8 +41,8 @@ export function PlayerStatsLink({
   }
 
   return <>
-    <Link ref={link} href={href ?? `/players/${id}`} onClick={show} className={className} aria-label={ariaLabel}>{children}</Link>
-    {open ? <PlayerStatsModal id={id} name={name} profileHref={href ?? `/players/${id}`} onClose={() => { setOpen(false); link.current?.focus(); }} /> : null}
+    <Link ref={link} href={profileHref} onClick={show} className={className} aria-label={ariaLabel}>{children}</Link>
+    {open ? <PlayerStatsModal id={id} name={name} profileHref={profileHref} onClose={() => { setOpen(false); link.current?.focus(); }} /> : null}
   </>;
 }
 

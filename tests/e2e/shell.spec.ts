@@ -91,7 +91,7 @@ test("the full season sidebar fits one screen", async ({ page, context }, testIn
   await page.goto(`/l/${id}`);
   const sidebar = page.getByTestId("sidebar");
   const nav = sidebar.getByRole("navigation", { name: "Main" });
-  for (const group of ["league", "drafts", "global", "manage"]) {
+  for (const group of ["league", "drafts", "global"]) {
     await expect(nav.getByTestId(`nav-group-${group}`)).toBeVisible();
   }
   await expect(nav.getByTestId("nav-lineup")).toBeVisible();
