@@ -221,9 +221,10 @@ test("a round nobody arranged is struck as provisional", async ({
   // Round 2 doubled the captain; round 1 has no lineup at all, so it counted
   // everyone at 100% and says so rather than looking final.
   await expect(page.getByTestId("standings-row").first()).toContainText("30.0");
-  await expect(page.getByTestId("standings-provisional")).toContainText(
-    "Round 1",
-  );
+  await expect(page.getByTestId("standings-provisional")).toContainText(/round 1/i);
+  // The why is behind the "i", drawn over the page rather than inside the pill.
+  await page.getByTestId("standings-provisional").getByRole("button", { name: "About provisional rounds" }).click();
+  await expect(page.getByRole("tooltip", { name: /Round 1 counted every player at 100%/ })).toBeVisible();
 
   // Round 3 was never typed, so it carries round 2 forward rather than
   // reverting to 100%.
