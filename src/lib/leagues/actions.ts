@@ -29,6 +29,9 @@ import {
   leagueSettingsSchema,
 } from "./settings";
 import type { LeagueRecord, MemberRecord } from "./types";
+import { revalidateLeague } from "@/lib/nav/revalidate";
+import { leagueHref } from "@/lib/nav/urls";
+import { newLeagueSlug, newTeamSlug } from "@/lib/slugs/store";
 
 /**
  * League writes. Every one runs as the superuser over localhost; the client only
@@ -85,9 +88,12 @@ export async function createLeague(
   for (let attempt = 0; attempt < INVITE_CODE_ATTEMPTS; attempt += 1) {
     try {
       // ── Write 1 of 2 ─────────────────────────────────────────────────────
+      // The slug is read again on every attempt: a league of the same name
+      // created in between makes `idx_leagues_slug` refuse the stale one.
       league = await pb.collection("leagues").create<LeagueRecord>(
         {
           name: parsed.data.name,
+          slug: await newLeagueSlug(pb, parsed.data.name),
           season: parsed.data.season,
           commissioner: session.user.id,
           invite_code: generateInviteCode(),
@@ -118,7 +124,7 @@ export async function createLeague(
   // discards a valid record over a retryable write.
   await ensureCommissionerMembership(league.id);
 
-  redirect(`/leagues/${league.id}?arrived=1`);
+  redirect(`${leagueHref(league)}?arrived=1`);
 }
 
 export async function joinLeague(
@@ -159,7 +165,7 @@ export async function joinLeague(
 
   // Already in? Joining again is not an error, it is a no-op with a redirect.
   if (members.some((m) => m.user === session.user.id)) {
-    redirect(`/leagues/${league.id}?arrived=1`);
+    redirect(`${leagueHref(league)}?arrived=1`);
   }
 
   const verdict = canAcceptMember(
@@ -179,6 +185,7 @@ export async function joinLeague(
         league: league.id,
         user: session.user.id,
         team_name: session.user.name || "",
+        slug: await newTeamSlug(pb, league.id, session.user.name || ""),
         autodraft_enabled: false,
       },
       { requestKey: null },
@@ -186,10 +193,10 @@ export async function joinLeague(
   } catch {
     // The index refused it: either a double submit, or a genuine race. Either
     // way the user's place is already taken care of or the league is unchanged.
-    redirect(`/leagues/${league.id}?arrived=1`);
+    redirect(`${leagueHref(league)}?arrived=1`);
   }
 
-  redirect(`/leagues/${league.id}?arrived=1`);
+  redirect(`${leagueHref(league)}?arrived=1`);
 }
 
 // ── The lobby's three controls ──────────────────────────────────────────────
@@ -293,14 +300,17 @@ export async function renameTeam(
       .collection("league_members")
       .update(
         context.member.id,
-        { team_name: name.value },
+        {
+          team_name: name.value,
+          slug: await newTeamSlug(context.pb, context.league.id, name.value, context.member.id),
+        },
         { requestKey: null },
       );
   } catch {
     return { error: "Could not save that name. Try again.", value: raw };
   }
 
-  revalidatePath(`/leagues/${context.league.id}`);
+  revalidateLeague();
   return { error: null, value: name.value };
 }
 
@@ -332,7 +342,7 @@ export async function setTeamIdentity(
     return { error: "Could not save that crest. Try again." };
   }
 
-  revalidatePath(`/leagues/${context.league.id}`, "layout");
+  revalidateLeague();
   return OK;
 }
 
@@ -358,7 +368,7 @@ export async function setReady(
     return { error: "Could not save that. Try again." };
   }
 
-  revalidatePath(`/leagues/${context.league.id}`);
+  revalidateLeague();
   return OK;
 }
 
@@ -387,7 +397,7 @@ export async function kickMember(
     return { error: "Could not remove that member. Try again." };
   }
 
-  revalidatePath(`/leagues/${context.league.id}`);
+  revalidateLeague();
   return OK;
 }
 
@@ -427,7 +437,7 @@ export async function setMemberPermission(
     .collection("league_members")
     .update(member.id, { can_manage: grant }, { requestKey: null });
 
-  revalidatePath(`/leagues/${league.id}`);
+  revalidateLeague();
   return OK;
 }
 
@@ -549,7 +559,7 @@ export async function deleteLeague(
   await pb.collection("leagues").delete(leagueId, { requestKey: null });
 
   revalidatePath("/");
-  revalidatePath(`/leagues/${leagueId}`);
+  revalidateLeague();
   // There is nothing to go back to.
   redirect("/");
 }

@@ -58,7 +58,7 @@ async function sheetLeague(leagueName: string) {
 
 /** Paste a list, read it, save it. Returns once the save has been confirmed. */
 async function saveSheet(page: Page, leagueId: string, text: string) {
-  await page.goto(`/leagues/${leagueId}/sheet`);
+  await page.goto(`/l/${leagueId}/sheet`);
   await page.getByTestId("sheet-input").fill(text);
   await page.getByTestId("sheet-preview").click();
   await expect(page.getByTestId("sheet-apply")).toBeVisible();
@@ -67,7 +67,7 @@ async function saveSheet(page: Page, leagueId: string, text: string) {
 }
 
 async function enterDraft(page: Page, leagueId: string, club = TEST_CLUB) {
-  await page.goto(`/leagues/${leagueId}`);
+  await page.goto(`/l/${leagueId}`);
   await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -103,7 +103,7 @@ test("a pasted list becomes a saved, ranked sheet, diacritics folded", async ({
   await expect(page.getByTestId("sheet-saved")).toContainText("2 ranked");
 
   // And it is there on the next load, in the order it was written.
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   const rows = page.getByTestId("sheet-row");
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText("Alphaone");
@@ -128,7 +128,7 @@ test("tier breaks come out of the tier column", async ({ page, context }) => {
 
   await expect(page.getByTestId("sheet-saved")).toContainText("1 tier break");
 
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   // Two runs, not one: a tier is a break, and a break between two runs is how
   // this board says a run has ended.
   await expect(
@@ -164,7 +164,7 @@ test("an ambiguous name is asked about rather than guessed at", async ({
   });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   await page.getByTestId("sheet-input").fill(shared);
   await page.getByTestId("sheet-preview").click();
 
@@ -186,7 +186,7 @@ test("an ambiguous name is asked about rather than guessed at", async ({
   await page.getByTestId("sheet-apply").click();
   await expect(page.getByTestId("sheet-saved")).toContainText("1 ranked");
 
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   const pb = await superuser();
   const saved = await pb
     .collection("cheat_sheets")
@@ -213,7 +213,7 @@ test("the room draws the pool in the sheet's order and pins the best of it", asy
 
   // Deliberately *not* `enterDraft`, which selects a club — the resting state
   // is what is under test here, and any filter at all is a narrowing.
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -365,7 +365,7 @@ test("deleting the sheet leaves the room standing", async ({
   await signIn(context, commissioner);
   await saveSheet(page, league.id, zzz.name);
 
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   await page.getByTestId("sheet-clear").click();
   await page.getByTestId("sheet-clear-confirm").click();
   await expect(page.getByTestId("sheet-row")).toHaveCount(0);
@@ -418,7 +418,7 @@ test("the sheet comes back as editable text, so a replace is not a cliff", async
 
   // Reloading hands the saved ranking back as `rank,tier,name` — the whole
   // reason the paste box is an edit box.
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   const box = page.getByTestId("sheet-input");
   // The format the box itself documents — `rank, tier, name`, spaces and all.
   // It wrote `1,2,"Name"` at first, instructing one format and emitting another.
@@ -445,7 +445,7 @@ test("a line the pool cannot match keeps its own name, and does not break the pa
 
   await signIn(context, commissioner);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   await page.getByTestId("sheet-input").fill("Zdenek Vopicka");
   await page.getByTestId("sheet-preview").click();
 
@@ -499,7 +499,7 @@ test("deleting a sheet takes two presses and can be called off", async ({
 
   await signIn(context, commissioner);
   await saveSheet(page, league.id, one.name);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
 
   await page.getByTestId("sheet-clear").click();
   await page.getByTestId("sheet-clear-cancel").click();
@@ -519,7 +519,7 @@ test("a sheet that cannot fill a roster says so", async ({ page, context }) => {
 
   await signIn(context, commissioner);
   await saveSheet(page, league.id, forwards.map((p) => p.name).join("\n"));
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
 
   // Words, and one list-join: "5 G and 5 F and 3 C" was what a second,
   // hand-rolled join produced before `positionSentence` was shared.
@@ -549,7 +549,7 @@ test("every tier run is named, so three lists are not 'list, 4 items' three time
 
   await signIn(context, commissioner);
   await saveSheet(page, league.id, `1,1,${one.name}\n2,2,${two.name}`);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
 
   await expect(page.getByRole("list", { name: "Tier 1" })).toBeVisible();
   await expect(page.getByRole("list", { name: "Tier 2" })).toBeVisible();
@@ -655,7 +655,7 @@ async function threeRanked(page: Page, context: Parameters<typeof signIn>[0]) {
   // to guess — correctly, and 3.4a built it to. The fixture was at fault, not
   // the matcher.
   await saveSheet(page, league.id, `${a.name}\n${b.name}\n${c.name}`);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   await expect(page.getByTestId("sheet-row-grab")).toHaveCount(3);
   // The rows are in the streamed HTML before React has hydrated them, and a
   // key pressed in that window reaches nothing. Wait for the fact.
@@ -684,7 +684,7 @@ test("a row picked up moves one place, and the move survives a reload", async ({
 
   // And then really. A reload reads PocketBase, so this is the write.
   await settled(page);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   expect(await orderOf(page)).toEqual([b.id, a.id, c.id]);
 });
 
@@ -744,7 +744,7 @@ test("the whole row is a keyboard target, and reordering needs no pointer", asyn
     .toEqual([c.id, a.id, b.id]);
 
   await settled(page);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   expect(await orderOf(page)).toEqual([c.id, a.id, b.id]);
 });
 
@@ -899,7 +899,7 @@ test("a row can be removed, and the sheet closes the gap", async ({
     .poll(() => orderOf(page))
     .toEqual([a.id, c.id]);
   await settled(page);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   expect(await orderOf(page)).toEqual([a.id, c.id]);
   // And the header recounts rather than claiming a player it can no longer see.
   await expect(page.getByTestId("cheat-sheet")).toContainText("2 of");
@@ -940,7 +940,7 @@ test("a tier break can be set and cleared by hand, and a moved row changes tier"
     .poll(() => orderOf(page))
     .toEqual([c.id, a.id, b.id]);
   await settled(page);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   // Still two runs, still broken after one player: `c` is alone in tier 1 now.
   await expect(
     page.getByTestId("sheet-tier-1").getByTestId("sheet-row-grab"),
@@ -1027,7 +1027,7 @@ test("a reorder reaches the room's pool", async ({ page, context }) => {
 
   // At rest, so the pool below simply *is* the sheet's order — no filter, since
   // any filter at all is a narrowing.
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -1200,7 +1200,7 @@ test("a removal can be undone, and puts the player back where they were", async 
   await settled(page);
 
   // And it really went back, at the rank it held.
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   expect(await orderOf(page)).toEqual([a.id, b.id, c.id]);
 });
 
@@ -1274,7 +1274,7 @@ test("a held row can be moved and removed from the keyboard alone", async ({
   await expect.poll(() => orderOf(page)).toEqual([a.id, b.id]);
   await settled(page);
 
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   expect(await orderOf(page)).toEqual([a.id, b.id]);
 });
 
@@ -1374,7 +1374,7 @@ test("an empty sheet can start from the PIR ranking", async ({ page, context }) 
   });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
   await page.getByTestId("sheet-start").click();
 
   // On the sheet, not necessarily #1: the other project's run of this test
@@ -1398,7 +1398,7 @@ test("a player not on the sheet can be added from the suggestions", async ({
 
   await signIn(context, commissioner);
   await saveSheet(page, league.id, first.name);
-  await page.goto(`/leagues/${league.id}/sheet`);
+  await page.goto(`/l/${league.id}/sheet`);
 
   const suggestions = page.getByTestId("sheet-suggestions");
   await expect(suggestions).toContainText("Suggestee");

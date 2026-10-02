@@ -62,7 +62,7 @@ describe("navFor", () => {
       isRosterManager: false,
     }).find((group) => group.id === "drafts")!.items.find((entry) => entry.key === "draft");
     expect(item).toMatchObject({
-      href: "/leagues/L1/draft",
+      href: "/l/L1/draft",
       label: "Draft Room",
       note: "Live",
     });
@@ -90,7 +90,7 @@ describe("navFor", () => {
       league: league({ status: "season" }),
       isRosterManager: false,
     })[0]!.items.find((entry) => entry.key === "team");
-    expect(team?.href).toBe("/leagues/L1/teams/M1");
+    expect(team?.href).toBe("/l/L1/M1");
   });
 
   it("the season's draft room remains available without a live badge", () => {

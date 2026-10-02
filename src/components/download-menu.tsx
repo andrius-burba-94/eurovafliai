@@ -8,8 +8,8 @@ import Link from "next/link";
  * export page stays the place to pick an exact mix; this menu is the three
  * files people actually ask for.
  */
-export function DownloadMenu({ leagueId }: { leagueId: string }) {
-  const base = `/leagues/${leagueId}/export`;
+export function DownloadMenu({ leagueBase }: { leagueBase: string }) {
+  const base = `${leagueBase}/export`;
   const files = [
     { label: "Draft results", detail: "CSV", query: "include=results&format=csv" },
     { label: "Rosters as drafted", detail: "CSV", query: "include=rosters&format=csv" },

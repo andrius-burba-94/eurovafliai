@@ -78,11 +78,11 @@ test("the roll takes the whole league to the draw, not just the commissioner", a
   const memberContext = await browser.newContext();
   await signIn(memberContext, member);
   const memberPage = await memberContext.newPage();
-  await memberPage.goto(`/leagues/${league.id}`);
+  await memberPage.goto(`/l/${league.id}`);
   await expect(memberPage.getByTestId("member-list")).toBeVisible();
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
 
   // The commissioner pressed it, so the commissioner goes too.
@@ -115,7 +115,7 @@ test("a phone that opens late joins the draw in progress", async ({
   const { commissioner, league } = await ceremonyLeague("Late League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
@@ -171,7 +171,7 @@ test("a draw that finished reads as an order, not as a countdown", async ({
   const { commissioner, league } = await ceremonyLeague("Finished League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
@@ -212,17 +212,17 @@ test("the ceremony is a one-way door: going back does not drag you in again", as
   const { commissioner, league } = await ceremonyLeague("One Way League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
   // Still mid-draw, and back to the lobby by hand.
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("member-list")).toBeVisible();
 
   // It must stay put. Given a generous window to be pulled away in.
   await page.waitForTimeout(3_000);
-  expect(new URL(page.url()).pathname).toBe(`/leagues/${league.id}`);
+  expect(new URL(page.url()).pathname).toBe(`/l/${league.id}`);
   await expect(page.getByTestId("member-list")).toBeVisible();
 });
 
@@ -233,7 +233,7 @@ test("skipping goes straight to the finished order", async ({
   const { commissioner, league } = await ceremonyLeague("Skip League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
@@ -258,7 +258,7 @@ test("a slot rises as it is drawn, and simply appears under reduced motion", asy
   const { commissioner, league } = await ceremonyLeague("Motion League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
   await backdateRoll(league.id, 12_000);
@@ -278,7 +278,7 @@ test("a slot rises as it is drawn, and simply appears under reduced motion", asy
   });
   await signIn(movingContext, commissioner);
   const moving = await movingContext.newPage();
-  await moving.goto(`/leagues/${league.id}/order`);
+  await moving.goto(`/l/${league.id}/order`);
   const rising = moving.locator(".slot-drawn").first();
   await expect(rising).toBeVisible();
   const style = await rising.evaluate((node) => {
@@ -316,21 +316,21 @@ test("starting the draft ends the draw, even inside its own window", async ({
   const { commissioner, league } = await ceremonyLeague("Window League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
   // Straight back and on with it, well inside the ceremony's own window.
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("start-draft").click();
   await expect(page.getByTestId("enter-draft")).toBeVisible();
 
   // A tab that never attended the draw. It must not be summoned to one.
   const fresh = await context.newPage();
-  await fresh.goto(`/leagues/${league.id}`);
+  await fresh.goto(`/l/${league.id}`);
   await expect(fresh.getByTestId("member-list")).toBeVisible();
   await fresh.waitForTimeout(2_000);
-  expect(new URL(fresh.url()).pathname).toBe(`/leagues/${league.id}`);
+  expect(new URL(fresh.url()).pathname).toBe(`/l/${league.id}`);
 
   // And the ceremony URL has nothing left to show. Waited for by its
   // destination rather than by reading the URL straight after `goto`: the page
@@ -338,9 +338,9 @@ test("starting the draft ends the draw, even inside its own window", async ({
   // the browser performs it as a client-side navigation a beat later. Asserting
   // the URL immediately passed on desktop and failed on the emulated phone
   // every time, which is a slower hydration rather than a different outcome.
-  await fresh.goto(`/leagues/${league.id}/order`);
+  await fresh.goto(`/l/${league.id}/order`);
   await expect(fresh.getByTestId("lobby")).toBeVisible();
-  expect(new URL(fresh.url()).pathname).toBe(`/leagues/${league.id}`);
+  expect(new URL(fresh.url()).pathname).toBe(`/l/${league.id}`);
   await fresh.close();
 });
 
@@ -354,12 +354,12 @@ test("a reshuffle changes the order without summoning the league again", async (
   const { commissioner, league } = await ceremonyLeague("Reshuffle League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
 
   await backdateRoll(league.id, 10 * 60 * 1000);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("draft-order")).toBeVisible();
 
   await page.getByTestId("draft-reshuffle-toggle").click();
@@ -369,7 +369,7 @@ test("a reshuffle changes the order without summoning the league again", async (
   // The lobby keeps them, and the order is still readable there.
   await expect(page.getByTestId("draft-order")).toBeVisible();
   await page.waitForTimeout(2_000);
-  expect(new URL(page.url()).pathname).toBe(`/leagues/${league.id}`);
+  expect(new URL(page.url()).pathname).toBe(`/l/${league.id}`);
 });
 
 test("an order set by hand was never drawn, so there is nothing to watch", async ({
@@ -379,13 +379,13 @@ test("an order set by hand was never drawn, so there is nothing to watch", async
   const { commissioner, league } = await ceremonyLeague("By Hand League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
   await backdateRoll(league.id, 10 * 60 * 1000);
 
   // Keeping the order by hand clears the seed and the instant with it.
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("draft-manual").click();
   // Wait for the write, not for the button. Clearing the seed turns "Re-apply
   // the roll" back into "Roll the order", so the button's own label is the
@@ -394,7 +394,7 @@ test("an order set by hand was never drawn, so there is nothing to watch", async
   await expect(page.getByTestId("draft-roll")).toContainText(/roll the order/i);
 
   // The ceremony URL now has nothing to show and hands back to the lobby.
-  await page.goto(`/leagues/${league.id}/order`);
+  await page.goto(`/l/${league.id}/order`);
   await expect(page.getByTestId("lobby")).toBeVisible();
-  expect(new URL(page.url()).pathname).toBe(`/leagues/${league.id}`);
+  expect(new URL(page.url()).pathname).toBe(`/l/${league.id}`);
 });

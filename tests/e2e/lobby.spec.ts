@@ -37,7 +37,7 @@ test("a member sees their co-member's actual name", async ({
   await addMemberTo(id, joiner);
   await signIn(context, joiner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
 
   const list = page.getByTestId("member-list");
   await expect(list).toContainText("rimas");
@@ -52,7 +52,7 @@ test("the list updates live when somebody else joins", async ({
   const { id } = await createLeagueFor(commissioner, "Live League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expect(page.getByTestId("member")).toHaveCount(1);
 
   // Written straight to PocketBase, so nothing this browser did causes it. If
@@ -72,7 +72,7 @@ test("a member names their own team, and it lands on the board", async ({
   const { id } = await createLeagueFor(commissioner, "Naming League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
 
   await page.getByTestId("team-name-input").fill("  Vilnius   Vafliai ");
   await page.getByTestId("save-team-name").click();
@@ -96,7 +96,7 @@ test("an over-long team name is refused, and the typed value survives", async ({
   const { id } = await createLeagueFor(commissioner, "Long Name League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
 
   const input = page.getByTestId("team-name-input");
   // `maxLength` stops a human typing past the limit, so drive the value in
@@ -122,7 +122,7 @@ test("a member marks themselves ready, and can take it back", async ({
   const { id } = await createLeagueFor(commissioner, "Ready League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expect(page.getByTestId("member-tally")).toContainText("0 of 1 ready");
   await expect(page.getByTestId("member")).toHaveAttribute(
     "data-state",
@@ -189,7 +189,7 @@ test("the commissioner removes a member, and the slot frees up", async ({
   await addMemberTo(id, doomed);
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expect(page.getByTestId("member")).toHaveCount(2);
 
   // The commissioner's powers are folded away behind a per-row summary.
@@ -216,7 +216,7 @@ test("an ordinary member gets no manage controls at all", async ({
   await addMemberTo(id, plain);
   await signIn(context, plain);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expect(page.getByTestId("member")).toHaveCount(2);
 
   await expect(page.getByTestId("manage-member")).toHaveCount(0);
@@ -230,7 +230,7 @@ test("the commissioner cannot remove themselves", async ({ page, context }) => {
   const { id } = await createLeagueFor(commissioner, "Self Kick League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
 
   // Their own row carries no Manage summary — `ensureCommissionerMembership`
   // would put them straight back, so offering it would be a lie.
@@ -249,7 +249,7 @@ test("a lobby that cannot subscribe admits it", async ({ page, context }) => {
   await signIn(context, commissioner);
 
   await withoutRealtime(page);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("member-list")).toBeVisible();
 
   // Longer than the component's own 5s connect grace.

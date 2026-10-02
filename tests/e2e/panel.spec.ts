@@ -75,7 +75,7 @@ test("the panel is a docked column at xl, with tabs a keyboard can drive", async
     "Panel League",
   );
   await signIn(context, owner);
-  await page.goto(`/leagues/${leagueId}/teams/${memberId}`);
+  await page.goto(`/l/${leagueId}/${memberId}`);
 
   const panel = page.getByTestId("context-panel");
   await expect(panel).toBeVisible();
@@ -125,7 +125,7 @@ test("on a phone the panel is a sheet the header opens and Escape closes", async
   const owner = await createTestUser("panel-phone");
   const { leagueId } = await seasonLeague(owner, "Panel Phone League");
   await signIn(context, owner);
-  await page.goto(`/leagues/${leagueId}/lineup`);
+  await page.goto(`/l/${leagueId}/lineup`);
 
   const panel = page.getByTestId("context-panel");
   const toggle = page.getByTestId("panel-toggle");
@@ -156,7 +156,7 @@ test("the draft room's panel is a sheet at every width, without a second pool", 
     await createPlayer(`Room${position}`, { position });
   }
   await signIn(context, owner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();

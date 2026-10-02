@@ -32,7 +32,7 @@ test("a member sees an empty recap before the draft is complete", async ({
   const league = await createLeagueFor(user, "Empty Recap");
   await signIn(context, user);
 
-  await page.goto(`/leagues/${league.id}/recap`);
+  await page.goto(`/l/${league.id}/recap`);
   await expect(page.getByTestId("recap")).toBeVisible();
   // One fantasy season is not a choice, so the season control is not drawn
   // until a second exists (ADR-0011).
@@ -196,9 +196,9 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   );
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("enter-recap")).toBeVisible();
-  await page.goto(`/leagues/${league.id}/recap?season=E2099`);
+  await page.goto(`/l/${league.id}/recap?season=E2099`);
 
   await expect(page.getByTestId("season-select")).toHaveValue("E2099");
   await expect(page.getByTestId("recap-table")).toBeVisible();
@@ -233,7 +233,7 @@ test("a counted round ranks the night, names the best, and names the swing", asy
   );
   await rows.first().getByTestId("recap-team").click();
   await expect(page).toHaveURL(/season=E2099/);
-  await page.goto(`/leagues/${league.id}/recap?season=E2099`);
+  await page.goto(`/l/${league.id}/recap?season=E2099`);
 
   await page.getByTestId("recap-round-1").click();
   await expect(page).toHaveURL(/round=1/);
@@ -288,7 +288,7 @@ test("a round with a game left is marked, provisional and never crowned", async 
   await createFixture({ season, round: 2, played: false, game_code: `${stamp}3`, utc_date: "2026-09-10 20:00:00.000Z" });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}/recap?season=${season}`);
+  await page.goto(`/l/${league.id}/recap?season=${season}`);
   await expect(page.getByTestId("recap-round-1")).toHaveAttribute("aria-current", "page");
   await expect(page.getByTestId("recap-headline")).toContainText("Chief FC win round 1");
   await expect(page.getByTestId("recap-round-2")).toContainText("in progress");

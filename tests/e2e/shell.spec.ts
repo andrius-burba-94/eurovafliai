@@ -29,7 +29,7 @@ test("the sidebar names the league and marks where you are", async ({
   const { id } = await createLeagueFor(owner, "Shell League");
   await signIn(context, owner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   const sidebar = page.getByTestId("sidebar");
   await expect(sidebar).toBeVisible();
   await expect(page.getByTestId("bottom-tabs")).toBeHidden();
@@ -62,7 +62,7 @@ test("the sidebar names the league and marks where you are", async ({
   await expect(drafts.getByTestId("nav-sheet")).toBeVisible();
 
   await drafts.getByTestId("nav-sheet").click();
-  await page.waitForURL(new RegExp(`/leagues/${id}/sheet$`));
+  await page.waitForURL(new RegExp(`/l/${id}/sheet$`));
   await expect(
     page.getByTestId("sidebar").getByTestId("nav-sheet"),
   ).toHaveAttribute("aria-current", "page");
@@ -88,7 +88,7 @@ test("the full season sidebar fits one screen", async ({ page, context }, testIn
   await signIn(context, owner);
   await page.setViewportSize({ width: 1280, height: 690 });
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   const sidebar = page.getByTestId("sidebar");
   const nav = sidebar.getByRole("navigation", { name: "Main" });
   for (const group of ["league", "drafts", "global", "manage"]) {
@@ -140,7 +140,7 @@ test("the league switcher lists your leagues and moves between them", async ({
   const second = await createLeagueFor(owner, "Second Switch League");
   await signIn(context, owner);
 
-  await page.goto(`/leagues/${first.id}`);
+  await page.goto(`/l/${first.id}`);
   await page.getByTestId("league-switcher").click();
   const panel = page.getByTestId("league-switcher-panel");
   await expect(panel.getByRole("link", { name: "First Switch League" })).toHaveAttribute(
@@ -148,7 +148,7 @@ test("the league switcher lists your leagues and moves between them", async ({
     "page",
   );
   await panel.getByRole("link", { name: "Second Switch League" }).click();
-  await page.waitForURL(new RegExp(`/leagues/${second.id}$`));
+  await page.waitForURL(new RegExp(`/l/${second.id}$`));
   await expect(page.getByTestId("league-switcher-panel")).toHaveCount(0);
   await expect(page.getByTestId("league-switcher")).toContainText(
     "Second Switch League",
@@ -164,7 +164,7 @@ test("the phone gets a tab bar, and More holds the rest", async ({
   const { id } = await createLeagueFor(owner, "Phone League");
   await signIn(context, owner);
 
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expect(page.getByTestId("sidebar")).toBeHidden();
   const tabs = page.getByRole("navigation", { name: "Tabs" });
   await expect(tabs).toBeVisible();
@@ -197,7 +197,7 @@ test("the phone gets a tab bar, and More holds the rest", async ({
   await expect(sheet).toHaveCount(0);
   // Proving an absence: long enough for a client navigation to have begun.
   await page.waitForTimeout(750);
-  expect(new URL(page.url()).pathname).toBe(`/leagues/${id}`);
+  expect(new URL(page.url()).pathname).toBe(`/l/${id}`);
 
   // Following a link closes it.
   await more.click();

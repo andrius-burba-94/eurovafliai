@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth/session";
@@ -19,6 +18,8 @@ import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import { planTransaction, type Proposal, type Seat } from "./plan";
 import { applyTransaction, listActiveMemberships } from "./store";
+import { revalidateLeague } from "@/lib/nav/revalidate";
+import { leaguePathOf } from "@/lib/slugs/store";
 
 /**
  * Record a trade, add or drop.
@@ -268,12 +269,6 @@ export async function recordTransaction(
     await recomputeStandings(pb, season);
   }
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/standings`);
-  revalidatePath(`/leagues/${leagueId}/transactions/new`);
-  for (const memberId of verdict.plan.members) {
-    revalidatePath(`/leagues/${leagueId}/teams/${memberId}`);
-  }
-
-  redirect(`/leagues/${leagueId}`);
+  revalidateLeague();
+  redirect(await leaguePathOf(pb, leagueId));
 }

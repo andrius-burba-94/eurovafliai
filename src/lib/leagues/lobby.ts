@@ -71,6 +71,7 @@ export function toMember(
   const identity = identityOf({ color: record.team_color, shape: record.team_crest }, index);
   return {
     id: record.id,
+    slug: record.slug ?? "",
     userId: record.user,
     name: user?.name || user?.email || "Unknown member",
     teamName: record.team_name || "",

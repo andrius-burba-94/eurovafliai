@@ -47,7 +47,7 @@ async function readyLeague(name: string) {
 }
 
 async function enterDraft(page: Page, leagueId: string) {
-  await page.goto(`/leagues/${leagueId}`);
+  await page.goto(`/l/${leagueId}`);
   await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -252,7 +252,7 @@ test("an ordinary member gets no panel at all", async ({ page, context }) => {
   const member = await context.browser()!.newContext();
   await signIn(member, other);
   const theirs = await member.newPage();
-  await theirs.goto(`/leagues/${league.id}/draft`);
+  await theirs.goto(`/l/${league.id}/draft`);
   await expect(theirs.getByTestId("draft-room")).toBeVisible();
   await expect(theirs.getByTestId("draft-controls")).toHaveCount(0);
   await expect(theirs.getByTestId("autodraft-member")).toHaveCount(0);

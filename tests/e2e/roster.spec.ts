@@ -81,7 +81,7 @@ test("a member opens a roster from the season lobby", async ({
     .update(league.id, { status: "season" }, { requestKey: null });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("enter-team")).toBeVisible();
   await page.getByTestId("enter-team").click();
 
@@ -143,7 +143,7 @@ test("a member of another league cannot read this roster", async ({
   const stranger = await createTestUser("rosterstranger");
   await createLeagueFor(stranger, "Elsewhere");
   await signIn(context, stranger);
-  await page.goto(`/leagues/${league.id}/teams/${ownerMember.id}`);
+  await page.goto(`/l/${league.id}/${ownerMember.id}`);
   await expect(page.getByTestId("roster")).toHaveCount(0);
 });
 
@@ -155,7 +155,7 @@ test("an outsider is not offered a roster link in a setup lobby", async ({
   const league = await createLeagueFor(user, "Still Setup");
   await addMemberTo(league.id, await createTestUser("setupmate"), "Mate FC");
   await signIn(context, user);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("member-list")).toBeVisible();
   await expect(page.getByTestId("enter-roster")).toHaveCount(0);
 });

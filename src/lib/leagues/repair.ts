@@ -1,6 +1,8 @@
 import "server-only";
 
 import { getSuperuserClient } from "@/lib/pb/superuser";
+import { newTeamSlug } from "@/lib/slugs/store";
+
 import type { LeagueRecord, MemberRecord } from "./types";
 
 /**
@@ -33,11 +35,16 @@ export async function ensureCommissionerMembership(
   if (existing.length > 0) return;
 
   try {
+    const commissioner = await pb
+      .collection("users")
+      .getOne<{ name?: string }>(league.commissioner, { fields: "name", requestKey: null })
+      .catch(() => ({ name: "" }));
     await pb.collection("league_members").create(
       {
         league: leagueId,
         user: league.commissioner,
         team_name: "",
+        slug: await newTeamSlug(pb, leagueId, commissioner.name ?? ""),
         autodraft_enabled: false,
       },
       { requestKey: null },

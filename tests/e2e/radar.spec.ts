@@ -39,7 +39,7 @@ async function radarLeague(name: string) {
 }
 
 async function enterDraft(page: Page, leagueId: string) {
-  await page.goto(`/leagues/${leagueId}`);
+  await page.goto(`/l/${leagueId}`);
   await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();

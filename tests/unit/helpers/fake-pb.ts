@@ -72,7 +72,14 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // minutes over four hundred rows and must not copy a single one of them.
   fixtures: [["season", "game_code"]],
   // Partial unique `fantasy_id` while set — one pool row per official player.
-  players: [{ fields: ["fantasy_id"], whereSet: "fantasy_id" }],
+  // Partial unique `slug` while set (S28) on players, leagues and, per
+  // league, teams.
+  players: [
+    { fields: ["fantasy_id"], whereSet: "fantasy_id" },
+    { fields: ["slug"], whereSet: "slug" },
+  ],
+  leagues: [{ fields: ["slug"], whereSet: "slug" }],
+  league_members: [{ fields: ["league", "slug"], whereSet: "slug" }],
 };
 
 /**
@@ -83,6 +90,7 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
 const DEFAULT_RELATIONS: Record<string, Record<string, string>> = {
   chat_messages: { author: "league_members" },
   roster_memberships: { player: "players", member: "league_members" },
+  league_members: { user: "users" },
 };
 
 export type FakeHooks = {

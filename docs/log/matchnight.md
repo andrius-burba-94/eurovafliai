@@ -810,3 +810,56 @@ Verification: unit tests (spoon at one, club colours over the 20 pool clubs);
 `standings.spec` and `transactions.spec` pass with the shared `HonourChip` and
 `MarketBars`.
 
+## S28 — Readable URLs
+
+The owner pasted `/leagues/s7bq8d0rndsrzx5/teams/e5n7nn3xhghfv9c` and asked
+for addresses a person can read and remember. They are now `/l/<league>` and
+`/l/<league>/<team>`, and a player is `/players/<name>`.
+
+**Shape.** `/l/` rather than `/leagues/` because the league is in every
+address and the word added nothing; the team sits directly under its league
+rather than under `/teams/`, so a team cannot be named like one of the
+league's pages (`RESERVED_TEAM_SLUGS`, "Stats" becomes `stats-team`). Next's
+static segments win over `[team]`, but a slug that shadowed one would make the
+team unreachable, which is the bug the reserved list exists for.
+
+**Storage, not derivation.** A slug derived from the name at read time would
+need a lookup by a non-unique computed value and would move whenever a name
+changed in the official sync. So it is stored, with partial unique indexes on
+`slug != ''` (PocketBase accepts a `WHERE` in an index), unique per league for
+teams. The migration only adds fields and indexes: generating slugs needs the
+same diacritic folding as the app, and duplicating that in a goja migration
+was a second implementation to keep in step. TypeScript writes them on create,
+join and rename, and `ensureSlugs` fills every row without one (the worker at
+boot and hourly, `npm run slugs:backfill` by hand). Until a row has one its
+links use its id, and every lookup is `slug = ref || id = ref`, so a missing
+slug is never a broken page. Failure recovery: each write is one field on one
+record; a raced slug is refused by the index and the next pass picks another.
+
+**Every address through one module.** `lib/nav/urls.ts` (`leagueHref`,
+`teamHref`, `playerHref`, `leaguePaths`) replaced about a hundred template
+strings. Pages pass their client components the league's base and each
+team's address (`LeaguePaths`) rather than a builder function, which a client
+component cannot receive. Server actions know only a league id, so instead of
+reading the slug to revalidate one league they call `revalidateLeague()`
+(every `/l/[league]` page, through a pass-through layout); the three that
+redirect read the slug once (`leaguePathOf`).
+
+**Old links.** Addresses already pasted into the league's chat keep working:
+`app/leagues/[...rest]/route.ts` reads the league with the viewer's token
+(so a stranger still gets a 404) and answers 308 with the query string kept.
+League Home, a team page and a player page opened by id redirect to the slug;
+other pages opened by id simply work. The proxy stays optimistic and never
+talks to PocketBase, as its header promises.
+
+Left for S29: player links inside pages still carry the id (the pool and
+panel do not read slugs) and redirect on arrival; the profile modal's "Full
+profile" link already uses the slug from `/api/players/[id]`.
+
+Verification: `slug.test.ts`, `store.test.ts` (the fake now enforces the slug
+indexes), `urls.test.ts`; `pb:verify` checks the indexes, the slug pattern and
+that a member cannot set an address. `addresses.spec.ts` follows the old
+addresses to the new ones and reads the nav's hrefs; every spec now opens
+`/l/…`. 121 of the affected E2E tests pass locally; the two season-dashboard
+failures are the local-schedule ones STATUS already records.
+

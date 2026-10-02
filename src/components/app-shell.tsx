@@ -23,6 +23,7 @@ import {
   type NavKey,
   type NavLeague,
 } from "@/lib/nav/items";
+import { leagueHref } from "@/lib/nav/urls";
 /**
  * The app shell — slice 11.1, ADR-0008.
  *
@@ -300,7 +301,7 @@ function LeagueSwitcher({
         {leagues.map((row) => (
           <li key={row.id}>
             <Link
-              href={`/leagues/${row.id}`}
+              href={leagueHref(row)}
               aria-current={row.id === league?.id ? "page" : undefined}
               className={`flex min-h-11 items-center border-l-2 px-3 text-sm transition-colors ${focusRing} ${
                 row.id === league?.id

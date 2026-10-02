@@ -613,7 +613,7 @@ test("the lobby rings for a commissioner while the queue holds a question", asyn
   await signIn(context, commissioner);
 
   try {
-    await page.goto(`/leagues/${league.id}`);
+    await page.goto(`/l/${league.id}`);
 
     const bell = page.getByTestId("mapping-queue");
     await expect(bell).toBeVisible();
@@ -648,7 +648,7 @@ test("a backfill season's leftovers do not ring the bell", async ({
   await signIn(context, commissioner);
 
   try {
-    await page.goto(`/leagues/${league.id}`);
+    await page.goto(`/l/${league.id}`);
     await expect(page.getByTestId("lobby")).toBeVisible();
 
     // It may still ring for something a sibling spec planted — the queue is
@@ -685,7 +685,7 @@ test("a plain member is not told about a queue they cannot answer", async ({
   await signIn(context, member);
 
   try {
-    await page.goto(`/leagues/${league.id}`);
+    await page.goto(`/l/${league.id}`);
 
     await expect(page.getByTestId("lobby")).toBeVisible();
     await expect(page.getByTestId("mapping-queue")).toHaveCount(0);

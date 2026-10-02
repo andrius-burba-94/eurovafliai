@@ -51,6 +51,7 @@ import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import { fetchSeasonAverages } from "@/lib/stats/euroleague";
 import { ingestFinishedGames, summariseIngest } from "@/lib/stats/ingest";
+import { ensureSlugs } from "@/lib/slugs/store";
 import { previousSeasonOf } from "@/lib/stats/seasons";
 import { applyPreviousSeason } from "@/lib/stats/store";
 
@@ -524,6 +525,37 @@ function main(): void {
     }
   }
 
+  /**
+   * Readable addresses (S28): any league, team or player without a slug gets
+   * one. A row is created by many paths (roster syncs, imports, a repair), and
+   * until this reaches it its links use its id, which still resolves. Local
+   * reads and single-field writes, so once at boot and hourly is plenty.
+   */
+  let slugsInFlight: Promise<void> | null = null;
+  let slugsTimer: ReturnType<typeof setInterval> | null = null;
+  async function slugPass(): Promise<void> {
+    try {
+      await ensureAuth(pb, env);
+      const report = await ensureSlugs(pb);
+      if (report.leagues + report.teams + report.players + report.failed > 0) {
+        log(`slugs · ${report.leagues} league(s) · ${report.teams} team(s) · ${report.players} player(s) · ${report.failed} refused`);
+      }
+    } catch (error) {
+      log(`slug pass failed: ${describeError(error)}`, "error");
+      pb.authStore.clear();
+    }
+  }
+  const runSlugs = () => {
+    if (stopping || slugsInFlight) return;
+    slugsInFlight = slugPass().finally(() => {
+      slugsInFlight = null;
+    });
+  };
+  setTimeout(() => {
+    runSlugs();
+    slugsTimer = setInterval(runSlugs, 60 * 60_000);
+  }, 5_000).unref?.();
+
   scheduleStats();
   scheduleNews();
   scheduleLive();
@@ -577,6 +609,7 @@ function main(): void {
     if (newsTimer) clearInterval(newsTimer);
     if (liveTimer) clearInterval(liveTimer);
     if (fantasyTimer) clearInterval(fantasyTimer);
+    if (slugsTimer) clearInterval(slugsTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

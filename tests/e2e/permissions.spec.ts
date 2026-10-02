@@ -29,7 +29,7 @@ test("an ordinary member has no league controls", async ({ page, context }) => {
   await addMemberTo(league.id, member);
 
   await signIn(context, member);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   await expect(page.getByTestId("member-list")).toBeVisible();
   await expect(page.getByTestId("draft-roll")).toBeHidden();
@@ -47,7 +47,7 @@ test("the commissioner grants a member the league's controls", async ({
   await addMemberTo(league.id, deputy, "Deputy FC");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   // The grant lives inside the row's own controls, folded away.
   const row = page.getByTestId("member").filter({ hasText: "Deputy FC" });
@@ -62,7 +62,7 @@ test("the commissioner grants a member the league's controls", async ({
   const deputyContext = await browser.newContext();
   await signIn(deputyContext, deputy);
   const deputyPage = await deputyContext.newPage();
-  await deputyPage.goto(`/leagues/${league.id}`);
+  await deputyPage.goto(`/l/${league.id}`);
 
   await expect(deputyPage.getByTestId("draft-roll")).toBeVisible();
   await expect(deputyPage.getByTestId("draft-format")).toBeVisible();
@@ -87,7 +87,7 @@ test("a deputy cannot remove the commissioner", async ({ page, context }) => {
   await grantManage(league.id, deputy);
 
   await signIn(context, deputy);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   const chiefRow = page.getByTestId("member").filter({ hasText: "chief" });
   await chiefRow.getByTestId("manage-member").click();

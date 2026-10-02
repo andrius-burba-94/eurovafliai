@@ -32,7 +32,7 @@ test("a member sees an empty table before the draft is complete", async ({
   const league = await createLeagueFor(user, "Empty Table");
   await signIn(context, user);
 
-  await page.goto(`/leagues/${league.id}/standings`);
+  await page.goto(`/l/${league.id}/standings`);
   await expect(page.getByTestId("standings")).toBeVisible();
   // One fantasy season is not a choice, so the season control is not drawn
   // until a second exists (ADR-0011).
@@ -168,7 +168,7 @@ test("a counted round ranks the members who scored it", async ({
   );
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}/standings?season=E2099`);
+  await page.goto(`/l/${league.id}/standings?season=E2099`);
 
   await expect(page.getByTestId("season-select")).toHaveValue("E2099");
   await expect(page.getByTestId("standings-table")).toBeVisible();
@@ -196,7 +196,7 @@ test("a counted round ranks the members who scored it", async ({
   await expect(page.getByTestId("season-select").locator('option[value="E2025"]')).toHaveCount(0);
   // E2025 is not a fantasy season: the page falls back to the current one,
   // and with only that one left there is nothing to choose between.
-  await page.goto(`/leagues/${league.id}/standings?season=E2025`);
+  await page.goto(`/l/${league.id}/standings?season=E2025`);
   await expect(page.getByTestId("season-select")).toHaveCount(0);
 });
 

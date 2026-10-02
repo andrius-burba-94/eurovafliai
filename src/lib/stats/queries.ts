@@ -221,6 +221,8 @@ export async function readLeagueRecap(
 
 export type PlayerProfile = {
   id: string;
+  /** The profile's address segment; empty until a slug is written (S28). */
+  slug: string;
   name: string;
   personCode?: string;
   clubCode: string;
@@ -387,6 +389,7 @@ export async function readPlayerProfile(
       prev_season_pir?: number;
       prev_season_fantasy?: number;
       prev_season_stats?: unknown;
+      slug?: string;
     }>(playerId, { requestKey: null });
 
     const lines = await pb.collection("player_game_stats").getFullList<{
@@ -435,6 +438,7 @@ export async function readPlayerProfile(
     return {
       player: {
         id: record.id,
+        slug: record.slug ?? "",
         name: record.name,
         personCode: record.person_code,
         clubCode: record.club_code,

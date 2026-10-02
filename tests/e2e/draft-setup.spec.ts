@@ -28,7 +28,7 @@ test("a member cannot see the draft setup", async ({ page, context }) => {
   await addMemberTo(league.id, member);
 
   await signIn(context, member);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   await expect(page.getByTestId("member-list")).toBeVisible();
   await expect(page.getByTestId("draft-roll")).toBeHidden();
@@ -56,7 +56,7 @@ test("a member reads the order, in order, and cannot change it", async ({
   const memberContext = await browser.newContext();
   await signIn(memberContext, member);
   const memberPage = await memberContext.newPage();
-  await memberPage.goto(`/leagues/${league.id}`);
+  await memberPage.goto(`/l/${league.id}`);
 
   // Before the roll they are told what is coming, in their own terms rather
   // than the commissioner's copy about re-applying a stored seed.
@@ -65,7 +65,7 @@ test("a member reads the order, in order, and cannot change it", async ({
   );
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await expect(page.getByTestId("draft-order")).toBeVisible();
 
@@ -75,7 +75,7 @@ test("a member reads the order, in order, and cannot change it", async ({
   // And the lobby is still where the order is *read* afterwards, which is what
   // this spec is about: the ceremony owns the moment, the lobby owns the
   // record. A member who comes back must not need the commissioner's Bank.
-  await memberPage.goto(`/leagues/${league.id}`);
+  await memberPage.goto(`/l/${league.id}`);
   await expect(memberPage.getByTestId("draft-order")).toBeVisible();
   await expect(memberPage.getByTestId("member-position")).toHaveCount(3);
 
@@ -119,7 +119,7 @@ test("the commissioner rolls, and the order is stable when re-applied", async ({
   }
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   await expect(page.getByTestId("member-position")).toHaveCount(0);
   await expect(page.getByTestId("toggle-ready")).toHaveAttribute("data-tone", "live");
@@ -159,7 +159,7 @@ test("the browser refuses an impossible clock before the server sees it", async 
   const commissioner = await createTestUser("clocker");
   const league = await createLeagueFor(commissioner, "Clock League");
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   const seconds = page.getByTestId("draft-pick-seconds");
   await seconds.fill("3");
@@ -184,7 +184,7 @@ test("the server refuses reverse standings, and says why", async ({
   const league = await createLeagueFor(commissioner, "Reverse League");
   await addMemberTo(league.id, await createTestUser("second"));
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   await page.getByTestId("draft-order-mode").selectOption("reverse_standings");
   await page.getByTestId("draft-settings-save").click();
@@ -202,7 +202,7 @@ test("rolling needs somebody to roll for", async ({ page, context }) => {
   const commissioner = await createTestUser("lonely");
   const league = await createLeagueFor(commissioner, "Lonely League");
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   await page.getByTestId("draft-roll").click();
   await expect(page.getByTestId("draft-order-error")).toContainText(
@@ -221,7 +221,7 @@ test("reshuffling needs a deliberate tick, then draws a different order", async 
   }
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await expect(page.getByTestId("member-position")).toHaveCount(6);
 
@@ -288,7 +288,7 @@ test.describe("the reveal", () => {
     }
 
     await signIn(context, commissioner);
-    await page.goto(`/leagues/${league.id}`);
+    await page.goto(`/l/${league.id}`);
 
     // The **first** draw is the ceremony's now (ADR-0007): it takes the league
     // to `/leagues/[id]/order` and plays there. So what this spec guards has
@@ -326,7 +326,7 @@ test("with reduced motion the order simply appears", async ({
   await addMemberTo(league.id, await createTestUser("other"));
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
 
   await expect(page.getByTestId("member-position")).toHaveCount(2);

@@ -18,6 +18,7 @@ import {
   recomputeProjections,
 } from "./store";
 import { recomputeStandings } from "./standings-store";
+import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
  * The stat CSV front door — slice 4.1.
@@ -232,7 +233,7 @@ export async function submitStatCsv(
 
   revalidatePath("/stats/import");
   revalidatePath("/players");
-  revalidatePath("/leagues", "layout");
+  revalidateLeague();
 
   return {
     error:

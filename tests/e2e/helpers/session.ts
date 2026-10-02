@@ -507,6 +507,6 @@ export async function submitPick(page: Page, playerId: string): Promise<void> {
 export async function rollOrder(page: Page, leagueId: string): Promise<void> {
   await page.getByTestId("draft-roll").click();
   await page.waitForURL(/\/order$/);
-  await page.goto(`/leagues/${leagueId}`);
+  await page.goto(`/l/${leagueId}`);
   await expect(page.getByTestId("member-list")).toBeVisible();
 }
