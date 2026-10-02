@@ -901,3 +901,34 @@ by id and the old `?league=` form both settle on
 `players.spec`, `pool.spec` (26/26 alone; under seven parallel specs on the
 dev server its pick confirmations time out, which is load).
 
+## S30 — Standings on one screen
+
+Feedback: the visualisation was too big, and the page should be readable
+without scrolling on a laptop or tablet. At 1440×900 the S7 page put a
+phase filter, a 130px podium and a row per honour above the table, which
+started below the fold.
+
+Everything those three blocks said is now in the table's own rows. The top
+three are medal-coloured rank chips (with the number, so colour is never the
+only word). Honours are marks beside the name, built on `InfoTip`, so a tap
+explains them and the badge moment still plays once. A race bar (from `lg`)
+draws each total against the leader's from a floor just below last place,
+because from zero a tight table's bars all look the same length. Each round's
+cell is shaded by that night's finish with the waffle board's colours, so the
+table and Stats speak one colour language; the open round is a dashed cell
+under "So far". The page lead and the provisional paragraph moved behind "i"
+tips, and the phase filter shows only when there is a second phase to pick.
+
+Two bugs surfaced. The race column was `display: none` below `lg`, which
+removes a grid item and slid every later cell one track left on a phone; it
+is now a zero-width track whose content hides. And the shared tint mixed into
+the dark panel in OKLCH, which interpolates hue: gold (88°) toward the panel's
+blue (262°) went the short way round through teal. It now mixes in OKLab;
+Stats' waffle board had the same teal and violet cells.
+
+Verification: `tint.test.ts`; `standings.spec` (row height, spark, the
+crowned round, no single-phase filter), `lineup.spec` (provisional pill),
+`transactions.spec` (cells and totals), `a11y.spec` (the table on both
+grounds), `league-stats.spec` (honour chips still explain themselves). 70
+passed. Checked at 1440×900, 1280×800 light and 390×844.
+

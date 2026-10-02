@@ -184,10 +184,11 @@ test("a counted round ranks the members who scored it", async ({
   await expect(rows.first()).toContainText("14.2");
   await expect(rows.nth(1)).toContainText("8.0");
 
-  const regularSeason = page.getByTestId("filter-phase-RS");
-  await expect(regularSeason).toHaveAttribute("aria-pressed", "true");
-  await regularSeason.click();
-  await expect(regularSeason).toHaveAttribute("aria-pressed", "true");
+  // One phase is not a choice: the filter appears once the play-in or the
+  // playoffs have a counted round.
+  await expect(page.getByTestId("standings-phases")).toHaveCount(0);
+  // Each finished round is shaded by the night's finish, and its winner carries the crown.
+  await expect(rows.first().locator('[data-round="1"]')).toHaveAttribute("data-winner", "true");
 
   await rows.first().getByTestId("standings-team").click();
   await expect(page).toHaveURL(/season=E2099/);

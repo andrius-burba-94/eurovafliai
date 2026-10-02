@@ -9,6 +9,7 @@ import { PlayerStatsLink } from "@/components/player-stats-link";
 import { clubColor } from "@/lib/clubs/colors";
 import { displayName } from "@/lib/players/name";
 import { ordinal } from "@/lib/season/story";
+import { placeTint } from "@/lib/season/tint";
 import type {
   CaptainRegret,
   ClubLoyalty,
@@ -66,12 +67,6 @@ function Head({ children, tip, align = "end" }: { children: ReactNode; tip: stri
       <InfoTip label={`About ${typeof children === "string" ? children : "this column"}`}>{tip}</InfoTip>
     </span>
   );
-}
-
-/** Gold for a round won, loss for last, mixed into the panel so the number on it reads in both grounds. */
-export function placeTint(place: number, teams: number): string {
-  const towardLast = teams > 1 ? Math.round(((place - 1) / (teams - 1)) * 100) : 0;
-  return `color-mix(in oklch, color-mix(in oklch, var(--color-loss) ${towardLast}%, var(--color-gold)) 42%, var(--color-stock-panel))`;
 }
 
 export function WaffleBoardView({ waffle, who }: { waffle: WaffleBoard; who: Who }) {
