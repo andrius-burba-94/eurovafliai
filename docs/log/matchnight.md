@@ -1001,3 +1001,35 @@ Verification: `floating.test.ts`, `share.test.ts`, `roster-figures.test.ts`;
 `design.spec` now opens the popover and picks; `a11y.spec` (a team's page
 with a tip open, both grounds), `league-stats.spec`, `roster.spec`: 66 passed.
 Checked at 1440×900 dark and light and at 390×844 with a segment tapped.
+
+## S33 — Every team from My Team, and a trophy room
+
+Feedback: let My Team show other teams (ideally by pressing the team's name,
+in a small modal or a dropdown), and bring Stats' achievements onto the team
+page as a small trophy room.
+
+A dropdown, not a modal: the shell already has one dropdown (`Menu`) for the
+league switcher and the account, and choosing a team is the same act as
+choosing a league. The name stays the page's `h1`; `Menu`'s new
+`headingClassName` puts its button inside the heading and the panel outside
+it, so the heading stays valid HTML and reads "Kėdainių Kometos, switch team".
+The panel lists teams in table order (rank, crest, manager, You), drops in on
+`popover-drop`, and on a phone spans the hero: `anchored={false}` lets the
+panel take its place from the hero's content box rather than from the button,
+whose left edge sits past the crest. A transparent panel was considered and
+refused: DESIGN.md keeps glass and blur out of components, and a list of
+crests over the team-field gradient would not read. Navigation is a prefetched
+`Link`, so the change of team is the route's own `loading.tsx` at worst.
+
+The hero had `overflow-hidden` only so the lattice texture respected the
+rounded corners; the lattice now carries `rounded-card` itself, and the hero
+lets the panel out. The trophy room is one shelf under Every round:
+`badgesFrom` filtered to the team, in `HONOURS` order and colours, with the
+count in mono beside each `HonourChip`, and the `badge` moment keyed on the
+tally so a second crown flips in again. An empty shelf says "No silverware
+yet." rather than vanishing, so the room is there to be filled.
+
+Verification: a new `roster.spec` case opens the switcher, checks both teams
+and the You pill, and moves to the other team; `a11y.spec`, `shell.spec`: 58
+passed. Checked at 1440×900 (a 16-letter name stays on one line, chevron
+beside it) and at 390×844 light with the panel open.

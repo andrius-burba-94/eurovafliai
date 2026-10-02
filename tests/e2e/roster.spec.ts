@@ -147,6 +147,35 @@ test("a member of another league cannot read this roster", async ({
   await expect(page.getByTestId("roster")).toHaveCount(0);
 });
 
+test("the team's name opens every other team in the league", async ({ page, context }) => {
+  const owner = await createTestUser("switchowner");
+  const league = await createLeagueFor(owner, "Switch League");
+  const mateId = await addMemberTo(league.id, await createTestUser("switchmate"), "Mate FC");
+  const pb = await superuser();
+  await pb.collection("leagues").update(league.id, { status: "season" }, { requestKey: null });
+  const ownerMember = (
+    await pb.collection("league_members").getFullList<{ id: string; user: string }>({
+      filter: `league = '${league.id}'`,
+      requestKey: null,
+    })
+  ).find((row) => row.user === owner.id)!;
+
+  await signIn(context, owner);
+  await page.goto(`/l/${league.id}/${ownerMember.id}`);
+  await expect(page.getByTestId("roster")).toBeVisible();
+
+  await page.getByTestId("team-switcher").click();
+  const teams = page.getByTestId("team-switcher-team");
+  await expect(teams).toHaveCount(2);
+  await expect(page.locator('[data-testid="team-switcher-team"][aria-current="page"]')).toContainText("You");
+
+  await teams.filter({ hasText: "Mate FC" }).click();
+  await expect(page.getByTestId("team-switcher")).toContainText("Mate FC");
+  // A member planted straight into the database has no slug yet, so its address is its id.
+  await expect(page).toHaveURL(new RegExp(`/(${mateId}|mate-fc)$`));
+  await expect(page.getByTestId("team-switcher-list")).toHaveCount(0);
+});
+
 test("an outsider is not offered a roster link in a setup lobby", async ({
   page,
   context,

@@ -28,6 +28,8 @@ export function Menu({
   children,
   buttonClassName,
   panelClassName,
+  headingClassName,
+  anchored = true,
   testId,
 }: {
   /** The button's content — its words, and optionally a drawn mark beside them. */
@@ -36,6 +38,10 @@ export function Menu({
   buttonClassName: string;
   /** Where the panel sits. Written out by each caller; there is no default. */
   panelClassName: string;
+  /** The button is the page's title: it sits inside an `h1` of this class, the panel outside it. */
+  headingClassName?: string;
+  /** False lets the panel take its place from an outer positioned box (a hero) instead of the button. */
+  anchored?: boolean;
   testId?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -75,19 +81,23 @@ export function Menu({
     };
   }, [open]);
 
+  const trigger = (
+    <button
+      ref={button}
+      type="button"
+      data-testid={testId}
+      aria-expanded={open}
+      aria-controls={open ? panelId : undefined}
+      onClick={() => setOpen((current) => !current)}
+      className={buttonClassName}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div ref={root} className="relative">
-      <button
-        ref={button}
-        type="button"
-        data-testid={testId}
-        aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        onClick={() => setOpen((current) => !current)}
-        className={buttonClassName}
-      >
-        {label}
-      </button>
+    <div ref={root} className={anchored ? "relative" : undefined}>
+      {headingClassName ? <h1 className={headingClassName}>{trigger}</h1> : trigger}
       {open ? (
         <div
           id={panelId}
