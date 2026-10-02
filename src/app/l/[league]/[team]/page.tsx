@@ -8,7 +8,9 @@ import { AppShell } from "@/components/app-shell";
 import { ClubBar } from "@/components/club-bar";
 import { ScoreFigure, StatusBadge, TeamCrest, availabilityBadge, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
+import { HONOURS, HonourChip } from "@/components/honour-chip";
 import { InfoTip } from "@/components/info-tip";
+import { Moment } from "@/components/moment";
 import { TeamIdentityPicker } from "@/components/team-identity-picker";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { PlayerStatsLink } from "@/components/player-stats-link";
@@ -25,6 +27,7 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { readPanel } from "@/lib/panel/queries";
 import { readMemberDeals, readMemberRoster } from "@/lib/memberships/queries";
+import { badgesFrom, type Badge } from "@/lib/season/badges";
 import { liveRound } from "@/lib/season/dashboard";
 import { movementOf, ordinal } from "@/lib/season/story";
 import { placeTint } from "@/lib/season/tint";
@@ -32,6 +35,7 @@ import { readLeagueStats } from "@/lib/stats/league-stats-queries";
 import { teamSummary } from "@/lib/stats/team-summary";
 
 import { ImpactList } from "./impact-list";
+import { TeamSwitcher } from "./team-switcher";
 import { leagueHref, playerHref, teamHref } from "@/lib/nav/urls";
 
 /**
@@ -114,6 +118,7 @@ export default async function TeamPage({
   const movement = movementOf(finishedSnapshots, memberId, teamNames);
   const summary = statsPage ? teamSummary(statsPage.stats, memberId) : null;
   const dealsNet = deals.reduce((sum, deal) => sum + deal.deltaTenths, 0);
+  const honours = badgesFrom(finishedSnapshots).filter((badge) => badge.memberId === memberId);
   const memberSlug = member.slug || memberId;
 
   return (
@@ -127,17 +132,34 @@ export default async function TeamPage({
       <section
         aria-label="The team"
         data-testid="team-hero"
-        className="team-field relative overflow-hidden rounded-card border border-panel-border p-4 sm:p-6"
+        className="team-field relative rounded-card border border-panel-border p-4 sm:p-6"
         style={teamFieldStyle(member.color)}
       >
-        <div aria-hidden="true" className="lattice pointer-events-none absolute inset-0" />
-        <div className="relative flex flex-col gap-5">
+        <div aria-hidden="true" className="lattice pointer-events-none absolute inset-0 rounded-card" />
+        <div className="relative z-10 flex flex-col gap-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-4">
               <TeamCrest name={teamTitle} color={member.color} shape={member.crest} size={64} />
               <div className="min-w-0">
                 <p className="slot-label">{data.league.name} · {member.isYou ? "My team" : "Team"}</p>
-                <h1 className="display mt-1 min-w-0 text-4xl break-words sm:text-5xl">{teamTitle}</h1>
+                <TeamSwitcher
+                  title={teamTitle}
+                  currentId={memberId}
+                  season={typeof query.season === "string" ? query.season : null}
+                  teams={data.members.map((row) => {
+                    const standing = movementOf(finishedSnapshots, row.id, teamNames);
+                    return {
+                      id: row.id,
+                      href: teamHref(data.league, row),
+                      name: teamNames[row.id] ?? row.name,
+                      manager: row.name,
+                      color: row.color,
+                      crest: row.crest,
+                      isYou: row.isYou,
+                      rank: standing?.rank ?? null,
+                    };
+                  })}
+                />
                 <p className="mt-1 text-sm text-ink-soft">{member.name} · {roster.length} of {rosterSize} players</p>
               </div>
             </div>
@@ -213,6 +235,8 @@ export default async function TeamPage({
               </ol>
             </div>
           ) : null}
+
+          {finishedSnapshots.length > 0 ? <TrophyRoom leagueId={id} memberId={memberId} badges={honours} /> : null}
         </div>
       </section>
 
@@ -384,6 +408,46 @@ export default async function TeamPage({
         </div>
       </div>
     </AppShell>
+  );
+}
+
+/**
+ * The team's honours, one shelf in the hero: each a pill in its honour's
+ * colour with the count beside it, flipping in once when newly earned.
+ */
+function TrophyRoom({ leagueId, memberId, badges }: { leagueId: string; memberId: string; badges: readonly Badge[] }) {
+  const shelf = HONOURS.flatMap((honour) => {
+    const badge = badges.find((row) => row.id === honour.id);
+    return badge ? [{ honour, badge }] : [];
+  });
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="team-trophies">
+      <p className="slot-label flex items-center gap-1.5">
+        Trophy room
+        <InfoTip label="About the trophy room">Honours from finished rounds: a crown for each round won, a wooden spoon for each last place, the flame for three straight top-three finishes.</InfoTip>
+      </p>
+      {shelf.length === 0 ? (
+        <p className="text-sm text-ink-faint">No silverware yet.</p>
+      ) : (
+        <ul role="list" className="flex flex-wrap gap-2">
+          {shelf.map(({ honour, badge }) => (
+            <Moment
+              key={honour.id}
+              as="li"
+              kind="badge"
+              id={`badge:${leagueId}:${honour.id}:${memberId}:${badge.tally}`}
+              className={`flex items-center gap-2 rounded-full border py-0.5 pr-3 pl-2 text-xs ${honour.tone}`}
+              testId={`team-trophy-${honour.id}`}
+            >
+              <HonourChip id={honour.id} title={honour.label} />
+              <span className={`stat text-sm font-bold ${honour.ink}`}>
+                {honour.id === "on-fire" ? `${badge.tally} in a row` : `×${badge.tally}`}
+              </span>
+            </Moment>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
