@@ -146,6 +146,36 @@ for (const colorScheme of ["dark", "light"] as const) {
       await assertNoSerious(page, "standings table");
     });
 
+    test("league stats, with its tips open, has no serious axe findings", async ({ page, context }) => {
+      const user = await createTestUser("statsaxe");
+      const league = await createLeagueFor(user, "Axe Stats");
+      await addMemberTo(league.id, await createTestUser("statsaxemate"), "Axe Mate");
+      const pb = await superuser();
+      const members = await pb.collection("league_members").getFullList<{ id: string }>({ filter: `league = '${league.id}'`, requestKey: null });
+      await pb.collection("leagues").update(league.id, { status: "season" }, { requestKey: null });
+      for (const round of [1, 2]) {
+        await pb.collection("standings_snapshots").create(
+          {
+            league: league.id,
+            season: "E2026",
+            round,
+            phase: "RS",
+            table: members.map((member, index) => ({
+              memberId: member.id,
+              roundHundredths: (index + round) % 2 === 0 ? 9000 : 4000,
+              totalHundredths: 6500 * round,
+            })),
+          },
+          { requestKey: null },
+        );
+      }
+      await signIn(context, user);
+      await page.goto(`/leagues/${league.id}/stats`);
+      await expect(page.getByTestId("stats-teams")).toBeVisible();
+      await page.getByRole("button", { name: "About Team profiles" }).click();
+      await assertNoSerious(page, "league stats");
+    });
+
     test("the lineup court and the side panel have no serious axe findings", async ({
       page,
       context,

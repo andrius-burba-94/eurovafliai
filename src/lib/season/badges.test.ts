@@ -51,13 +51,14 @@ describe("memberHonours", () => {
 });
 
 describe("badgesFrom", () => {
-  it("awards on fire, crowns and a spoon collection, flattering first", () => {
+  it("awards on fire, crowns and spoons, flattering first", () => {
     expect(badgesFrom(season).map((badge) => [badge.id, badge.memberId, badge.title])).toEqual([
       ["on-fire", "a", "On fire"],
       ["on-fire", "c", "On fire"],
       ["crowned", "a", "Crowned ×2"],
       ["crowned", "b", "Crowned"],
-      ["spoon-collector", "d", "Spoon collector"],
+      ["spoon-collector", "b", "Wooden spoon"],
+      ["spoon-collector", "d", "Wooden spoon ×2"],
     ]);
   });
 

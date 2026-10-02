@@ -222,6 +222,10 @@ step 1.25× or more above the next level; body copy caps at 65–75ch.
 - The board vocabulary — `Bank`, `Slot(s)`, `CardBlock(s)`, `Door`,
   `PositionPatch`, `FilterToggle` (a pill), `Field` + `inputStyles` (a boxed
   field), `Correction` (a loss-red "needs attention" note) — `src/components/board.tsx`.
+- `InfoTip` — `src/components/info-tip.tsx`: a section's or a column's
+  meaning behind a small "i" (hover, focus, tap), never a paragraph under a
+  heading. `Bank` takes it as `info`. Club colours: `src/lib/clubs/colors.ts`,
+  always beside the club's crest.
 - `SubmitButton` tones: `live` (filled accent, the one act), `ink` (outlined),
   `liveOnField` (an act inside an accented row). Each renders `data-tone`.
 
