@@ -30,7 +30,9 @@ import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readMatchdayData } from "@/lib/live/queries";
+import { displayName } from "@/lib/players/name";
 import { liveRound } from "@/lib/season/dashboard";
+import { liveRecap } from "@/lib/season/story";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
 import { DeleteLeague } from "./delete-league";
@@ -205,6 +207,10 @@ export default async function LobbyPage({
                   total: live.total,
                   onAir: matchday.snapshots.some((game) => game.live),
                   ranks: matchday.ranks,
+                  recap: liveRecap(live.round, matchday.ranks, matchday.bestNight),
+                  bestNight: matchday.bestNight
+                    ? { ...matchday.bestNight, name: displayName(matchday.bestNight.name) || "A player" }
+                    : null,
                 }
               : null
           }

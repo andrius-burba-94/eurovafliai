@@ -6,6 +6,7 @@ import { readStoredFixtures, type FixtureRecord } from "@/lib/fixtures/store";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import { readStandingsSnapshots } from "@/lib/stats/queries";
+import { bestNight, type RecapBestNight } from "@/lib/stats/recap";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 
 import { personCodeOf, type LivePlayer } from "./boxscore";
@@ -25,6 +26,8 @@ export type MatchdayData = {
   readonly statsByPlayer: Readonly<Record<string, LivePlayer>>;
   readonly final: boolean;
   readonly hasScoringBasis: boolean;
+  /** The round's best counted night so far, weighed by its owner's lineup like the ranks. */
+  readonly bestNight: (RecapBestNight & { readonly name: string; readonly personCode: string }) | null;
 };
 
 type RoundScores = {
@@ -33,6 +36,7 @@ type RoundScores = {
   readonly liveLines: readonly ScoredGameLine[];
   readonly scoresByPlayer: Readonly<Record<string, number>>;
   readonly statsByPlayer: Readonly<Record<string, LivePlayer>>;
+  readonly players: ReadonlyMap<string, { readonly name: string; readonly personCode: string }>;
 };
 
 function chooseRound(fixtures: readonly FixtureRecord[], requested: number | null): number {
@@ -50,7 +54,7 @@ async function readRoundScores(pb: Pick<PocketBase, "collection">, season: strin
       fields: "player,game_code,fantasy_pts",
       requestKey: null,
     }),
-    pb.collection("players").getFullList<{ id: string; person_code: string }>({ fields: "id,person_code", requestKey: null }),
+    pb.collection("players").getFullList<{ id: string; person_code: string; name: string }>({ fields: "id,person_code,name", requestKey: null }),
   ]);
   const byPerson = new Map(players.map((player) => [player.person_code?.trim(), player.id]));
   const finalLines: ScoredGameLine[] = finalRows.map((row) => ({ playerId: row.player, gameCode: row.game_code, fantasyTenths: row.fantasy_pts }));
@@ -66,7 +70,8 @@ async function readRoundScores(pb: Pick<PocketBase, "collection">, season: strin
   for (const line of [...finalLines, ...liveLines.filter((line) => !finalKeys.has(`${line.playerId}|${line.gameCode}`))]) {
     scoresByPlayer[line.playerId] = (scoresByPlayer[line.playerId] ?? 0) + line.fantasyTenths;
   }
-  return { snapshots, finalLines, liveLines, scoresByPlayer, statsByPlayer };
+  const byId = new Map(players.map((player) => [player.id, { name: player.name, personCode: player.person_code?.trim() ?? "" }]));
+  return { snapshots, finalLines, liveLines, scoresByPlayer, statsByPlayer, players: byId };
 }
 
 export async function readMatchdayData(input: {
@@ -99,7 +104,26 @@ export async function readMatchdayData(input: {
   const ranks = final
     ? snapshotRowsFrom(finalSnapshot!.table).sort((a, b) => b.totalHundredths - a.totalHundredths || a.memberId.localeCompare(b.memberId)).map((row, index) => ({ ...row, rank: index + 1 }))
     : provisionalRanks({ memberIds: input.memberIds, baseTotals, memberships, finalLines, liveLines, round, weights });
-  return { season: input.season, fetchedAt: new Date().toISOString(), round, fixtures, snapshots, ranks, scoresByPlayer, statsByPlayer, final, hasScoringBasis };
+  const night = bestNight(
+    memberships.map((row) => ({ ...row, memberId: row.member, playerId: row.player })),
+    Object.entries(scoresByPlayer).map(([playerId, fantasyTenths]) => ({ playerId, round, fantasyTenths, pir: 0 })),
+    round,
+    weights,
+  );
+  const who = night ? scores.players.get(night.playerId) : undefined;
+  return {
+    season: input.season,
+    fetchedAt: new Date().toISOString(),
+    round,
+    fixtures,
+    snapshots,
+    ranks,
+    scoresByPlayer,
+    statsByPlayer,
+    final,
+    hasScoringBasis,
+    bestNight: night && night.fantasyTenths > 0 ? { ...night, name: who?.name ?? "", personCode: who?.personCode ?? "" } : null,
+  };
 }
 
 export type LineupLive = {

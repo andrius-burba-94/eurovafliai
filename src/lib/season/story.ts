@@ -1,4 +1,4 @@
-import type { Recap, RecapRow } from "@/lib/stats/recap";
+import type { Recap, RecapBestNight, RecapRow } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
 
 /**
@@ -28,6 +28,26 @@ export function roundStory(recap: Recap | null): RoundStory | null {
     winner,
     margin: rows.length > 1 ? winner.hundredths - rows[1]!.hundredths : null,
     spoon: rows.length > 1 ? rows[rows.length - 1]! : null,
+  };
+}
+
+/**
+ * The round still being played, as a recap: the night's ladder from Live's
+ * provisional ranks, so the story, the hero and the table read one set of
+ * figures. Ties break on member id, as `recapForRound` does.
+ */
+export function liveRecap(
+  round: number,
+  ranks: readonly { readonly memberId: string; readonly roundHundredths: number }[],
+  bestNight: RecapBestNight | null,
+): Recap {
+  return {
+    round,
+    rows: ranks
+      .map((row) => ({ memberId: row.memberId, hundredths: row.roundHundredths }))
+      .sort((a, b) => b.hundredths - a.hundredths || (a.memberId < b.memberId ? -1 : a.memberId > b.memberId ? 1 : 0)),
+    bestNight: bestNight && bestNight.fantasyTenths > 0 ? bestNight : null,
+    biggestSwing: null,
   };
 }
 
