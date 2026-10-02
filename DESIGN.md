@@ -159,8 +159,9 @@ something happens, and loud for a moment when something does.
 
 Strategy: restrained neutrals with one accent, plus a **full palette of team
 colours** that carry identity (product data-viz permission). Two grounds:
-dark (default) and light (`prefers-color-scheme: light`), each solved against
-the same floors.
+dark (default) and light (`:root[data-theme="light"]`), each solved against
+the same floors. The ground follows the device unless the reader holds one
+with the theme switch (sidebar beside the account, or More on a phone).
 
 | Token | Job |
 |---|---|

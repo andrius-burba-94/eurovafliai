@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { cleanupTestData, createTestUser, signIn } from "./helpers/session";
+
 /**
  * The design foundation's own guards.
  *
@@ -42,20 +44,65 @@ async function groundLuminance(page: import("@playwright/test").Page) {
   });
 }
 
-test("the ground follows the device, from CSS alone", async ({ page }) => {
-  // ADR-0011 ships two grounds and no switch: the phone's own setting decides.
-  // The thing worth asserting is that each arrives without JavaScript or a
-  // stored preference, and that nothing is left that could override it.
+const colorScheme = (page: import("@playwright/test").Page) =>
+  page.locator("html").evaluate((el) => getComputedStyle(el).colorScheme);
+
+test("with no choice stored, the ground follows the device", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/login");
-  expect(await page.locator("html").evaluate((el) => getComputedStyle(el).colorScheme)).toBe("dark");
+  await expect.poll(() => colorScheme(page)).toBe("dark");
   await expect.poll(() => groundLuminance(page)).toBeLessThan(0.05);
 
   await page.emulateMedia({ colorScheme: "light" });
-  expect(await page.locator("html").evaluate((el) => getComputedStyle(el).colorScheme)).toBe("light");
+  await expect.poll(() => colorScheme(page)).toBe("light");
+  await expect.poll(() => groundLuminance(page)).toBeGreaterThan(0.8);
+});
+
+test("a held ground survives a reload and ignores the device", async ({ page, context }) => {
+  const user = await createTestUser("theme");
+  await signIn(context, user);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+
+  // From `lg` the sidebar's one button cycles System → Light → Dark; below it
+  // the More sheet spells the three out. Each waits for the hydrated choice.
+  const sidebar = await page.getByTestId("theme-switch").isVisible();
+  const choose = async (choice: "system" | "light" | "dark") => {
+    if (sidebar) {
+      const button = page.getByTestId("theme-switch");
+      for (let step = 0; step < 3 && (await button.getAttribute("data-choice")) !== choice; step++) {
+        const before = await button.getAttribute("data-choice");
+        await button.click();
+        await expect(button).not.toHaveAttribute("data-choice", before ?? "");
+      }
+      await expect(button).toHaveAttribute("data-choice", choice);
+    } else {
+      await page.getByTestId("more-menu").click();
+      await page.getByTestId(`theme-switch-more-${choice}`).check({ force: true });
+      await expect(page.getByTestId("theme-switch-more")).toHaveAttribute("data-choice", choice);
+    }
+  };
+  const settled = async (choice: string) =>
+    sidebar
+      ? expect(page.getByTestId("theme-switch")).toHaveAttribute("data-choice", choice)
+      : undefined;
+
+  await settled("system");
+  await choose("light");
+  await expect.poll(() => colorScheme(page)).toBe("light");
+
+  // Painted light before any script of ours hydrates: the head script read the cookie.
+  await page.reload();
+  expect(await page.locator("html").getAttribute("data-theme")).toBe("light");
   await expect.poll(() => groundLuminance(page)).toBeGreaterThan(0.8);
 
-  await expect(page.getByTestId("theme-control")).toHaveCount(0);
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect.poll(() => colorScheme(page)).toBe("light");
+
+  await settled("light");
+  await choose("system");
+  await expect.poll(() => colorScheme(page)).toBe("dark");
 });
 
 test("headlines are set in the broadcast face", async ({ page }) => {
@@ -99,4 +146,8 @@ test("a figure in a column renders in the mono face, and prose does not", async 
   expect(both.stat).toContain("JetBrains Mono");
   expect(both.prose).toContain("Space Grotesk");
   expect(both.prose).not.toContain("JetBrains Mono");
+});
+
+test.afterAll(async () => {
+  await cleanupTestData();
 });
