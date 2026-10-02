@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
 import { announceLineup } from "@/lib/chat/messages";
@@ -19,6 +18,7 @@ import {
   validateLineup,
 } from "./lineup";
 import { readSquadWithPositions, writeLineup } from "./store";
+import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
  * Record one round's lineup — slice 9.3.
@@ -183,10 +183,7 @@ export async function recordLineup(
     }),
   );
 
-  revalidatePath(`/leagues/${leagueId}/lineup`);
-  revalidatePath(`/leagues/${leagueId}/standings`);
-  revalidatePath(`/leagues/${leagueId}/teams/${memberId}`);
-  revalidatePath(`/leagues/${leagueId}`);
+  revalidateLeague();
 
   return { error: null, saved: true };
 }

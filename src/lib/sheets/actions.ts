@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
@@ -22,6 +21,7 @@ import {
   readSheet,
   saveSheet,
 } from "./store";
+import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
  * The cheat sheet's front door — slice 3.4.
@@ -230,8 +230,7 @@ export async function submitCheatSheet(
 
   if (intent === "clear") {
     await deleteSheet(context.pb, context.memberId);
-    revalidatePath(`/leagues/${leagueId}/sheet`);
-    revalidatePath(`/leagues/${leagueId}/draft`);
+    revalidateLeague();
     // `csv` is deliberately **not** echoed: the text box is about to be seeded
     // from a sheet that no longer exists, and handing back the old list would
     // make a delete look like it had failed.
@@ -268,8 +267,7 @@ export async function submitCheatSheet(
 
   await saveSheet(context.pb, context.memberId, { ranking, tiers }, "csv");
 
-  revalidatePath(`/leagues/${leagueId}/sheet`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
 
   return {
     error: null,
@@ -358,10 +356,10 @@ export async function editCheatSheet(
     return { error: "That did not save. Your sheet is unchanged." };
   }
 
-  revalidatePath(`/leagues/${leagueId}/sheet`);
+  revalidateLeague();
   // The room reads the sheet through `rankForMember`, so its pool order and its
   // pinned shortlist follow from this write with no code of their own.
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
 
   return EDIT_OK;
 }
@@ -396,7 +394,6 @@ export async function startSheetFromRanking(leagueId: string): Promise<EditResul
     return { error: "That did not save. Try again." };
   }
 
-  revalidatePath(`/leagues/${leagueId}/sheet`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return EDIT_OK;
 }

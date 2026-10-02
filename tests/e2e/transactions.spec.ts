@@ -143,7 +143,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   }
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   // The single "League doors" region is gone (blueprint **D26**): the season
   // lobby is the dashboard now, and each door lives inside the panel it
   // belongs to rather than in one grid of promises. What this spec actually
@@ -209,14 +209,14 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
     .click();
   await expect(page.getByTestId("roster-player")).toContainText(shown(role.name));
   await expect(page.getByTestId("roster-player")).not.toContainText(shown(star.name));
-  await page.goto(`/leagues/${league.id}/teams/${chief.id}?season=E2099`);
+  await page.goto(`/l/${league.id}/${chief.id}?season=E2099`);
   await expect(page.getByTestId("impact-delta")).toHaveText("-4.3");
   await expect(page.getByTestId("impact-deal")).toContainText(
     "This trade is -4.3 fantasy so far.",
   );
   await expect(page.getByTestId("impact-deal")).toContainText("R2 -4.3");
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page
     .getByTestId("enter-team")
     .filter({ hasText: "Other FC" })
@@ -224,7 +224,7 @@ test("a 1-for-1 trade swaps rosters and splits the table at from_round", async (
   await expect(page.getByTestId("roster-player")).toContainText(shown(star.name));
   await expect(page.getByTestId("roster-player")).not.toContainText(shown(role.name));
 
-  await page.goto(`/leagues/${league.id}/standings?season=E2099`);
+  await page.goto(`/l/${league.id}/standings?season=E2099`);
   await expect(page.getByTestId("standings-table")).toBeVisible();
   const chiefRow = page.getByTestId("standings-row").filter({
     hasText: "Chief FC",
@@ -258,9 +258,9 @@ test("a member without the grant does not see the door", async ({
     .update(league.id, { status: "season" }, { requestKey: null });
 
   await signIn(context, other);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("lobby")).toBeVisible();
   await expect(page.getByTestId("record-transaction")).toHaveCount(0);
-  await page.goto(`/leagues/${league.id}/transactions/new`);
+  await page.goto(`/l/${league.id}/transactions/new`);
   await expect(page.getByTestId("transaction-builder")).toHaveCount(0);
 });

@@ -33,7 +33,7 @@ test("League Stats reads the season's records and team profiles from the counted
   }
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}/stats`);
+  await page.goto(`/l/${league.id}/stats`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("League stats");
   // Records come straight from the snapshots: the biggest night, its margin, the lowest.
   await expect(page.getByTestId("record-highest")).toContainText("Chief FC");
@@ -76,7 +76,7 @@ test("League Stats reads the season's records and team profiles from the counted
 
   // Team names lead to the team.
   await page.getByTestId("stats-teams").getByRole("link", { name: "Mate FC" }).click();
-  await expect(page).toHaveURL(new RegExp(`/teams/${members[1]!.id}`));
+  await expect(page).toHaveURL(new RegExp(`/l/${league.id}/${members[1]!.id}`));
 });
 
 test("League Stats admits it is empty before a round is counted", async ({ page, context }) => {
@@ -85,6 +85,6 @@ test("League Stats admits it is empty before a round is counted", async ({ page,
   const pb = await superuser();
   await pb.collection("leagues").update(league.id, { status: "season" }, { requestKey: null });
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}/stats`);
+  await page.goto(`/l/${league.id}/stats`);
   await expect(page.getByTestId("stats-empty")).toBeVisible();
 });

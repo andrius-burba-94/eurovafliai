@@ -50,7 +50,7 @@ test("a live snapshot scores the lineup and prints its box-score line, then full
   const { star, snapshotId } = await plantLiveStar(league.id, mine.id, "Livestar", testInfo.parallelIndex);
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${league.id}/matchday?round=38`);
+  await page.goto(`/l/${league.id}/matchday?round=38`);
   const row = page.getByTestId("matchday-player").filter({ hasText: shown(star.name) });
   await expect(row.getByTestId("matchday-stat-line")).toHaveText("12 PTS · 4 REB · 3 AST · PIR 15 · 18:20");
   await expect(row).toContainText("16.5");
@@ -72,7 +72,7 @@ test("the lineup shows a player's live round points, read from the same feed as 
   const { star } = await plantLiveStar(league.id, mine.id, "Courtstar", testInfo.parallelIndex);
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${league.id}/lineup?round=38`);
+  await page.goto(`/l/${league.id}/lineup?round=38`);
   const card = page.getByTestId("lineup-card").filter({ hasText: star.name.split(",")[0]! });
   // Nobody is placed, so the player counts at 100%, exactly as Live counts him.
   await expect(card.getByTestId("lineup-points")).toContainText("16.5");
@@ -111,7 +111,7 @@ test("any member can watch another team's round on Live, from the picker or the 
   const { star } = await plantLiveStar(league.id, theirs.id, "Watchstar", testInfo.parallelIndex);
 
   await signIn(context, mate);
-  await page.goto(`/leagues/${league.id}/matchday?round=38`);
+  await page.goto(`/l/${league.id}/matchday?round=38`);
   await expect(page.getByTestId("matchday-team")).toHaveText("Other Five");
   await expect(page.getByTestId("matchday-player")).toHaveCount(0);
 
@@ -137,7 +137,7 @@ test("matchday shows scheduled games and keeps league access scoped to members",
   await createFixture();
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${league.id}/matchday?round=38`);
+  await page.goto(`/l/${league.id}/matchday?round=38`);
   await expect(page.getByTestId("matchday")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Live", exact: true })).toBeVisible();
   await expect(page.getByText("Scheduled", { exact: true }).first()).toBeVisible();
@@ -149,6 +149,6 @@ test("matchday shows scheduled games and keeps league access scoped to members",
 
   await context.clearCookies();
   await signIn(context, stranger);
-  await page.goto(`/leagues/${league.id}/matchday?round=38`);
+  await page.goto(`/l/${league.id}/matchday?round=38`);
   await expect(page.getByTestId("matchday")).toHaveCount(0);
 });

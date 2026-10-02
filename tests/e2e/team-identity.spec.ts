@@ -8,7 +8,7 @@ test("a member chooses a crest, and the league sees it beside their name", async
   const owner = await createTestUser("crest-owner");
   const league = await createLeagueFor(owner, "Crest League");
   await signIn(context, owner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   const picker = page.getByTestId("team-identity");
   await expect(picker).toBeVisible();

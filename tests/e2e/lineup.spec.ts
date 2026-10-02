@@ -181,7 +181,7 @@ test("a captain doubles, the bench halves and the inactive score nothing", async
   await score(planted.players[7]!.id, 1, 500);
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   await expect(page.getByTestId("lineup")).toBeVisible();
   await expect(page.getByTestId("lineup-tier-none").getByTestId("lineup-card")).toHaveCount(8);
@@ -194,7 +194,7 @@ test("a captain doubles, the bench halves and the inactive score nothing", async
   await page.getByTestId("record-lineup-submit").click();
   await expect(page.getByTestId("lineup-saved")).toBeVisible({ timeout: 20_000 });
 
-  await page.goto(`/leagues/${planted.leagueId}/standings?season=${SEASON}`);
+  await page.goto(`/l/${planted.leagueId}/standings?season=${SEASON}`);
   const rows = page.getByTestId("standings-row");
   await expect(rows.first()).toContainText("21.65");
   await expect(page.getByTestId("standings-provisional")).toHaveCount(0);
@@ -212,12 +212,12 @@ test("a round nobody arranged is struck as provisional", async ({
   await score(planted.players[0]!.id, 2, 100);
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=2`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=2`);
   await arrange(page, planted.players);
   await page.getByTestId("record-lineup-submit").click();
   await expect(page.getByTestId("lineup-saved")).toBeVisible({ timeout: 20_000 });
 
-  await page.goto(`/leagues/${planted.leagueId}/standings?season=${SEASON}`);
+  await page.goto(`/l/${planted.leagueId}/standings?season=${SEASON}`);
   // Round 2 doubled the captain; round 1 has no lineup at all, so it counted
   // everyone at 100% and says so rather than looking final.
   await expect(page.getByTestId("standings-row").first()).toContainText("30.0");
@@ -227,7 +227,7 @@ test("a round nobody arranged is struck as provisional", async ({
 
   // Round 3 was never typed, so it carries round 2 forward rather than
   // reverting to 100%.
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=3`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=3`);
   await expect(page.getByTestId("lineup-carried")).toContainText("round 2");
 });
 
@@ -240,7 +240,7 @@ test("an illegal formation is refused before it is submitted, and after", async 
   const planted = await plantSeason(owner, mate, "Formation Refusal");
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   // Two guards and three forwards is 2-3-0, which the rulebook does not list:
   // every legal five has a center in it.
@@ -282,7 +282,7 @@ test("there is only ever one captain, and moving them off the five clears it", a
   const planted = await plantSeason(owner, mate, "One Armband");
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   const captainOf = (index: number) =>
     page.getByLabel(`${shown(planted.players[index]!.name)} captain`);
@@ -334,7 +334,7 @@ test("a tap opens the player's profile, and the profile makes a starter captain"
   const planted = await plantSeason(owner, mate, "Court Taps");
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   const court = page.getByTestId("lineup-court");
   await expect(court).toBeVisible();
@@ -391,7 +391,7 @@ test("a player dragged onto the court starts, and dragged onto a starter swaps w
   const planted = await plantSeason(owner, mate, "Court Drags");
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   const court = page.getByTestId("lineup-court");
   const guard = planted.players[0]!;
@@ -427,7 +427,7 @@ test("formation selection fills the court, survives refresh, and stays unrecorde
   const mate = await createTestUser("formationdraftmate");
   const planted = await plantSeason(owner, mate, "Formation Draft");
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
 
   for (const formation of ["2-2-1", "1-2-2", "2-1-2", "1-3-1", "3-1-1"]) {
     await page.getByRole("button", { name: formation, exact: true }).click();
@@ -482,7 +482,7 @@ test("on a phone the record bar stands above the tab bar, not under it", async (
   const planted = await plantSeason(owner, mate, "Bar Above Tabs");
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}&round=1`);
   await expect(page.getByTestId("lineup-court")).toBeVisible();
 
   // Mid-page, where the bar is stuck rather than resting at the form's end.
@@ -503,18 +503,18 @@ test("the commissioner sets anyone's lineup and a plain member sets only their o
   const planted = await plantSeason(owner, mate, "Whose Lineup");
 
   await signIn(context, owner);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}`);
   await expect(page.getByTestId("lineup-member")).toBeVisible();
   await expect(page.getByTestId("lineup-member")).toHaveValue(planted.memberId);
 
   await context.clearCookies();
   await signIn(context, mate);
-  await page.goto(`/leagues/${planted.leagueId}/lineup?season=${SEASON}`);
+  await page.goto(`/l/${planted.leagueId}/lineup?season=${SEASON}`);
   await expect(page.getByTestId("lineup-member")).toHaveCount(0);
   // Asking for somebody else's team by URL falls back to their own, which for
   // this member is an empty roster rather than the other member's thirteen.
   await page.goto(
-    `/leagues/${planted.leagueId}/lineup?season=${SEASON}&member=${planted.memberId}`,
+    `/l/${planted.leagueId}/lineup?season=${SEASON}&member=${planted.memberId}`,
   );
   await expect(page.getByTestId("lineup-empty")).toBeVisible();
 });

@@ -60,6 +60,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S25 League Home: the round so far | Done | While a round is played, League Home's story panel is **"Round N so far"**, not the previous round: "X lead by Y" at display size, the round's provisional ladder (every team by its points this round, a bar in its colour, no crown or spoon) and the **best night so far**, with a door to that round's Recap. The ticker says "Round N so far · X leading · Best night so far · Last". All of it reads Live's figures: pure `liveRecap` (`season/story.ts`) turns `readMatchdayData`'s provisional ranks into a `Recap`, and `readMatchdayData` now names the best night with Recap's own `bestNight` rule over the same lines, so the hero, the table and the story agree. The ladder is one `RoundLadder` (`components/round-ladder.tsx`) shared with Recap. A finished round still reads "Round N story". |
 | S26 Theme switch | Done | System, Light or Dark per browser. The light tokens moved from `@media (prefers-color-scheme: light)` to `:root[data-theme="light"]`; a head script (`THEME_SCRIPT`, `lib/theme.ts`) sets `data-theme` before first paint from the `theme` cookie, or from the device on System and follows it when the device changes. On the sidebar the switch is one 44px button beside the account name that cycles System → Light → Dark (a second row pushed the season nav into a scroll on a 690px screen); on a phone, More shows the three spelled out. The browser's status-bar colour follows the ground. `theme.test.ts` runs the head script against the module so the two cannot part ways. ADR-0011 amended. |
 | S27 Stats: compact, explained, linked | Done | Explanations moved behind a small **"i"**: `InfoTip` (`components/info-tip.tsx`, hover, keyboard focus and tap, opens toward the side with room) and a `Bank` `info` prop; `HonourChip` is built on it. A **wooden spoon** is an honour from the first last place, as a crown is from the first win ("Wooden spoon ×2"). **Team profiles** lost "Per counted round"; each column head has a one-line tip, Spread is **Swing**, and a range bar runs worst to best on one league scale with the average marked; Won and Last carry crown and spoon. **Head-to-head** is one row (two selects, the score between crests, a margin strip whose bars name their round on hover, focus or tap). **Lineup efficiency**, **Captain regret** and **Hindsight** are labelled two-figure tables (`TeamTable`) in two columns beside the **Deal ledger**, now the Trades page's diverging bars (`MarketBars`, shared). **Club loyalty** is a bar per team cut by club in the club's colour (`lib/clubs/colors.ts`, one OKLCH colour per E2026 club) with crests whose name is behind a tap. Every team name links to its team; every player name opens the profile modal. Players of the season are ruled into columns. |
+| S28 Readable URLs | Done | Leagues live at **`/l/<league>`** (`/l/kavos-lyga-26-27/standings`), a team directly under its league (`/l/kavos-lyga-26-27/vafliu-fabrikas`) and a player at `/players/<name>` (`/players/isaia-cordinier`). Migration `1790400000` adds `slug` to `leagues`, `league_members` and `players` with partial unique indexes (`slug != ''`; a team's is unique per league). Slugs fold diacritics (`lib/slugs/slug.ts`); a team cannot take a page's name (`stats` becomes `stats-team`); a second league or player of one name gets `-2` or the club code. They are written on create, join and rename, and `ensureSlugs` (worker at boot and hourly, `npm run slugs:backfill`) fills any row without one; until then links use the id, and an id still resolves anywhere a slug does. Every league link goes through `lib/nav/urls.ts`; actions revalidate every league page with one `revalidateLeague()`. Old `/leagues/<id>/…` and `/leagues/<id>/teams/<member>` addresses 308 to the new ones (`app/leagues/[...rest]/route.ts`), and League Home, a team and a player opened by id settle on the slug. A rename changes the team's address; its old slug stops resolving (the id never does). Player links inside pages still carry the id and redirect on arrival; S29 gives them their league. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:
@@ -95,6 +96,9 @@ full club names, and the live score while a game is on.
 On a team page whose roster changed by a sync that swapped two players for
 two, **Transactions** shows one row, "exchanged A and B for C and D", with one
 total.
+Every league address now reads `/l/<league>/…`: open an old bookmark such as
+`/leagues/<id>/teams/<member>` and it lands on `/l/<league>/<team>`. On a
+fresh database run `npm run slugs:backfill` once (the worker also does it).
 Beside your name at the foot of the sidebar, the sun / moon / screen button
 cycles System, Light and Dark; reload and the held ground paints at once (on a
 phone it is three choices in **More**).
@@ -109,8 +113,10 @@ local database that has run the news worker holds newer items, and the page
 shows the newest 40, so the planted row is off the list. CI starts empty.
 Likewise `season-dashboard.spec.ts` and `league-stats.spec.ts` seed snapshots
 for rounds 1–2 of the current season: on a local database whose ingested
-schedule still has a round 2 game to play, that round is (correctly) not
-finished, so its crowns, ranks and records are not shown. CI has no schedule.
+schedule has a later round under way (round 3 on 2 October), League Home
+shows that round's live scorebug instead of the seeded rank, and while round 2
+still had a game to play its crowns, ranks and records were (correctly) not
+shown. CI has no schedule.
 
 ## League activity
 

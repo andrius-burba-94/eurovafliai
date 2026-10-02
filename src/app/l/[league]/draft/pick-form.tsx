@@ -1,0 +1,1084 @@
+"use client";
+
+import { displayName } from "@/lib/players/name";
+import Link from "next/link";
+import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { useMemo, useState, type KeyboardEvent } from "react";
+
+import {
+  CardName,
+  Field,
+  FilterToggle,
+  PositionPatch,
+  Slot,
+  Slots,
+  Sparkline,
+  inputStyles,
+  selectStyles,
+} from "@/components/board";
+
+import { useArmedPick } from "./armed-pick";
+import type { DraftView } from "@/lib/drafts/queries";
+import type { Position } from "@/lib/engine";
+import { useHydrated } from "@/lib/hydrated";
+import { formatTenths } from "@/lib/stats/scoring";
+import {
+  NO_FILTERS,
+  clubsIn,
+  narrowedBy,
+  poolIndex,
+  selectPool,
+  type PoolFilters,
+  type SheetPlaces,
+} from "@/lib/pool/search";
+
+/**
+ * Only what the pool needs. The page renders the board and the header on the
+ * server, so passing the whole `DraftView` here would serialize the picks, the
+ * member list and the board's shape into the RSC payload a second time — on a
+ * phone, on draft night.
+ */
+type PoolProps = {
+  pool: DraftView["pool"];
+  isYourTurn: boolean;
+  /**
+   * The viewer's own remaining room — what the pool mutes and filters against.
+   *
+   * Eleven of twelve people in this league are spectators at any moment, and
+   * the pool was muting against the *picker's* roster for all of them — so a
+   * member holding four open center slots watched the centers dim and read
+   * "No room". The first fix kept the picker's roster "while you are the one
+   * entering their pick" and read that off `canPick`, which is permanently true
+   * for a commissioner; see the note on `needs` in `PickForm`. The viewer's own
+   * room is now the only answer this pool has.
+   */
+  yourNeeds: DraftView["yourNeeds"];
+  /**
+   * Whose pick is being entered — the row buttons' "for whom". Null when
+   * nobody is on the clock.
+   *
+   * Carried into `arm()`, so it is said on the Bank heading above the list
+   * ("Pick for Other FC") and again on the sticky band where the confirming tap
+   * lands — not on all thirty Choose buttons. 2.4 put "Pick for them" on every
+   * one of them, and at that length the button wrapped onto a second line and
+   * doubled the height of every row on a phone. The heading owns *for whom*;
+   * the row owns *whom*. It says nothing about legality: the pool mutes against
+   * `yourNeeds` whoever is picking.
+   */
+  clockMemberName: string | null;
+  /** The viewer's own cheat sheet — slice 3.4. Empty when they have not written one. */
+  sheet: DraftView["sheet"];
+  /** Best available from it, already ranked and legality-checked by the server. */
+  bestFromSheet: DraftView["bestFromSheet"];
+};
+
+/**
+ * The player pool — slice 3.3.
+ *
+ * Filters, fuzzy search, and a keyboard path from an empty box to a landed
+ * pick. All of it in the browser: the server sends the pool once and every
+ * keystroke after that is local, which is the whole reason the blueprint asks
+ * for a client-side search rather than a query per character.
+ *
+ * ## Nothing here decides anything
+ *
+ * The list narrows, mutes and highlights; `makePick` re-checks whose turn it
+ * is, whether the draft is running and whether the pick is legal on every
+ * submission (invariant §1). That is why a muted row **keeps its pick button**:
+ * the UI's opinion about legality is not evidence, and a refusal that explains
+ * itself in the league's own words ("You have all the Cs you can hold") is
+ * better than a control that is silently absent. The filtering itself lives in
+ * `src/lib/pool/search.ts`, tested as a function.
+ *
+ * ## The keyboard path, and why Enter does not pick
+ *
+ * Type to search, arrow to highlight, Enter to **arm**, Enter again to commit;
+ * Escape disarms. A pick is undoable only by a commissioner rollback, and Enter
+ * is the key people press to dismiss things — so the fast path is two
+ * deliberate keystrokes rather than one accidental one. Arming also does the
+ * design system a favour: the armed row's button is the *only* marker-red
+ * action on the surface at any moment, which is the one-marker-action rule that
+ * a list of 25 red buttons had been breaking 24 times over.
+ *
+
+
+/**
+ * How many rows the list draws at rest, and how many when asked for more.
+ *
+ * Eight, not thirty. 3.3 shipped thirty and logged the reason it was wrong: an
+ * untouched pool listed thirty of 324 players alphabetically, which is the
+ * least useful thirty the app could pick, and it pushed the board a very long
+ * scroll down a phone for anybody who was only watching. The honest answer was
+ * always that a resting pool should be short and *ranked* — and ranked means a
+ * cheat sheet, which is this slice.
+ *
+ * So eight rows, in the viewer's own order when they have a sheet, with the
+ * pinned shortlist above them. Forty is there for browsing, behind a toggle,
+ * because a pool you cannot scroll is a different loss.
+ */
+const RESTING_ROWS = 8;
+const EXPANDED_ROWS = 40;
+
+const POSITIONS: Position[] = ["G", "F", "C"];
+
+/**
+ * The pool row's two shared measurements, so the column head cannot drift off
+ * the column it names.
+ *
+ * Both are narrower below `sm`, and that is a budget rather than a preference.
+ * Measured on a Pixel 7, the row is 338px and every part of it except the name
+ * is fixed-width, so the name absorbs the whole deficit and is the first thing
+ * to become unreadable. At `w-16` with the games count beside it, names
+ * truncated to three characters.
+ *
+ * With these values the name measures **87px, against 101px before PIR moved
+ * onto the row** — the fantasy average it replaced was a third the width.
+ * Fourteen pixels of a name is the price of the row leading with the number
+ * the draft is decided on, and it is paid only below `sm`: the full-width
+ * name, the games count and the fantasy average all come back at 640px, and
+ * the whole name is in `title` and in the row's spoken label at every size.
+ */
+const PIR_COLUMN = "w-12 sm:w-[4.5rem]";
+const POOL_GAP = "gap-x-2 sm:gap-x-3";
+
+/**
+ * What the PIR cell means, spelled out for a reader and for a hover.
+ *
+ * Two numbers and a season in one sentence, because the cell itself is three
+ * glyphs and a count: which season an average is from decides whether it is
+ * form or a body of work, and a bare `22.1` cannot say.
+ */
+function pirTitle(player: {
+  averagePir: number | null;
+  averageGames: number;
+  averageSource: "last5" | "prev" | null;
+  averageSeason: string | null;
+}): string {
+  if (player.averagePir === null) return "No PIR — has not played";
+  const over = `over ${player.averageGames} game${player.averageGames === 1 ? "" : "s"}`;
+  return player.averageSource === "last5"
+    ? `PIR ${formatTenths(player.averagePir)}, last 5 games`
+    : `PIR ${formatTenths(player.averagePir)}, ${over} in ${player.averageSeason ?? "the previous season"}`;
+}
+
+/**
+ * The one control that chooses a player, used by the pool row *and* the pinned
+ * shortlist.
+ *
+ * They were two buttons, and they diverged exactly as two copies of one thing
+ * do: the pinned one hardcoded `forTeamName: null`, so a manager arming from it
+ * on somebody else's turn read "Drafting P01…" with **no team named** — a
+ * mis-pick that spends another member's turn and is undoable only by a rollback
+ * that deletes every pick after it. It also drew no armed material at all, and
+ * kept saying `Choose` while the same player's pool row said `Chosen`. Found by
+ * 3.7's critique, which measured both labels on screen at once.
+ *
+ * One component, so the divergence is unavailable rather than merely fixed.
+ */
+function ChooseButton({
+  player,
+  isArmed,
+  forTeamName,
+  arm,
+  testId,
+  ariaSuffix = "",
+}: {
+  player: { id: string; name: string };
+  isArmed: boolean;
+  forTeamName: string | null;
+  arm: (pick: {
+    playerId: string;
+    playerName: string;
+    forTeamName: string | null;
+  }) => void;
+  testId: string;
+  ariaSuffix?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        arm({ playerId: player.id, playerName: displayName(player.name), forTeamName })
+      }
+      data-testid={testId}
+      // Follows the visible label. It was static `Choose …` while the button
+      // read `Chosen`, which is a WCAG 2.5.3 Label-in-Name mismatch and offers
+      // a screen reader the chance to "choose" a row already chosen.
+      aria-label={`${isArmed ? "Chosen" : "Choose"} ${displayName(player.name)}${ariaSuffix}`}
+      // **Ink, not marker, even when chosen.** The armed row's own `slot-live`
+      // rule already carries the state, and the band carries the *act* — so a
+      // marker border here made two marker-red primary actions on one surface,
+      // which DESIGN.md forbids by name, and gave "this slot is on the clock"
+      // a second meaning 400px away. Preserving the old `SubmitButton` weight
+      // avoided one regression by creating a worse one.
+      className={`slot-label min-h-11 min-w-11 shrink-0 border px-3 text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${
+        isArmed ? "border-ink" : "border-ink/50 hover:border-ink/80"
+      }`}
+    >
+      {isArmed ? "Chosen" : "Choose"}
+    </button>
+  );
+}
+
+export function PickForm({
+  base,
+  view,
+  canPick,
+}: {
+  base: string;
+  view: PoolProps;
+  /** Your turn, and the draft actually running. The server re-checks both. */
+  canPick: boolean;
+}) {
+  /**
+   * The armed row is **shared with the sticky band** since 3.7, because that is
+   * where the confirming tap now lands. See `armed-pick.tsx`: with the confirm
+   * on the row's own button a fast double-tap armed and picked inside 200ms,
+   * which is the fat-finger gesture the confirmation exists to stop.
+   *
+   * This component no longer submits a pick at all — `ConfirmPick` does. The
+   * refusal still reaches the row, through the same context, because 3.3's
+   * critique fixed refusals rendering thirty rows from the tap and moving the
+   * confirm would otherwise have quietly undone it.
+   */
+  const { armed, arm, disarm, refused } = useArmedPick();
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<PoolFilters>(NO_FILTERS);
+  /** The row the keyboard is on, as an index into the visible rows. */
+  const [highlighted, setHighlighted] = useState(0);
+
+  /**
+   * Whether the keyboard has been used yet.
+   *
+   * The highlight is the *keyboard's* position, so showing it on first paint
+   * made the top row look chosen by somebody before anybody had touched
+   * anything — and on a phone, where nobody will touch an arrow key at all, it
+   * is a permanently selected-looking row that means nothing.
+   */
+  const [keyboardUsed, setKeyboardUsed] = useState(false);
+  /** The list has been asked for more than its resting eight rows. */
+  const [expanded, setExpanded] = useState(false);
+  /** Surfaced on `pool-ready`, below, where the reason lives. */
+  const poolReady = useHydrated();
+
+  // Built against the pool array, not on every keystroke: fuse builds its index
+  // up front, and rebuilding it per character is the one way to make a 324-row
+  // local search feel slow.
+  const index = useMemo(() => poolIndex(view.pool), [view.pool]);
+
+  /**
+   * Whose legality this pool is about: **always the viewer's**.
+   *
+   * It used to be the on-clock member's whenever `canPick` was true — and
+   * `canPick` is true for a commissioner or a deputy on *every* turn of the
+   * draft, not only the ones they are entering. So a commissioner watched the
+   * pool mute against somebody else's roster all evening while the "You still
+   * need" line and the radar beside it named their own. In round thirteen that
+   * finally became two different positions: the room said "you still need 1 C"
+   * over a pool where every C was dimmed and only forwards were legal.
+   *
+   * There is no branch left because there is nothing to branch on. On your own
+   * turn the member on the clock *is* you, so the picker's needs and yours are
+   * the same count from the same roster. One source, so the two surfaces cannot
+   * disagree again.
+   */
+  const needs = view.yourNeeds;
+
+  /**
+   * The viewer's sheet, as a lookup. Memoised against the array the server
+   * sent, because the room re-renders on every pick in the league and rebuilding
+   * a 60-entry map 156 times over is work nobody asked for.
+   */
+  const sheet: SheetPlaces = useMemo(
+    () =>
+      new Map(
+        view.sheet.map((entry) => [
+          entry.playerId,
+          { rank: entry.rank, tier: entry.tier },
+        ]),
+      ),
+    [view.sheet],
+  );
+  const hasSheet = sheet.size > 0;
+  /** Which tiers the sheet actually has, so the filter offers only real ones. */
+  const sheetTiers = useMemo(
+    () =>
+      [...new Set(view.sheet.map((entry) => entry.tier))].sort((a, b) => a - b),
+    [view.sheet],
+  );
+
+  const rows = useMemo(
+    () => selectPool({ pool: view.pool, filters, query, needs, index, sheet }),
+    [view.pool, filters, query, needs, index, sheet],
+  );
+
+  /**
+   * What the list last said out loud, and **when it is allowed to say it**.
+   *
+   * The count used to render straight from `rows.length`, so *anything* that
+   * changed the pool re-announced it — including somebody else's pick removing
+   * a player, which happens 155 times on a draft night. 3.3's critique fixed
+   * the pool's live region from narrating a rebuilt row on every keystroke to
+   * reporting the count; it did not stop the count itself being restated by
+   * events the reader did not cause. 3.7 landed an accessibility promise on
+   * this same surface, so a screen reader arriving on your turn could hear
+   * "322 players match." and "Your turn. Pick 7, round 1." in undefined order.
+   *
+   * A count is worth saying when **the reader narrowed the list**. It is noise
+   * when the list shrank underneath them. So it is keyed on the query and the
+   * filters rather than on the result: same search, same filters, no sentence.
+   */
+  const listKey = [
+    query.trim(),
+    [...filters.positions].sort().join(","),
+    filters.club,
+    filters.hideDrafted,
+    filters.hideUnavailable,
+    filters.legalOnly,
+    filters.sheetOnly,
+    filters.tier,
+  ].join("|");
+  /**
+   * What is narrowing the list, in the reader's own filters.
+   *
+   * On the last pick of a real draft, needing one center, this list said
+   * "Nobody left matching that" and meant it — every Olympiacos center had
+   * gone and the club filter was still set from a search several picks
+   * earlier. The sentence was true and useless. Naming the filters turns a
+   * zero into something a manager can act on with a clock running.
+   */
+  const narrowing = useMemo(
+    () =>
+      narrowedBy(
+        filters,
+        view.pool.find((player) => player.club === filters.club)?.clubName,
+      ),
+    [filters, view.pool],
+  );
+  const emptySentence =
+    narrowing.length === 0
+      ? "Nobody left in the pool at all."
+      : `Nobody left matching that. Filtered to ${narrowing.join(" \u00b7 ")}.`;
+  const listSentence =
+    rows.length === 0
+      ? emptySentence
+      : `${rows.length} ${rows.length === 1 ? "player" : "players"} match.`;
+  const [saidKey, setSaidKey] = useState(listKey);
+  const [listSaid, setListSaid] = useState(listSentence);
+  if (saidKey !== listKey) {
+    // Adjusted during render, which is React's own answer for state that
+    // follows a prop and which this repo's lint rule requires over an effect.
+    setSaidKey(listKey);
+    setListSaid(listSentence);
+  }
+
+  /**
+   * Whether the list has been narrowed by hand.
+   *
+   * The pinned shortlist and the pool are the *same three players* whenever the
+   * pool is at rest, because `selectPool` orders it by the same sheet — 3.4a's
+   * critique confirmed the player ids matched, so six of the eleven Pick
+   * buttons on a phone were for three players. The block earns its place the
+   * moment the pool stops showing them, and not before.
+   */
+  const narrowed =
+    query.trim().length > 0 ||
+    filters.positions.length > 0 ||
+    filters.club !== "" ||
+    filters.tier > 0 ||
+    filters.sheetOnly ||
+    filters.legalOnly ||
+    filters.hideUnavailable ||
+    !filters.hideDrafted ||
+    filters.minProjection > 0;
+
+  const pinned = narrowed ? view.bestFromSheet : [];
+
+  const shortlist = rows.slice(0, expanded ? EXPANDED_ROWS : RESTING_ROWS);
+  const clubs = useMemo(() => clubsIn(view.pool), [view.pool]);
+
+  // Both of these are **derived**, not synced in an effect. Narrowing the list
+  // can leave the highlight pointing past the end of it, or leave a row armed
+  // that is no longer on screen — and the list can also narrow without anybody
+  // typing, because a pick landing anywhere in the league re-renders this room.
+  // Clamping at render handles every one of those cases; an effect that reset
+  // the state afterwards would handle them a frame late, and only the ones it
+  // had been given as dependencies.
+  const cursor =
+    shortlist.length === 0 ? 0 : Math.min(highlighted, shortlist.length - 1);
+  // Armed *and* still on screen. A filter or a search that hides the armed row
+  // leaves the band holding it — which is right, because the band names the
+  // player and is the thing you would cancel from.
+  const armedId = armed?.playerId ?? null;
+
+  /** Every change to what is listed puts the keyboard back at the top. */
+  const relist = () => {
+    setHighlighted(0);
+    disarm();
+  };
+
+  const setFilter = <K extends keyof PoolFilters>(
+    key: K,
+    value: PoolFilters[K],
+  ) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+    relist();
+  };
+
+  const togglePosition = (position: Position) => {
+    setFilters((current) => ({
+      ...current,
+      positions: current.positions.includes(position)
+        ? current.positions.filter((one) => one !== position)
+        : [...current.positions, position],
+    }));
+    relist();
+  };
+
+  /**
+   * Bound to the whole pool, not to the search box.
+   *
+   * Arming moves focus to the row's button, and with the handler on the input
+   * that meant Escape and the arrows stopped working at exactly the moment the
+   * hint above the list promised "Esc to cancel" — with a pick armed and a
+   * clock running. Keydown bubbles, so listening at the container keeps every
+   * key alive wherever focus has gone. The spec that "proved" Escape worked
+   * only passed because `locator.press` focuses the input first.
+   */
+  const onPoolKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // The club select owns its own arrows and Escape natively.
+    if ((event.target as HTMLElement).tagName === "SELECT") return;
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      // Focus restoration lives in `disarm` (back to the armed row). Do not
+      // also yank it to search here — that was the 8.4 defect.
+      disarm();
+      return;
+    }
+
+    if (shortlist.length === 0) return;
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setKeyboardUsed(true);
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      const next = cursor + step;
+      // Wraps at both ends: on a phone, holding an arrow to the bottom of a
+      // 30-row list and having to hold it all the way back up is worse than
+      // arriving at the top.
+      const nextIndex =
+        next < 0 ? shortlist.length - 1 : next >= shortlist.length ? 0 : next;
+      setHighlighted(nextIndex);
+      disarm();
+      // Move focus with the highlight. Without this, Escape returns focus to
+      // the armed row's Choose button (8.4), ArrowDown only flips
+      // `aria-current`, and Enter activates the *old* button — so the keyboard
+      // arms the row you left. Microtask waits for the state write; the button
+      // is already in the DOM.
+      const nextId = shortlist[nextIndex]?.id;
+      if (nextId) {
+        queueMicrotask(() => {
+          document
+            .querySelector<HTMLElement>(`[data-testid="pick-${nextId}"]`)
+            ?.focus();
+        });
+      }
+      return;
+    }
+
+    // Enter on the armed button is the browser submitting that form, and must
+    // pass straight through — that second Enter is the pick.
+    if (
+      event.key === "Enter" &&
+      (event.target as HTMLElement).tagName !== "BUTTON"
+    ) {
+      event.preventDefault();
+      setKeyboardUsed(true);
+      const row = shortlist[cursor];
+      // `!row.drafted` is the guard this was missing. A drafted row is in the
+      // list whenever "hide drafted" is off, and arming one struck it in
+      // marker, gave it the live blush, withheld the button that marker
+      // promises, dropped focus on the floor, and left the live region
+      // offering an action that could never happen — on a player somebody
+      // already owns.
+      if (!row || !canPick || row.drafted) return;
+      // Arms only. `ConfirmPick` takes focus the moment it appears, so the
+      // second Enter drafts — the same two keystrokes 3.3 shipped, now through
+      // the same mechanism a thumb uses rather than a second one beside it.
+      arm({
+        playerId: row.id,
+        playerName: displayName(row.name),
+        forTeamName: view.isYourTurn ? null : (view.clockMemberName ?? null),
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4" onKeyDown={onPoolKeyDown}>
+      {/* No `Correction` here any more. This component does not submit a
+          pick since 3.7 — `ConfirmPick` does, in the sticky band, which is
+          where the confirming tap is and therefore where a refusal belongs.
+          The row still strikes itself in `slot-correction` through the shared
+          context, so 3.3's "say it on the row that was tapped" survives the
+          move. */}
+
+      {/* Best available from your sheet — the blueprint's "always pinned", and
+          what "pinned" turned out to have to mean.
+          
+          Not `position: sticky`: the room already spends a band on the clock,
+          and a second one costs a 390px phone the rows it exists to show.
+          
+          And not *always drawn*, which is the correction 3.4a's critique
+          forced. At rest the pool below is already this list — `selectPool`
+          ranks it by the same sheet — so the block was three players restated
+          in a second set of rows with a second set of buttons. It is drawn only
+          once the pool has been narrowed away from them, which is exactly when
+          "best available from my sheet" stops being visible on its own.
+          
+          The *caption and the way back to the sheet* are unconditional, though,
+          for anyone who has one. They used to live inside the rows, so a member
+          whose sheet had run out — round nine, the moment the page's own doc
+          comment says a sheet earns its keep — lost their only route to it from
+          the room.
+          
+          The rows come from the engine's own `rankForMember` and `isLegalPick`,
+          so this list and the pick the sweep would make if the clock ran out
+          are the same answer. */}
+      {hasSheet ? (
+        <div className="flex flex-col gap-1.5">
+          {/* `ink-soft`, not `ink-faint`: this was the faintest heading in a
+              room where "The radar" and "The board" are `ink-soft`, on the
+              block the slice exists for. */}
+          <p className="slot-label flex flex-wrap items-end gap-x-2 text-ink-soft">
+            <span className="pb-1.5">
+              {pinned.length > 0
+                ? "Best on your sheet"
+                : view.bestFromSheet.length > 0
+                  ? "Your sheet is at the top of the pool"
+                  : "Nobody left on your sheet fits your roster"}
+            </span>
+            {/* `min-h-11 items-end` rather than a bare inline link, and for the
+                reason DESIGN.md records `FilterToggle` learning it: the 44px
+                rule is both axes, and an inline link in a 12px caption is a
+                target a thumb misses. The label still sits on the caption's
+                own baseline; only the tappable box is 44px. It is the room's
+                only way *back* to a sheet for somebody who already has one —
+                "editable during the draft" needs a door. */}
+            <Link
+              href={`${base}/sheet`}
+              data-testid="edit-sheet"
+              className="inline-flex min-h-11 min-w-11 items-end pb-1.5 underline decoration-dotted underline-offset-4 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+            >
+              edit it
+            </Link>
+          </p>
+          {pinned.length > 0 ? (
+            <Slots
+              testId="sheet-pinned"
+              label="Best available from your cheat sheet"
+            >
+              {pinned.map((player) => (
+                // `waiting`, like every other *available* player in this room.
+                // The default `filled` is a solid rule, and three rows below it
+                // the pool uses solid to mean "somebody already owns this" — so
+                // the three players you most want were drawn in the material that
+                // means gone. It also makes the two runs share a rhythm: 61px
+                // each, rather than 69 above 61.
+                <Slot
+                  key={player.id}
+                  testId="sheet-pinned-row"
+                  state="waiting"
+                  nowrap
+                  className="@container"
+                >
+                  <span className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden">
+                    <span className="stat slot-label w-8 shrink-0 text-right text-ink-soft">
+                      #{player.rank}
+                    </span>
+                    <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
+                    <span className="min-w-0 truncate" title={displayName(player.name)}>
+                      <CardName scale="slot">{displayName(player.name)}</CardName>
+                    </span>
+                    <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
+                    <PositionPatch position={player.position} />
+                  </span>
+                  {canPick ? (
+                    <ChooseButton
+                      player={player}
+                      isArmed={armedId === player.id}
+                      // The same computation the pool row does. It was
+                      // hardcoded `null` here, which is the whole finding.
+                      forTeamName={
+                        view.isYourTurn ? null : (view.clockMemberName ?? null)
+                      }
+                      arm={arm}
+                      testId={`pin-${player.id}`}
+                      ariaSuffix={`, number ${player.rank} on your sheet`}
+                    />
+                  ) : null}
+                </Slot>
+              ))}
+            </Slots>
+          ) : null}
+        </div>
+      ) : null}
+
+      <Field label="Find a player">
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            relist();
+          }}
+          placeholder="Name or club — misspelling is fine"
+          // The destination of the panel's "Pick for them", so that control
+          // works as a plain fragment link before any JavaScript runs.
+          id="pool-search"
+          data-testid="pool-search"
+          autoComplete="off"
+          spellCheck={false}
+          // iOS autocorrect owns the one input this whole slice exists to
+          // serve, on the device draft night actually happens on, for surnames
+          // it has never seen. "Valančiūnas" does not survive it.
+          autoCorrect="off"
+          autoCapitalize="none"
+          aria-describedby="pool-keys"
+          className={inputStyles}
+        />
+      </Field>
+
+      {/* Said once, next to the box it describes, rather than left for
+          somebody to discover. It is also what makes the keyboard path
+          discoverable at all — nothing else on the surface hints at it. */}
+      {/* `sm` and up. Sixty-seven characters of caps telling a phone about
+          arrow keys and Escape is noise on the device draft night happens on,
+          and it sat between the search box and the first player. The keyboard
+          path is still there for anyone with a keyboard; `aria-describedby`
+          still points at it, and a screen-reader user on a phone with a
+          Bluetooth keyboard is exactly who benefits from it being announced
+          rather than drawn. */}
+      <p
+        id="pool-keys"
+        className="hidden max-w-prose text-sm text-ink-soft sm:block"
+      >
+        {canPick
+          ? "Arrows to move · Enter to choose · Enter again to draft · Esc to cancel"
+          : "Arrows to move through the pool"}
+      </p>
+
+      {/* Two rows, not one that wraps: a position is a *which*, and the three
+          below it are *whethers*. Left as a single wrapping run, "Hide drafted"
+          landed on the same line as G F C and read as a fourth position. */}
+      {/* Position and PIR share a line where there is room: both are short
+          runs of *which*, each behind its own label, and on a laptop the two
+          extra rows are what pushed the first player below the fold. */}
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+          <span className="slot-label pb-2">Position</span>
+          {POSITIONS.map((position) => (
+            <FilterToggle
+              key={position}
+              testId={`filter-position-${position}`}
+              pressed={filters.positions.includes(position)}
+              onPressedChange={() => togglePosition(position)}
+            >
+              {position}
+            </FilterToggle>
+          ))}
+        </div>
+
+        {/* Reads `PIR` because the column it narrows reads `PIR`. It said
+            `Last 5` over thresholds applied to fantasy points, which was two
+            numbers away from what the row displayed. */}
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+          <span className="slot-label pb-2">PIR</span>
+          {([100, 150, 200] as const).map((floor) => (
+            <FilterToggle
+              key={floor}
+              testId={`filter-proj-${floor}`}
+              pressed={filters.minProjection === floor}
+              onPressedChange={() =>
+                setFilter(
+                  "minProjection",
+                  filters.minProjection === floor ? 0 : floor,
+                )
+              }
+            >
+              {`${floor / 10}+`}
+            </FilterToggle>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
+        <span className="slot-label pb-2">Show</span>
+        <FilterToggle
+          testId="filter-hide-drafted"
+          pressed={filters.hideDrafted}
+          onPressedChange={(next) => setFilter("hideDrafted", next)}
+        >
+          Hide drafted
+        </FilterToggle>
+        <FilterToggle
+          testId="filter-hide-unavailable"
+          pressed={filters.hideUnavailable}
+          onPressedChange={(next) => setFilter("hideUnavailable", next)}
+        >
+          Fit to play
+        </FilterToggle>
+        <FilterToggle
+          testId="filter-legal-only"
+          pressed={filters.legalOnly}
+          onPressedChange={(next) => setFilter("legalOnly", next)}
+        >
+          Legal for me
+        </FilterToggle>
+        {/* Only offered to somebody who has a sheet. A filter that can only
+            ever empty the list is not a control, it is a trap. */}
+        {hasSheet ? (
+          <FilterToggle
+            testId="filter-sheet-only"
+            pressed={filters.sheetOnly}
+            onPressedChange={(next) => setFilter("sheetOnly", next)}
+          >
+            On my sheet
+          </FilterToggle>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <label className="flex min-w-40 flex-1 flex-col gap-1">
+          <span className="slot-label">Club</span>
+          <select
+            value={filters.club}
+            onChange={(event) => setFilter("club", event.target.value)}
+            data-testid="filter-club"
+            className={selectStyles}
+          >
+            <option value="">Every club</option>
+            {clubs.map((club) => (
+              <option key={club.code} value={club.code}>
+                {club.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* 3.3's last deferred filter. It was blocked on there being tiers to
+            filter by, and it stays hidden for a sheet that has no breaks in it
+            — a "Tier 1" that is the whole sheet filters nothing. */}
+        {sheetTiers.length > 1 ? (
+          <label className="flex min-w-40 flex-1 flex-col gap-1">
+            <span className="slot-label">Tier on my sheet</span>
+            <select
+              value={String(filters.tier)}
+              onChange={(event) =>
+                setFilter("tier", Number(event.target.value))
+              }
+              data-testid="filter-tier"
+              className={selectStyles}
+            >
+              <option value="0">Every tier</option>
+              {sheetTiers.map((tier) => (
+                <option key={tier} value={String(tier)}>
+                  Tier {tier}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      {/* What the list did, spoken — and only what the list did.
+          
+          This used to narrate the top row's whole line, rebuilt from
+          `shortlist[0]`. That fires on every character typed, every filter
+          toggled, and every pick landing anywhere in the league, because all
+          three re-list the pool: typing "valanciunas" queued eleven
+          announcements of eleven different players nobody had navigated to,
+          and a twelve-member draft added 156 more. Now it says the one thing
+          that changed — how many are left — and leaves *which row* to
+          `aria-current` on the row itself, which a reader reports when the
+          user asks rather than when the app decides. */}
+      {/* Named, because it is no longer the only polite region on the page:
+          3.5 put league chat on the same route, and a bare `getByRole("status")`
+          in a spec now matches both. Two independent regions is correct — this
+          one reports what the *list* did, chat's reports what the *draft* did —
+          but each needs to be addressable on its own. */}
+      <p
+        role="status"
+        aria-live="polite"
+        data-testid="pool-said"
+        className="sr-only"
+      >
+        {listSaid}
+      </p>
+
+      {/* Has the pool hydrated? The filters are client state, so the controls
+          are in the streamed HTML — clickable, selectable — before a single
+          handler is attached, and a filter toggled in that window narrows
+          nothing. `sheet-list.tsx` lost the same race with keystrokes and
+          answered it the same way: an attribute with no appearance, so a spec
+          waits for a fact instead of a duration. */}
+      <span
+        data-testid="pool-ready"
+        data-ready={poolReady ? "true" : "false"}
+        className="sr-only"
+      />
+
+      {/* A column head, so the figures are named rather than inferred.
+          
+          `slot-label` because DESIGN.md already assigns column heads to it —
+          this needed no new material. `aria-hidden`, because each cell below
+          carries its own spoken label and a reader announcing "PIR" before
+          every row would be the third way of saying one thing. The paddings
+          mirror `Slot`'s own `px-3` and the row's `gap-x-3`, which is the only
+          way the head can sit over the column it names. */}
+      <div
+        aria-hidden="true"
+        data-testid="pool-columns"
+        className={`flex items-baseline ${POOL_GAP} px-3`}
+      >
+        {hasSheet ? <span className="w-8 shrink-0" /> : null}
+        <span className={`slot-label ${PIR_COLUMN} shrink-0 text-right`}>
+          PIR
+        </span>
+        <span className="slot-label">Player</span>
+      </div>
+
+      <Slots testId="pick-pool" label="The player pool">
+        {shortlist.map((player, position) => {
+          const isHighlighted = position === cursor;
+          const isArmed = armedId === player.id;
+          const isRefused = refused?.playerId === player.id;
+          return (
+            <Slot
+              key={player.id}
+              // Four states, and the drafted one is not `waiting`. A dashed
+              // rule is this system's word for an empty place; a player
+              // somebody already owns is the most settled row in the list.
+              // A refused row is struck in ink — `slot-correction` — because
+              // that is this system's word for an error, and because the whole
+              // argument for muting a row rather than hiding it is that the
+              // refusal explains itself *where the tap was*. It was explaining
+              // itself above the search box, up to thirty rows away.
+              state={
+                isRefused
+                  ? "correction"
+                  : isArmed
+                    ? "live"
+                    : player.drafted
+                      ? "filled"
+                      : "waiting"
+              }
+              testId="pool-row"
+              current={keyboardUsed && isHighlighted && !isArmed}
+              nowrap
+              // An armed row is never faded: `ink-faint` on the live blush is
+              // 4.37:1, and the row you are about to commit is the last thing
+              // that should be hard to read.
+              // Sized by the row, not the viewport: from `lg` the pool is one
+              // column of the room, and viewport breakpoints let the extras
+              // squeeze a surname down to three letters.
+              className={`@container ${
+                (player.drafted || player.noRoom) && !isArmed
+                  ? "text-ink-faint"
+                  : ""
+              }`}
+            >
+              <span
+                className={`flex min-w-0 flex-1 items-baseline ${POOL_GAP} overflow-hidden`}
+              >
+                {/* Where this player sits on *your* sheet — leading, fixed
+                    width, right-aligned, so `#1`…`#8` form a column that can be
+                    read down. Trailing the position patch, they landed at eight
+                    different x-positions, which is the radar critique's fixed
+                    finding #4 re-broken 20px away. The column is rendered even
+                    when empty so a sheeted and an unsheeted row still align.
+                    Only drawn at all when the viewer has a sheet. */}
+                {hasSheet ? (
+                  <span
+                    className="stat slot-label w-8 shrink-0 text-right text-ink-soft"
+                    data-testid="pool-sheet-rank"
+                  >
+                    {player.sheetRank === null ? "" : `#${player.sheetRank}`}
+                  </span>
+                ) : null}
+                {/* **The number this room is drafting on, and it leads.**
+                    
+                    It used to trail the club in `slot-label` soft ink with no
+                    label at all — and it was the *fantasy* average, which is
+                    PIR plus a win bonus, so the strongest figure on the row
+                    was a different number from the one everybody says out
+                    loud. Now it is PIR, at the name's own size in full ink, in
+                    a fixed-width right-aligned cell so the figures form a
+                    column that can be read down. That is the same argument the
+                    sheet rank above it makes, and it is the only way to make a
+                    number prominent here: marker red has two jobs and no
+                    third, so weight and position are what is left.
+                    
+                    The games count shares the cell rather than taking its own,
+                    because it qualifies the average rather than standing
+                    beside it — 22.1 from three games is not 22.1 from
+                    thirty-nine — and because a third numeric column does not
+                    fit a 390px row. */}
+                <span
+                  className={`flex ${PIR_COLUMN} shrink-0 items-baseline justify-end gap-1`}
+                  data-testid="pool-pir"
+                  title={pirTitle(player)}
+                >
+                  <span className="stat text-sm font-semibold">
+                    {player.averagePir === null
+                      ? "—"
+                      : formatTenths(player.averagePir)}
+                  </span>
+                  {player.averageGames > 0 ? (
+                    <span className="stat slot-label hidden @md:inline">
+                      {player.averageGames}
+                    </span>
+                  ) : null}
+                  {/* Never hidden, at any width: the games count and the season
+                      it is from are what stop a 22.1 from three games reading
+                      like a 22.1 from thirty-nine. */}
+                  <span className="sr-only">{pirTitle(player)}</span>
+                </span>
+                {/* `CardName scale="slot"`, not a bespoke class. The board
+                    already made this mistake once — a one-off `text-xs` at
+                    *display* tracking — and DESIGN.md records fixing it. */}
+                <span
+                  className={`min-w-0 truncate ${
+                    player.drafted ? "line-through decoration-1" : ""
+                  }`}
+                  title={displayName(player.name)}
+                >
+                  <CardName scale="slot">{displayName(player.name)}</CardName>
+                </span>
+                <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
+                <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
+                {/* Fantasy points are what the standings actually sum, so they
+                    stay on the row rather than being hidden — named, quiet,
+                    and behind PIR. Held back on a narrow row because it cannot
+                    carry two numeric columns, a name, a club and a patch
+                    inside 390px; the player page prints it at every width. */}
+                {player.averageFantasy !== null ? (
+                  <span
+                    className="stat slot-label hidden shrink-0 @2xl:inline"
+                    data-testid="pool-proj"
+                  >
+                    {`FP ${formatTenths(player.averageFantasy)}`}
+                  </span>
+                ) : null}
+                {/* Form, behind the number it qualifies — and on a wide row only,
+                    on exactly the budget the fantasy average above it is held
+                    to. The measurement in `PIR_COLUMN` is what makes this a
+                    rule rather than a preference: the name absorbs the whole
+                    deficit on a 390px row and is already down to 87px, so a
+                    50px cell here would take a third of what is left of a
+                    surname. The average and its games count both survive at
+                    every width; the *shape* of the last five is the thing a
+                    phone can do without. */}
+                <Sparkline
+                  values={player.last5Pirs}
+                  what="PIR"
+                  className="hidden h-4 w-[3.125rem] shrink-0 text-ink-soft @2xl:inline-flex"
+                  testId="pool-spark"
+                />
+                <PositionPatch position={player.position} />
+                {/* Every one of these is a word, not a colour. */}
+                {player.status !== "active" ? (
+                  <span className="slot-label shrink-0">{player.status}</span>
+                ) : null}
+                {isRefused ? (
+                  <span
+                    className="slot-label shrink-0 text-ink"
+                    data-testid="pool-refused"
+                    // **No `role="alert"`.** The band's `Correction` announces
+                    // the refusal, and this said the same sentence in the same
+                    // render — so a screen reader heard "The draft is paused"
+                    // twice, from two polite regions mounting together. 3.3's
+                    // fix was that the refusal must be visible *on the row that
+                    // was tapped*; that is a visual claim, and the row keeps
+                    // it. Saying it once is the whole of the other half.
+                  >
+                    {refused?.reason}
+                  </span>
+                ) : null}
+                {player.drafted ? (
+                  <span
+                    className="slot-label shrink-0"
+                    data-testid="pool-taken"
+                  >
+                    {String(player.takenAt).padStart(2, "0")} · {player.takenBy}
+                  </span>
+                ) : player.noRoom ? (
+                  <span
+                    className="slot-label shrink-0"
+                    data-testid="pool-no-room"
+                  >
+                    No room
+                  </span>
+                ) : null}
+              </span>
+              {canPick && !player.drafted ? (
+                /* **Arms. Does not pick.** A tap here used to submit
+                   immediately, so on the device draft night happens on one tap
+                   drafted a player irreversibly — undoable only by a
+                   commissioner rollback, which deletes every pick after it too.
+                   Blueprint 3.7 calls that "no fat-finger picks on mobile".
+
+                   The confirming tap is in the sticky band, deliberately out of
+                   reach of a double-tap: with it on this button, two taps
+                   inside 200ms armed and picked. The label says `Choose`
+                   because `Pick` would now be a lie. */
+                <ChooseButton
+                  player={player}
+                  isArmed={isArmed}
+                  forTeamName={
+                    view.isYourTurn ? null : (view.clockMemberName ?? null)
+                  }
+                  arm={arm}
+                  testId={`pick-${player.id}`}
+                />
+              ) : null}
+            </Slot>
+          );
+        })}
+        {shortlist.length === 0 ? (
+          <Slot state="waiting" testId="pool-empty">
+            <span className="min-w-0 text-sm break-words text-ink-soft">
+              {emptySentence}
+            </span>
+          </Slot>
+        ) : null}
+      </Slots>
+
+      {/* The count, and — next to it — the control that changes it.
+          
+          "More rows" used to sit in the "Show" filter row, which made it a
+          fifth *data* filter beside four that change which players are in the
+          set, and wrapped that row to three lines on a phone. It is not a
+          whether; it is about the length of the list, so it belongs at the
+          bottom of the list, where the truncation is what you are looking at. */}
+      <p className="flex flex-wrap items-end justify-between gap-x-4">
+        <span
+          className="slot-label pb-1.5 text-ink-faint"
+          data-testid="pool-count"
+        >
+          {rows.length > shortlist.length
+            ? `Showing ${shortlist.length} of ${rows.length} matches`
+            : `${rows.length} ${rows.length === 1 ? "match" : "matches"}`}
+        </span>
+        {rows.length > RESTING_ROWS ? (
+          <FilterToggle
+            testId="filter-more-rows"
+            pressed={expanded}
+            onPressedChange={setExpanded}
+          >
+            {expanded ? "Fewer rows" : `Show ${EXPANDED_ROWS}`}
+          </FilterToggle>
+        ) : null}
+      </p>
+    </div>
+  );
+}

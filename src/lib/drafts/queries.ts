@@ -190,6 +190,7 @@ export async function getDraftView(
     settings: unknown;
     commissioner: string;
     status: string;
+    slug?: string;
   }>(leagueId, { requestKey: null });
   const settings = parseLeagueSettings(league.settings);
 
@@ -203,6 +204,7 @@ export async function getDraftView(
       team_name: string;
       team_color?: string;
       team_crest?: string;
+      slug?: string;
       can_manage?: boolean;
       autodraft_enabled?: boolean;
       expand?: { user?: { name?: string; email?: string } };
@@ -411,9 +413,11 @@ export async function getDraftView(
       league.commissioner === session.user.id || Boolean(you?.can_manage),
     nav: {
       id: league.id,
+      slug: league.slug ?? "",
       name: league.name,
       status: status as NavLeague["status"],
       youMemberId: youId ?? null,
+      youMemberSlug: you?.slug ?? "",
       isCommissioner: league.commissioner === session.user.id,
       canManage:
         league.commissioner === session.user.id || Boolean(you?.can_manage),

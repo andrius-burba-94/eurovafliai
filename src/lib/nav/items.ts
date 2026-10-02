@@ -10,6 +10,7 @@
  * app.
  */
 import type { LeagueWithMembers } from "@/lib/leagues/types";
+import { leagueHref, teamHref } from "@/lib/nav/urls";
 
 export type NavKey =
   | "leagues"
@@ -68,10 +69,13 @@ export type NavGroup = {
 
 export type NavLeague = {
   readonly id: string;
+  /** The league's address segment; empty until a slug is written (S28). */
+  readonly slug?: string;
   readonly name: string;
   readonly status: "setup" | "drafting" | "season" | "complete";
   /** The viewer's membership, or null for a commissioner who never took one. */
   readonly youMemberId: string | null;
+  readonly youMemberSlug?: string;
   readonly isCommissioner: boolean;
   /** Commissioner, or a member granted the league's management powers. */
   readonly canManage: boolean;
@@ -84,9 +88,11 @@ export function navLeagueFrom(data: LeagueWithMembers): NavLeague {
   const you = data.members.find((member) => member.isYou) ?? null;
   return {
     id: data.league.id,
+    slug: data.league.slug ?? "",
     name: data.league.name,
     status: data.league.status,
     youMemberId: you?.id ?? null,
+    youMemberSlug: you?.slug ?? "",
     isCommissioner: data.isCommissioner,
     canManage: data.isCommissioner || Boolean(you?.canManage),
     rolled: Boolean(data.settings.rolled_at),
@@ -102,7 +108,7 @@ export type NavInput = {
 };
 
 function leagueItems(league: NavLeague): NavItem[] {
-  const base = `/leagues/${league.id}`;
+  const base = leagueHref(league);
   const member = league.youMemberId !== null;
   const inSeason = league.status === "season" || league.status === "complete";
   const items: NavItem[] = [
@@ -113,7 +119,7 @@ function leagueItems(league: NavLeague): NavItem[] {
     items.push(
       {
         key: "team",
-        href: `${base}/teams/${league.youMemberId}`,
+        href: teamHref(league, { id: league.youMemberId!, slug: league.youMemberSlug }),
         label: "My Team",
         icon: "team",
       },
@@ -139,7 +145,7 @@ function leagueItems(league: NavLeague): NavItem[] {
 }
 
 function draftItems(league: NavLeague): NavItem[] {
-  const base = `/leagues/${league.id}`;
+  const base = leagueHref(league);
   const items: NavItem[] = [];
   if (league.status === "drafting" || league.status === "season" || league.status === "complete") {
     items.push({

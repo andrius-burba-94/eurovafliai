@@ -45,12 +45,12 @@ change. Do not leave two versions.
 | `src/components/submit-button.tsx` | The primary act. Marker-red is for the act, not for leftover state. |
 | `src/components/roster-radar.tsx` | Roster filled/empty by position. Shares `src/lib/positions.ts` for copy. |
 | `src/components/league-chat.tsx` | Transcript. One shared PB client. `break-words` on pasted text. |
-| `src/app/leagues/[id]/draft/pick-clock.tsx` | Sticky clock band. Confirm lives here so a double-tap on a row cannot arm-and-commit. |
-| `src/app/leagues/[id]/draft/confirm-pick.tsx` | Confirm control; survives the paused-band unmount so a refusal can still be explained. |
-| `src/app/leagues/[id]/draft/clock-cue.tsx` | Sound/live-region cue; fires on **turn transition**, not "is it my turn". |
-| `src/app/leagues/[id]/draft/armed-pick.tsx` | Armed pool row. |
-| `src/app/leagues/[id]/draft/pick-form.tsx` | Pick request. |
-| `src/app/leagues/[id]/lineup/lineup-drag.ts` | Pointer drag onto discrete targets (`data-drop`, element under the pointer); touch holds before dragging so the page still scrolls. |
+| `src/app/l/[league]/draft/pick-clock.tsx` | Sticky clock band. Confirm lives here so a double-tap on a row cannot arm-and-commit. |
+| `src/app/l/[league]/draft/confirm-pick.tsx` | Confirm control; survives the paused-band unmount so a refusal can still be explained. |
+| `src/app/l/[league]/draft/clock-cue.tsx` | Sound/live-region cue; fires on **turn transition**, not "is it my turn". |
+| `src/app/l/[league]/draft/armed-pick.tsx` | Armed pool row. |
+| `src/app/l/[league]/draft/pick-form.tsx` | Pick request. |
+| `src/app/l/[league]/lineup/lineup-drag.ts` | Pointer drag onto discrete targets (`data-drop`, element under the pointer); touch holds before dragging so the page still scrolls. |
 | `src/lib/positions.ts` | Position words and the one list-join. Do not duplicate. |
 
 Helpers for E2E: `draftPlayer` / `submitPick` in the Playwright specs — new

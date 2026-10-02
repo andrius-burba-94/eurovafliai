@@ -65,7 +65,7 @@ async function readyLeague(name: string) {
  * one so the setup is not the thing that breaks.
  */
 async function enterDraft(page: Page, leagueId: string) {
-  await page.goto(`/leagues/${leagueId}`);
+  await page.goto(`/l/${leagueId}`);
   await rollOrder(page, leagueId);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -125,7 +125,7 @@ test("a commissioner starts the draft and the room opens", async ({
   const { commissioner, league } = await readyLeague("Kickoff League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   // No order yet, so no way to start.
   await expect(page.getByTestId("start-draft")).toHaveCount(0);
 
@@ -176,7 +176,7 @@ test("the clock stays on screen, and keeps its blush", async ({
   const { commissioner, league } = await readyLeague("Sticky League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -209,7 +209,7 @@ test("the member on the clock picks, and the draft advances", async ({
   const { commissioner, league, players } = await readyLeague("Picking League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -250,7 +250,7 @@ test("a stale tab cannot draft a player who is already gone", async ({
   const { commissioner, league, players } = await readyLeague("Race League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -258,7 +258,7 @@ test("a stale tab cannot draft a player who is already gone", async ({
 
   const stale = await context.newPage();
   await withoutRealtime(stale);
-  await stale.goto(`/leagues/${league.id}/draft`);
+  await stale.goto(`/l/${league.id}/draft`);
   await stale.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(stale.getByTestId(`pick-${players[0]!.id}`)).toBeVisible();
 
@@ -306,7 +306,7 @@ test("a pick that would break the roster template is refused", async ({
   );
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -354,7 +354,7 @@ test("the commissioner pauses the draft, and picking stops", async ({
   const { commissioner, league, players } = await readyLeague("Pause League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -387,7 +387,7 @@ test("a pick from a tab that has not seen the pause is refused", async ({
   const { commissioner, league, players } = await readyLeague("Stale League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -411,7 +411,7 @@ test("a pick from a tab that has not seen the pause is refused", async ({
   await expect(page.getByTestId(`pick-${players[0]!.id}`)).toBeVisible();
 
   const other = await context.newPage();
-  await other.goto(`/leagues/${league.id}/draft`);
+  await other.goto(`/l/${league.id}/draft`);
   await other.getByTestId("draft-pause").click();
   await expect(other.getByTestId("on-the-clock")).toContainText(/paused/i);
 
@@ -435,7 +435,7 @@ test("the commissioner undoes a pick, and the board goes back", async ({
   const { commissioner, league, players } = await readyLeague("Undo League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -493,7 +493,7 @@ test("the undo refuses a pick number that has nothing behind it", async ({
   const { commissioner, league, players } = await readyLeague("Refuse League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -522,7 +522,7 @@ test("an ordinary member gets no draft controls at all", async ({
   // collection rules underneath, this covers the surface.
   const { commissioner, league, other } = await readyLeague("Quiet League");
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await expect(page.getByTestId("enter-draft")).toBeVisible();
@@ -530,7 +530,7 @@ test("an ordinary member gets no draft controls at all", async ({
   const member = await context.browser()!.newContext();
   await signIn(member, other);
   const theirs = await member.newPage();
-  await theirs.goto(`/leagues/${league.id}/draft`);
+  await theirs.goto(`/l/${league.id}/draft`);
   await expect(theirs.getByTestId("draft-room")).toBeVisible();
   await expect(theirs.getByTestId("draft-pause")).toHaveCount(0);
   await expect(theirs.getByTestId("draft-undo-toggle")).toHaveCount(0);
@@ -549,7 +549,7 @@ test("undoing pauses the draft before it deletes anything", async ({
   const { commissioner, league, players } = await readyLeague("Order League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -562,7 +562,7 @@ test("undoing pauses the draft before it deletes anything", async ({
   // A second tab, rendered before the undo and deaf to it.
   const other = await context.newPage();
   await withoutRealtime(other);
-  await other.goto(`/leagues/${league.id}/draft`);
+  await other.goto(`/l/${league.id}/draft`);
   await other.getByTestId("pool-search").fill(TEST_CLUB);
   await expect(other.getByTestId(`pick-${players[1]!.id}`)).toBeVisible();
 
@@ -593,7 +593,7 @@ test("a league that has already drafted cannot be started again", async ({
   await addMemberTo(league.id, await createTestUser("pal"), "Pal FC");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await expect(page.getByTestId("enter-draft")).toBeVisible();
@@ -618,7 +618,7 @@ test("a pick by somebody else moves the room, with nobody reloading", async ({
   const { commissioner, league, players } = await readyLeague("Live League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -652,7 +652,7 @@ test("a pause reaches a room nobody is touching", async ({ page, context }) => {
   const { commissioner, league } = await readyLeague("Pause League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -679,7 +679,7 @@ test("the commissioner starts over, and the league is back in the lobby", async 
   const { commissioner, league, players } = await readyLeague("Reset League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await expect(page.getByTestId("member-position")).toHaveCount(2);
   await page.getByTestId("start-draft").click();
@@ -747,14 +747,14 @@ test("a room whose draft was reset follows it back to the lobby", async ({
   const { commissioner, league } = await readyLeague("Follow League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
   await expect(page.getByTestId("draft-room")).toBeVisible();
 
   const watching = await context.newPage();
-  await watching.goto(`/leagues/${league.id}/draft`);
+  await watching.goto(`/l/${league.id}/draft`);
   await expect(watching.getByTestId("draft-room")).toBeVisible();
 
   await page.getByTestId("draft-reset-toggle").click();
@@ -779,7 +779,7 @@ test("a league whose reset lost its second write repairs itself", async ({
   const { commissioner, league } = await readyLeague("Half Reset League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await expect(page.getByTestId("enter-draft")).toBeVisible();
@@ -789,7 +789,7 @@ test("a league whose reset lost its second write repairs itself", async ({
   await pb.collection("drafts").delete(draft!.id, { requestKey: null });
   // The league is still `drafting` at this point — the lost write.
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   // Reading the lobby repaired it, so the lobby is a lobby again.
   await expect(page.getByTestId("draft-roll")).toBeVisible();
   await expect(page.getByTestId("enter-draft")).toHaveCount(0);
@@ -947,7 +947,7 @@ test("coming on the clock says so, and somebody else's turn does not", async ({
   const watcher = await browser.newContext();
   await signIn(watcher, other);
   const watching = await watcher.newPage();
-  await watching.goto(`/leagues/${league.id}/draft`);
+  await watching.goto(`/l/${league.id}/draft`);
   await expect(watching.getByTestId("draft-room")).toBeVisible();
 
   const rooms = [page, watching];
@@ -1223,7 +1223,7 @@ test("the room admits when nothing took an expired pick", async ({
   expect(players.length).toBeGreaterThan(0);
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -1285,7 +1285,7 @@ test("a stuck draft tells only the commissioner", async ({ page, context }) => {
   );
 
   await signIn(context, other);
-  await page.goto(`/leagues/${league.id}/draft`);
+  await page.goto(`/l/${league.id}/draft`);
   await expect(page.getByTestId("draft-room")).toBeVisible();
   await expect(page.getByTestId("draft-stuck")).toHaveCount(0);
 });

@@ -82,6 +82,9 @@ export function PlayerStatsModal({
   }, [id, round]);
 
   const player = profile?.player;
+  // The caller's address names the player by id; once the profile has a slug,
+  // the full page is linked by it.
+  const fullHref = player?.slug ? profileHref.replace(`/players/${id}`, `/players/${player.slug}`) : profileHref;
   return <dialog ref={dialog} onClose={onClose} aria-labelledby="player-stats-title" className="fixed inset-0 m-auto max-h-[min(90dvh,46rem)] w-[min(92vw,36rem)] overflow-y-auto rounded-lg border border-panel-border bg-stock-panel p-5 text-ink backdrop:bg-black/70 sm:p-7" data-testid="player-stats-modal">
     <div className="flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -104,7 +107,7 @@ export function PlayerStatsModal({
       {profile!.currentGame ? <ThisRound game={profile!.currentGame} /> : null}
       <h3 className="mt-6 border-b border-panel-border pb-2 text-sm font-semibold">Recent games</h3>
       {profile!.log.length ? <ol className="divide-y divide-panel-border text-sm">{[...profile!.log].reverse().slice(0, 5).map((game) => <li key={game.id} className="flex justify-between gap-3 py-2"><span>Round {game.round} · {game.clubCode}</span><span className="tabular-nums text-ink-soft">PIR {game.pir} · FP {formatTenths(game.fantasyTenths)}</span></li>)}</ol> : <p className="mt-3 text-sm text-ink-soft">No stored games this season.</p>}
-      <Link href={profileHref} className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-live underline underline-offset-4">Full profile and game log →</Link>
+      <Link href={fullHref} className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-live underline underline-offset-4">Full profile and game log →</Link>
     </> : null}
   </dialog>;
 }

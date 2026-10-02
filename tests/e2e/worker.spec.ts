@@ -208,7 +208,7 @@ test("the room counts down, and shows the autodraft that lands in it", async ({
   );
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}/draft`);
+  await page.goto(`/l/${league.id}/draft`);
   await expect(page.getByTestId("draft-room")).toBeVisible();
   await expect(page.getByTestId("pick-clock")).toContainText(
     /Time left|Time's up/,
@@ -245,7 +245,7 @@ test("a member can hand their picks to the engine", async ({
   const { commissioner, league } = await liveDraft("Handover League", 60_000);
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}/draft`);
+  await page.goto(`/l/${league.id}/draft`);
   await expect(page.getByTestId("autodraft-state")).toContainText(
     "Autodraft is off",
   );

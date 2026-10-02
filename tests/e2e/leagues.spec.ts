@@ -25,10 +25,10 @@ test.afterAll(async () => {
   await cleanupTestData();
 });
 
-const leagueIdFromUrl = (url: string): string => {
-  const match = /\/leagues\/([^/?#]+)/.exec(url);
-  if (!match) throw new Error(`No league id in URL: ${url}`);
-  return match[1];
+const leagueSlugFromUrl = (url: string): string => {
+  const match = /\/l\/([^/?#]+)/.exec(url);
+  if (!match) throw new Error(`No league in URL: ${url}`);
+  return match[1]!;
 };
 
 test("a commissioner creates a league and lands in its lobby", async ({
@@ -44,8 +44,12 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await page.getByTestId("create-league-name").fill("Vafliai Test League");
   await page.getByTestId("create-league").click();
 
-  await page.waitForURL(/\/leagues\/[^/?]+(\?|$)/);
-  trackLeague(leagueIdFromUrl(page.url()));
+  // A readable address: the league's name, not its record id.
+  await page.waitForURL(/\/l\/vafliai-test-league(-\d+)?(\?|$)/);
+  const created = await (await superuser())
+    .collection("leagues")
+    .getFirstListItem(`slug = '${leagueSlugFromUrl(page.url())}'`, { requestKey: null });
+  trackLeague(created.id);
 
   await expect(page.getByTestId("lobby")).toBeVisible();
   await expect(page.getByTestId("invite-code")).toHaveText(/^[A-Z2-9]{6}$/);
@@ -82,7 +86,7 @@ test("a second person joins with the invite code", async ({
   await page.getByTestId("join-league-code").fill(code);
   await page.getByTestId("join-league").click();
 
-  await page.waitForURL(new RegExp(`/leagues/${id}(\\?|$)`));
+  await page.waitForURL(new RegExp(`/l/${id}(\\?|$)`));
   await expect(page.getByTestId("member")).toHaveCount(2);
 
   // And it now shows up on their own leagues list.
@@ -107,7 +111,7 @@ test("a lowercase, spaced code still joins", async ({ page, context }) => {
   await page.getByTestId("join-league-code").fill(messy);
   await page.getByTestId("join-league").click();
 
-  await page.waitForURL(new RegExp(`/leagues/${id}(\\?|$)`));
+  await page.waitForURL(new RegExp(`/l/${id}(\\?|$)`));
   await expect(page.getByTestId("member")).toHaveCount(2);
 });
 
@@ -159,7 +163,7 @@ test("someone else's lobby is not reachable by URL", async ({
 
   // The read rule refuses it, and the page answers "not found" rather than
   // "forbidden": confirming a league exists would let anyone probe for it.
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expectNoLobby(page);
 });
 
@@ -191,7 +195,7 @@ test("a league whose membership write was lost repairs itself", async ({
   );
 
   // Opening the lobby puts the missing row back.
-  await page.goto(`/leagues/${id}`);
+  await page.goto(`/l/${id}`);
   await expect(page.getByTestId("member")).toHaveCount(1);
   await expect(page.getByTestId("member").first()).toContainText(
     "commissioner",
@@ -264,7 +268,7 @@ test("the commissioner deletes the league, board and all", async ({
   const { commissioner, league } = await leagueWithABoard("Doomed League");
   await signIn(context, commissioner);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("delete-league-toggle").click();
 
   // The wrong name is not a confirmation.
@@ -283,7 +287,7 @@ test("the commissioner deletes the league, board and all", async ({
   // order: a pick still pointed at a membership, and PocketBase refuses to
   // delete a member while one does.
   await expect(page).toHaveURL("/");
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expectNoLobby(page);
 });
 
@@ -311,13 +315,13 @@ test("a league whose rosters were materialized still deletes", async ({
   );
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await page.getByTestId("delete-league-toggle").click();
   await page.getByTestId("delete-league-confirm").fill("Held League");
   await page.getByTestId("delete-league").click();
 
   await expect(page).toHaveURL("/");
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expectNoLobby(page);
 });
 
@@ -329,7 +333,7 @@ test("a deputy is trusted to help run the league, not to end it", async ({
   await grantManage(league.id, other);
   await signIn(context, other);
 
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("lobby")).toBeVisible();
   // They can manage members; they cannot end the league. `deleteLeague`
   // refuses a deputy regardless of what is on screen.
@@ -345,13 +349,13 @@ test("a lobby open elsewhere does not sit there empty after a delete", async ({
   // which looks like a bug rather than like a deleted league.
   const { commissioner, other, league } = await leagueWithABoard("Watched League");
   await signIn(context, other);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("member-list")).toBeVisible();
 
   const owner = await context.browser()!.newContext();
   await signIn(owner, commissioner);
   const ownerPage = await owner.newPage();
-  await ownerPage.goto(`/leagues/${league.id}`);
+  await ownerPage.goto(`/l/${league.id}`);
   await ownerPage.getByTestId("delete-league-toggle").click();
   await ownerPage.getByTestId("delete-league-confirm").fill("Watched League");
   await ownerPage.getByTestId("delete-league").click();

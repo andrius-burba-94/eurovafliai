@@ -1,7 +1,6 @@
 "use server";
 
 import { displayName } from "@/lib/players/name";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth/session";
@@ -40,6 +39,8 @@ import {
   toState,
 } from "./pipeline";
 import { RESET_CONFIRMATION, type DraftRecord } from "./types";
+import { revalidateLeague } from "@/lib/nav/revalidate";
+import { leaguePathOf } from "@/lib/slugs/store";
 
 /**
  * The draft's server actions — the request-facing half of the pick pipeline.
@@ -239,8 +240,7 @@ export async function startDraft(
       );
   }
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return OK;
 }
 
@@ -279,7 +279,7 @@ export async function makePick(
    * to make it again.
    */
   const refuse = (message: string): DraftResult => {
-    revalidatePath(`/leagues/${leagueId}/draft`);
+    revalidateLeague();
     return { error: message, playerId };
   };
 
@@ -369,7 +369,7 @@ export async function makePick(
     return refuse("Gone — that slot or that player was taken a moment ago.");
   }
 
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   // Not `OK`, and it names the player. 3.7's confirm control disarms on a pick
   // that landed — but `useActionState` keeps the *previous* result across the
   // next arming, so `picked: true` alone is ambiguous: it cannot tell "this
@@ -417,7 +417,7 @@ export async function setDraftPaused(
   // line — see `src/lib/chat/store.ts`.
   await announce(pb, draft.league, announcePause(pause));
 
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return OK;
 }
 
@@ -504,8 +504,7 @@ export async function setPickClock(
   // only other evidence is a countdown that starts from a different number.
   await announce(pb, draft.league, announceClock(seconds));
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return OK;
 }
 
@@ -631,8 +630,7 @@ export async function rollbackDraft(
     }),
   );
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return OK;
 }
 
@@ -695,8 +693,7 @@ export async function setAutodraft(
     .collection("league_members")
     .update(target.id, { autodraft_enabled: enabled }, { requestKey: null });
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return OK;
 }
 
@@ -784,9 +781,8 @@ export async function resetDraft(
     announceStartOver(context.own?.team_name || "The commissioner"),
   );
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   // The room they are standing in no longer exists. Everyone else's room gets
   // the delete event and follows them here.
-  redirect(`/leagues/${leagueId}`);
+  redirect(await leaguePathOf(pb, leagueId));
 }

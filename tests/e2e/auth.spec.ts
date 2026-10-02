@@ -32,7 +32,7 @@ test("an anonymous visitor is sent to the login page, with nothing wrong", async
 test("a deep link explains itself, but not as a failure", async ({ page }) => {
   // Somebody who asked for a specific league IS owed a reason for landing on
   // the login page. It just is not a correction.
-  await page.goto("/leagues/whatever");
+  await page.goto("/l/whatever");
   await expect(page).toHaveURL(/\/login\?error=unauthorized/);
   await expect(page.getByTestId("login-note")).toBeVisible();
   await expect(page.getByTestId("login-error")).toHaveCount(0);

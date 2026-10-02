@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { rollOrder } from "@/lib/engine";
 import { getSuperuserClient } from "@/lib/pb/superuser";
@@ -20,6 +19,7 @@ import {
   parseLeagueSettings,
 } from "./settings";
 import type { LeagueRecord, MemberRecord } from "./types";
+import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
  * Slice 2.3a — draft settings and order determination.
@@ -166,7 +166,7 @@ export async function updateDraftSettings(
     { requestKey: null },
   );
 
-  revalidatePath(`/leagues/${league.id}`);
+  revalidateLeague();
   return OK;
 }
 
@@ -300,7 +300,7 @@ export async function reshuffleDraftOrder(
     announceRoll({ order: teamNamesInOrder(members, order), reshuffle: true }),
   );
 
-  revalidatePath(`/leagues/${league.id}`);
+  revalidateLeague();
 
   if (failures.length > 0) {
     return {
@@ -382,7 +382,7 @@ export async function rollDraftOrder(
     );
   }
 
-  revalidatePath(`/leagues/${league.id}`);
+  revalidateLeague();
 
   if (failures.length > 0) {
     return {
@@ -453,7 +453,7 @@ export async function setManualOrder(
       );
   }
 
-  revalidatePath(`/leagues/${league.id}`);
+  revalidateLeague();
 
   if (failures.length > 0) {
     return {

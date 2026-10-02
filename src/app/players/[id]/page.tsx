@@ -18,6 +18,8 @@ import { navLeagueFrom } from "@/lib/nav/items";
 import { readNewsFor } from "@/lib/news/queries";
 import { formatTenths } from "@/lib/stats/scoring";
 import { readPlayerProfile } from "@/lib/stats/queries";
+import { playerHref, teamHref } from "@/lib/nav/urls";
+import { resolvePlayerId } from "@/lib/players/queries";
 
 /**
  * One figure and its name, as a definition pair.
@@ -63,14 +65,10 @@ export default async function PlayerPage({
   const session = await getSession();
   if (!session) redirect("/login?error=unauthorized");
 
-  const { id } = await params;
+  const { id: ref } = await params;
   const query = await searchParams;
-  const leagueId =
-    typeof query.league === "string" ? encodeURIComponent(query.league) : null;
-  const memberId =
-    typeof query.member === "string" ? encodeURIComponent(query.member) : null;
-  const rosterHref =
-    leagueId && memberId ? `/leagues/${leagueId}/teams/${memberId}` : null;
+  const id = await resolvePlayerId(ref);
+  if (!id) notFound();
   const [profile, news, leagueData] = await Promise.all([
     readPlayerProfile(id),
     readNewsFor(id),
@@ -79,7 +77,16 @@ export default async function PlayerPage({
       : Promise.resolve(null),
   ]);
   if (!profile) notFound();
+  if (profile.player.slug && ref !== profile.player.slug) {
+    const rest = new URLSearchParams(Object.entries(query).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+    redirect(`${playerHref(profile.player)}${rest.size ? `?${rest}` : ""}`);
+  }
   const league = leagueData ? navLeagueFrom(leagueData) : null;
+  const rosterMember =
+    leagueData && typeof query.member === "string"
+      ? leagueData.members.find((member) => member.id === query.member || member.slug === query.member)
+      : undefined;
+  const rosterHref = leagueData && rosterMember ? teamHref(leagueData.league, rosterMember) : null;
 
   const { player, log } = profile;
   const bio = [

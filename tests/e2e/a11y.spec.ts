@@ -75,7 +75,7 @@ for (const colorScheme of ["dark", "light"] as const) {
       const commissioner = await createTestUser("lobbyaxe");
       const league = await createLeagueFor(commissioner, "Axe Lobby");
       await signIn(context, commissioner);
-      await page.goto(`/leagues/${league.id}`);
+      await page.goto(`/l/${league.id}`);
       await expect(page.getByTestId("lobby")).toBeVisible();
       await assertNoSerious(page, "lobby");
     });
@@ -87,7 +87,7 @@ for (const colorScheme of ["dark", "light"] as const) {
       await createPlayer("Alpha", { position: "G" });
       await createPlayer("Bravo", { position: "F" });
       await signIn(context, commissioner);
-      await page.goto(`/leagues/${league.id}`);
+      await page.goto(`/l/${league.id}`);
       await rollOrder(page, league.id);
       await page.getByTestId("start-draft").click();
       await page.getByTestId("enter-draft").click();
@@ -101,7 +101,7 @@ for (const colorScheme of ["dark", "light"] as const) {
       const user = await createTestUser("standaxe");
       const league = await createLeagueFor(user, "Axe Standings");
       await signIn(context, user);
-      await page.goto(`/leagues/${league.id}/standings`);
+      await page.goto(`/l/${league.id}/standings`);
       await expect(page.getByTestId("standings")).toBeVisible();
       await assertNoSerious(page, "standings");
     });
@@ -141,7 +141,7 @@ for (const colorScheme of ["dark", "light"] as const) {
       }
 
       await signIn(context, user);
-      await page.goto(`/leagues/${league.id}/standings?season=E2099`);
+      await page.goto(`/l/${league.id}/standings?season=E2099`);
       await expect(page.getByTestId("standings-row")).toHaveCount(members.length);
       await assertNoSerious(page, "standings table");
     });
@@ -170,7 +170,7 @@ for (const colorScheme of ["dark", "light"] as const) {
         );
       }
       await signIn(context, user);
-      await page.goto(`/leagues/${league.id}/stats`);
+      await page.goto(`/l/${league.id}/stats`);
       await expect(page.getByTestId("stats-teams")).toBeVisible();
       await page.getByRole("button", { name: "About Team profiles" }).click();
       await assertNoSerious(page, "league stats");
@@ -225,7 +225,7 @@ for (const colorScheme of ["dark", "light"] as const) {
         .update(league.id, { status: "season" }, { requestKey: null });
 
       await signIn(context, user);
-      await page.goto(`/leagues/${league.id}/lineup?season=E2099&round=1`);
+      await page.goto(`/l/${league.id}/lineup?season=E2099&round=1`);
       await page.getByRole("button", { name: "grid", exact: true }).click();
       await page.getByLabel(`${shown(players[0]!.name)} role`).selectOption("starter");
       await page.getByRole("button", { name: "court", exact: true }).click();
@@ -281,7 +281,7 @@ for (const colorScheme of ["dark", "light"] as const) {
       );
 
       await signIn(context, user);
-      await page.goto(`/leagues/${league.id}/export`);
+      await page.goto(`/l/${league.id}/export`);
       await expect(page.getByTestId("export-form")).toBeVisible();
       await assertNoSerious(page, "export picker");
     });

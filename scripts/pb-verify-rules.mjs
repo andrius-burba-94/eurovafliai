@@ -1588,6 +1588,33 @@ try {
     "a member cannot invent a sync run",
   );
 
+  // --- S28 readable addresses -------------------------------------------------
+  const slug = `verify-${stamp}`;
+  await su.collection("players").update(playerOne.id, { slug }, { requestKey: null });
+  check(
+    await rejects(() => su.collection("players").update(playerTwo.id, { slug }, { requestKey: null })),
+    "two players cannot share an address",
+  );
+  check(
+    !(await rejects(() => su.collection("players").update(playerTwo.id, { slug: "" }, { requestKey: null }))),
+    "any number of players may wait for a slug",
+  );
+  check(
+    await rejects(() => su.collection("players").update(playerTwo.id, { slug: "Not A Slug" }, { requestKey: null })),
+    "a slug is lowercase letters, digits and hyphens",
+  );
+  check(
+    ["leagues", "league_members", "players"].every((name) =>
+      byName[name].indexes.some((index) => index.includes("_slug`") && index.includes("UNIQUE") && index.includes("WHERE")),
+    ),
+    "leagues, teams and players carry a partial unique slug index",
+  );
+  check(
+    await rejects(() => aliceClient.collection("leagues").update(league.id, { slug: "taken-over" }, { requestKey: null })),
+    "a member cannot rename the league's address",
+  );
+  await su.collection("players").update(playerOne.id, { slug: "" }, { requestKey: null });
+
 } finally {
   for (const id of created.fantasy_syncs)
     await su.collection("fantasy_syncs").delete(id, { requestKey: null }).catch(() => {});

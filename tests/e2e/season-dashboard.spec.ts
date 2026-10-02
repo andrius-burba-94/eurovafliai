@@ -105,7 +105,7 @@ test("the season lobby is a dashboard, not a grid of doors", async ({
   const { chief, league } = await seasonLeague("Dashboard League");
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("lobby")).toBeVisible();
 
   await expect(page.getByTestId("dashboard-standings")).toBeVisible();
@@ -128,7 +128,7 @@ test("the season lobby is a dashboard, not a grid of doors", async ({
   const hero = page.getByTestId("dashboard-hero");
   await expect(hero).toContainText("Virtuozas");
   await expect(hero.getByTestId("dashboard-rank")).toHaveText("1st");
-  await expect(hero.getByTestId("hero-lineup")).toHaveAttribute("href", `/leagues/${league.id}/lineup`);
+  await expect(hero.getByTestId("hero-lineup")).toHaveAttribute("href", `/l/${league.id}/lineup`);
 
   // The table is ranked, numbered, and knows which row is the viewer's.
   const rows = page.getByTestId("dashboard-standing");
@@ -151,7 +151,7 @@ test("nothing on the dashboard claims a fact this product does not have", async 
   const { chief, league } = await seasonLeague("Truthful League");
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("dashboard-standings")).toBeVisible();
 
   const body = await page.locator("body").innerText();
@@ -176,7 +176,7 @@ test("an unscored season shows the shape and admits it is empty", async ({
   });
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("lobby")).toBeVisible();
 
   await expect(page.getByTestId("dashboard-standings-empty")).toBeVisible();
@@ -235,7 +235,7 @@ test("a free-agent exchange is one trade and system notices stay out of chat", a
   });
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   const activity = page.getByTestId("league-activity");
   await expect(activity.getByTestId("chat-message")).toHaveCount(1);
   await expect(activity.getByTestId("chat-message")).toContainText("The round is ready");
@@ -250,7 +250,7 @@ test("a free-agent exchange is one trade and system notices stay out of chat", a
   await activity.getByRole("tab", { name: "EuroLeague news" }).click();
   await expect(activity.getByRole("tabpanel", { name: "EuroLeague news" })).toBeVisible();
 
-  await page.goto(`/leagues/${league.id}/teams/${mine.id}`);
+  await page.goto(`/l/${league.id}/${mine.id}`);
   await expect(page.getByTestId("impact-deal")).toHaveCount(1);
   await expect(page.getByTestId("impact-deal")).toContainText(
     /Virtuozas exchanged .*Release Brooks.* for .*Arrival Lawson/,
@@ -268,7 +268,7 @@ test("the setup lobby is untouched by any of this", async ({
   await addMemberTo(league.id, await createTestUser("mate"), "Mate FC");
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   await expect(page.getByTestId("invite-code")).toBeVisible();
   // The sheet lives in Drafts on a laptop and in More on a phone.
@@ -279,7 +279,7 @@ test("the setup lobby is untouched by any of this", async ({
   }
   await expect(
     page
-      .locator(`a[href="/leagues/${league.id}/sheet"]`)
+      .locator(`a[href="/l/${league.id}/sheet"]`)
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
@@ -295,7 +295,7 @@ test("the wordmark is the way home", async ({ page, context }) => {
   const league = await createLeagueFor(chief, "Home League");
 
   await signIn(context, chief);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("lobby")).toBeVisible();
 
   // One link over both clauses, not two to the same place.

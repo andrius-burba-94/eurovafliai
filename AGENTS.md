@@ -64,6 +64,10 @@ src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
 src/lib/positions.ts  position words and the one list-join
 src/lib/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
                   drives the sidebar, the tab bar and More alike
+src/lib/nav/urls.ts  every league, team and player address (S28): /l/<league>,
+                  /l/<league>/<team>. Never hand-build a league URL
+src/lib/slugs/    readable address segments: pure `slug.ts`, framework-free
+                  `store.ts` (`ensureSlugs`, worker + `npm run slugs:backfill`)
 src/lib/panel/    the side panel's one read (11.2): pool, a round's games, news
 src/worker/       PM2 worker: ~1s sweep, autodraft, stats ingest
 pb/VERSION        pinned PocketBase version — the download script reads it

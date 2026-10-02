@@ -74,7 +74,7 @@ test("a member exports the rosters as CSV from the lobby", async ({
   const { commissioner, league, guard, center } = await leagueWithDraft("exporter");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   // The way in is a door on the lobby, for any member.
   await expect(page.getByTestId("lobby-export")).toBeVisible();
@@ -125,7 +125,7 @@ test("the download refuses somebody who is not in the league", async ({
   await signIn(context, outsider);
 
   const response = await context.request.get(
-    `/leagues/${league.id}/export/download?include=rosters`,
+    `/l/${league.id}/export/download?include=rosters`,
   );
   // The same answer as a league that does not exist, so nobody can probe.
   expect(response.status()).toBe(404);
@@ -139,7 +139,7 @@ test("a league that has not drafted says so instead of offering a button", async
   const league = await createLeagueFor(commissioner, "Undrafted League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}/export`);
+  await page.goto(`/l/${league.id}/export`);
 
   await expect(page.getByTestId("export-empty")).toBeVisible();
   await expect(page.getByTestId("export-form")).toHaveCount(0);

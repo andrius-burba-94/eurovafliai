@@ -94,7 +94,7 @@ test("a message typed on one device appears on another, with no reload", async (
   const { commissioner, other, league } = await chatLeague("Chat League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("chat-toggle")).toHaveAttribute(
     "data-open",
     "true",
@@ -121,7 +121,7 @@ test("a message typed on one device appears on another, with no reload", async (
   const watcher = await browser.newContext();
   await signIn(watcher, other);
   const watching = await watcher.newPage();
-  await watching.goto(`/leagues/${league.id}`);
+  await watching.goto(`/l/${league.id}`);
   await openChat(watching);
   const before = await messages(watching).count();
 
@@ -156,7 +156,7 @@ test("a rollback announces itself, and is readable without opening the panel", a
   }
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await expect(page.getByTestId("enter-draft").locator("..")).toHaveAttribute(
@@ -205,7 +205,7 @@ test("a pick announces itself, in the app's own voice", async ({
   const player = await createPlayer("Chatpick", { position: "G" });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -261,7 +261,7 @@ test("deleting your own message leaves a tombstone, and the body is gone", async
   const { commissioner, league } = await chatLeague("Tombstone League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
   await page.getByTestId("chat-input").fill("delete me please");
   await page.getByTestId("chat-send").click();
@@ -302,7 +302,7 @@ test("a system announcement offers nobody a delete", async ({
   });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
   await expect(messages(page)).toHaveCount(1);
   await expect(rows(page).first()).toHaveAttribute("data-kind", "system");
@@ -316,7 +316,7 @@ test("sending twice in a moment is refused, and the sentence is not lost", async
   const { commissioner, league } = await chatLeague("Fast League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
 
   await page.getByTestId("chat-input").fill("first");
@@ -346,7 +346,7 @@ test("the room lost its ticker and kept everything else", async ({
   const player = await createPlayer("Tickerless", { position: "G" });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await page.getByTestId("start-draft").click();
   await page.getByTestId("enter-draft").click();
@@ -375,7 +375,7 @@ test("the roll announces itself in the lobby, where it happens", async ({
   const { commissioner, league } = await chatLeague("Roll Chat League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
 
   await expect(messages(page).last()).toContainText(
@@ -399,7 +399,7 @@ test("re-applying the roll announces nothing, and says so on the page", async ({
   const { commissioner, league } = await chatLeague("Re-apply League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await rollOrder(page, league.id);
   await expect(messages(page).last()).toContainText(
     /the draft order was rolled/i,
@@ -454,7 +454,7 @@ test("the collapsed header shows the rollback, not a third of it", async ({
   });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("chat-toggle")).toHaveAttribute(
     "data-open",
     "true",
@@ -500,7 +500,7 @@ test("an announcement is said out loud; a member's message is not", async ({
   const pb = await superuser();
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   const said = page.getByTestId("chat-said");
   await expect(said).toHaveAttribute("aria-live", "polite");
   await subscribed(page);
@@ -551,7 +551,7 @@ test("the transcript is reachable by keyboard with nothing in it of yours", asyn
 
   // Signed in as the member who has said nothing.
   await signIn(context, other);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
 
   const region = page.getByTestId("chat-list");
@@ -583,7 +583,7 @@ test("deleting a message can be undone, and never drops focus", async ({
   const { commissioner, league } = await chatLeague("Undo Chat League");
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
   await page.getByTestId("chat-input").fill("something regrettable");
   await page.getByTestId("chat-send").click();
@@ -632,7 +632,7 @@ test("the transcript is made of the board's material, and closes", async ({
   });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
 
   const drawn = await page.getByTestId("chat-run").evaluate((node) => {
@@ -671,7 +671,7 @@ test("a pasted URL cannot push the panel sideways", async ({
   });
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
   await openChat(page);
 
   const overflow = await page.getByTestId("chat-list").evaluate((node) => ({
@@ -705,7 +705,7 @@ test("every message carries a time, and the panel keeps its total", async ({
   }
 
   await signIn(context, commissioner);
-  await page.goto(`/leagues/${league.id}`);
+  await page.goto(`/l/${league.id}`);
 
   // The lobby opens chat as a task, so the initial transcript is already read.
   await expect(page.getByText("3 messages")).toBeVisible();

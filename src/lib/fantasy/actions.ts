@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
@@ -11,6 +10,7 @@ import { getSuperuserClient } from "@/lib/pb/superuser";
 
 import { fetchLeagueRosters } from "./client";
 import { decideSync, runFantasySync, syncDueLineups } from "./store";
+import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
  * The commissioner's side of the Fantasy Challenge sync: link the league,
@@ -49,9 +49,6 @@ async function managedLeague(leagueId: string) {
   return allowed ? { pb, league, members } : null;
 }
 
-function revalidate(leagueId: string): void {
-  revalidatePath(`/leagues/${leagueId}/fantasy`);
-}
 
 export async function linkFantasyLeague(
   _previous: FantasyActionResult,
@@ -76,7 +73,7 @@ export async function linkFantasyLeague(
   }
 
   await managed.pb.collection("leagues").update(leagueId, { fantasy_league_id: fantasyLeagueId }, { requestKey: null });
-  revalidate(leagueId);
+  revalidateLeague();
   return { error: null, done: fantasyLeagueId ? `Linked to official league ${fantasyLeagueId}.` : "Unlinked." };
 }
 
@@ -101,7 +98,7 @@ export async function answerFantasyQuestion(
       }
     }
     await managed.pb.collection("league_members").update(member.id, { fantasy_team_id: officialId }, { requestKey: null });
-    revalidate(leagueId);
+    revalidateLeague();
     return { error: null, done: choice };
   }
 
@@ -112,7 +109,7 @@ export async function answerFantasyQuestion(
       console.error(`answerFantasyQuestion: ${describeError(error)}`);
       return { error: "That player is already linked to another official player.", done: null };
     }
-    revalidate(leagueId);
+    revalidateLeague();
     return { error: null, done: choice };
   }
 
@@ -151,7 +148,7 @@ export async function syncFantasyNow(
       now: new Date(),
       force: true,
     });
-    revalidatePath(`/leagues/${leagueId}`, "layout");
+    revalidateLeague();
     return { error: null, done: run.id };
   } catch (error) {
     console.error(`syncFantasyNow: ${describeError(error)}`);

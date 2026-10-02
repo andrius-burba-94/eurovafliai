@@ -13,6 +13,7 @@ import { getSession } from "@/lib/auth/session";
 import { listMyLeagues } from "@/lib/leagues/queries";
 
 import { LeagueForms } from "./league-forms";
+import { leagueHref } from "@/lib/nav/urls";
 
 /**
  * Your leagues: the signed-in home. Create one as commissioner, or join a
@@ -82,7 +83,7 @@ export default async function Home() {
                         EuroLeague {league.season}
                       </span>
                       <Link
-                        href={`/leagues/${league.id}`}
+                        href={leagueHref(league)}
                         className="display text-4xl break-words hover:text-live focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live sm:text-5xl"
                       >
                         {league.name}
@@ -110,7 +111,7 @@ export default async function Home() {
                   </span>
 
                   <Link
-                    href={`/leagues/${league.id}${next.path}`}
+                    href={`${leagueHref(league)}${next.path}`}
                     className="inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-live bg-live px-5 text-sm font-bold text-live-ink transition-colors hover:brightness-110 active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                   >
                     {next.action} <span aria-hidden="true">&rarr;</span>

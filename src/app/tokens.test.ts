@@ -292,7 +292,7 @@ describe("a row in your hand says so in its own material", () => {
     const board = readFileSync(resolve(process.cwd(), "src/components/board.tsx"), "utf8");
     expect(board).toMatch(/transit:\s*"slot-transit"/);
     expect(board).toMatch(/type SlotState =[^;]*"transit"/);
-    const list = readFileSync(resolve(process.cwd(), "src/app/leagues/[id]/sheet/sheet-list.tsx"), "utf8");
+    const list = readFileSync(resolve(process.cwd(), "src/app/l/[league]/sheet/sheet-list.tsx"), "utf8");
     expect(list).toMatch(/\?\s*"transit"/);
     expect(list).toMatch(/"slot-transit bg-stock"/);
     expect(list).toMatch(/dragging\s*\n?\s*\?\s*"waiting"/);

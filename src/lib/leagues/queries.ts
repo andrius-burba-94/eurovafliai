@@ -122,7 +122,7 @@ export async function listMyLeagues(): Promise<LeagueCard[]> {
   );
 }
 
-export type LeagueLink = { id: string; name: string };
+export type LeagueLink = { id: string; name: string; slug?: string };
 
 /**
  * What the shell needs on every render: the switcher's names and ids, newest
@@ -148,7 +148,7 @@ export async function readShellLeagues(): Promise<{
     const [leagues, deputies] = await Promise.all([
       pb.collection("leagues").getFullList<LeagueRecord>({
         sort: "-created",
-        fields: "id,name,commissioner",
+        fields: "id,name,commissioner,slug",
         requestKey: null,
       }),
       pb.collection("league_members").getFullList({
@@ -160,13 +160,28 @@ export async function readShellLeagues(): Promise<{
       }),
     ]);
     return {
-      leagues: leagues.map((league) => ({ id: league.id, name: league.name })),
+      leagues: leagues.map((league) => ({ id: league.id, name: league.name, slug: league.slug })),
       isRosterManager:
         deputies.length > 0 ||
         leagues.some((league) => league.commissioner === session.user.id),
     };
   } catch {
     return { leagues: [], isRosterManager: false };
+  }
+}
+
+/** A URL's league segment, slug or id, as the league's id; null when the viewer may not see it. */
+export async function resolveLeagueId(ref: string): Promise<string | null> {
+  const session = await getSession();
+  if (!session) return null;
+  const pb = createUserClient(session.token);
+  try {
+    const league = await pb
+      .collection("leagues")
+      .getFirstListItem<LeagueRecord>(pb.filter("slug = {:ref} || id = {:ref}", { ref }), { fields: "id", requestKey: null });
+    return league.id;
+  } catch {
+    return null;
   }
 }
 
@@ -177,7 +192,8 @@ export async function readShellLeagues(): Promise<{
  * them would let anyone probe which invite codes exist.
  */
 export async function getLeagueWithMembers(
-  leagueId: string,
+  /** The league's slug as a URL carries it, or its record id. */
+  ref: string,
 ): Promise<LeagueWithMembers | null> {
   const session = await getSession();
   if (!session) return null;
@@ -186,12 +202,15 @@ export async function getLeagueWithMembers(
 
   let league: LeagueRecord;
   try {
-    league = await pb.collection("leagues").getOne<LeagueRecord>(leagueId, {
-      requestKey: null,
-    });
+    league = await pb
+      .collection("leagues")
+      .getFirstListItem<LeagueRecord>(pb.filter("slug = {:ref} || id = {:ref}", { ref }), {
+        requestKey: null,
+      });
   } catch {
     return null;
   }
+  const leagueId = league.id;
 
   // Repair before reading the members, not after.
   //

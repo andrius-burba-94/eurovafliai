@@ -14,6 +14,8 @@ export type LeagueRecord = RecordModel & {
   status: "setup" | "drafting" | "season" | "complete";
   /** The official Fantasy Challenge league this one mirrors; empty when not synced. */
   fantasy_league_id?: string;
+  /** Its address, /l/<slug>; empty until `ensureSlugs` reaches it (S28). */
+  slug?: string;
 };
 
 /** A `league_members` record, optionally with its user expanded. */
@@ -21,6 +23,8 @@ export type MemberRecord = RecordModel & {
   league: string;
   user: string;
   team_name: string;
+  /** The team's address in its league; empty until `ensureSlugs` reaches it (S28). */
+  slug?: string;
   team_color?: string;
   team_crest?: string;
   draft_position?: number;
@@ -43,6 +47,8 @@ export type LeagueWithMembers = {
 
 export type Member = {
   id: string;
+  /** The team's address under its league; empty until one is written. */
+  slug: string;
   userId: string;
   name: string;
   teamName: string;

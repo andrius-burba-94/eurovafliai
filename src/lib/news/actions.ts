@@ -60,7 +60,7 @@ export async function attachNewsName(
 
   revalidatePath("/players/mapping");
   revalidatePath("/players/news");
-  revalidatePath(`/players/${playerId}`);
+  revalidatePath("/players/[id]", "page");
 
   return {
     error: null,
@@ -115,7 +115,7 @@ export async function markPlayerFit(
 
   revalidatePath("/players/news");
   revalidatePath("/players");
-  revalidatePath(`/players/${playerId}`);
+  revalidatePath("/players/[id]", "page");
 
   return {
     error: null,

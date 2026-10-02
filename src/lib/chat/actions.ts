@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { getSafeActionError } from "@/lib/safe-error";
 
@@ -14,6 +13,7 @@ import {
   retractMessage,
   type ChatMessage,
 } from "./store";
+import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
  * Chat's front door — slice 3.5.
@@ -123,8 +123,7 @@ export async function sendChatMessage(
   // The surfaces that hold chat render server-side on first load; the realtime
   // subscription is what keeps them current after that. Revalidating means a
   // reload agrees with what everyone already saw.
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
 
   return { error: null, message };
 }
@@ -146,7 +145,6 @@ export async function retractChatMessage(
   });
   if (!done) return { error: "That is not yours to delete." };
 
-  revalidatePath(`/leagues/${leagueId}`);
-  revalidatePath(`/leagues/${leagueId}/draft`);
+  revalidateLeague();
   return { error: null };
 }
