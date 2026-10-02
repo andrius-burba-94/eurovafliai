@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Recap } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
 
-import { movementOf, ordinal, roundStory } from "./story";
+import { liveRecap, movementOf, ordinal, roundStory } from "./story";
 
 const recap = (rows: [string, number][]): Recap => ({
   round: 3,
@@ -19,6 +19,35 @@ const snap = (round: number, totals: [string, number][]): RoundSnapshot => ({
 });
 
 const names = { a: "Alpha", b: "Bravo", c: "Charlie", d: "Delta" };
+
+describe("liveRecap", () => {
+  const ranks = (rows: [string, number][]) => rows.map(([memberId, roundHundredths]) => ({ memberId, roundHundredths }));
+
+  it("ranks the open round by its points so far, not by the season total", () => {
+    const live = liveRecap(3, ranks([["a", 4000], ["b", 9050], ["c", 6000]]), null);
+    expect(live.round).toBe(3);
+    expect(live.rows.map((row) => row.memberId)).toEqual(["b", "c", "a"]);
+    const story = roundStory(live)!;
+    expect(story.winner.memberId).toBe("b");
+    expect(story.margin).toBe(3050);
+    expect(story.spoon?.memberId).toBe("a");
+  });
+
+  it("breaks a tie on member id, like a finished round", () => {
+    expect(liveRecap(3, ranks([["c", 500], ["a", 500], ["b", 900]]), null).rows.map((row) => row.memberId)).toEqual(["b", "a", "c"]);
+  });
+
+  it("tells no story before anybody has scored", () => {
+    expect(roundStory(liveRecap(3, ranks([["a", 0], ["b", 0]]), null))).toBeNull();
+    expect(roundStory(liveRecap(3, [], null))).toBeNull();
+  });
+
+  it("keeps the best night only once it counted for something", () => {
+    const night = { playerId: "p1", memberId: "a", fantasyTenths: 312 };
+    expect(liveRecap(3, ranks([["a", 3120]]), night).bestNight).toEqual(night);
+    expect(liveRecap(3, ranks([["a", 0]]), { ...night, fantasyTenths: 0 }).bestNight).toBeNull();
+  });
+});
 
 describe("roundStory", () => {
   it("names the winner, the margin and the spoon", () => {

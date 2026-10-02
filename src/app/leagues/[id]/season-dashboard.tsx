@@ -6,6 +6,7 @@ import { PageHeader, ScoreFigure, StatusBadge, TeamCrest, teamFieldStyle } from 
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
+import { RoundLadder } from "@/components/round-ladder";
 import type { ProvisionalRank } from "@/lib/live/rank";
 import type { PanelData } from "@/lib/panel/types";
 import { dashboardStandings, seasonLabel } from "@/lib/season/dashboard";
@@ -16,7 +17,7 @@ import {
   formatSignedTenths,
   formatTenths,
 } from "@/lib/stats/scoring";
-import type { Recap } from "@/lib/stats/recap";
+import type { Recap, RecapBestNight } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
 import type { TeamStyle } from "@/lib/teams/identity";
 import { formatTipOff } from "@/lib/time/local";
@@ -87,7 +88,16 @@ export function SeasonDashboard({
   const yourLive = live && youMemberId ? standings.find((row) => row.memberId === youMemberId) ?? null : null;
   const leaderTotal = standings[0]?.totalHundredths ?? 0;
   const movement = youMemberId ? movementOf(snapshots, youMemberId, teamNames) : null;
-  const story = roundStory(recap);
+  // While a round is played its story is the round so far, from the same
+  // provisional figures as the hero; the finished round's story waits on it.
+  const story = roundStory(live ? live.recap : recap);
+  const night = live ? live.bestNight : recap?.bestNight && recap.bestNight.fantasyTenths > 0
+    ? {
+        ...recap.bestNight,
+        name: playerNames[recap.bestNight.playerId] ?? "A player",
+        personCode: playerCodes[recap.bestNight.playerId] ?? "",
+      }
+    : null;
   const nameOf = (memberId: string) => teamNames[memberId] ?? "A team";
   const styleOf = (memberId: string) => teamStyles[memberId];
   const teamHref = (memberId: string) => `/leagues/${leagueId}/teams/${memberId}?season=${season}`;
@@ -239,21 +249,23 @@ export function SeasonDashboard({
           data-testid="dashboard-ticker"
           className="flex items-stretch overflow-x-auto rounded-lg border border-panel-border text-sm whitespace-nowrap"
         >
-          <span className="display grid place-items-center bg-live px-3 text-base text-live-ink">Round {story.round}</span>
-          <span className="flex items-center gap-2 border-r border-panel-border px-3 py-2 text-ink-soft">
-            <Glyph name="crown" size={14} className="text-gold" />
-            <span className="font-semibold text-ink">{nameOf(story.winner.memberId)}</span> won the night
+          <span className="display grid place-items-center bg-live px-3 text-base text-live-ink">
+            {live ? `Round ${story.round} so far` : `Round ${story.round}`}
           </span>
-          {recap?.bestNight && recap.bestNight.fantasyTenths > 0 ? (
+          <span className="flex items-center gap-2 border-r border-panel-border px-3 py-2 text-ink-soft">
+            {live ? null : <Glyph name="crown" size={14} className="text-gold" />}
+            <span className="font-semibold text-ink">{nameOf(story.winner.memberId)}</span> {live ? "leading" : "won the night"}
+          </span>
+          {night ? (
             <span className="flex items-center gap-2 border-r border-panel-border px-3 py-2 text-ink-soft">
               <Glyph name="star" size={14} className="text-live" />
-              Best night <span className="font-semibold text-ink">{playerNames[recap.bestNight.playerId] ?? "A player"}</span>
+              {live ? "Best night so far" : "Best night"} <span className="font-semibold text-ink">{night.name}</span>
             </span>
           ) : null}
           {story.spoon ? (
             <span className="flex items-center gap-2 px-3 py-2 text-ink-soft">
-              <Glyph name="spoon" size={14} className="text-wood" />
-              Spoon <span className="font-semibold text-ink">{nameOf(story.spoon.memberId)}</span>
+              {live ? null : <Glyph name="spoon" size={14} className="text-wood" />}
+              {live ? "Last" : "Spoon"} <span className="font-semibold text-ink">{nameOf(story.spoon.memberId)}</span>
             </span>
           ) : null}
         </p>
@@ -339,8 +351,33 @@ export function SeasonDashboard({
           </Slots>
         </Bank>
 
-        <Bank label={story ? `Round ${story.round} story` : "This round"} framed>
-          {story ? (
+        <Bank
+          label={live ? `Round ${live.round} so far` : story ? `Round ${story.round} story` : "This round"}
+          aside={live ? `${live.played} of ${live.total} played` : undefined}
+          framed
+        >
+          {live && story ? (
+            <div className="flex flex-col gap-3" data-testid="dashboard-round-so-far">
+              <p className="display text-2xl leading-none" data-testid="dashboard-leading">
+                {nameOf(story.winner.memberId)} lead
+                {story.margin !== null && story.margin > 0 ? ` by ${formatHundredths(story.margin)}` : ""}
+              </p>
+              <RoundLadder
+                rows={live.recap.rows}
+                names={teamNames}
+                styles={teamStyles}
+                hrefOf={teamHref}
+                marks={false}
+                testId="dashboard-night"
+                label={`Teams by round ${live.round} so far`}
+              />
+              {night ? <BestNight night={night} label="Best night so far" teamName={nameOf(night.memberId)} /> : null}
+            </div>
+          ) : live ? (
+            <EmptyNotice testId="dashboard-news-empty">
+              Round {live.round} has tipped off. The ladder fills in with the first counted points.
+            </EmptyNotice>
+          ) : story ? (
             <div className="flex flex-col gap-3" data-testid="dashboard-night">
               <Moment kind="sweep" id={`crown:${leagueId}:${story.round}`} testId="dashboard-winner" className="rounded-xl border border-gold/40 bg-gold/8 p-3">
                 <p className="slot-label flex items-center gap-1.5 text-gold">
@@ -372,19 +409,7 @@ export function SeasonDashboard({
                 </div>
               </Moment>
 
-              {recap?.bestNight && recap.bestNight.fantasyTenths > 0 ? (
-                <div data-testid="dashboard-best-night" className="flex items-center justify-between gap-3 rounded-xl border border-panel-border p-3">
-                  <span className="flex min-w-0 items-center gap-3">
-                    <PlayerPortrait personCode={playerCodes[recap.bestNight.playerId]} name={playerNames[recap.bestNight.playerId] ?? "A player"} />
-                    <span className="min-w-0">
-                      <span className="slot-label block">Best night</span>
-                      <span className="block truncate font-semibold">{playerNames[recap.bestNight.playerId] ?? "A player"}</span>
-                      <span className="text-xs text-ink-soft">for {nameOf(recap.bestNight.memberId)}</span>
-                    </span>
-                  </span>
-                  <ScoreFigure size="sm">{formatTenths(recap.bestNight.fantasyTenths)}</ScoreFigure>
-                </div>
-              ) : null}
+              {night ? <BestNight night={night} label="Best night" teamName={nameOf(night.memberId)} /> : null}
 
               {story.spoon ? (
                 <div data-testid="dashboard-spoon" className="flex items-center justify-between gap-3 rounded-xl border border-panel-border p-3">
@@ -417,19 +442,27 @@ export function SeasonDashboard({
             </div>
           ) : (
             <EmptyNotice testId="dashboard-news-empty">
-              {live
-                ? `Round ${live.round} is still being played. Its story arrives with the last game.`
-                : "Nothing to report yet. A round\u2019s story arrives with the first night this league counts."}
+              Nothing to report yet. A round&rsquo;s story arrives with the first night this league counts.
             </EmptyNotice>
           )}
           <Slots>
-            <Door
-              href={`/leagues/${leagueId}/recap?season=${season}`}
-              testId="enter-recap"
-              title="The whole round"
-              description="Every team's night, the best night and the deal that moved most."
-              action="Open"
-            />
+            {live ? (
+              <Door
+                href={`/leagues/${leagueId}/recap?season=${season}&round=${live.round}`}
+                testId="enter-recap"
+                title="The round so far"
+                description="Every team's night so far, the best night and who sits last."
+                action="Open"
+              />
+            ) : (
+              <Door
+                href={`/leagues/${leagueId}/recap?season=${season}`}
+                testId="enter-recap"
+                title="The whole round"
+                description="Every team's night, the best night and the deal that moved most."
+                action="Open"
+              />
+            )}
           </Slots>
         </Bank>
       </div>
@@ -439,6 +472,8 @@ export function SeasonDashboard({
   );
 }
 
+type Night = RecapBestNight & { readonly name: string; readonly personCode: string };
+
 export type LiveRound = {
   readonly round: number;
   readonly played: number;
@@ -446,7 +481,26 @@ export type LiveRound = {
   /** A game's live feed is running. */
   readonly onAir: boolean;
   readonly ranks: readonly ProvisionalRank[];
+  /** The round so far as a night: its ladder in the same figures as `ranks`. */
+  readonly recap: Recap;
+  readonly bestNight: Night | null;
 };
+
+function BestNight({ night, label, teamName }: { night: Night; label: string; teamName: string }) {
+  return (
+    <div data-testid="dashboard-best-night" className="flex items-center justify-between gap-3 rounded-xl border border-panel-border p-3">
+      <span className="flex min-w-0 items-center gap-3">
+        <PlayerPortrait personCode={night.personCode} name={night.name} />
+        <span className="min-w-0">
+          <span className="slot-label block">{label}</span>
+          <span className="block truncate font-semibold">{night.name}</span>
+          <span className="text-xs text-ink-soft">for {teamName}</span>
+        </span>
+      </span>
+      <ScoreFigure size="sm">{formatTenths(night.fantasyTenths)}</ScoreFigure>
+    </div>
+  );
+}
 
 function TeamLink({ href, name, isYou }: { href: string; name: string; isYou: boolean }) {
   return (

@@ -1,10 +1,9 @@
-import Link from "next/link";
-
-import { Bank, Slot, Slots } from "@/components/board";
+import { Bank } from "@/components/board";
 import { ScoreFigure, StatusBadge, TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
+import { RoundLadder } from "@/components/round-ladder";
 import { announceAdd, announceDrop, announceTrade } from "@/lib/chat/messages";
 import { roundStory } from "@/lib/season/story";
 import type { Recap } from "@/lib/stats/recap";
@@ -44,7 +43,6 @@ export function RecapBody({
   const story = roundStory(recap);
   const night = recap.bestNight;
   const swing = recap.biggestSwing;
-  const top = recap.rows[0]?.hundredths ?? 0;
   const swingSentence = swing
     ? swing.type === "trade"
       ? announceTrade({
@@ -142,42 +140,15 @@ export function RecapBody({
               No teams scored this round. The ladder appears once a counted box score lands for a roster.
             </p>
           ) : (
-            <Slots testId="recap-table" label="Teams by this round">
-              {recap.rows.map((row, index) => {
-                const last = index === recap.rows.length - 1 && recap.rows.length > 1;
-                return (
-                  <Slot key={row.memberId} testId="recap-row" state="filled" nowrap>
-                    <Link
-                      href={`/leagues/${leagueId}/teams/${row.memberId}?season=${encodeURIComponent(season)}`}
-                      data-testid="recap-team"
-                      className="-mx-3 -my-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
-                    >
-                      <span className="stat w-5 shrink-0 text-xs text-ink-faint">{index + 1}</span>
-                      {crest(row.memberId, 28)}
-                      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
-                          {team(row.memberId)}
-                          {index === 0 && story && !open ? <Glyph name="crown" size={13} className="text-gold" /> : null}
-                          {last && story?.spoon && !open ? <Glyph name="spoon" size={13} className="text-wood" /> : null}
-                        </span>
-                        <span className="block h-1.5 overflow-hidden rounded-full bg-stock-high" aria-hidden="true">
-                          <span
-                            className="block h-full rounded-full"
-                            style={{
-                              width: `${top > 0 ? Math.max(4, (row.hundredths / top) * 100) : 0}%`,
-                              background: styles[row.memberId] ? `var(--color-team-${styles[row.memberId]!.color})` : "var(--color-live)",
-                            }}
-                          />
-                        </span>
-                      </span>
-                      <span className="stat text-sm font-semibold" data-testid="recap-tenths">
-                        {formatHundredths(row.hundredths)}
-                      </span>
-                    </Link>
-                  </Slot>
-                );
-              })}
-            </Slots>
+            <RoundLadder
+              rows={recap.rows}
+              names={names}
+              styles={styles}
+              hrefOf={(memberId) => `/leagues/${leagueId}/teams/${memberId}?season=${encodeURIComponent(season)}`}
+              marks={!open}
+              testId="recap"
+              label="Teams by this round"
+            />
           )}
         </Bank>
 

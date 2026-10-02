@@ -101,7 +101,7 @@ function ownerThatRound(
  * table says the same thing; a recap that ranked raw box scores would name a
  * best night that moved nobody's total.
  */
-function bestNight(
+export function bestNight(
   windows: readonly RecapWindow[],
   lines: readonly ImpactLine[],
   round: number,

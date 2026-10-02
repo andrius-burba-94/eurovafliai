@@ -706,3 +706,32 @@ states. Run against a fresh PocketBase (as CI does) the stats, standings and
 season-dashboard specs pass on both projects; on a local database whose
 schedule still has a round 2 game to play they fail as already noted in STATUS.
 
+## S25 — League Home: the round so far
+
+Feedback after S20: on the second day of round 3, League Home's story still
+said "Round 2 story", so the page read as if two rounds had passed. S20 had
+been right that an open round has no winner and no spoon, but wrong to show
+nothing of it: the friends on the couch want to know how the round is shaping
+up, and Recap already had the provisional language for that.
+
+The story panel now tells the open round in the figures the hero and the
+table already use. `readMatchdayData` computes the provisional ranks from
+recorded box scores plus the live feed; pure `liveRecap` reorders those ranks
+by the round's own points into a `Recap`, so `roundStory` works unchanged and
+the panel says "X lead by Y". The best night so far comes from the same read,
+using Recap's own `bestNight` rule (now exported), weighed by each owner's
+lineup over the same merged lines. Using `readLeagueRecap` for the open round
+instead would have been one call, but it skips live lines, so the panel could
+disagree with the hero beside it; that difference on the Recap page itself is
+now a debt row.
+
+The ladder moved out of Recap into `RoundLadder`, so both pages draw one
+thing; `marks` is the crown and spoon, off while the round is open. No moment
+plays for an open round. A round that has tipped off with nobody scoring yet
+says so instead of drawing an all-zero ladder.
+
+Verification: `story.test.ts` covers the ladder order, the tie-break, an
+unscored round and the best night. Checked on a local database whose schedule
+leaves round 2 open: Home shows "Round 2 so far", the ladder and the best
+night, and Recap still draws its own ladder through the shared component.
+
