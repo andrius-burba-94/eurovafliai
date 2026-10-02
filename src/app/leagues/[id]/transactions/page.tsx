@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
 import { PageHeader, TeamCrest } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
+import { MarketBars } from "@/components/market-bars";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
@@ -52,8 +53,6 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
   const team = typeof query.team === "string" && data.members.some((row) => row.id === query.team) ? query.team : null;
   const shown = team ? deals.filter((deal) => deal.sides.some((side) => side.memberId === team)) : deals;
   const market = Object.entries(ledger).sort(([, a], [, b]) => b.netTenths - a.netTenths);
-  const widest = Math.max(1, ...market.map(([, entry]) => Math.abs(entry.netTenths)));
-
   const faces = (ids: readonly string[]) =>
     ids.length === 0 ? (
       <p className="text-sm text-ink-faint">Nobody</p>
@@ -129,32 +128,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
 
       {market.length > 0 ? (
         <Bank framed label="Who is winning the market" aside="Points since each deal">
-          <ul role="list" className="flex flex-col" data-testid="deal-ledger">
-            {market.map(([memberId, entry]) => (
-              <li key={memberId} className="grid grid-cols-[minmax(0,10rem)_1fr_4.5rem] items-center gap-3 py-1.5 sm:grid-cols-[minmax(0,14rem)_1fr_5rem]">
-                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-                  {crest(memberId, 22)}
-                  <span className="truncate">{name(memberId)}</span>
-                </span>
-                <span className="grid grid-cols-2 items-center" aria-hidden="true">
-                  <span className="flex justify-end">
-                    {entry.netTenths < 0 ? (
-                      <span className="block h-2 rounded-l-full bg-loss" style={{ width: `${(Math.abs(entry.netTenths) / widest) * 100}%` }} />
-                    ) : null}
-                  </span>
-                  <span className="border-l border-rule">
-                    {entry.netTenths > 0 ? (
-                      <span className="block h-2 rounded-r-full bg-gain" style={{ width: `${(entry.netTenths / widest) * 100}%` }} />
-                    ) : null}
-                  </span>
-                </span>
-                <span className={`stat text-right text-sm font-bold ${entry.netTenths > 0 ? "text-gain" : entry.netTenths < 0 ? "text-loss" : "text-ink-soft"}`}>
-                  {formatSignedTenths(entry.netTenths)}
-                  <span className="sr-only"> over {entry.deals} {entry.deals === 1 ? "deal" : "deals"}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <MarketBars rows={market} name={name} crest={crest} testId="deal-ledger" />
         </Bank>
       ) : null}
 

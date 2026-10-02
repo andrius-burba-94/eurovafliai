@@ -19,6 +19,7 @@ import {
   sparklinePoints,
   sparklineSentence,
 } from "@/lib/charts/sparkline";
+import { InfoTip } from "@/components/info-tip";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
@@ -200,12 +201,15 @@ export function Bank({
   aside,
   framed = false,
   testId,
+  info,
 }: {
   label: string;
   children: ReactNode;
   aside?: ReactNode;
   framed?: boolean;
   testId?: string;
+  /** What the section means, behind an "i" beside its heading rather than a paragraph under it. */
+  info?: ReactNode;
 }) {
   // A section with a heading it is not associated with is an unnamed region:
   // a screen reader lands in it and is told nothing, while the heading it
@@ -220,9 +224,20 @@ export function Bank({
       className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
     >
       <div className="flex items-baseline justify-between gap-4">
-        <h2 id={headingId} className="display text-xl text-ink sm:text-2xl">
-          {label}
-        </h2>
+        {info ? (
+          <span className="flex items-center gap-2">
+            <h2 id={headingId} className="display text-xl text-ink sm:text-2xl">
+              {label}
+            </h2>
+            <InfoTip label={`About ${label}`} testId={`${headingId}-info`}>
+              {info}
+            </InfoTip>
+          </span>
+        ) : (
+          <h2 id={headingId} className="display text-xl text-ink sm:text-2xl">
+            {label}
+          </h2>
+        )}
         {aside ? <span className="text-sm text-ink-soft">{aside}</span> : null}
       </div>
       {children}

@@ -30,7 +30,7 @@ export type BadgeId = "on-fire" | "crowned" | "spoon-collector";
 export const HONOUR_MEANING: Readonly<Record<BadgeId, string>> = {
   "on-fire": "Top three in three or more rounds in a row.",
   crowned: "Won a round.",
-  "spoon-collector": "Finished last in two or more rounds.",
+  "spoon-collector": "Finished last in a round.",
 };
 
 export type Badge = {
@@ -94,8 +94,8 @@ export function memberHonours(snapshots: readonly RoundSnapshot[]): MemberHonour
 
 /**
  * The badges on show. Thresholds are the league's own words: three straight
- * top-three nights is "on fire", a won night is a crown, two spoons is a
- * collection. Ordered so the most flattering reads first.
+ * top-three nights is "on fire", a won night is a crown, a last place is a
+ * wooden spoon. Ordered so the most flattering reads first.
  */
 export function badgesFrom(snapshots: readonly RoundSnapshot[]): Badge[] {
   const badges: Badge[] = [];
@@ -123,12 +123,12 @@ export function badgesFrom(snapshots: readonly RoundSnapshot[]): Badge[] {
     }
   }
   for (const member of all) {
-    if (member.spoons >= 2) {
+    if (member.spoons > 0) {
       badges.push({
         id: "spoon-collector",
         memberId: member.memberId,
-        title: "Spoon collector",
-        detail: `${member.spoons} wooden spoons`,
+        title: member.spoons === 1 ? "Wooden spoon" : `Wooden spoon ×${member.spoons}`,
+        detail: member.spoons === 1 ? "Finished last in a round" : `${member.spoons} wooden spoons`,
         tally: member.spoons,
       });
     }

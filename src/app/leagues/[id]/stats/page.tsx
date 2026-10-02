@@ -1,4 +1,3 @@
-import { displayName } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -8,6 +7,7 @@ import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
 import { PageHeader, ScoreFigure, TeamCrest } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { HonourChip } from "@/components/honour-chip";
+import { MarketBars } from "@/components/market-bars";
 import { PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
@@ -18,7 +18,7 @@ import { navLeagueFrom } from "@/lib/nav/items";
 import { badgesFrom } from "@/lib/season/badges";
 import { headToHead, type PlayerLeader } from "@/lib/stats/league-stats";
 import { readLeagueStats } from "@/lib/stats/league-stats-queries";
-import { formatHundredths, formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
+import { formatHundredths, formatTenths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
 
 import {
@@ -27,6 +27,10 @@ import {
   DraftValueView,
   HeadToHeadView,
   HindsightView,
+  LineupEfficiencyView,
+  PlayerName,
+  TeamName,
+  TeamProfilesView,
   WaffleBoardView,
   type Who,
 } from "./sections";
@@ -36,10 +40,10 @@ const TOPICS = [
   ["teams", "Teams"],
   ["h2h", "Head-to-head"],
   ["lineups", "Lineups"],
+  ["deals", "Deals"],
   ["draft", "Draft"],
   ["players", "Players"],
   ["clubs", "Clubs"],
-  ["deals", "Deals"],
 ] as const;
 
 /**
@@ -86,7 +90,8 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/le
   const { stats } = page;
   const { records } = stats;
   const badges = badgesFrom(page.snapshots);
-  const who: Who = { team, crest, player, you: you.id };
+  const teamHref = (memberId: string) => `/leagues/${id}/teams/${memberId}`;
+  const who: Who = { team, crest, player, teamHref, you: you.id };
   const ranked = stats.waffle.rows.map((row) => row.memberId);
   const known = (raw: string | string[] | undefined) => (typeof raw === "string" && ranked.includes(raw) ? raw : null);
   const left = known(query.a) ?? (ranked.includes(you.id) ? you.id : ranked[0]);
@@ -103,16 +108,11 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/le
       <p className="text-xs text-ink-soft">{detail}</p>
     </div>
   );
-  const teamWho = (memberId: string) => (
-    <span className="flex min-w-0 items-center gap-2 font-semibold">
-      {crest(memberId, 28)}
-      <span className="truncate">{team(memberId)}</span>
-    </span>
-  );
+  const teamWho = (memberId: string) => <TeamName memberId={memberId} who={who} size={28} className="font-semibold" />;
   const playerWho = (playerId: string) => (
     <span className="flex min-w-0 items-center gap-2">
       <PlayerPortrait personCode={player(playerId)?.personCode} name={player(playerId)?.name ?? "A player"} />
-      <span className="truncate font-semibold">{displayName(player(playerId)?.name ?? "A player")}</span>
+      <PlayerName playerId={playerId} who={who} className="font-semibold" />
     </span>
   );
   const leaderRows = (rows: readonly PlayerLeader[], unit: string) => (
@@ -122,22 +122,20 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/le
           <span className="stat w-4 text-xs text-ink-faint">{index + 1}</span>
           <PlayerPortrait personCode={player(row.playerId)?.personCode} name={player(row.playerId)?.name ?? "A player"} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-sm font-semibold">{displayName(player(row.playerId)?.name ?? "A player")}</span>
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft">
+            <PlayerName playerId={row.playerId} who={who} className="text-sm font-semibold" />
+            <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-soft">
               {player(row.playerId)?.position ? <PositionPatch position={player(row.playerId)!.position} /> : null}
-              {crest(row.ownerId, 16)}
-              {team(row.ownerId)}
+              <TeamName memberId={row.ownerId} who={who} size={16} />
             </span>
           </span>
           <span className="stat text-sm font-bold">
             {formatTenths(row.tenths)}
-            <span className="ml-1 text-xs font-normal text-ink-faint">{unit}</span>
+            {unit ? <span className="ml-1 text-xs font-normal text-ink-faint">{unit}</span> : null}
           </span>
         </li>
       ))}
     </ol>
   );
-  const benchMax = Math.max(1, ...stats.lineups.map((row) => row.benchLostTenths));
   const market = Object.entries(deals.ledger).sort(([, a], [, b]) => b.netTenths - a.netTenths);
 
   return (
@@ -167,9 +165,8 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/le
           <ul role="list" aria-label="Honours so far" className="flex flex-wrap gap-2">
             {badges.map((badge) => (
               <li key={`${badge.id}:${badge.memberId}`} className="flex items-center gap-2 rounded-full border border-panel-border bg-stock-panel py-0.5 pr-3 pl-1 text-xs">
-                {crest(badge.memberId, 22)}
                 <HonourChip id={badge.id} title={badge.title} />
-                <span className="text-ink-soft">{team(badge.memberId)}</span>
+                <TeamName memberId={badge.memberId} who={who} size={18} className="text-ink-soft" />
               </li>
             ))}
           </ul>
@@ -177,107 +174,56 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/le
       </section>
 
       <section id="teams" className="scroll-mt-20">
-        <Bank framed label="Team profiles" aside="Per counted round">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm" data-testid="stats-teams">
-              <thead>
-                <tr className="text-left text-xs text-ink-soft">
-                  <th className="py-2 pr-3 font-semibold">Team</th>
-                  <th className="py-2 pr-3 text-right font-semibold">Average</th>
-                  <th className="py-2 pr-3 text-right font-semibold">Best</th>
-                  <th className="py-2 pr-3 text-right font-semibold">Worst</th>
-                  <th className="py-2 pr-3 text-right font-semibold" title="Standard deviation of round scores">Spread</th>
-                  <th className="py-2 pr-3 text-right font-semibold">Won</th>
-                  <th className="py-2 pr-3 text-right font-semibold">Top 3</th>
-                  <th className="py-2 text-right font-semibold">Spoons</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.teams.map((row) => (
-                  <tr key={row.memberId} className={`border-t border-panel-border ${row.memberId === you.id ? "bg-live-sunk" : ""}`}>
-                    <td className="py-2 pr-3">
-                      <Link href={`/leagues/${id}/teams/${row.memberId}`} className="flex items-center gap-2 font-semibold hover:underline">
-                        {crest(row.memberId, 22)}
-                        <span className="truncate">{team(row.memberId)}</span>
-                      </Link>
-                    </td>
-                    <td className="stat py-2 pr-3 text-right font-bold">{formatHundredths(row.averageHundredths)}</td>
-                    <td className="stat py-2 pr-3 text-right">{formatHundredths(row.bestHundredths)}</td>
-                    <td className="stat py-2 pr-3 text-right text-ink-soft">{formatHundredths(row.worstHundredths)}</td>
-                    <td className="stat py-2 pr-3 text-right text-ink-soft">±{formatHundredths(row.spreadHundredths)}</td>
-                    <td className="stat py-2 pr-3 text-right">{row.roundsWon}</td>
-                    <td className="stat py-2 pr-3 text-right">{row.topThree}</td>
-                    <td className="stat py-2 text-right">{row.spoons}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Bank>
+        <TeamProfilesView rows={stats.teams} who={who} />
       </section>
 
       <section id="h2h" className="scroll-mt-20">
         <HeadToHeadView h2h={h2h} teams={ranked} action={`/leagues/${id}/stats#h2h`} who={who} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <section id="lineups" className="scroll-mt-20">
-          <Bank framed label="Lineup efficiency" aside="Recorded rounds only">
-            <p className="text-sm text-ink-soft">Points left on the bench and in the stands, and how often the captain was the night&apos;s best starter.</p>
-            {stats.lineups.every((row) => row.captainRounds === 0 && row.benchLostTenths === 0) ? (
-              <EmptyNotice testId="stats-lineups-empty">No lineup has been recorded yet, so every round counted everyone at 100%.</EmptyNotice>
+      <div id="lineups" className="grid scroll-mt-20 gap-6 lg:grid-cols-2 lg:items-start">
+        <LineupEfficiencyView rows={stats.lineups} who={who} />
+        <CaptainRegretView rows={stats.captains} who={who} />
+        <HindsightView rows={stats.hindsight} who={who} />
+        <section id="deals" className="scroll-mt-20">
+          <Bank
+            framed
+            label="Deal ledger"
+            info="Net points each team has gained or lost since its deals, counted the way its lineups counted them."
+            aside={<Link href={`/leagues/${id}/transactions`} className="font-semibold text-live hover:underline">All trades →</Link>}
+          >
+            {market.length === 0 ? (
+              <EmptyNotice>No deals recorded yet.</EmptyNotice>
             ) : (
-            <ul role="list" className="flex flex-col divide-y divide-panel-border" data-testid="stats-lineups">
-              {stats.lineups.map((row) => (
-                <li key={row.memberId} className="flex items-center gap-3 py-2">
-                  {crest(row.memberId, 20)}
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{team(row.memberId)}</span>
-                  <span className="hidden h-2 w-24 overflow-hidden rounded-full bg-stock-high sm:block" aria-hidden="true">
-                    <span className="block h-full rounded-full bg-loss" style={{ width: `${(row.benchLostTenths / benchMax) * 100}%` }} />
-                  </span>
-                  <span className="stat w-14 text-right text-sm">{formatTenths(row.benchLostTenths)}</span>
-                  <span className="stat w-14 text-right text-xs text-ink-soft">
-                    {row.captainRounds > 0 ? `C ${row.captainHits}/${row.captainRounds}` : "—"}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              <MarketBars rows={market} name={(memberId) => team(memberId)} crest={crest} hrefOf={teamHref} showDeals testId="stats-deals" />
             )}
           </Bank>
         </section>
-
-        <section id="captains" className="scroll-mt-20">
-          <CaptainRegretView rows={stats.captains} who={who} />
-        </section>
       </div>
-
-      <section id="hindsight" className="scroll-mt-20">
-        <HindsightView rows={stats.hindsight} who={who} />
-      </section>
 
       <section id="draft" className="scroll-mt-20">
         <DraftValueView draft={stats.draft} who={who} />
       </section>
 
       <section id="players" className="scroll-mt-20">
-        <Bank framed label="Players of the season" aside="Fantasy points">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-1">
+        <Bank framed label="Players of the season" info="Fantasy points over finished rounds. Owners are as of the latest finished round.">
+          <div className="grid gap-y-6 lg:grid-cols-3 lg:divide-x lg:divide-panel-border">
+            <div className="flex flex-col gap-1 lg:pr-6">
               <p className="slot-label">Top scorers</p>
               {leaderRows(stats.players.overall, "")}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 border-t border-panel-border pt-5 lg:border-t-0 lg:px-6 lg:pt-0">
               <p className="slot-label flex items-center gap-1.5 text-live"><Glyph name="flame" size={12} /> Hot · last three rounds</p>
               {leaderRows(stats.players.hot, "avg")}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 border-t border-panel-border pt-5 lg:border-t-0 lg:pt-0 lg:pl-6">
               <p className="slot-label">Best free agents</p>
               {stats.players.freeAgents.length > 0 ? leaderRows(stats.players.freeAgents, "") : <EmptyNotice>Every scorer is owned.</EmptyNotice>}
             </div>
           </div>
-          <div className="grid gap-6 border-t border-panel-border pt-4 sm:grid-cols-3">
-            {(["G", "F", "C"] as Position[]).map((position) => (
-              <div key={position} className="flex flex-col gap-1">
+          <div className="mt-2 grid gap-y-6 border-t border-rule pt-5 sm:grid-cols-3 sm:divide-x sm:divide-panel-border">
+            {(["G", "F", "C"] as Position[]).map((position, index) => (
+              <div key={position} className={`flex flex-col gap-1 ${index === 0 ? "sm:pr-6" : index === 1 ? "sm:px-6" : "sm:pl-6"}`}>
                 <p className="slot-label flex items-center gap-2"><PositionPatch position={position} /> {position === "G" ? "Guards" : position === "F" ? "Forwards" : "Centers"}</p>
                 {leaderRows(stats.players.byPosition[position], "")}
               </div>
@@ -288,27 +234,6 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/le
 
       <section id="clubs" className="scroll-mt-20">
         <ClubLoyaltyView rows={stats.clubs} clubNames={page.clubNames} who={who} />
-      </section>
-
-      <section id="deals" className="scroll-mt-20">
-        <Bank framed label="Deal ledger" aside={<Link href={`/leagues/${id}/transactions`} className="font-semibold text-live hover:underline">All trades →</Link>}>
-          {market.length === 0 ? (
-            <EmptyNotice>No deals recorded yet.</EmptyNotice>
-          ) : (
-            <ul role="list" className="flex flex-col divide-y divide-panel-border">
-              {market.map(([memberId, entry]) => (
-                <li key={memberId} className="flex items-center gap-3 py-2">
-                  {crest(memberId, 20)}
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{team(memberId)}</span>
-                  <span className="text-xs text-ink-soft">{entry.deals} deal{entry.deals === 1 ? "" : "s"}</span>
-                  <span className={`stat w-16 text-right text-sm font-bold ${entry.netTenths > 0 ? "text-gain" : entry.netTenths < 0 ? "text-loss" : "text-ink-soft"}`}>
-                    {formatSignedTenths(entry.netTenths)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Bank>
       </section>
     </AppShell>
   );

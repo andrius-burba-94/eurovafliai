@@ -765,3 +765,48 @@ Verification: `theme.test.ts`, `tokens.test.ts`; `design.spec` (no choice
 follows the device; a held ground survives a reload and ignores the device;
 back to System follows it again) and `shell.spec` on both projects.
 
+## S27 — Stats: compact, explained, linked
+
+Feedback on S24: the page explained itself in paragraphs, four panels each
+took a full row, and several numbers had no word for what they measured.
+
+**Explanations behind an "i".** `InfoTip` generalises the mechanics S24 wrote
+for `HonourChip` (hover by CSS state, focus only when `:focus-visible`, tap
+toggles, Escape and blur close) and fixes its one flaw: the tip was pinned to
+the left edge and ran off a phone's right side, so it now measures the trigger
+and opens toward the side with room. The "i" is an 18px ring in `ink-faint`
+with a 42px invisible hit area. `Bank` takes `info`; every paragraph under a
+Stats heading moved into one, and each column head of the team tables has a
+one-line tip in plain words ("Rounds finished in the top three").
+
+**The spoon.** S24's "Spoon collector" needed two last places, so after two
+finished rounds nobody had one while "Crowned" was on show; it read as if
+spoons were gone. A spoon is now an honour from the first last place, worded
+like the crown ("Wooden spoon", "Wooden spoon ×2"); the id stays
+`spoon-collector` so stored moment keys are unchanged.
+
+**Layout.** Team profiles keep one full-width table but draw each team's
+worst-to-best range on a single league scale with the average marked, so the
+steady and the streaky read at a glance; "Spread" was a statistician's word
+and is now Swing. Head-to-head is one row; its strip is a client component so
+a hover, focus or tap names the round under the bars instead of a legend.
+Lineup efficiency, Captain regret, Hindsight and the Deal ledger are two rows
+of two; the three lineup tables share `TeamTable` (team, then two labelled
+figures). The ledger is the Trades page's diverging bar, extracted as
+`MarketBars`. Captain regret no longer names who wore the armband.
+
+**Club colours.** `lib/clubs/colors.ts` holds one OKLCH colour per E2026
+club, from each club's kit and crest as published on teamcolorcodes.com and
+colorcodeguide.com (checked 2 October 2026): Žalgiris green, Olympiacos red,
+Panathinaikos green, Fenerbahçe and Maccabi yellow, Valencia orange, Real
+Madrid's purple, Barcelona's garnet, Efes's light blue, Baskonia's navy lifted
+to a mid blue. Partizan, Virtus, ASVEL, Paris, Beşiktaş and Dubai play in
+black and white and are neutral greys at different lightness. Every colour is
+held between L 0.46 and 0.86 so a bar reads on both grounds (tested), and a
+club bar always sits beside its crest, so colour is never the only word.
+
+Verification: unit tests (spoon at one, club colours over the 20 pool clubs);
+`league-stats.spec` adds the two spoons, a section's "i" and a team link;
+`standings.spec` and `transactions.spec` pass with the shared `HonourChip` and
+`MarketBars`.
+

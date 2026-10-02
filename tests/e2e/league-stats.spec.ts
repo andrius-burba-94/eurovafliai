@@ -67,6 +67,16 @@ test("League Stats reads the season's records and team profiles from the counted
   const crowned = page.getByTestId("honour-chip-crowned").first();
   await crowned.click();
   await expect(page.getByRole("tooltip", { name: "Won a round." }).first()).toBeVisible();
+  // Each team finished last once, and one last place is already a spoon.
+  await expect(page.getByTestId("honour-chip-spoon-collector")).toHaveCount(2);
+
+  // A section explains itself behind its "i", not in a paragraph under the heading.
+  await page.getByRole("button", { name: "About Team profiles" }).click();
+  await expect(page.getByRole("tooltip", { name: /typical score/ })).toBeVisible();
+
+  // Team names lead to the team.
+  await page.getByTestId("stats-teams").getByRole("link", { name: "Mate FC" }).click();
+  await expect(page).toHaveURL(new RegExp(`/teams/${members[1]!.id}`));
 });
 
 test("League Stats admits it is empty before a round is counted", async ({ page, context }) => {
