@@ -1033,3 +1033,29 @@ Verification: a new `roster.spec` case opens the switcher, checks both teams
 and the You pill, and moves to the other team; `a11y.spec`, `shell.spec`: 58
 passed. Checked at 1440×900 (a 16-letter name stays on one line, chevron
 beside it) and at 390×844 light with the panel open.
+
+## S34 — A podium that fits
+
+Feedback: Standings lost its character when S30 folded the podium into rank
+chips. Bring an actual podium back, without giving back the room S30 won.
+
+S30's podium was a 130px section of its own above the table, and it pushed the
+table below the fold at 1440×900. This one stands *on* the table: the first
+child of The table's panel, its floor the rule under it, so it reads as the
+table's head rather than a second section. Three columns, second left of
+first and third right of it on screen (CSS `order`; the list is 1-2-3 for a
+screen reader). Each place is a link: crest (34px for the leader, 26 for the
+others) beside the name and total, with the gap for second and third, over a
+step 40, 32 and 24px tall in gold, ink and wood with its numeral in the
+display face. Totals stay in ink rather than gold, which did not hold its
+contrast on the light ground. The leader's crown is a `crown` moment keyed on
+league and leader, so it drops once when someone new takes first and is
+still on every reload.
+
+Measured: 83px at 1440×900; the eighth row ends at 697px. At 390×844 the
+three columns stack crest over name over total, and a long name truncates in
+its own column.
+
+Verification: `standings.spec`, `lineup.spec`, `a11y.spec` (standings, both
+grounds and devices): 74 passed. The four failures were the two
+season-dashboard cases STATUS records as local-schedule ones.

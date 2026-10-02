@@ -142,6 +142,17 @@ export function StandingsTable({
         }
         aside={aside}
       >
+        {rows.length >= 2 && leader > 0 ? (
+          <Podium
+            leagueId={leagueId}
+            rows={rows.slice(0, 3).map((row) => ({ memberId: row.memberId, totalHundredths: row.totalHundredths }))}
+            leader={leader}
+            nameOf={nameOf}
+            crest={crest}
+            hrefOf={teamHref}
+            viewerMemberId={viewerMemberId}
+          />
+        ) : null}
         {rows.length === 0 ? (
           <p className="text-sm text-ink-soft">No counted games in the phases you have on.</p>
         ) : (
@@ -291,6 +302,85 @@ export function StandingsTable({
         )}
       </Bank>
     </>
+  );
+}
+
+/** Each step of the podium: its height, its medal, its word. Second stands left of first, third right. */
+const STEPS = [
+  { place: "1st", numeral: "1", order: "order-2", height: "h-10", tone: "border-gold/60 bg-gold/20 text-gold" },
+  { place: "2nd", numeral: "2", order: "order-1", height: "h-8", tone: "border-ink/30 bg-ink/10 text-ink" },
+  { place: "3rd", numeral: "3", order: "order-3", height: "h-6", tone: "border-wood/60 bg-wood/25 text-wood" },
+] as const;
+
+/**
+ * The top three on a low stage above the table: a crest, name and total over
+ * a step in its medal's colour, standing on the table's own panel. About
+ * eighty pixels, where S30's was a hundred and thirty, so the whole table
+ * still opens above the fold at 1440×900. The list is
+ * first, second, third for a screen reader and 2-1-3 on screen.
+ */
+function Podium({
+  leagueId,
+  rows,
+  leader,
+  nameOf,
+  crest,
+  hrefOf,
+  viewerMemberId,
+}: {
+  leagueId: string;
+  rows: readonly { memberId: string; totalHundredths: number }[];
+  leader: number;
+  nameOf: (memberId: string) => string;
+  crest: (memberId: string, size: number) => ReactNode;
+  hrefOf: (memberId: string) => string;
+  viewerMemberId: string | null;
+}) {
+  return (
+    <section aria-label="Podium" data-testid="standings-podium" className="-mt-1 mb-3 border-b border-rule-strong">
+      <ol className="mx-auto grid max-w-3xl grid-cols-3 items-end gap-2 sm:gap-3">
+        {rows.map((row, index) => {
+          const step = STEPS[index]!;
+          const first = index === 0;
+          const mine = row.memberId === viewerMemberId;
+          return (
+            <li
+              key={row.memberId}
+              data-testid="standings-podium-place"
+              aria-label={`${step.place}, ${nameOf(row.memberId)}, ${formatHundredths(row.totalHundredths)}`}
+              className={`flex min-w-0 flex-col ${step.order}`}
+            >
+              <Link
+                href={hrefOf(row.memberId)}
+                className="group flex min-w-0 flex-col items-center gap-1 rounded-t-lg px-1 pb-1.5 text-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live sm:flex-row sm:gap-2 sm:text-left"
+              >
+                <span className="relative shrink-0">
+                  {first ? (
+                    <Moment kind="crown" id={`podium-crown:${leagueId}:${row.memberId}`} as="span" className="absolute -top-2.5 left-1/2 -ml-[7px] text-gold">
+                      <Glyph name="crown" size={14} />
+                    </Moment>
+                  ) : null}
+                  {crest(row.memberId, first ? 34 : 26)}
+                </span>
+                <span className="flex max-w-full min-w-0 flex-col items-center sm:items-start">
+                  <span className={`max-w-full truncate text-xs font-semibold group-hover:underline sm:text-sm ${mine ? "text-live" : ""}`}>{nameOf(row.memberId)}</span>
+                  <span className="stat text-xs">
+                    <span className={first ? "font-bold" : "font-semibold"}>{formatHundredths(row.totalHundredths)}</span>
+                    {first ? null : <span className="ml-1 text-ink-faint">−{formatHundredths(leader - row.totalHundredths)}</span>}
+                  </span>
+                </span>
+              </Link>
+              <span
+                aria-hidden="true"
+                className={`display grid place-items-center rounded-t-block border border-b-0 pt-0.5 leading-none ${first ? "text-2xl" : "text-lg"} ${step.height} ${step.tone}`}
+              >
+                {step.numeral}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
