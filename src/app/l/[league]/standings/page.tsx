@@ -20,6 +20,7 @@ import { stylesById } from "@/lib/teams/identity";
 
 import { StandingsTable } from "./standings-table";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
+import { InfoTip } from "@/components/info-tip";
 
 /**
  * The table — slice 4.5.
@@ -101,15 +102,12 @@ export default async function StandingsPage({
       testId="standings"
     >
       <PageHeader
-        eyebrow={data.league.name}
-        title="Standings"
-        lead={
+        eyebrow={
           latestRound === undefined
-            ? undefined
-            : latestOpen
-              ? `Round ${latestRound} is still being played, so its column is points so far. Each finished round's winner is in gold.`
-              : `After round ${latestRound}. Each round's winner is in gold.`
+            ? data.league.name
+            : `${data.league.name} · ${latestOpen ? `round ${latestRound} in progress` : `after round ${latestRound}`}`
         }
+        title="Standings"
         action={<DownloadMenu leagueBase={base} />}
       />
 
@@ -153,21 +151,6 @@ export default async function StandingsPage({
         </Bank>
       ) : (
         <>
-          {provisional.length > 0 ? (
-            <p
-              data-testid="standings-provisional"
-              className="rounded-lg border border-gold/40 bg-gold/10 px-3.5 py-3 text-sm text-ink"
-            >
-              <span className="font-semibold text-gold">Provisional · </span>
-              {provisional.length === 1
-                ? `Round ${provisional[0]} counted every player at 100%: no lineup has been recorded for it.`
-                : `Rounds ${provisional.join(", ")} counted every player at 100%: no lineup has been recorded for them.`}{" "}
-              <Link href={`${base}/lineup`} className="underline">
-                Set a lineup
-              </Link>{" "}
-              and the table is recomputed.
-            </p>
-          ) : null}
           <StandingsTable
             snapshots={snapshots}
             complete={progress.complete}
@@ -176,6 +159,27 @@ export default async function StandingsPage({
             leagueId={id} paths={leaguePaths(data.league, data.members)}
             season={season}
             viewerMemberId={you?.id ?? null}
+            aside={
+              provisional.length > 0 ? (
+                <span data-testid="standings-provisional" className="flex items-center gap-1.5 text-xs">
+                  <span className="rounded-full border border-gold/50 bg-gold/10 px-2 py-0.5 font-semibold text-gold">
+                    Provisional
+                    <span className="hidden sm:inline">
+                      : {provisional.length === 1 ? "round" : "rounds"} {provisional.join(", ")}
+                    </span>
+                  </span>
+                  <InfoTip label="About provisional rounds">
+                    {provisional.length === 1
+                      ? `Round ${provisional[0]} counted every player at 100%: no lineup has been recorded for it.`
+                      : `Rounds ${provisional.join(", ")} counted every player at 100%: no lineup has been recorded for them.`}{" "}
+                    Set a lineup and the table is recomputed.
+                  </InfoTip>
+                  <Link href={`${base}/lineup`} className="font-semibold text-live hover:underline">
+                    Set lineup
+                  </Link>
+                </span>
+              ) : undefined
+            }
           />
         </>
       )}
