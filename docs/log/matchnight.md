@@ -735,3 +735,33 @@ unscored round and the best night. Checked on a local database whose schedule
 leaves round 2 open: Home shows "Round 2 so far", the ladder and the best
 night, and Recap still draws its own ladder through the shared component.
 
+## S26 — Theme switch
+
+ADR-0011 chose "no in-app switch" when the light ground was new; the owner
+asked for one, so the reader can now hold Light or Dark and System stays the
+default. The amendment is in the ADR.
+
+The light tokens are one block under `:root[data-theme="light"]` rather than a
+`prefers-color-scheme` query, so there is still exactly one place each value
+lives (and `tokens.test.ts` parses it). A head script writes `data-theme`
+before the body paints: from the `theme` cookie, or from `matchMedia` on
+System, with a change listener so System still follows the phone at sunset.
+The script cannot import, so `theme.test.ts` executes the script string
+against the module's own `themeChoiceFrom` / `groundOf` for every cookie and
+device combination. `<html>` carries `suppressHydrationWarning` again, for the
+one attribute the server cannot know; Phase 10 had removed it with the old
+switch.
+
+The first cut was a three-way segmented control above the account. The
+`shell.spec` guard that the full season sidebar fits a 690px screen failed by
+exactly its 51px, so the sidebar has one 44px button beside the account name
+that cycles System → Light → Dark and names the current choice and the next
+one to assistive tech. The phone's More sheet has room, so it spells the three
+out as native radios. A second E2E bug was in the test: a click before
+hydration landed on the server's "System" default, so the spec now waits for
+the hydrated `data-choice`.
+
+Verification: `theme.test.ts`, `tokens.test.ts`; `design.spec` (no choice
+follows the device; a held ground survives a reload and ignores the device;
+back to System follows it again) and `shell.spec` on both projects.
+

@@ -95,36 +95,36 @@
   --tabs-height: calc(3.5rem + 1px + env(safe-area-inset-bottom));
 }
 
-/* The light ground: the same meanings, solved again for a lit room. */
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --color-stock: oklch(0.965 0.004 255);
-    --color-stock-panel: oklch(0.993 0.002 255);
-    --color-stock-high: oklch(0.93 0.006 255);
-    --color-stock-sunk: oklch(0.935 0.006 255);
-    --color-ink: oklch(0.21 0.03 262);
-    --color-ink-soft: oklch(0.38 0.03 262);
-    --color-ink-faint: oklch(0.47 0.025 262);
-    --color-rule: oklch(0.6 0.016 255);
-    --color-rule-strong: oklch(0.52 0.02 255);
-    --color-panel-border: oklch(0.87 0.008 255);
-    --color-rail: oklch(0.45 0.09 250);
-    --color-live: oklch(0.53 0.17 42);
-    --color-live-sunk: oklch(0.93 0.035 50);
-    --color-live-ink: oklch(0.99 0.005 60);
-    --color-gain: oklch(0.5 0.13 150);
-    --color-loss: oklch(0.52 0.19 25);
-    --color-gold: oklch(0.52 0.12 75);
-    --color-pos-g: oklch(0.5 0.13 245);
-    --color-pos-f: oklch(0.48 0.1 180);
-    --color-pos-c: oklch(0.5 0.16 305);
-    --color-on-air: oklch(0.54 0.2 27);
-    --color-on-air-ink: oklch(0.99 0.005 30);
-    --color-wood: oklch(0.66 0.085 64);
-    --color-wood-deep: oklch(0.6 0.085 60);
-    --color-court-line: oklch(0.98 0.01 80);
-  }
+/* The light ground: the same meanings, solved again for a lit room. The head
+ * script in layout.tsx sets `data-theme` before first paint, from the reader's
+ * choice or, on "System", from the device. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-stock: oklch(0.965 0.004 255);
+  --color-stock-panel: oklch(0.993 0.002 255);
+  --color-stock-high: oklch(0.93 0.006 255);
+  --color-stock-sunk: oklch(0.935 0.006 255);
+  --color-ink: oklch(0.21 0.03 262);
+  --color-ink-soft: oklch(0.38 0.03 262);
+  --color-ink-faint: oklch(0.47 0.025 262);
+  --color-rule: oklch(0.6 0.016 255);
+  --color-rule-strong: oklch(0.52 0.02 255);
+  --color-panel-border: oklch(0.87 0.008 255);
+  --color-rail: oklch(0.45 0.09 250);
+  --color-live: oklch(0.53 0.17 42);
+  --color-live-sunk: oklch(0.93 0.035 50);
+  --color-live-ink: oklch(0.99 0.005 60);
+  --color-gain: oklch(0.5 0.13 150);
+  --color-loss: oklch(0.52 0.19 25);
+  --color-gold: oklch(0.52 0.12 75);
+  --color-pos-g: oklch(0.5 0.13 245);
+  --color-pos-f: oklch(0.48 0.1 180);
+  --color-pos-c: oklch(0.5 0.16 305);
+  --color-on-air: oklch(0.54 0.2 27);
+  --color-on-air-ink: oklch(0.99 0.005 30);
+  --color-wood: oklch(0.66 0.085 64);
+  --color-wood-deep: oklch(0.6 0.085 60);
+  --color-court-line: oklch(0.98 0.01 80);
 }
 
 ::selection {

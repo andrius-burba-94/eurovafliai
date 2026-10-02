@@ -9,6 +9,7 @@ import {
   PanelProvider,
   PanelToggle,
 } from "@/components/shell-panel";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 import { readShellLeagues, type LeagueLink } from "@/lib/leagues/queries";
@@ -94,8 +95,11 @@ export async function AppShell({
           <nav aria-label="Main" className="mt-3 min-h-0 flex-1 overflow-y-auto" tabIndex={0}>
             <SidebarNavGroups groups={groups} current={current} />
           </nav>
-          <div className="mt-2">
-            <AccountMenu account={account} />
+          <div className="mt-1.5 flex items-center gap-1 border-t border-rail/40">
+            <div className="min-w-0 flex-1">
+              <AccountMenu account={account} />
+            </div>
+            <ThemeSwitch testId="theme-switch" variant="cycle" />
           </div>
         </aside>
 
@@ -348,7 +352,7 @@ function AccountMenu({ account }: { account: string }) {
           <span className="sr-only">, account</span>
         </>
       }
-      buttonClassName={`slot-label flex min-h-11 w-full min-w-11 items-center justify-between gap-2 border-t border-rail/40 px-3 pt-2 text-ink transition-colors hover:text-ink ${focusRing}`}
+      buttonClassName={`slot-label flex min-h-11 w-full min-w-11 items-center justify-between gap-2 px-3 text-ink transition-colors hover:text-ink ${focusRing}`}
       panelClassName={`${POPOVER} bottom-full left-0 mb-1 w-full`}
     >
       <SignOut />
@@ -409,6 +413,9 @@ function BottomTabs({
             <NavGroups groups={groups} current={current} prefix="more" />
             <div className="flex flex-col gap-1 border-t border-rail/40 pt-3">
               <p className="slot-label truncate px-3 text-ink">{account}</p>
+              <div className="px-3 pb-1">
+                <ThemeSwitch testId="theme-switch-more" variant="segmented" />
+              </div>
               <SignOut />
             </div>
           </Menu>

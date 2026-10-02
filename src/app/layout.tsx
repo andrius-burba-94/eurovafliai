@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { barlowCondensed, jetbrainsMono, spaceGrotesk } from "@/app/font";
+import { GROUND_COLOR, THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,8 +11,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0b0f18" },
-    { media: "(prefers-color-scheme: light)", color: "#f3f4f7" },
+    { media: "(prefers-color-scheme: dark)", color: GROUND_COLOR.dark },
+    { media: "(prefers-color-scheme: light)", color: GROUND_COLOR.light },
   ],
 };
 
@@ -27,7 +28,8 @@ const DIRECTION_CONTRACT = `<!--
   Phone tabs in season are Home, Lineup, Live, Table and More. Permissions
   decide which destinations appear.
 
-  PALETTE: dark and light grounds follow the device. Tip-off orange is the one
+  PALETTE: dark and light grounds follow the device unless the reader holds
+  one with the sidebar's theme switch. Tip-off orange is the one
   act, the selection and whoever is on the clock; gain is green, loss red, gold
   crowns and captains. Each member's team has a colour and a monogram crest.
   State never relies on colour alone. A position always prints G, F or C.
@@ -46,14 +48,16 @@ const DIRECTION_CONTRACT = `<!--
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // No `suppressHydrationWarning` and no `<head>` script since Phase 10.
-    // Both existed for the ground switch: the script wrote `data-theme` before
-    // first paint so a dark reader never saw a white flash. There is one ground
-    // now, declared in CSS, so the server's markup and the browser's agree.
+    // The head script writes `data-theme` before first paint, so the server's
+    // `<html>` cannot know it; the warning is suppressed for that element only.
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${barlowCondensed.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-stock text-ink">
         <div hidden dangerouslySetInnerHTML={{ __html: DIRECTION_CONTRACT }} />
         {/* First focusable control in the document. Off-screen until focused,

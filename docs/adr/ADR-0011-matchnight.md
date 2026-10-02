@@ -26,8 +26,10 @@ package of a EuroLeague game night: one big number per page, team colour
 bars, a scorebug, lower thirds for moments.
 
 - **Two grounds.** Dark by default and light when the device asks for it,
-  through `prefers-color-scheme`. No in-app switch. Both are measured in
-  `tokens.test.ts`.
+  through `prefers-color-scheme`. Both are measured in `tokens.test.ts`.
+  *Amended 2 October 2026 (S26):* the owner asked for a switch, so the reader
+  can hold Light or Dark (System stays the default) from the sidebar, kept in
+  a `theme` cookie that a head script reads before first paint.
 - **Palette: Tip-off.** Basketball orange is the accent (`live`): the one act on
   a surface, the selection, focus, and whoever is on the clock. Gain green,
   loss red, gold for crowns and captains. A red `on-air` bug marks a game in
