@@ -932,3 +932,32 @@ crowned round, no single-phase filter), `lineup.spec` (provisional pill),
 grounds), `league-stats.spec` (honour chips still explain themselves). 70
 passed. Checked at 1440×900, 1280×800 light and 390×844.
 
+## S31 — My Team, a page about the team
+
+Feedback: My Team felt like a roster on a page rather than the team you are
+watching, and the roster took far too much room.
+
+The page now opens on the team the way League Home opens on yours: its
+colours (`team-field`), its rank with movement, total and gap from the
+finished rounds (`movementOf`), the round in progress with its live rank
+(the same `readMatchdayData` League Home reads, so the two agree), and its
+finish in every round as the waffle board's shaded cells. The strip beneath
+is the team's slice of League Stats (`teamSummary` over `readLeagueStats`):
+best and worst round, crowns, top threes, lineup IQ, captain calls, bench
+points and the net from its deals, with the jargon behind "i" tips. A team
+with no recorded lineup shows dashes there rather than a perfect record.
+
+The roster lost its portraits and its two-line rows: a club crest, the
+name with any status badge, the club and the next opponent, then form, last,
+season and pick in aligned columns (form and pick from `sm`), under one rule
+per position. It is about half the height for all thirteen players, and every
+figure it showed before is still there. "Carrying you" and "On thin ice"
+moved beside it, smaller, with the clubs the points come from (in the club
+colours from S27), the deals and the crest editor.
+
+Verification: `team-summary.test.ts`; `roster.spec`, `transactions.spec`,
+`team-identity.spec`, `panel.spec`, `addresses.spec`; a new `a11y.spec` case
+opens a tip on the team page on both grounds. The two season-dashboard
+failures are the local-schedule ones STATUS records. Checked at 1440×900
+beside the panel and at 390×844.
+
