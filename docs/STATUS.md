@@ -67,6 +67,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S32 Tips that float, a roster that lines up | Done | `InfoTip` draws its tip on `document.body` through `Floating` (`components/floating.tsx`, pure `placeFloating`), fixed beside its button and flipped above it when there is no room below, so a clipped parent (the team strip, the hero) can no longer hide it. A roster row always has a Form cell (a dash before two games), so Last, Season and Pick stay in their columns. **Last** is the player's own latest game on this roster (`memberships/roster-figures.ts`), with its round on hover; it used to be the roster's latest round, a dash for everyone whose game was still to come. The club bars on My Team and Stats are one `ClubBar`: point at or tap a colour and it lifts, the others step back, and a tip names the club and its share of the team's points (`clubs/share.ts`). The sidebar's theme button opens **System, Light, Dark** upward instead of cycling (`ThemeSwitch` `popover`, on `Menu`, which now also closes on `data-close`). |
 | S33 Every team from My Team, and a trophy room | Done | The team's name is a button (`TeamSwitcher`, route-local, on `Menu`): it opens the league's teams in table order, each with rank, crest, manager and a **You** pill on yours, and keeps `?season`. The panel drops from under the title on the desktop and spans the hero on a phone (`Menu` gained `headingClassName`, so the button sits inside the page's `h1` and the panel outside it, and `anchored={false}`). It is an opaque panel like the league switcher: DESIGN.md refuses glass in components. The hero lost `overflow-hidden` so the panel can leave it (the lattice carries the corner radius instead). Under **Every round**, a **Trophy room** shelf shows this team's honours from `badgesFrom` (crown ×N, wooden spoon ×N, flame N in a row) in their colours, each flipping in once when newly earned, or "No silverware yet." |
 | S34 A podium that fits | Done | The top three stand on a low stage at the head of **The table**'s own panel, 2-1-3: crest, name, total (and the gap for second and third) over a step in its medal colour with the place as a display numeral. The leader's crest wears a crown that drops in once per viewer when the lead changes hands (`podium-crown:<league>:<member>`). 83px at 1440×900, where S30's removed podium was 130, so the whole table still ends above the fold (the eighth row ends at 697px). A screen reader hears first, second, third; each place links to its team. |
+| S35 Lineups read after every tip-off | Done | The lineup sync reads a frozen round again five minutes after each of its tip-offs (`RoundWindow.tips`, `lineupRoundsDue`), not only hourly, because a manager can move a starter or the captain between a round's game days. The lineup form follows a synced change when nothing is unsaved. See **Fantasy Challenge sync** for the round 3 evidence and the scoring debt it uncovered. |
 
 **Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
 directions, and any signed-in page with the system in dark and then light mode:
@@ -183,6 +184,26 @@ matched from the lineup; one it cannot place is asked on the Fantasy sync page.
 Each run's report (Trades → Fantasy sync, "Lineups") sets our round total beside
 the official one per team. Migration `1790300000`. Manual repair:
 `npm run lineups:sync -- --rounds=1,2`.
+
+**Read after every tip-off (S35).** The official game locks a player when his
+own game starts, so a manager can bench day 1's captain and make a day 2
+player captain until the round's last tip-off. On 2 October the hourly read
+landed at 16:57 UTC, three minutes before day 2's first game, and the swap
+waited until 17:57. `RoundWindow.tips` now lists every distinct tip-off in a
+round, and `lineupRoundsDue` reads the round again five minutes after each tip
+that no run has followed (within ten minutes, the worker's check cadence). An
+open lineup page follows a synced change when it holds no unsaved edit.
+
+**Debt: a swapped-out player is scored in his new role, not the one he
+played in.** The official game counts a player's points in the role he held
+when his game was played, then lets the manager move him. Round 3: Montero
+scored 8 as captain on day 1 and was benched for Francisco on day 2. Official
+62 counts him ×2; we count the one stored lineup, ×0.5, so 50. The 17:57 run
+reported 7 of 8 totals off, part of it live games and part this. The API has
+no per-game-day view (`/roster/preview` ignores a `round_id`; a per-round path
+is 404), so the fix is ours: freeze each player's role from the first read
+after his tip-off and score from the frozen roles (a schema field on
+`round_lineups` plus every scoring reader). Not started; needs a decision.
 
 **Try it on localhost.** Put `FANTASY_CHALLENGE_TOKEN` and
 `FANTASY_CHALLENGE_LEAGUE_ID` in `.env`, `npm run dev`, then as commissioner of

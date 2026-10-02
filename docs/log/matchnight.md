@@ -1059,3 +1059,38 @@ its own column.
 Verification: `standings.spec`, `lineup.spec`, `a11y.spec` (standings, both
 grounds and devices): 74 passed. The four failures were the two
 season-dashboard cases STATUS records as local-schedule ones.
+
+## S35 — Lineups read after every tip-off
+
+Feedback: round 3 was live and a lineup still showed the old arrangement. Were
+we reading the right endpoint, or day 1's lineup?
+
+The endpoint is right: `/fantasy-teams/{team}/matchdays/{matchday}/roster/preview`
+for the current matchday (1530, round 3), the same one a browser shows. The
+timing was not. Production read every team hourly through the freeze; on
+2 October the read landed at 16:57 UTC and day 2's first game tipped at 17:00.
+Monikutės Naktys had benched Montero (captain, day 1) for Francisco (captain,
+day 2), and that waited until the 17:57 read, which did write it. Since a
+player locks only at his own tip-off, a lineup can change until the round's
+last one. `roundWindows` now keeps every distinct tip-off in the freeze, and
+`lineupRoundsDue` reads again five minutes after each that no run has
+followed. The worker checks every ten minutes, so a read lands 5–15 minutes
+after each tip. Round 3's ten games are six distinct tip-offs, six extra reads
+of eight teams.
+
+The lineup form held its roles in state from the first render, so an open
+page would not have shown a synced change even after a refresh of its data.
+Keying the form on the roles was tried and broke saving (the user's own save
+changed the roles and the remount lost "Saved"), so the form instead follows
+new props during render when it holds no unsaved edit.
+
+The same evidence uncovered a scoring gap, recorded as debt in STATUS: the
+official game scores a player in the role he held when his game was played,
+and we score the round's one stored lineup. Montero's 8 count ×2 officially
+(62) and ×0.5 here (50). The preview API has no per-game-day view
+(`round_id` is ignored; a per-round path is 404), so the fix would be to
+freeze each player's role from the first read after his tip-off.
+
+Verification: `windows.test.ts` replays round 3's real tip-offs (a read due at
+17:05 after one at 16:57, not twice for one tip, one after each later tip, none
+overnight); `lineup.spec`: 16 passed.
