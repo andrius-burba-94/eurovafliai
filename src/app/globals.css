@@ -1107,3 +1107,55 @@ body {
     animation: none;
   }
 }
+
+/* Small things that open over the page: a tip settles in from 4px toward its
+ * anchor, a popover panel rises from its button. Under reduced motion they
+ * simply appear. */
+@keyframes float-in {
+  from { opacity: 0; transform: translateY(var(--float-from, 4px)) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.floating.visible {
+  --float-from: -4px;
+  animation: float-in 160ms var(--ease-broadcast) both;
+}
+.floating.visible[data-above] {
+  --float-from: 4px;
+}
+@utility popover-rise {
+  animation: float-in 180ms var(--ease-broadcast) both;
+}
+@utility popover-drop {
+  --float-from: -6px;
+  animation: float-in 180ms var(--ease-broadcast) both;
+}
+
+/* A club's share of a bar: the pointed-at segment lifts a little, the rest
+ * step back, so the one being named is unmistakable. */
+@utility club-bar {
+  &:has([data-club-segment][data-active]) [data-club-segment]:not([data-active]) {
+    opacity: 0.45;
+  }
+  & [data-club-segment] {
+    transition:
+      transform 180ms var(--ease-broadcast),
+      opacity 180ms var(--ease-broadcast);
+  }
+  & [data-club-segment][data-active] {
+    transform: scaleY(1.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating.visible,
+  .popover-rise,
+  .popover-drop {
+    animation: none;
+  }
+  .club-bar [data-club-segment] {
+    transition: none;
+  }
+  .club-bar [data-club-segment][data-active] {
+    transform: none;
+  }
+}

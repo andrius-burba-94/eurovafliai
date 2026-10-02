@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
+import { Menu } from "@/components/menu";
 import { GROUND_COLOR, THEME_CHOICES, themeChoiceFrom, themeCookie, type Ground, type ThemeChoice } from "@/lib/theme";
 
 const LABEL: Readonly<Record<ThemeChoice, string>> = { system: "System", light: "Light", dark: "Dark" };
@@ -38,27 +39,55 @@ function useThemeChoice(): ThemeChoice {
 
 /**
  * System, Light or Dark for this browser; the head script in layout.tsx
- * applies it here and on every later load. `cycle` is one 44px button for the
- * sidebar's last row, where a second row would push the nav into a scroll;
- * `segmented` spells the three out where there is room (the phone's More).
+ * applies it here and on every later load. `popover` is one 44px button for
+ * the sidebar's last row, where a second row would push the nav into a
+ * scroll; it opens the three upward. `segmented` spells the three out where
+ * there is room (the phone's More).
  */
-export function ThemeSwitch({ testId, variant }: { testId: string; variant: "cycle" | "segmented" }) {
+export function ThemeSwitch({ testId, variant }: { testId: string; variant: "popover" | "segmented" }) {
   const choice = useThemeChoice();
 
-  if (variant === "cycle") {
-    const next = THEME_CHOICES[(THEME_CHOICES.indexOf(choice) + 1) % THEME_CHOICES.length]!;
+  if (variant === "popover") {
     return (
-      <button
-        type="button"
-        data-testid={testId}
-        data-choice={choice}
-        onClick={() => choose(next)}
-        title={`Theme: ${LABEL[choice]}`}
-        aria-label={`Theme: ${LABEL[choice]}. Switch to ${LABEL[next]}`}
-        className="grid size-11 shrink-0 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
-      >
-        <ThemeIcon choice={choice} />
-      </button>
+      <div data-testid={testId} data-choice={choice} className="shrink-0">
+        <Menu
+          testId={`${testId}-button`}
+          label={
+            <>
+              <ThemeIcon choice={choice} />
+              <span className="sr-only">Theme: {LABEL[choice]}</span>
+            </>
+          }
+          buttonClassName="grid size-11 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink aria-expanded:bg-ink/5 aria-expanded:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+          panelClassName="popover-rise absolute right-0 bottom-full z-50 mb-2 flex w-44 origin-bottom-right flex-col gap-0.5 rounded-xl border border-panel-border bg-stock-panel p-1.5"
+        >
+          <p className="slot-label px-2.5 pt-1 pb-1.5">Theme</p>
+          {THEME_CHOICES.map((option) => {
+            const held = choice === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                data-close=""
+                data-testid={`${testId}-${option}`}
+                aria-pressed={held}
+                onClick={() => choose(option)}
+                className={`flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-live ${
+                  held ? "bg-stock-high font-semibold text-ink" : "text-ink-soft hover:bg-ink/5 hover:text-ink"
+                }`}
+              >
+                <ThemeIcon choice={option} />
+                <span className="flex-1 text-left">{LABEL[option]}</span>
+                {held ? (
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" className="text-live">
+                    <path d="M5 12.5l4.5 4.5L19 7.5" />
+                  </svg>
+                ) : null}
+              </button>
+            );
+          })}
+        </Menu>
+      </div>
     );
   }
 

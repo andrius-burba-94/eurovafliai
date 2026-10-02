@@ -101,7 +101,7 @@ export async function AppShell({
             <div className="min-w-0 flex-1">
               <AccountMenu account={account} />
             </div>
-            <ThemeSwitch testId="theme-switch" variant="cycle" />
+            <ThemeSwitch testId="theme-switch" variant="popover" />
           </div>
         </aside>
 

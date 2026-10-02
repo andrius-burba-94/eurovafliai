@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { Bank, EmptyNotice, FixtureNote, PositionPatch, Sparkline } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { ClubBar } from "@/components/club-bar";
 import { ScoreFigure, StatusBadge, TeamCrest, availabilityBadge, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { InfoTip } from "@/components/info-tip";
@@ -14,7 +15,7 @@ import { PlayerStatsLink } from "@/components/player-stats-link";
 import { ContextPanel } from "@/components/context-panel";
 import { resolveSeason, SeasonControl } from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
-import { clubColor } from "@/lib/clubs/colors";
+import { clubShares } from "@/lib/clubs/share";
 import { serverConfig } from "@/lib/config/server";
 import { radarSize } from "@/lib/engine";
 import { readRoundProgress } from "@/lib/fixtures/queries";
@@ -270,7 +271,7 @@ export default async function TeamPage({
           framed
           label="The roster"
           aside={`${roster.length} of ${rosterSize}`}
-          info="Season points count only nights on this roster. Form is the last five games' PIR; last is the latest round."
+          info="Form is the last five games' PIR. Last is the player's latest game on this roster and Season every game on it, both in fantasy points."
         >
           {roster.length === 0 ? (
             <EmptyNotice testId="roster-empty">
@@ -316,8 +317,16 @@ export default async function TeamPage({
                               </span>
                             </PlayerStatsLink>
                             <span className="grid w-[8.5rem] shrink-0 grid-cols-[3rem_3.5rem] items-center text-right sm:w-[13.5rem] sm:grid-cols-[3.25rem_3rem_3.5rem_3.75rem]">
-                              <Sparkline values={player.last5Pirs} what="PIR" className="hidden h-4 w-[3rem] text-ink-soft sm:inline-flex" testId="roster-spark" />
-                              <span className="stat text-xs text-ink-soft">{player.lastTenths === null ? "—" : formatTenths(player.lastTenths)}</span>
+                              <span className="hidden h-4 w-[3rem] items-center justify-end text-ink-soft sm:inline-flex" data-testid="roster-form">
+                                {player.last5Pirs.length >= 2 ? (
+                                  <Sparkline values={player.last5Pirs} what="PIR" className="inline-flex h-4 w-[3rem]" testId="roster-spark" />
+                                ) : (
+                                  <span className="stat text-xs text-ink-faint" aria-label="No form yet">—</span>
+                                )}
+                              </span>
+                              <span className="stat text-xs text-ink-soft" title={player.lastRound === null ? undefined : `Round ${player.lastRound}`} data-testid="roster-last">
+                                {player.lastTenths === null ? "—" : formatTenths(player.lastTenths)}
+                              </span>
                               <span className="stat text-sm font-bold">{formatTenths(player.seasonTenths)}</span>
                               <span className="stat hidden text-xs text-ink-faint sm:block">{player.overallNo ? `#${player.overallNo}` : "—"}</span>
                             </span>
@@ -415,14 +424,10 @@ function TeamClubs({
   clubNames: ReadonlyMap<string, string>;
 }) {
   const top = clubs.clubs.slice(0, 5);
-  const total = Math.max(1, clubs.clubs.reduce((sum, club) => sum + Math.max(0, club.tenths), 0));
+  const segments = clubShares(clubs.clubs, 5).map((share) => ({ ...share, name: clubNames.get(share.clubCode) ?? share.clubCode }));
   return (
     <div className="flex flex-col gap-3" data-testid="team-clubs">
-      <span className="flex h-2.5 overflow-hidden rounded-full bg-stock-high" aria-hidden="true">
-        {top.map((club) => (
-          <span key={club.clubCode} className="h-full border-r border-stock-panel last:border-r-0" style={{ width: `${(Math.max(0, club.tenths) / total) * 100}%`, background: clubColor(club.clubCode) }} />
-        ))}
-      </span>
+      <ClubBar segments={segments} testId="team-club-bar" />
       <ol className="flex flex-col gap-1.5">
         {top.map((club) => (
           <li key={club.clubCode} className="flex items-center gap-2 text-sm">
