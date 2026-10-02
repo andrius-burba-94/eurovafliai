@@ -961,3 +961,43 @@ opens a tip on the team page on both grounds. The two season-dashboard
 failures are the local-schedule ones STATUS records. Checked at 1440×900
 beside the panel and at 390×844.
 
+
+## S32 — Tips that float, a roster that lines up
+
+Feedback: on My Team the "i" tips under Lineup IQ, Captain and Bench were
+hidden behind the panel below; one player's row had his pick under Season and
+his season under Last; most players showed no Last at all; the club bars said
+nothing when pointed at; and the theme button cycled rather than offering the
+three.
+
+The tips were clipped, not stacked wrong: the strip keeps `overflow-hidden`
+for its hairline grid and rounded corners, and an absolutely placed tip inside
+it cannot leave it whatever its z-index. `InfoTip` now portals its tip to the
+body (`Floating`) and places it with pure `placeFloating`: below the button,
+above it when the screen has no room, slid left rather than off the edge. One
+change fixes the strip, the hero's "Every round" tip and any clipped parent
+yet to come.
+
+The row was `Sparkline` returning nothing below two games, so the grid had
+three children for four columns; the Form cell is now always there. Last was
+"the latest round any player on this roster has a box score for", which in the
+middle of a round is the round being played, a dash for every club still to
+play. It is now each player's own latest game on this roster.
+
+The club bars on My Team and Stats share `ClubBar`. Its segments lost the
+bar's `overflow-hidden` (which would have clipped the lift) and became rounded
+blocks a hairline apart. Pointing at one (or tapping it) lifts it, steps the
+others back to 45%, and floats "Real Madrid · 34%" above it; the share is of
+the team's whole total, not only the segments drawn. Under reduced motion
+nothing moves and the tip still appears. The bar stays hidden from assistive
+tech, since the list beside it says the same in words.
+
+The theme switch keeps its one 44px button (the S26 reason still holds) and
+opens a small panel upward on `Menu`, which learned to close on anything marked
+`data-close`. The panel and the tips enter on `float-in`, 160–180ms on the
+broadcast curve.
+
+Verification: `floating.test.ts`, `share.test.ts`, `roster-figures.test.ts`;
+`design.spec` now opens the popover and picks; `a11y.spec` (a team's page
+with a tip open, both grounds), `league-stats.spec`, `roster.spec`: 66 passed.
+Checked at 1440×900 dark and light and at 390×844 with a segment tapped.
