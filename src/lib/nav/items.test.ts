@@ -29,8 +29,11 @@ describe("navFor", () => {
     ]);
   });
 
-  it("adds the manage group for a roster manager", () => {
-    expect(keysOf({ isRosterManager: true }, "manage")).toEqual([
+  it("adds the roster tools to the EuroLeague group for a roster manager", () => {
+    expect(keysOf({ isRosterManager: true }, "global")).toEqual([
+      "leagues",
+      "pool",
+      "news",
       "mapping",
       "import-players",
       "import-stats",
@@ -45,9 +48,17 @@ describe("navFor", () => {
 
   it("in setup, a member sees home and draft resources in their own section", () => {
     expect(keysOf({ league: league(), isRosterManager: false }, "league")).toEqual(
-      ["league-home"],
+      ["league-home", "pool"],
     );
     expect(keysOf({ league: league(), isRosterManager: false }, "drafts")).toEqual(["sheet"]);
+  });
+
+  it("keeps the pool inside a league, and in the EuroLeague group outside one", () => {
+    const inside = navFor({ league: league(), isRosterManager: false });
+    expect(inside.find((group) => group.id === "league")!.items.find((item) => item.key === "pool")?.href).toBe("/l/L1/players");
+    expect(inside.find((group) => group.id === "global")!.items.map((item) => item.key)).not.toContain("pool");
+    const outside = navFor({ isRosterManager: false });
+    expect(outside.find((group) => group.id === "global")!.items.find((item) => item.key === "pool")?.href).toBe("/players");
   });
 
   it("offers the order only once it has been drawn", () => {
@@ -82,6 +93,7 @@ describe("navFor", () => {
       "recap",
       "trades",
       "stats",
+      "pool",
     ]);
     // The sheet has done its job once the board is full, and export is a
     // download on the board rather than a destination.
@@ -129,7 +141,7 @@ describe("navFor", () => {
       },
       "league",
     );
-    expect(keys).toEqual(["league-home", "trades"]);
+    expect(keys).toEqual(["league-home", "trades", "pool"]);
     expect(keysOf({ league: league({ status: "season", youMemberId: null, isCommissioner: true, canManage: true }), isRosterManager: true }, "drafts")).toContain("draft");
   });
 });
@@ -172,11 +184,11 @@ describe("tabsFor", () => {
 
   it("says how many mapping questions are waiting", () => {
     const mapping = navFor({ isRosterManager: true, mappingWaiting: 7 })
-      .find((group) => group.id === "manage")!
+      .find((group) => group.id === "global")!
       .items.find((item) => item.key === "mapping");
     expect(mapping?.note).toBe("7");
     const quiet = navFor({ isRosterManager: true, mappingWaiting: 0 })
-      .find((group) => group.id === "manage")!
+      .find((group) => group.id === "global")!
       .items.find((item) => item.key === "mapping");
     expect(quiet?.note).toBeUndefined();
   });

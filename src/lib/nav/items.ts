@@ -62,7 +62,7 @@ export type NavItem = {
 };
 
 export type NavGroup = {
-  readonly id: "league" | "drafts" | "global" | "manage";
+  readonly id: "league" | "drafts" | "global";
   readonly label: string;
   readonly items: readonly NavItem[];
 };
@@ -141,6 +141,10 @@ function leagueItems(league: NavLeague): NavItem[] {
     items.push({ key: "trades", href: `${base}/transactions`, label: "Trades", icon: "trades" });
   }
 
+  // Inside a league the pool is one of its pages, so opening it, or a player
+  // from it, never drops the league from the sidebar.
+  items.push({ key: "pool", href: `${base}/players`, label: "Player Pool", icon: "pool" });
+
   return items;
 }
 
@@ -196,16 +200,19 @@ export function navFor({ league, isRosterManager, mappingWaiting = 0 }: NavInput
     const drafts = draftItems(league);
     if (drafts.length > 0) groups.push({ id: "drafts", label: "Drafts", items: drafts });
   }
-  groups.push({ id: "global", label: "EuroLeague", items: GLOBAL_ITEMS });
-  if (isRosterManager) {
-    groups.push({
-      id: "manage",
-      label: "Manage",
-      items: MANAGE_ITEMS.map((item) =>
+  // The roster tools work on the EuroLeague's data, so a manager finds them
+  // in its group rather than under a fourth header: with the pool inside the
+  // league (S29) a fourth header pushed the season nav into a scroll.
+  const manage = isRosterManager
+    ? MANAGE_ITEMS.map((item) =>
         item.key === "mapping" && mappingWaiting > 0 ? { ...item, note: String(mappingWaiting) } : item,
-      ),
-    });
-  }
+      )
+    : [];
+  groups.push({
+    id: "global",
+    label: "EuroLeague",
+    items: [...(league ? GLOBAL_ITEMS.filter((item) => item.key !== "pool") : GLOBAL_ITEMS), ...manage],
+  });
   return groups;
 }
 

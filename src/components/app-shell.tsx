@@ -9,6 +9,7 @@ import {
   PanelProvider,
   PanelToggle,
 } from "@/components/shell-panel";
+import { LeagueLinksProvider } from "@/components/league-links";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
@@ -149,10 +150,10 @@ export async function AppShell({
     </>
   );
 
-  return panel ? (
-    <PanelProvider docked={panelDocked}>{body}</PanelProvider>
-  ) : (
-    body
+  return (
+    <LeagueLinksProvider base={league ? leagueHref(league) : null}>
+      {panel ? <PanelProvider docked={panelDocked}>{body}</PanelProvider> : body}
+    </LeagueLinksProvider>
   );
 }
 

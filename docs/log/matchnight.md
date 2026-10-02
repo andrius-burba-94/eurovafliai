@@ -863,3 +863,41 @@ addresses to the new ones and reads the nav's hrefs; every spec now opens
 `/l/…`. 121 of the affected E2E tests pass locally; the two season-dashboard
 failures are the local-schedule ones STATUS already records.
 
+## S29 — Player pool inside the league
+
+"Full profile and game log" left the league: `/players/<id>` is a global page,
+so the sidebar lost its League group and the way back was the browser's.
+Only the team page passed `?league=`.
+
+The pool and the profile are now League pages as well as global ones:
+`/l/<league>/players` and `/l/<league>/players/<player>` render the same
+`PoolPage` and `PlayerProfilePage` as `/players` and `/players/<id>`, with the
+league's nav. Rather than threading a league through every component that
+draws a player, `AppShell` wraps its body in `LeagueLinksProvider` (the
+league's base address) and `PlayerStatsLink` and the lineup's modal ask
+`usePlayerHref()` for a player's address, so the panel, the pool, Stats and
+the lineup all link inside the league without knowing they are in one. The
+modal's "Full profile" link swaps the id for the slug it reads from
+`/api/players/[id]` (S28).
+
+The profile canonicalises: whatever address it was opened by (an id, a stale
+league segment, or the pre-S29 `/players/<id>?league=…&member=…`), it
+redirects to `playerHref(player, league)` and keeps the roster to return to
+as `?member=<team>`. An unknown league is a 404, not a silent drop to the
+global page.
+
+**Nav.** Player Pool joins the League group inside a league and leaves the
+EuroLeague group there; outside a league it stays where it was. That made the
+commissioner's season sidebar overflow by 36px on a 690px screen, exactly one
+group header, which `shell.spec` guards. The Manage group's three roster
+tools moved into EuroLeague for managers (they act on EuroLeague data), so
+every row keeps its 44px target and the nav fits again. The direction
+contract in `layout.tsx` says so.
+
+Verification: `items.test.ts` (pool placement, manager tools in EuroLeague),
+`addresses.spec` (the league pool is current in the League group; a profile
+by id and the old `?league=` form both settle on
+`/l/<league>/players/<name>`), `shell.spec`, `design.spec`, `roster.spec`,
+`players.spec`, `pool.spec` (26/26 alone; under seven parallel specs on the
+dev server its pick confirmations time out, which is load).
+

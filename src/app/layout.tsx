@@ -24,7 +24,8 @@ const DIRECTION_CONTRACT = `<!--
   phone checks the morning after. The app reads like the scoreboard graphic in
   the same room: one big number per page, calm until something happens.
 
-  STRUCTURE: a persistent sidebar groups League, Drafts, EuroLeague and Manage.
+  STRUCTURE: a persistent sidebar groups League, Drafts and EuroLeague; a
+  manager's roster tools sit in EuroLeague, and the pool sits in League.
   Phone tabs in season are Home, Lineup, Live, Table and More. Permissions
   decide which destinations appear.
 

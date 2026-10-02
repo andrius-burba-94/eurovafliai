@@ -29,7 +29,7 @@ import { readPanel } from "@/lib/panel/queries";
 import { readMemberDeals, readMemberRoster } from "@/lib/memberships/queries";
 
 import { ImpactList } from "./impact-list";
-import { leagueHref, teamHref } from "@/lib/nav/urls";
+import { leagueHref, playerHref, teamHref } from "@/lib/nav/urls";
 
 /**
  * One member's current roster — slices 5.1 and 5.3.
@@ -159,7 +159,7 @@ export default async function TeamPage({
                           <PlayerStatsLink
                             id={player.id}
                             name={player.name}
-                            href={`/players/${player.id}?league=${encodeURIComponent(data.league.slug || id)}&member=${encodeURIComponent(member.slug || memberId)}`}
+                            href={`${playerHref(player, data.league)}?member=${encodeURIComponent(member.slug || memberId)}`}
                             className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
                           >
                             <PlayerPortrait personCode={player.personCode} name={player.name} />

@@ -38,6 +38,7 @@ import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 
 import { LineupCourt } from "./lineup-court";
 import { useDragToPlace, type DragState, type DropTarget } from "./lineup-drag";
+import { usePlayerHref } from "@/components/league-links";
 
 /**
  * Thirteen players, one role each — slice 9.3. The court draws the five and
@@ -117,6 +118,7 @@ export function LineupForm({
   carriedFrom: number | null;
   template: LineupTemplate;
 }) {
+  const playerHref = usePlayerHref();
   const [result, action] = useActionState(recordLineup, START);
 
   // The stored lineup arrives with the captain as a role, because that is the
@@ -642,7 +644,7 @@ export function LineupForm({
         <PlayerStatsModal
           id={profilePlayer.id}
           name={profilePlayer.name}
-          profileHref={`/players/${profilePlayer.id}`}
+          profileHref={playerHref(profilePlayer.id)}
           round={round}
           onClose={closeProfile}
           action={
