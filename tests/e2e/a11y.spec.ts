@@ -176,6 +176,39 @@ for (const colorScheme of ["dark", "light"] as const) {
       await assertNoSerious(page, "league stats");
     });
 
+    test("a team's page, with a tip open, has no serious axe findings", async ({ page, context }) => {
+      const user = await createTestUser("teamaxe");
+      const league = await createLeagueFor(user, "Axe Team");
+      await addMemberTo(league.id, await createTestUser("teamaxemate"), "Axe Rival");
+      const pb = await superuser();
+      const members = await pb.collection("league_members").getFullList<{ id: string; user: string }>({ filter: `league = '${league.id}'`, requestKey: null });
+      await pb.collection("leagues").update(league.id, { status: "season" }, { requestKey: null });
+      for (const round of [1, 2]) {
+        await pb.collection("standings_snapshots").create(
+          {
+            league: league.id,
+            season: "E2026",
+            round,
+            phase: "RS",
+            table: members.map((member, index) => ({
+              memberId: member.id,
+              roundHundredths: (index + round) % 2 === 0 ? 9000 : 4000,
+              totalHundredths: 6500 * round,
+            })),
+          },
+          { requestKey: null },
+        );
+      }
+      const mine = members.find((member) => member.user === user.id)!;
+      await signIn(context, user);
+      await page.goto(`/l/${league.id}/${mine.id}`);
+      await expect(page.getByTestId("team-hero")).toBeVisible();
+      // A local schedule with a round under way adds its dashed cell; CI has none.
+      await expect(page.getByTestId("team-finishes").getByLabel(/^Round [12]: /)).toHaveCount(2);
+      await page.getByRole("button", { name: "About Top 3" }).click();
+      await assertNoSerious(page, "team page");
+    });
+
     test("the lineup court and the side panel have no serious axe findings", async ({
       page,
       context,
