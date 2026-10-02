@@ -19,6 +19,7 @@ import { last5SeriesOf } from "@/lib/stats/project";
 
 import { groupTransactionHistory } from "./history";
 import type { Seat } from "./plan";
+import { rosterFigures } from "./roster-figures";
 import { listActiveMemberships } from "./store";
 
 type ExpandedPlayer = {
@@ -73,8 +74,9 @@ export type RosterPlayer = {
   readonly seasonTenths: number;
   /** Games counted in `seasonTenths`. */
   readonly games: number;
-  /** The latest counted round's tenths for this player, or null if they did not play it. */
+  /** The player's latest game on this roster, or null before their first. */
   readonly lastTenths: number | null;
+  readonly lastRound: number | null;
 };
 
 export async function readMemberRoster(
@@ -108,7 +110,6 @@ export async function readMemberRoster(
           fields: "player,round,fantasy_pts",
           requestKey: null,
         });
-  const latestRound = Math.max(0, ...lines.map((line) => line.round));
   const draftId = drafts[0]?.id;
   const picks = draftId
     ? await pb.collection("picks").getFullList<PickRef>({
@@ -136,16 +137,7 @@ export async function readMemberRoster(
         last5Pirs: last5SeriesOf(player),
         fixture: fixtures.get(player.club_code) ?? null,
         status: player.status,
-        ...(() => {
-          const from = row.from_round && row.from_round > 0 ? row.from_round : 1;
-          const owned = lines.filter((line) => line.player === player.id && line.round >= from);
-          const last = owned.find((line) => line.round === latestRound);
-          return {
-            seasonTenths: owned.reduce((sum, line) => sum + line.fantasy_pts, 0),
-            games: owned.length,
-            lastTenths: last ? last.fantasy_pts : null,
-          };
-        })(),
+        ...rosterFigures(lines, player.id, row.from_round),
       },
     ];
   });

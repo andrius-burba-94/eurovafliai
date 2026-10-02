@@ -2,11 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Bank, EmptyNotice } from "@/components/board";
+import { ClubBar } from "@/components/club-bar";
 import { Glyph } from "@/components/glyphs";
 import { InfoTip } from "@/components/info-tip";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { PlayerStatsLink } from "@/components/player-stats-link";
-import { clubColor } from "@/lib/clubs/colors";
+import { clubShares } from "@/lib/clubs/share";
 import { displayName } from "@/lib/players/name";
 import { ordinal } from "@/lib/season/story";
 import { placeTint } from "@/lib/season/tint";
@@ -387,22 +388,18 @@ export function HindsightView({ rows, who }: { rows: readonly Hindsight[]; who: 
  */
 export function ClubLoyaltyView({ rows, clubNames, who }: { rows: readonly ClubLoyalty[]; clubNames: ReadonlyMap<string, string>; who: Who }) {
   return (
-    <Bank framed label="Club loyalty" info="Counted points by the EuroLeague club the player wore that night, after lineups. Point at or tap a crest for the club's name.">
+    <Bank framed label="Club loyalty" info="Counted points by the EuroLeague club the player wore that night, after lineups. Point at or tap a colour or a crest for the club's name.">
       {rows.length === 0 ? (
         <EmptyNotice testId="stats-clubs-empty">No counted points yet.</EmptyNotice>
       ) : (
         <ul role="list" className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" data-testid="stats-clubs">
           {rows.map((row) => {
             const top = row.clubs.slice(0, 4);
-            const total = Math.max(1, row.clubs.reduce((sum, club) => sum + Math.max(0, club.tenths), 0));
+            const segments = clubShares(row.clubs, 4).map((share) => ({ ...share, name: clubNames.get(share.clubCode) ?? share.clubCode }));
             return (
               <li key={row.memberId} className="flex min-w-0 flex-col gap-2">
                 <TeamName memberId={row.memberId} who={who} className="text-sm font-semibold" />
-                <span className="flex h-2.5 overflow-hidden rounded-full bg-stock-high" aria-hidden="true">
-                  {top.map((club) => (
-                    <span key={club.clubCode} className="h-full border-r border-stock-panel last:border-r-0" style={{ width: `${(Math.max(0, club.tenths) / total) * 100}%`, background: clubColor(club.clubCode) }} />
-                  ))}
-                </span>
+                <ClubBar segments={segments} />
                 <ol className="flex flex-wrap gap-x-2.5 gap-y-1">
                   {top.map((club) => {
                     const name = clubNames.get(club.clubCode) ?? club.clubCode;
