@@ -21,6 +21,7 @@ export function RoundLadder({
   marks,
   testId,
   label,
+  dense = false,
 }: {
   rows: readonly RecapRow[];
   names: Readonly<Record<string, string>>;
@@ -31,6 +32,8 @@ export function RoundLadder({
   /** Prefix for `-table`, `-row`, `-team` and `-tenths`. */
   testId: string;
   label: string;
+  /** A narrow column: smaller crests, and names wrap to two lines rather than cut. */
+  dense?: boolean;
 }) {
   const top = rows[0]?.hundredths ?? 0;
   return (
@@ -44,12 +47,14 @@ export function RoundLadder({
             <Link
               href={hrefOf(row.memberId)}
               data-testid={`${testId}-team`}
-              className="-mx-3 -my-3 flex min-h-12 min-w-0 flex-1 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
+              className={`-mx-3 -my-3 flex min-h-12 min-w-0 flex-1 items-center px-3 py-2.5 transition-colors hover:bg-ink/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live ${dense ? "gap-2" : "gap-3"}`}
             >
-              <span className="stat w-5 shrink-0 text-xs text-ink-faint">{index + 1}</span>
-              {style ? <TeamCrest name={name} color={style.color} shape={style.crest} size={28} /> : null}
+              <span className={`stat shrink-0 text-xs text-ink-faint ${dense ? "w-4" : "w-5"}`}>{index + 1}</span>
+              {style ? <TeamCrest name={name} color={style.color} shape={style.crest} size={dense ? 20 : 28} /> : null}
               <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                <span
+                  className={`flex items-center gap-1.5 text-sm font-semibold ${dense ? "leading-tight break-words" : "truncate"}`}
+                >
                   {name}
                   {marks && index === 0 && top > 0 ? <Glyph name="crown" size={13} className="text-gold" /> : null}
                   {marks && last && top > 0 ? <Glyph name="spoon" size={13} className="text-wood" /> : null}

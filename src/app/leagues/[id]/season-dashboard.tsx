@@ -353,12 +353,11 @@ export function SeasonDashboard({
 
         <Bank
           label={live ? `Round ${live.round} so far` : story ? `Round ${story.round} story` : "This round"}
-          aside={live ? `${live.played} of ${live.total} played` : undefined}
           framed
         >
           {live && story ? (
             <div className="flex flex-col gap-3" data-testid="dashboard-round-so-far">
-              <p className="display text-2xl leading-none" data-testid="dashboard-leading">
+              <p className="display text-xl leading-tight sm:text-2xl" data-testid="dashboard-leading">
                 {nameOf(story.winner.memberId)} lead
                 {story.margin !== null && story.margin > 0 ? ` by ${formatHundredths(story.margin)}` : ""}
               </p>
@@ -368,6 +367,7 @@ export function SeasonDashboard({
                 styles={teamStyles}
                 hrefOf={teamHref}
                 marks={false}
+                dense
                 testId="dashboard-night"
                 label={`Teams by round ${live.round} so far`}
               />
