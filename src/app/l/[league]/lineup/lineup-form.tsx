@@ -144,6 +144,17 @@ export function LineupForm({
   const originalPlaces = useMemo<Record<string, PlacementRole | "">>(() => Object.fromEntries(players.map((player) => [player.id, player.role === "captain" ? "starter" : (player.role ?? "")])), [players]);
   const originalCaptain = players.find((player) => player.role === "captain")?.id ?? "";
 
+  // The stored lineup can change under an open page: the official game lets a
+  // manager move a starter or the captain between a round's game days, and the
+  // sync writes it. With nothing unsaved here, the form follows the new lineup.
+  const stored = players.map((player) => `${player.id}=${player.role ?? ""}`).join(",");
+  const [shown, setShown] = useState(stored);
+  if (stored !== shown && !dirty) {
+    setShown(stored);
+    setPlaces(originalPlaces);
+    setCaptainId(originalCaptain);
+  }
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(draftKey);

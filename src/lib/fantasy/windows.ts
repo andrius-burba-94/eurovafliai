@@ -17,6 +17,14 @@ export type RoundWindow = {
   readonly lockAt: number;
   /** Writes stop: late enough to catch a correction, early enough that the next round's trades cannot have started. */
   readonly closesAt: number;
+  /**
+   * Every distinct tip-off in the round's freeze, first to last. The official
+   * game locks a player when his own game starts, so a manager may still
+   * swap a starter and move the captain until the round's last tip-off (day
+   * 1's captain benched for a day 2 player). Each is a moment the lineup can
+   * have changed for good.
+   */
+  readonly tips: readonly number[];
 };
 
 export type SyncDecision =
@@ -45,10 +53,10 @@ export function roundWindows(
   }
   return [...tips]
     .map(([round, times]) => {
-      const sorted = [...times].sort((a, b) => a - b);
+      const sorted = [...new Set(times)].sort((a, b) => a - b);
       const lockAt = sorted[0]!;
-      const lastTip = sorted.filter((at) => at <= lockAt + ROUND_SPAN_MS).at(-1)!;
-      return { round, lockAt, closesAt: lastTip + CLOSE_AFTER_LAST_TIP_MS };
+      const tips = sorted.filter((at) => at <= lockAt + ROUND_SPAN_MS);
+      return { round, lockAt, closesAt: tips.at(-1)! + CLOSE_AFTER_LAST_TIP_MS, tips };
     })
     .sort((a, b) => a.lockAt - b.lockAt);
 }
@@ -88,7 +96,9 @@ export type LineupRunRef = {
 /**
  * Which rounds' lineups to read from the official game now.
  *
- * A frozen round hourly, like its rosters. A finished round once more after
+ * A frozen round hourly, like its rosters, and again five minutes after each
+ * of its tip-offs that no run has followed: the lineup for that game is final
+ * by then, and an hourly read can land minutes before it. A finished round once more after
  * its freeze closes, which is the pass its standings keep, and which is also
  * how a round from before the lineup sync existed is filled in. A finished
  * round none of whose passes since closing applied is tried again four times
@@ -109,7 +119,8 @@ export function lineupRoundsDue(
     const mine = runs.filter((run) => run.round === window.round);
     const last = Math.max(Number.NEGATIVE_INFINITY, ...mine.map((run) => run.ranAt));
     if (now <= window.closesAt) {
-      if (force || now - last >= APPLY_EVERY_MS) due.push(window.round);
+      const tipUnread = window.tips.some((tip) => now >= tip + APPLY_AFTER_LOCK_MS && last < tip);
+      if (force || tipUnread || now - last >= APPLY_EVERY_MS) due.push(window.round);
       continue;
     }
     const sinceClose = mine.filter((run) => run.ranAt > window.closesAt);

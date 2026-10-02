@@ -23,7 +23,18 @@ describe("roundWindows", () => {
       round: 3,
       lockAt: at("2026-10-01T16:00:00Z"),
       closesAt: at("2026-10-02T20:00:00Z"),
+      tips: [at("2026-10-01T16:00:00Z"), at("2026-10-02T18:30:00Z")],
     });
+  });
+
+  it("lists each tip-off once, and not a postponed game's", () => {
+    const [window] = roundWindows([
+      { round: 7, utcDate: "2026-11-03T18:00:00Z" },
+      { round: 7, utcDate: "2026-11-03T18:00:00Z" },
+      { round: 7, utcDate: "2026-11-04T17:00:00Z" },
+      { round: 7, utcDate: "2027-01-20T18:00:00Z" },
+    ]);
+    expect(window!.tips).toEqual([at("2026-11-03T18:00:00Z"), at("2026-11-04T17:00:00Z")]);
   });
 
   it("skips a round with no tip-off times yet", () => {
@@ -129,5 +140,44 @@ describe("lineupRoundsDue", () => {
     expect(lineupRoundsDue(now, windows, justRan, true)).toEqual([2, 3]);
     const finished = [{ round: 2, ranAt: now - 60_000, status: "applied" }];
     expect(lineupRoundsDue(now, windows, finished, true)).toEqual([3]);
+  });
+});
+
+describe("lineupRoundsDue across a round's game days", () => {
+  // E2026 round 3 as stored on 2 October 2026. A manager benched day 1's
+  // captain for a day 2 player before 17:00; the hourly read had run at 16:57.
+  const round3 = roundWindows(
+    [
+      "2026-10-01T16:00:00Z",
+      "2026-10-01T18:00:00Z",
+      "2026-10-01T18:30:00Z",
+      "2026-10-01T18:45:00Z",
+      "2026-10-02T17:00:00Z",
+      "2026-10-02T17:45:00Z",
+      "2026-10-02T18:00:00Z",
+      "2026-10-02T18:00:00Z",
+      "2026-10-02T18:15:00Z",
+      "2026-10-02T18:30:00Z",
+    ].map((utcDate) => ({ round: 3, utcDate })),
+  );
+  const ran = (iso: string) => [{ round: 3, ranAt: at(iso), status: "applied" }];
+
+  it("reads again five minutes after a tip-off the last read came before", () => {
+    expect(lineupRoundsDue(at("2026-10-02T17:04:00Z"), round3, ran("2026-10-02T16:57:00Z"))).toEqual([]);
+    expect(lineupRoundsDue(at("2026-10-02T17:05:00Z"), round3, ran("2026-10-02T16:57:00Z"))).toEqual([3]);
+  });
+
+  it("does not read twice for one tip-off", () => {
+    expect(lineupRoundsDue(at("2026-10-02T17:30:00Z"), round3, ran("2026-10-02T17:06:00Z"))).toEqual([]);
+  });
+
+  it("reads after each later tip-off of the day, up to the last", () => {
+    expect(lineupRoundsDue(at("2026-10-02T17:50:00Z"), round3, ran("2026-10-02T17:06:00Z"))).toEqual([3]);
+    expect(lineupRoundsDue(at("2026-10-02T18:35:00Z"), round3, ran("2026-10-02T18:21:00Z"))).toEqual([3]);
+    expect(lineupRoundsDue(at("2026-10-02T19:00:00Z"), round3, ran("2026-10-02T18:36:00Z"))).toEqual([]);
+  });
+
+  it("leaves the night between game days to the hourly read", () => {
+    expect(lineupRoundsDue(at("2026-10-02T03:30:00Z"), round3, ran("2026-10-02T03:00:00Z"))).toEqual([]);
   });
 });
