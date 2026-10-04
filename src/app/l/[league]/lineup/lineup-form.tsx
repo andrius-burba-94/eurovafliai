@@ -472,7 +472,6 @@ export function LineupForm({
   return (
     <form action={sourceOwned ? undefined : action} className="flex flex-col gap-4">
       {sourceOwned ? <p className="text-sm text-ink-soft">BasketNews owns this lineup. Changes appear after the next sync.</p> : null}
-      <fieldset disabled={sourceOwned} className="contents">
       <input type="hidden" name="leagueId" value={leagueId} />
       <input type="hidden" name="memberId" value={memberId} />
       <input type="hidden" name="season" value={season} />
@@ -739,7 +738,6 @@ export function LineupForm({
           ) : null}
         </div>
       </div>
-      </fieldset>
     </form>
   );
 }
