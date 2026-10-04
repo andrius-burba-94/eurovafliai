@@ -53,8 +53,7 @@ function capturedSource(expired = false): BasketNewsSource {
       if (expired) return new Response(JSON.stringify({ errors: [{ message: "Forbidden" }] }), { status: 200 });
       key = "fantasyTeamLineupRecordFromClient";
       const round = Number(variables.round);
-      const stored = fixture.lineups[`${variables.team}:${Math.min(round, 2)}`];
-      value = stored ? { ...stored, fantasyRound: round } : null;
+      value = fixture.lineups[`${variables.team}:${round}`] ?? null;
     } else {
       key = "fantasyTeamScoreRecordFromClient";
       value = fixture.scores[`${variables.team}:${variables.round}`] ?? null;
@@ -109,7 +108,7 @@ describe("BasketNews worker import", () => {
     expect(db.rows("users")).toHaveLength(9);
     expect(db.rows("league_members").find((row) => row.basketnews_team_id === OWN_TEAM)?.user).toBe("owner");
     expect(db.rows("picks")).toHaveLength(117);
-    expect(db.rows("round_lineups")).toHaveLength(36);
+    expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
     expect(db.rows("players").filter((row) => row.basketnews_id)).toHaveLength(130);
     expect(db.rows("player_game_stats").map((row) => row.basketnews_raw_pts)).toEqual([3200, 0]);
@@ -146,7 +145,7 @@ describe("BasketNews worker import", () => {
     await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:15:00Z"));
     await processBasketNewsJobs(db.client, "session=test", capturedSource());
     expect(db.rows("picks")).toHaveLength(117);
-    expect(db.rows("round_lineups")).toHaveLength(36);
+    expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
     await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:16:00Z"));
     expect(db.rows("fantasy_syncs")[2]).toMatchObject({ status: "queued", job_meta: {} });
@@ -192,7 +191,7 @@ describe("BasketNews worker import", () => {
     await processBasketNewsJobs(db.client, "session=test", capturedSource());
     expect(db.rows("fantasy_syncs")[1]).toMatchObject({ status: "applied" });
     expect(db.rows("picks")).toHaveLength(117);
-    expect(db.rows("round_lineups")).toHaveLength(36);
+    expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
   });
 });
