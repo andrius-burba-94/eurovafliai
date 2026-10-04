@@ -68,6 +68,7 @@ export default async function DraftPage({
     leagueId: id,
     season: serverConfig().EUROLEAGUE_SEASON,
     pool: view.pool,
+    basketNews: view.sourceOwned,
   });
 
   const { draft, picks, onClock, isYourTurn, yourNeeds } = view;

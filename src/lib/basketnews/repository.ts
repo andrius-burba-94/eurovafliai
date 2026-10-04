@@ -4,6 +4,7 @@ import type PocketBase from "pocketbase";
 import { isUniqueViolation } from "@/lib/drafts/unique";
 import type { SyncQuestion } from "@/lib/fantasy/match";
 import type { SyncSeat, SyncStep } from "@/lib/fantasy/plan";
+import type { Position } from "@/lib/engine";
 import type { LineupSlots } from "@/lib/lineups/lineup";
 import { writeLineup } from "@/lib/lineups/store";
 import { applyTransaction, listActiveMemberships, materializeDraftMemberships } from "@/lib/memberships/store";
@@ -18,7 +19,7 @@ type MemberRow = { id: string; user: string; team_name: string; basketnews_team_
 type DraftRow = { id: string; status: string; order: unknown; rounds: number };
 type PickRow = { id: string; overall_no: number; member: string; player: string };
 type JobRow = { id: string; league: string; status: string; job_meta?: { nextRound?: number } };
-type PlayerRow = { id: string; name: string; name_normalized: string; club_code: string; club_name: string; fantasy_id?: string; basketnews_id?: string; status?: string; dorsal?: string };
+type PlayerRow = { id: string; name: string; name_normalized: string; club_code: string; club_name: string; fantasy_id?: string; basketnews_id?: string; basketnews_position?: Position; status?: string; dorsal?: string };
 
 /** Stored source scores drive every BasketNews player view as well as the ladder. */
 export async function readBasketNewsPlayerRounds(pb: PocketBase, leagueId: string, season: string, memberId?: string) {
@@ -97,7 +98,7 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     const season = `E${league.season.slice(0, 4)}`;
     const [players, snapshots] = await Promise.all([
       this.pb.collection("players").getFullList<PlayerRow>({
-        fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,basketnews_id,status", requestKey: null,
+        fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,basketnews_id,basketnews_position,status", requestKey: null,
       }),
       this.pb.collection("standings_snapshots").getList<{ round: number }>(1, 1, {
         filter: `league = '${leagueId}' && season = "${season}"`,
@@ -107,7 +108,7 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     const pool = players.map((row) => ({
       id: row.id, name: row.name, nameNormalized: row.name_normalized, clubCode: row.club_code,
       clubName: row.club_name, dorsal: row.dorsal ?? "", fantasyId: row.fantasy_id ?? "",
-      status: row.status ?? "", basketnewsId: row.basketnews_id ?? "",
+      status: row.status ?? "", basketnewsId: row.basketnews_id ?? "", basketnewsPosition: row.basketnews_position,
     }));
     return { name: league.name, season, commissioner: league.commissioner, sourceTeamId: league.basketnews_team_id, latestRound: snapshots.items[0]?.round ?? 0, pool };
   }
@@ -151,8 +152,11 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     return result;
   }
 
-  async linkPlayers(links: readonly { playerId: string; sourceId: string }[]): Promise<void> {
-    for (const link of links) await this.pb.collection("players").update(link.playerId, { basketnews_id: link.sourceId }, { requestKey: null });
+  async linkPlayers(links: readonly { playerId: string; sourceId: string; position: Position; updateId: boolean; updatePosition: boolean }[]): Promise<void> {
+    for (const link of links) await this.pb.collection("players").update(link.playerId, {
+      ...(link.updateId ? { basketnews_id: link.sourceId } : {}),
+      ...(link.updatePosition ? { basketnews_position: link.position } : {}),
+    }, { requestKey: null });
   }
 
   async ensureDraft(leagueId: string, picks: readonly { memberId: string; playerId: string }[], order: readonly string[], draftDate: Date): Promise<void> {

@@ -151,7 +151,7 @@ export async function AppShell({
   );
 
   return (
-    <LeagueLinksProvider base={league ? leagueHref(league) : null}>
+    <LeagueLinksProvider base={league ? leagueHref(league) : null} basketNews={Boolean(league?.sourceOwned)}>
       {panel ? <PanelProvider docked={panelDocked}>{body}</PanelProvider> : body}
     </LeagueLinksProvider>
   );

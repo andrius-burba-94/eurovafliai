@@ -5,6 +5,7 @@ import { createUserClient } from "@/lib/pb/server";
 
 import type { PlayerSource, PlayerStatus, RosterAuthority } from "./types";
 import type { Position } from "@/lib/engine";
+import { leaguePosition } from "@/lib/positions";
 import { averagePirOf, type ProjectionFields } from "@/lib/stats/project";
 
 /**
@@ -22,6 +23,7 @@ export type PoolPlayer = {
   club_code: string;
   club_name: string;
   position: Position;
+  basketnews_position?: Position;
   status: PlayerStatus;
   person_code: string;
   source: PlayerSource;
@@ -64,7 +66,7 @@ export type Pool = {
  * filters, search and the "hide drafted" default are Phase 3.3's job, and
  * inventing half of them here would mean building them twice.
  */
-export async function getPool(): Promise<Pool | null> {
+export async function getPool(basketNews = false): Promise<Pool | null> {
   const session = await getSession();
   if (!session) return null;
 
@@ -78,7 +80,7 @@ export async function getPool(): Promise<Pool | null> {
     })
   ).map((record) => {
     const average = averagePirOf(record);
-    return { ...record, pirTenths: average?.tenths, pirSource: average?.source };
+    return { ...record, position: leaguePosition(record, basketNews), pirTenths: average?.tenths, pirSource: average?.source };
   });
 
   const settings = await pb

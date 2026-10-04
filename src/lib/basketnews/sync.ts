@@ -3,6 +3,7 @@ import type { FantasyPlayer, FantasyTeam } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import type { LineupSlots } from "@/lib/lineups/lineup";
 import { normalizeName } from "@/lib/rosters/normalize";
+import type { Position } from "@/lib/engine";
 
 import {
   readBasketNewsLeague, readBasketNewsLineup, readBasketNewsScore,
@@ -13,10 +14,10 @@ import {
 
 /** The business flow knows persistence operations, never PocketBase or its query syntax. */
 export interface BasketNewsRepository {
-  load(leagueId: string): Promise<{ name: string; season: string; commissioner: string; sourceTeamId: string; latestRound: number; pool: (PoolPlayer & { basketnewsId?: string })[] }>;
+  load(leagueId: string): Promise<{ name: string; season: string; commissioner: string; sourceTeamId: string; latestRound: number; pool: (PoolPlayer & { basketnewsId?: string; basketnewsPosition?: Position | "" })[] }>;
   linkLeague(leagueId: string, sourceLeagueId: string): Promise<void>;
   ensureMembers(leagueId: string, teams: readonly BasketNewsTeam[], ownTeamId: string, commissioner: string, firstPickOrder: readonly string[]): Promise<ReadonlyMap<string, { id: string; name: string }>>;
-  linkPlayers(links: readonly { playerId: string; sourceId: string }[]): Promise<void>;
+  linkPlayers(links: readonly { playerId: string; sourceId: string; position: Position; updateId: boolean; updatePosition: boolean }[]): Promise<void>;
   ensureDraft(leagueId: string, picks: readonly { memberId: string; playerId: string }[], order: readonly string[], draftDate: Date): Promise<void>;
   seats(leagueId: string): Promise<SyncSeat[]>;
   apply(leagueId: string, steps: readonly SyncStep[], at: Date): Promise<void>;
@@ -145,7 +146,7 @@ export async function syncBasketNews(
   const rosters: FantasyTeam[] = teams.map((team) => ({ id: team.id, name: team.title, manager: "", players: byTeam.get(team.id) ?? [] }));
   const clubCodes = resolveClubs(rosters, local.pool);
   const mapped = new Map<string, string>();
-  const links: { playerId: string; sourceId: string }[] = [];
+  const links: { playerId: string; sourceId: string; position: Position; updateId: boolean; updatePosition: boolean }[] = [];
   const questions: SyncQuestion[] = [];
   for (const [sourceId, sourcePlayer] of sourcePlayers) {
     const existing = local.pool.find((player) => player.basketnewsId === sourceId);
@@ -153,7 +154,10 @@ export async function syncBasketNews(
     const match = existing ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool);
     if (match) {
       mapped.set(sourceId, match.id);
-      if (!existing) links.push({ playerId: match.id, sourceId });
+      if (!existing || existing.basketnewsPosition !== player.position) links.push({
+        playerId: match.id, sourceId, position: player.position,
+        updateId: !existing, updatePosition: existing?.basketnewsPosition !== player.position,
+      });
       continue;
     }
     const surname = normalizeName(player.lastName);

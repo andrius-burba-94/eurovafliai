@@ -9,7 +9,7 @@ import type { PlayerProfile, GameLogLine } from "@/lib/stats/queries";
 import { formatTenths } from "@/lib/stats/scoring";
 import { formatTipOff } from "@/lib/time/local";
 import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
-import { usePlayerHref } from "@/components/league-links";
+import { useBasketNewsLeague, usePlayerHref } from "@/components/league-links";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 
 type Profile = { player: PlayerProfile; log: GameLogLine[]; currentGame: CurrentGame | null };
@@ -64,6 +64,7 @@ export function PlayerStatsModal({
   round?: number;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const basketNews = useBasketNewsLeague();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState(false);
 
@@ -71,7 +72,10 @@ export function PlayerStatsModal({
     const element = dialog.current;
     if (element && !element.open) element.showModal();
     const controller = new AbortController();
-    fetch(round ? `/api/players/${id}?round=${round}` : `/api/players/${id}`, { signal: controller.signal, cache: "no-store" })
+    const params = new URLSearchParams();
+    if (round) params.set("round", String(round));
+    if (basketNews) params.set("basketnews", "1");
+    fetch(`/api/players/${id}${params.size ? `?${params}` : ""}`, { signal: controller.signal, cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("Profile unavailable");
         return response.json() as Promise<Profile>;
@@ -82,7 +86,7 @@ export function PlayerStatsModal({
         setError(true);
       });
     return () => controller.abort();
-  }, [id, round]);
+  }, [id, round, basketNews]);
 
   const player = profile?.player;
   // The caller's address names the player by id; once the profile has a slug,

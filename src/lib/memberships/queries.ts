@@ -11,6 +11,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import type { Position } from "@/lib/engine";
+import { leaguePosition } from "@/lib/positions";
 import { readNextFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { readLineupWeights } from "@/lib/lineups/store";
@@ -30,6 +31,7 @@ type ExpandedPlayer = {
   club_name: string;
   person_code?: string;
   position: Position;
+  basketnews_position?: Position;
   status?: string;
   proj_last5_games?: number;
   proj_last5_pirs?: unknown;
@@ -135,7 +137,7 @@ export async function readMemberRoster(
         clubCode: player.club_code,
         clubName: player.club_name,
         personCode: player.person_code,
-        position: player.position,
+        position: leaguePosition(player, basketNews),
         overallNo: overallByPlayer.get(player.id) ?? null,
         last5Pirs: last5SeriesOf(player),
         fixture: fixtures.get(player.club_code) ?? null,
@@ -640,9 +642,9 @@ export async function readLeagueDeals(leagueId: string, season: string, basketNe
             fields: "player,round,fantasy_pts,pir",
             requestKey: null,
           }),
-          pb.collection("players").getFullList<{ id: string; name: string; person_code?: string; position?: Position; club_code?: string }>({
+          pb.collection("players").getFullList<{ id: string; name: string; person_code?: string; position: Position; basketnews_position?: Position; club_code?: string }>({
             filter: idFilter,
-            fields: "id,name,person_code,position,club_code",
+            fields: "id,name,person_code,position,basketnews_position,club_code",
             requestKey: null,
           }),
         ]);
@@ -689,7 +691,7 @@ export async function readLeagueDeals(leagueId: string, season: string, basketNe
     players: Object.fromEntries(
       people.map((person) => [
         person.id,
-        { name: person.name, personCode: person.person_code, position: person.position, clubCode: person.club_code },
+        { name: person.name, personCode: person.person_code, position: leaguePosition(person, basketNews), clubCode: person.club_code },
       ]),
     ),
     ledger,

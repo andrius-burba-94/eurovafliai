@@ -78,10 +78,10 @@ export async function PlayerProfilePage({
 
   const id = await resolvePlayerId(playerRef);
   if (!id) notFound();
-  const [profile, news, leagueData] = await Promise.all([
-    readPlayerProfile(id),
+  const leagueData = leagueRef ? await getLeagueWithMembers(leagueRef) : null;
+  const [profile, news] = await Promise.all([
+    readPlayerProfile(id, { basketNews: Boolean(leagueData?.league.basketnews_team_id) }),
     readNewsFor(id),
-    leagueRef ? getLeagueWithMembers(leagueRef) : Promise.resolve(null),
   ]);
   if (!profile || (leagueRef && !leagueData)) notFound();
   const rosterMember = leagueData && memberRef
