@@ -84,17 +84,17 @@ export default async function TeamPage({
     ]),
   );
   const [roster, deals, panel, statsPage] = await Promise.all([
-    readMemberRoster(id, memberId, season),
-    readMemberDeals(id, memberId, season, teamNames),
+    readMemberRoster(id, memberId, season, Boolean(data.league.basketnews_team_id)),
+    readMemberDeals(id, memberId, season, teamNames, Boolean(data.league.basketnews_team_id)),
     readPanel({ leagueId: id, season, teamNames }),
-    readLeagueStats(id, season).catch(() => null),
+    readLeagueStats(id, season, Boolean(data.league.basketnews_team_id)).catch(() => null),
   ]);
   const finishedSnapshots = statsPage?.snapshots ?? [];
   const progress =
-    season === currentSeason && data.league.status === "season"
+    season === currentSeason && data.league.status === "season" && !data.league.basketnews_team_id
       ? await readRoundProgress(season, session.token, finishedSnapshots.map((snap) => snap.round)).catch(() => null)
       : null;
-  const live = progress ? liveRound(progress) : null;
+  const live = progress && !data.league.basketnews_team_id ? liveRound(progress) : null;
   const matchday = live
     ? await readMatchdayData({
         leagueId: id,
@@ -163,7 +163,7 @@ export default async function TeamPage({
                 <p className="mt-1 text-sm text-ink-soft">{member.name} · {roster.length} of {rosterSize} players</p>
               </div>
             </div>
-            {member.isYou && data.league.status === "season" ? (
+            {member.isYou && data.league.status === "season" && !data.league.basketnews_team_id ? (
               <Link href={`${base}/lineup`} className="inline-flex min-h-11 items-center rounded-lg bg-live px-4 text-sm font-bold text-live-ink hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
                 Set lineup
               </Link>

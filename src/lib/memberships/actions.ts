@@ -101,6 +101,7 @@ export async function recordTransaction(
   } catch {
     return { error: "That league is not here." };
   }
+  if (league.basketnews_team_id) return { error: "BasketNews owns this league's rosters." };
 
   const members = await pb.collection("league_members").getFullList<MemberRecord>(
     {

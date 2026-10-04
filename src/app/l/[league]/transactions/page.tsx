@@ -45,7 +45,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
   if ((!you && !canManage) || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
 
   const season = serverConfig().EUROLEAGUE_SEASON;
-  const { deals, players, ledger } = await readLeagueDeals(id, season);
+  const { deals, players, ledger } = await readLeagueDeals(id, season, Boolean(data.league.basketnews_team_id));
   const styles = stylesById(data.members);
   const name = (memberId: string) => {
     const member = data.members.find((row) => row.id === memberId);
@@ -117,13 +117,13 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
               >
                 Fantasy sync
               </Link>
-              <Link
+              {!data.league.basketnews_team_id ? <Link
                 href={`${base}/transactions/new`}
                 data-testid="record-trade"
                 className="inline-flex min-h-11 items-center rounded-lg bg-live px-4 text-sm font-bold text-live-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
               >
                 Record a trade
-              </Link>
+              </Link> : null}
             </span>
           ) : undefined
         }

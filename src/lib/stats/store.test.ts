@@ -54,6 +54,7 @@ function row(over: Partial<StatRowFields> = {}): StatRowFields {
     plus_minus: 5,
     pir: 12,
     fantasy_pts: 14,
+    basketnews_raw_pts: 140,
     ...over,
   };
 }

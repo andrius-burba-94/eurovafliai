@@ -66,13 +66,13 @@ export function LinkLeagueForm({
   );
 }
 
-export function SyncNowForm({ leagueId, label }: { leagueId: string; label: string }) {
+export function SyncNowForm({ leagueId, label, pendingLabel = "Reading the official rosters…" }: { leagueId: string; label: string; pendingLabel?: string }) {
   const [result, action] = useActionState(syncFantasyNow, IDLE);
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="leagueId" value={leagueId} />
       <div>
-        <SubmitButton tone="live" testId="fantasy-sync-now" pendingLabel="Reading the official rosters…">
+        <SubmitButton tone="live" testId="fantasy-sync-now" pendingLabel={pendingLabel}>
           {label}
         </SubmitButton>
       </div>

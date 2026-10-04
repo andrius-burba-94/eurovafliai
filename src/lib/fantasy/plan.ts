@@ -44,12 +44,13 @@ export type SyncPlanInput = {
   readonly target: ReadonlyMap<string, readonly string[]>;
   readonly teamName: (memberId: string) => string;
   readonly playerName: (playerId: string) => string;
+  readonly source?: string;
 };
 
 const NOTE_MAX = 500;
 
-function note(round: number, body: string): string {
-  const text = `Fantasy Challenge, round ${round}: ${body}`;
+function note(round: number, body: string, source = "Fantasy Challenge"): string {
+  const text = `${source}, round ${round}: ${body}`;
   return text.length > NOTE_MAX ? `${text.slice(0, NOTE_MAX - 1)}…` : text;
 }
 
@@ -58,7 +59,7 @@ function list(names: readonly string[]): string {
 }
 
 export function planSync(input: SyncPlanInput): SyncPlan {
-  const { round, seats, target, teamName, playerName } = input;
+  const { round, seats, target, teamName, playerName, source } = input;
   for (const seat of seats) {
     if (!target.has(seat.member)) {
       throw new Error(`No official roster for member ${seat.member}; refusing to plan a partial sync.`);
@@ -109,7 +110,7 @@ export function planSync(input: SyncPlanInput): SyncPlan {
       });
       moves.push(sentence);
       trades.push({
-        note: note(round, `${teamName(a)} sent ${list(sent.map(playerName))} to ${teamName(b)} for ${list(received.map(playerName))}.`),
+        note: note(round, `${teamName(a)} sent ${list(sent.map(playerName))} to ${teamName(b)} for ${list(received.map(playerName))}.`, source),
         announcement: sentence,
         plan: {
           type: "trade",
@@ -136,7 +137,7 @@ export function planSync(input: SyncPlanInput): SyncPlan {
       released.length > 0 ? `${team} released ${list(released.map(playerName))}` : null,
       acquired.length > 0 ? `${released.length > 0 ? "and acquired" : `${team} acquired`} ${list(acquired.map(playerName))}` : null,
     ].filter(Boolean);
-    const shared = note(round, `${parts.join(" ")}.`);
+    const shared = note(round, `${parts.join(" ")}.`, source);
     const exchange = released.length === 1 && acquired.length === 1;
 
     if (exchange) {

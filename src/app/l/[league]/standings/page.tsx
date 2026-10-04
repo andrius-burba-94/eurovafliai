@@ -67,11 +67,10 @@ export default async function StandingsPage({
       snapshots.flatMap((snap) => snap.table.map((row) => row.memberId)),
     ),
   ];
-  const progress = await readRoundProgress(
-    season,
-    session.token,
-    snapshots.map((snap) => snap.round),
-  );
+  const sourceRounds = data.league.basketnews_team_id ? snapshots.map((snap) => snap.round) : null;
+  const progress = sourceRounds
+    ? { complete: sourceRounds }
+    : await readRoundProgress(season, session.token, snapshots.map((snap) => snap.round));
   const latestRound = snapshots.at(-1)?.round;
   const latestOpen = latestRound !== undefined && !progress.complete.includes(latestRound);
   const provisional =

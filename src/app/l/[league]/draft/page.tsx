@@ -453,7 +453,7 @@ export default async function DraftPage({
               since 10.9 — see the column note above. Its member list is in draft
               order — the order the board reads across and the radar reads down —
               so the three surfaces name the same league in the same sequence. */}
-          {draft.status === "complete" && view.canManage ? (
+          {draft.status === "complete" && view.canManage && !view.sourceOwned ? (
             <details className="group rounded-card border border-panel-border bg-stock-panel px-4 py-2" data-testid="complete-tools">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
                 Commissioner tools
@@ -482,7 +482,7 @@ export default async function DraftPage({
           <DraftControls
             leagueId={id}
             status={draft.status}
-            canManage={view.canManage}
+            canManage={view.canManage && !view.sourceOwned}
             picksMade={picks.length}
             pickSeconds={draft.pick_seconds}
             members={draft.order.map((memberId) => ({

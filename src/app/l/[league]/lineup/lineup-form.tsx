@@ -103,6 +103,7 @@ export function LineupForm({
   official,
   carriedFrom,
   template,
+  sourceOwned = false,
 }: {
   leagueId: string;
   memberId: string;
@@ -117,6 +118,7 @@ export function LineupForm({
   official: boolean;
   carriedFrom: number | null;
   template: LineupTemplate;
+  sourceOwned?: boolean;
 }) {
   const playerHref = usePlayerHref();
   const [result, action] = useActionState(recordLineup, START);
@@ -156,6 +158,7 @@ export function LineupForm({
   }
 
   useEffect(() => {
+    if (sourceOwned) return;
     try {
       const raw = window.localStorage.getItem(draftKey);
       if (!raw) return;
@@ -175,15 +178,16 @@ export function LineupForm({
     } catch {
       // An unavailable or malformed browser store must not block recording.
     }
-  }, [draftKey, players]);
+  }, [draftKey, players, sourceOwned]);
 
   useEffect(() => {
+    if (sourceOwned) return;
     try {
       if (dirty) window.localStorage.setItem(draftKey, JSON.stringify({ places, captainId }));
     } catch {
       // The server action remains available when storage is disabled.
     }
-  }, [draftKey, places, captainId, dirty]);
+  }, [draftKey, places, captainId, dirty, sourceOwned]);
 
   useEffect(() => {
     if (!result.saved) return;
@@ -197,6 +201,7 @@ export function LineupForm({
    * then refuse is a control that exists to produce an error message.
    */
   function markCaptain(playerId: string): void {
+    if (sourceOwned) return;
     setCaptainId(playerId);
     setPlaces((current) => ({ ...current, [playerId]: "starter" }));
     setDirty(true);
@@ -204,6 +209,7 @@ export function LineupForm({
 
   /** Moving the captain off the five gives up the armband with the place. */
   function place(playerId: string, role: PlacementRole | ""): void {
+    if (sourceOwned) return;
     setPlaces((current) => ({ ...current, [playerId]: role }));
     if (role !== "starter" && captainId === playerId) setCaptainId("");
     setDirty(true);
@@ -262,6 +268,7 @@ export function LineupForm({
   }, [assignments, players]);
 
   function chooseFormation(shape: readonly [number, number, number]): void {
+    if (sourceOwned) return;
     const arranged = arrangeFormation(players.map((player) => ({ id: player.id, position: player.position, place: places[player.id] ?? "" })), shape, template, captainId);
     if (!arranged) return;
     setPlaces({ ...arranged.places });
@@ -281,6 +288,7 @@ export function LineupForm({
   }
 
   function applyOptimization(): void {
+    if (sourceOwned) return;
     if (!preview) return;
     setPlaces(Object.fromEntries(players.map((player) => {
       const role = preview.roles[player.id];
@@ -334,6 +342,7 @@ export function LineupForm({
   }
 
   function dropOn(playerId: string, target: DropTarget): void {
+    if (sourceOwned) return;
     setLastMove("");
     if (target.kind === "player") {
       swap(playerId, target.id);
@@ -461,7 +470,8 @@ export function LineupForm({
   const tool = "inline-flex min-h-11 items-center px-1 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live";
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={sourceOwned ? undefined : action} className="flex flex-col gap-4">
+      {sourceOwned ? <p className="text-sm text-ink-soft">BasketNews owns this lineup. Changes appear after the next sync.</p> : null}
       <input type="hidden" name="leagueId" value={leagueId} />
       <input type="hidden" name="memberId" value={memberId} />
       <input type="hidden" name="season" value={season} />
@@ -717,9 +727,7 @@ export function LineupForm({
               </span>
             </p>
           </div>
-          <SubmitButton testId="record-lineup-submit" tone="live" pendingLabel="Recording…" compact>
-            Record lineup
-          </SubmitButton>
+          {sourceOwned ? null : <SubmitButton testId="record-lineup-submit" tone="live" pendingLabel="Recording…" compact>Record lineup</SubmitButton>}
         </div>
         {/* Always mounted, so a reader hears the refusal a move just caused. */}
         <div role="status" className="empty:hidden">

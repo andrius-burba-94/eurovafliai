@@ -70,6 +70,34 @@ test("a commissioner creates a league and lands in its lobby", async ({
   await expect(page.getByTestId("create-league")).not.toHaveAttribute("data-tone", "live");
 });
 
+test("BasketNews creation queues a separate source-owned league", async ({ page, context }) => {
+  const commissioner = await createTestUser("basketnews-owner");
+  const ordinary = await createLeagueFor(commissioner, "EuroVafliai Test 26-27");
+  await signIn(context, commissioner);
+
+  await page.goto("/");
+  await page.getByTestId("create-league-name").fill("Hostinger CA$HiorAI");
+  await page.getByLabel("Ruleset").selectOption("basketnews");
+  await page.getByLabel("Your BasketNews team URL").fill("https://fantasy.basketnews.com/teams/6ab26d119050fb90221c5697");
+  await page.getByTestId("create-league").click();
+  await page.waitForURL(/\/l\/hostinger-ca-hiorai(?:-\d+)?(?:\?|$)/);
+
+  const pb = await superuser();
+  const imported = await pb.collection("leagues").getFirstListItem<{ id: string; basketnews_team_id: string }>("name = 'Hostinger CA$HiorAI' && commissioner = '" + commissioner.id + "'");
+  trackLeague(imported.id);
+  expect(imported.id).not.toBe(ordinary.id);
+  expect(imported.basketnews_team_id).toBe("6ab26d119050fb90221c5697");
+  const original = await pb.collection("leagues").getOne<{ basketnews_team_id: string }>(ordinary.id);
+  expect(original.basketnews_team_id).toBe("");
+  const runs = await pb.collection("fantasy_syncs").getFullList<{ provider: string }>({ filter: `league = '${imported.id}'` });
+  expect(runs).toHaveLength(1);
+  expect(runs[0]?.provider).toBe("basketnews");
+
+  await page.goto(`/l/${imported.id}/fantasy`);
+  await expect(page.getByRole("heading", { name: "BasketNews sync" })).toBeVisible();
+  await expect(page.getByTestId("fantasy-runs")).toContainText("BasketNews");
+});
+
 test("a second person joins with the invite code", async ({
   page,
   context,

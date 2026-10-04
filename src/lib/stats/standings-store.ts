@@ -58,10 +58,13 @@ type MembershipRef = {
   to_round?: number | null;
 };
 type StatRef = {
+  id: string;
   player: string;
   round: number;
   phase: Phase;
   fantasy_pts: number;
+  game_code: number;
+  basketnews_raw_pts?: number;
 };
 type SnapshotRecord = {
   id: string;
@@ -178,14 +181,14 @@ export async function recomputeStandings(
     ? `status = 'season' && id = '${options.leagueId}'`
     : "status = 'season'";
   const [leagues, lines] = await Promise.all([
-    pb.collection("leagues").getFullList<{ id: string }>({
+    pb.collection("leagues").getFullList<{ id: string; basketnews_league_id?: string }>({
       filter: leagueFilter,
-      fields: "id",
+      fields: "id,basketnews_league_id",
       requestKey: null,
     }),
     pb.collection("player_game_stats").getFullList<StatRef>({
       filter: `season = "${code}"`,
-      fields: "player,round,phase,fantasy_pts",
+      fields: "id,player,round,phase,fantasy_pts,game_code,basketnews_raw_pts",
       requestKey: null,
     }),
   ]);
@@ -202,6 +205,62 @@ export async function recomputeStandings(
   let scored = 0;
 
   for (const league of leagues) {
+    if (league.basketnews_league_id) {
+      const [members, lineups, existing] = await Promise.all([
+        pb.collection("league_members").getFullList<{ id: string }>({ filter: `league = '${league.id}'`, fields: "id", requestKey: null }),
+        pb.collection("round_lineups").getFullList<{ member: string; round: number; basketnews_result?: { totalHundredths?: number; players?: { playerId: string; rawHundredths: number }[] } }>({
+          filter: `league = '${league.id}' && season = "${code}"`,
+          fields: "member,round,basketnews_result", requestKey: null,
+        }),
+        pb.collection("standings_snapshots").getFullList<SnapshotRecord>({ filter: `league = '${league.id}' && season = "${code}"`, requestKey: null }),
+      ]);
+      const byRound = new Map<number, Map<string, number>>();
+      const sourcePlayerPoints = new Map<string, number>();
+      for (const row of lineups) {
+        const value = row.basketnews_result?.totalHundredths;
+        if (typeof value !== "number" || !Number.isInteger(value)) continue;
+        const table = byRound.get(row.round) ?? new Map<string, number>();
+        table.set(row.member, value);
+        byRound.set(row.round, table);
+        for (const player of row.basketnews_result?.players ?? []) {
+          sourcePlayerPoints.set(`${player.playerId}|${row.round}`, player.rawHundredths);
+        }
+      }
+      // A game-stat row is per game while BasketNews publishes one raw value
+      // per round. Anchor that exact value to the first game, zeroing later
+      // games so a sum of the rows remains the published round score.
+      const byPlayerRound = new Map<string, StatRef[]>();
+      for (const line of lines) {
+        const key = `${line.player}|${line.round}`;
+        if (!sourcePlayerPoints.has(key)) continue;
+        byPlayerRound.set(key, [...(byPlayerRound.get(key) ?? []), line]);
+      }
+      for (const [key, playerLines] of byPlayerRound) {
+        playerLines.sort((a, b) => a.game_code - b.game_code);
+        for (const [index, line] of playerLines.entries()) {
+          const value = index === 0 ? sourcePlayerPoints.get(key)! : 0;
+          if (line.basketnews_raw_pts !== value) {
+            await pb.collection("player_game_stats").update(line.id, { basketnews_raw_pts: value }, { requestKey: null });
+          }
+        }
+      }
+      const complete = [...byRound].filter(([, table]) => members.length > 0 && members.every((member) => table.has(member.id)));
+      const rows = members.map((member) => ({
+        memberId: member.id,
+        totalHundredths: complete.reduce((sum, [, table]) => sum + table.get(member.id)!, 0),
+        byRound: Object.fromEntries(complete.map(([round, table]) => [round, table.get(member.id)!])),
+      }));
+      const phases = phaseByRound(standingLines);
+      const snapshots = snapshotsFromStandings(rows, new Map(complete.map(([round]) => [round, phases.get(round) ?? "RS"])));
+      const stored = new Map(existing.map((row) => [row.round, row]));
+      for (const snap of snapshots) {
+        const result = await upsertSnapshot(pb, stored.get(snap.round), { league: league.id, season: code, round: snap.round, phase: snap.phase, table: snap.table });
+        if (result === "written") written += 1;
+        else unchanged += 1;
+      }
+      scored += 1;
+      continue;
+    }
     const drafts = await pb.collection("drafts").getFullList<DraftRef>({
       filter: `league = '${league.id}' && status = 'complete'`,
       sort: "-id",

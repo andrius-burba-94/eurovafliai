@@ -9,6 +9,7 @@ import {
   announceTrade,
 } from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
+import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import type { Position } from "@/lib/engine";
 import { readNextFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
@@ -83,6 +84,7 @@ export async function readMemberRoster(
   leagueId: string,
   memberId: string,
   season: string,
+  basketNews = false,
 ): Promise<RosterPlayer[]> {
   const session = await getSession();
   if (!session) return [];
@@ -102,8 +104,9 @@ export async function readMemberRoster(
 
   const mine = memberships.filter((row) => row.member === memberId);
   const code = season.replace(/[^A-Za-z0-9]/g, "");
-  const lines =
-    mine.length === 0
+  const lines = basketNews
+    ? await readBasketNewsPlayerRounds(pb, leagueId, code, memberId)
+    : mine.length === 0
       ? []
       : await pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number }>({
           filter: `(${mine.map((row) => `player = '${row.player}'`).join(" || ")}) && season = "${code}"`,
@@ -262,6 +265,7 @@ export async function readMemberDeals(
   memberId: string,
   season: string,
   teamNames: Readonly<Record<string, string>>,
+  basketNews = false,
 ): Promise<DealView[]> {
   const session = await getSession();
   if (!session) return [];
@@ -300,6 +304,7 @@ export async function readMemberDeals(
   const lines =
     playerIds.length === 0
       ? []
+      : basketNews ? (await readBasketNewsPlayerRounds(pb, leagueId, season)).filter((row) => playerIds.includes(row.player)).map((row) => ({ ...row, pir: 0 }))
       : await pb.collection("player_game_stats").getFullList<{
           player: string;
           round: number;
@@ -593,7 +598,7 @@ export type LeagueDeals = {
  * scores this season; the verdict is the same `impactForMember` the team page
  * and the recap use, so the three can never disagree about a deal.
  */
-export async function readLeagueDeals(leagueId: string, season: string): Promise<LeagueDeals> {
+export async function readLeagueDeals(leagueId: string, season: string, basketNews = false): Promise<LeagueDeals> {
   const empty: LeagueDeals = { deals: [], players: {}, ledger: {} };
   const session = await getSession();
   if (!session) return empty;
@@ -630,7 +635,7 @@ export async function readLeagueDeals(leagueId: string, season: string): Promise
     playerIds.length === 0
       ? [[], []]
       : await Promise.all([
-          pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; pir: number }>({
+          basketNews ? readBasketNewsPlayerRounds(pb, leagueId, season).then((rows) => rows.filter((row) => playerIds.includes(row.player)).map((row) => ({ ...row, pir: 0 }))) : pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; pir: number }>({
             filter: `(${playerIds.map((id) => `player = '${id}'`).join(" || ")}) && season = "${season}"`,
             fields: "player,round,fantasy_pts,pir",
             requestKey: null,

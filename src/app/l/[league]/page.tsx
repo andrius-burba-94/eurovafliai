@@ -71,6 +71,7 @@ export default async function LobbyPage({
   // Not found and not-yours are the same answer on purpose: telling them apart
   // would let anyone probe which leagues exist.
   if (!data) notFound();
+  if (data.league.basketnews_team_id && data.league.status === "setup") redirect(`${leagueHref(data.league)}/fantasy`);
   const id = data.league.id;
   if (data.league.slug && leagueRef !== data.league.slug) {
     redirect(`${leagueHref(data.league)}${justArrived ? "?arrived=1" : ""}`);
@@ -131,15 +132,17 @@ export default async function LobbyPage({
   // The story, the crowns and the movement are about the last round that is
   // over; the round still being played is the live scorebug, in Live's figures.
   const progress = isSeasonDashboard
-    ? await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round))
+    ? league.basketnews_team_id
+      ? { complete: snapshots.map((snapshot) => snapshot.round), lastComplete: snapshots.at(-1)?.round ?? null, current: null }
+      : await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round))
     : null;
   const live = progress ? liveRound(progress) : null;
   const [recap, matchday] = progress
     ? await Promise.all([
         progress.lastComplete === null
           ? null
-          : readLeagueRecap(id, season, progress.lastComplete).catch(() => null),
-        live
+          : readLeagueRecap(id, season, progress.lastComplete, Boolean(league.basketnews_team_id)).catch(() => null),
+        live && !league.basketnews_team_id
           ? readMatchdayData({
               leagueId: id,
               memberIds: members.map((member) => member.id),

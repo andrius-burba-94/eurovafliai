@@ -102,6 +102,7 @@ async function loadDraftContext(leagueId: string) {
   } catch {
     return null;
   }
+  if (league.basketnews_team_id) return null;
 
   const members = await pb
     .collection("league_members")

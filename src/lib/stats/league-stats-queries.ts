@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
+import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import type { Position } from "@/lib/engine";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
@@ -28,7 +29,7 @@ export type LeagueStatsPage = {
  * windows, this season's box scores, the recorded lineups, the draft's picks
  * and the pool's names.
  */
-export async function readLeagueStats(leagueId: string, season: string): Promise<LeagueStatsPage | null> {
+export async function readLeagueStats(leagueId: string, season: string, basketNews = false): Promise<LeagueStatsPage | null> {
   const session = await getSession();
   if (!session) return null;
   const pb = createUserClient(session.token);
@@ -43,7 +44,7 @@ export async function readLeagueStats(leagueId: string, season: string): Promise
       to_round?: number | null;
       to_date?: string | null;
     }>({ filter: `league = '${leagueId}'`, fields: "member,player,from_round,to_round,to_date", requestKey: null }),
-    pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; club_code?: string }>({
+    basketNews ? readBasketNewsPlayerRounds(pb, leagueId, code) : pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; club_code?: string }>({
       filter: `season = "${code}"`,
       fields: "player,round,fantasy_pts,club_code",
       requestKey: null,
@@ -62,11 +63,11 @@ export async function readLeagueStats(leagueId: string, season: string): Promise
         requestKey: null,
       })
     : [];
-  const progress = await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round));
+  const progress = basketNews ? null : await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round));
   const memberIds = [...new Set(windows.map((row) => row.member))];
   const lineups = resolveLineups({ recorded, rounds: [...new Set(lines.map((line) => line.round))], memberIds });
   const clubOf = new Map(pool.map((player) => [player.id, player.club_code]));
-  const finished = completedOnly(snapshots, progress);
+  const finished = progress ? completedOnly(snapshots, progress) : snapshots;
 
   const stats = leagueStats({
     snapshots: finished,
@@ -74,7 +75,7 @@ export async function readLeagueStats(leagueId: string, season: string): Promise
       playerId: line.player,
       round: line.round,
       fantasyTenths: line.fantasy_pts,
-      clubCode: line.club_code || clubOf.get(line.player),
+      clubCode: ("club_code" in line && typeof line.club_code === "string" ? line.club_code : undefined) || clubOf.get(line.player),
     })),
     windows: windows.map((row) => ({ memberId: row.member, playerId: row.player, from_round: row.from_round, to_round: row.to_round, to_date: row.to_date })),
     weights: lineupWeights(lineups),

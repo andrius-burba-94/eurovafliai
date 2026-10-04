@@ -31,6 +31,7 @@ export function LeagueForms({ hasLeagues }: { hasLeagues: boolean }) {
   const [created, createAction] = useActionState(createLeague, START);
   const [joined, joinAction] = useActionState(joinLeague, START);
   const [name, setName] = useState("");
+  const [ruleset, setRuleset] = useState<"euroleague" | "basketnews">("euroleague");
   const [code, setCode] = useState("");
   const message = created.error ?? joined.error;
 
@@ -54,6 +55,17 @@ export function LeagueForms({ hasLeagues }: { hasLeagues: boolean }) {
                 className={inputStyles}
               />
             </Field>
+            <Field label="Ruleset">
+              <select name="ruleset" value={ruleset} onChange={(event) => setRuleset(event.target.value as typeof ruleset)} className={inputStyles}>
+                <option value="euroleague">EuroLeague Fantasy Challenge</option>
+                <option value="basketnews">BasketNews Draft</option>
+              </select>
+            </Field>
+            {ruleset === "basketnews" ? (
+              <Field label="Your BasketNews team URL">
+                <input name="basketnewsTeamUrl" type="url" required placeholder="https://fantasy.basketnews.com/teams/…" className={inputStyles} />
+              </Field>
+            ) : null}
             {/* Creating is the marker act only on an empty board. Once a
                 league exists, returning to it is the page's first task. */}
             <SubmitButton

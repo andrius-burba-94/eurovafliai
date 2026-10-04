@@ -38,6 +38,7 @@ import { stylesFromRecords, type TeamStyle } from "@/lib/teams/identity";
 
 export type DraftView = {
   draft: DraftRecord;
+  sourceOwned: boolean;
   picks: BoardPick[];
   /** Whose turn it is, or null when the draft is finished. */
   onClock: {
@@ -191,6 +192,7 @@ export async function getDraftView(
     commissioner: string;
     status: string;
     slug?: string;
+    basketnews_team_id?: string;
   }>(leagueId, { requestKey: null });
   const settings = parseLeagueSettings(league.settings);
 
@@ -391,6 +393,7 @@ export async function getDraftView(
 
   return {
     draft,
+    sourceOwned: Boolean(league.basketnews_team_id),
     picks,
     onClock: clock
       ? {
@@ -422,6 +425,7 @@ export async function getDraftView(
       canManage:
         league.commissioner === session.user.id || Boolean(you?.can_manage),
       rolled: Boolean(settings.rolled_at),
+      sourceOwned: Boolean(league.basketnews_team_id),
     },
     members: memberRecords.map((record) => ({
       id: record.id,

@@ -110,6 +110,7 @@ export async function readLineupBoard(input: {
   readonly memberId: string;
   readonly season: string;
   readonly round: number;
+  readonly basketNews?: boolean;
 }): Promise<LineupBoard | null> {
   const session = await getSession();
   if (!session) return null;
@@ -139,12 +140,12 @@ export async function readLineupBoard(input: {
       clubName: player.club_name,
       personCode: player.person_code,
       position: player.position,
-      estimateTenths: (player.proj_last5_games ?? 0) > 0
+      estimateTenths: input.basketNews ? null : (player.proj_last5_games ?? 0) > 0
         ? (player.proj_last5_fantasy ?? 0)
         : (player.prev_season_games ?? 0) > 0
           ? (player.prev_season_fantasy ?? 0)
           : null,
-      estimateSource: (player.proj_last5_games ?? 0) > 0
+      estimateSource: input.basketNews ? null : (player.proj_last5_games ?? 0) > 0
         ? "last five"
         : (player.prev_season_games ?? 0) > 0
           ? "previous season"

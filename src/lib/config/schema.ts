@@ -83,6 +83,8 @@ export const serverEnvSchema = z.object({
     blankAsUnset,
     z.string().regex(/^\d+$/, "must be the numeric league id").optional(),
   ),
+  /** Read-only browser session for the BasketNews worker. Never sent to a page. */
+  BASKETNEWS_COOKIE: z.preprocess(blankAsUnset, z.string().min(1).optional()),
 });
 
 function blankAsUnset(value: unknown): unknown {

@@ -4,10 +4,12 @@ import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice } from "@/components/board";
 import { PageHeader } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
+import { serverConfig } from "@/lib/config/server";
 import { readFantasySyncView } from "@/lib/fantasy/queries";
-import type { SyncRun, SyncStatus } from "@/lib/fantasy/store";
+import { readSyncRuns, type SyncRun, type SyncStatus } from "@/lib/fantasy/store";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
+import { createUserClient } from "@/lib/pb/server";
 import { formatTipOff } from "@/lib/time/local";
 
 import { LinkLeagueForm, QuestionForm, SyncNowForm } from "./sync-forms";
@@ -18,6 +20,8 @@ const STATUS_WORD: Record<SyncStatus, string> = {
   applying: "Applying",
   applied: "Applied",
   failed: "Failed",
+  queued: "Queued",
+  running: "Running",
 };
 
 const STATUS_TONE: Record<SyncStatus, string> = {
@@ -26,6 +30,8 @@ const STATUS_TONE: Record<SyncStatus, string> = {
   applying: "bg-stock-high text-ink",
   applied: "bg-gain/15 text-gain",
   failed: "bg-loss/15 text-loss",
+  queued: "bg-stock-high text-ink",
+  running: "bg-stock-high text-ink",
 };
 
 function ranAt(run: SyncRun): string {
@@ -45,7 +51,34 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
   if (!data) notFound();
   const id = data.league.id;
   const canManage = data.isCommissioner || data.members.some((member) => member.isYou && member.canManage);
-  if (!canManage || data.league.status !== "season") notFound();
+  if (!canManage || (data.league.status !== "season" && !(data.league.basketnews_team_id && data.league.status === "setup"))) notFound();
+
+  if (data.league.basketnews_team_id) {
+    const runs = await readSyncRuns(createUserClient(session.token), id, 8);
+    const latest = runs[0];
+    const questions = latest?.status === "blocked" ? latest.questions : [];
+    return (
+      <AppShell current="trades" league={navLeagueFrom(data)} testId="fantasy-sync">
+        <PageHeader eyebrow={`${data.league.name} · Import`} title="BasketNews sync"
+          lead="BasketNews owns this league's draft, rosters, lineups and round points. The worker refreshes it automatically." />
+        <Bank framed label="Source league" aside={serverConfig().BASKETNEWS_COOKIE ? "Session set" : "Session needed"}>
+          <p className="text-sm text-ink-soft">{data.league.name} · Your team: {data.members.find((member) => member.isYou)?.teamName ?? "Importing"}</p>
+          {!serverConfig().BASKETNEWS_COOKIE ? <EmptyNotice>Set BASKETNEWS_COOKIE on the worker to import private lineups. The league data already stored here is preserved if the session expires.</EmptyNotice> : null}
+          <p className="mt-3 text-sm text-ink-soft">Sync now adds a worker job. New rounds are checked every 15 minutes.</p>
+          <div className="mt-3"><SyncNowForm leagueId={id} label="Sync now" pendingLabel="Queuing…" /></div>
+        </Bank>
+        {questions.length ? <Bank framed label="Match BasketNews players" aside={`${questions.length} waiting`}>
+          <ul role="list" className="flex flex-col gap-4">{questions.map((question) => <li key={question.kind === "player" ? question.fantasyPlayerId : question.kind === "team" ? question.fantasyTeamId : question.memberId}><QuestionForm leagueId={id} question={question} /></li>)}</ul>
+        </Bank> : null}
+        <Bank framed label="Recent syncs" aside={latest ? `Last ${ranAt(latest)}` : undefined}>
+          {runs.length ? <ol className="flex flex-col gap-3" data-testid="fantasy-runs">{runs.map((run) => <li key={run.id} data-testid="fantasy-run" data-status={run.status} className="rounded-xl border border-panel-border bg-stock p-3">
+            <p className="flex gap-2 text-xs text-ink-soft"><span className={`rounded-full px-2 py-0.5 font-bold ${STATUS_TONE[run.status]}`}>{STATUS_WORD[run.status]}</span><span>{ranAt(run)}</span></p>
+            <p className="mt-2 text-sm">{run.message}</p>
+          </li>)}</ol> : <EmptyNotice>Waiting for the first worker pass.</EmptyNotice>}
+        </Bank>
+      </AppShell>
+    );
+  }
 
   const view = await readFantasySyncView(id);
   if (!view) notFound();

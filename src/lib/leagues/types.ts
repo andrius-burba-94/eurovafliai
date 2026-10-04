@@ -14,6 +14,8 @@ export type LeagueRecord = RecordModel & {
   status: "setup" | "drafting" | "season" | "complete";
   /** The official Fantasy Challenge league this one mirrors; empty when not synced. */
   fantasy_league_id?: string;
+  basketnews_league_id?: string;
+  basketnews_team_id?: string;
   /** Its address, /l/<slug>; empty until `ensureSlugs` reaches it (S28). */
   slug?: string;
 };
@@ -31,6 +33,7 @@ export type MemberRecord = RecordModel & {
   can_manage?: boolean;
   autodraft_enabled: boolean;
   is_ready: boolean;
+  basketnews_team_id?: string;
   expand?: {
     user?: RecordModel & { name?: string; email?: string; avatar?: string };
   };
