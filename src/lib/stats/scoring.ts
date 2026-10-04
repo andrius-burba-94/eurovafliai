@@ -213,6 +213,19 @@ export function scoreGame(
   };
 }
 
+/** BasketNews Modern points, kept separate from EuroLeague's PIR × win bonus. */
+export function scoreBasketNewsModern(box: BoxScore, teamWon: boolean): number {
+  const categories = [box.points, box.totalRebounds, box.assistances, box.steals, box.blocksFavour];
+  const doubleDigits = categories.filter((value) => value >= 10).length;
+  const missedFieldGoals = box.fieldGoalsAttempted2 + box.fieldGoalsAttempted3 - box.fieldGoalsMade2 - box.fieldGoalsMade3;
+  const missedFreeThrows = box.freeThrowsAttempted - box.freeThrowsMade;
+  return box.points + box.defensiveRebounds + box.offensiveRebounds * 1.5 +
+    box.assistances * 1.5 + box.steals * 1.5 + box.blocksFavour + box.foulsReceived +
+    (doubleDigits >= 4 ? 100 : doubleDigits >= 3 ? 30 : doubleDigits >= 2 ? 10 : 0) +
+    (teamWon ? 1.5 : -1.5) - missedFieldGoals - missedFreeThrows -
+    box.turnovers * 1.5 - box.blocksAgainst * 0.5 - (box.foulsCommited >= 5 ? 5 : 0);
+}
+
 /**
  * Integer tenths as a human reads them: `33` → `"3.3"`, `-11` → `"-1.1"`.
  *

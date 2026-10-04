@@ -32,6 +32,8 @@ import type { LeagueRecord, MemberRecord } from "./types";
 import { revalidateLeague } from "@/lib/nav/revalidate";
 import { leagueHref } from "@/lib/nav/urls";
 import { newLeagueSlug, newTeamSlug } from "@/lib/slugs/store";
+import { basketNewsTeamId } from "@/lib/basketnews/client";
+import { queueBasketNewsSync } from "@/lib/basketnews/repository";
 
 /**
  * League writes. Every one runs as the superuser over localhost; the client only
@@ -49,6 +51,8 @@ const createLeagueSchema = z.object({
     .min(2, "Give the league a name of at least 2 characters.")
     .max(60),
   season: z.string().trim().min(4).max(16).default("2026-27"),
+  ruleset: z.enum(["euroleague", "basketnews"]).default("euroleague"),
+  basketnewsTeamUrl: z.string().optional(),
 });
 
 /** How many times to retry a colliding invite code before giving up. */
@@ -71,12 +75,19 @@ export async function createLeague(
   const parsed = createLeagueSchema.safeParse({
     name: formData.get("name"),
     season: formData.get("season") || undefined,
+    ruleset: formData.get("ruleset") || undefined,
+    basketnewsTeamUrl: formData.get("basketnewsTeamUrl") || undefined,
   });
   if (!parsed.success) {
     return {
       error:
         parsed.error.issues[0]?.message ?? "That league name will not do.",
     };
+  }
+
+  const teamId = parsed.data.ruleset === "basketnews" ? basketNewsTeamId(parsed.data.basketnewsTeamUrl ?? "") : null;
+  if (parsed.data.ruleset === "basketnews" && !teamId) {
+    return { error: "Enter your BasketNews team URL, ending with its 24-character team ID." };
   }
 
   const pb = await getSuperuserClient();
@@ -99,6 +110,7 @@ export async function createLeague(
           invite_code: generateInviteCode(),
           settings: leagueSettingsSchema.parse({}),
           status: "setup",
+          basketnews_team_id: teamId ?? "",
         },
         { requestKey: null },
       );
@@ -123,6 +135,7 @@ export async function createLeague(
   // the league here would be the worse choice: it can itself fail, and it
   // discards a valid record over a retryable write.
   await ensureCommissionerMembership(league.id);
+  if (teamId) await queueBasketNewsSync(pb, league.id, new Date());
 
   redirect(`${leagueHref(league)}?arrived=1`);
 }
@@ -155,6 +168,7 @@ export async function joinLeague(
   } catch {
     return { error: "No league has that invite code." };
   }
+  if (league.basketnews_team_id) return { error: "BasketNews manages this league's nine teams." };
 
   const members = await pb
     .collection("league_members")

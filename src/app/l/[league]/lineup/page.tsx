@@ -77,9 +77,9 @@ export default async function LineupPage({
   const panel = await readPanel({ leagueId: id, season, teamNames, round: asked ?? undefined });
   const round = asked ?? panel.schedule?.round ?? 1;
   const board = drafted
-    ? await readLineupBoard({ leagueId: id, memberId, season, round })
+    ? await readLineupBoard({ leagueId: id, memberId, season, round, basketNews: Boolean(data.league.basketnews_team_id) })
     : null;
-  const [comparison, live] = board
+  const [comparison, live] = board && !data.league.basketnews_team_id
     ? await Promise.all([
         readComparisonPlayers(board.players, season, session.token),
         readLineupLive({ season, round, players: board.players, token: session.token }),
@@ -173,6 +173,7 @@ export default async function LineupPage({
           official={board.official}
           carriedFrom={board.carriedFrom}
           template={data.settings.lineup_template}
+          sourceOwned={Boolean(data.league.basketnews_team_id)}
         />
       )}
     </AppShell>

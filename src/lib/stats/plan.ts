@@ -28,6 +28,7 @@ import {
   OFFICIAL_WIN_BONUS,
   type ScoringWeights,
   scoreGame,
+  scoreBasketNewsModern,
 } from "./scoring";
 
 /** The stored shape, in PocketBase's own field names. */
@@ -61,6 +62,7 @@ export type StatRowFields = {
   readonly plus_minus: number;
   readonly pir: number;
   readonly fantasy_pts: number;
+  readonly basketnews_raw_pts: number;
 };
 
 /** A row already in the table, as far as this module cares. */
@@ -198,6 +200,7 @@ export function toStatFields(
     plus_minus: row.box.plusMinus,
     pir: base,
     fantasy_pts: fantasyTenths,
+    basketnews_raw_pts: Math.round(scoreBasketNewsModern(row.box, row.won) * 100),
   };
 }
 

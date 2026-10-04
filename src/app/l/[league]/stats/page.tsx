@@ -68,7 +68,7 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/l/
   if (!you || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
 
   const season = serverConfig().EUROLEAGUE_SEASON;
-  const [page, deals] = await Promise.all([readLeagueStats(id, season), readLeagueDeals(id, season)]);
+  const [page, deals] = await Promise.all([readLeagueStats(id, season, Boolean(data.league.basketnews_team_id)), readLeagueDeals(id, season, Boolean(data.league.basketnews_team_id))]);
   const styles = stylesById(data.members);
   const team = (memberId: string | null) => {
     if (!memberId) return "Free agent";

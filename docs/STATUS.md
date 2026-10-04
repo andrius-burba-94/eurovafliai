@@ -21,6 +21,21 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
+## BasketNews Hostinger league (local implementation)
+
+The BasketNews Draft import is implemented as a **separate** league from
+EuroVafliai 26-27. Creating Hostinger CA$HiorAI with the Einikio Kabliai team
+URL queues a worker import of nine teams, 117 draft picks, roster windows,
+lineups and official round scores. The other eight teams receive placeholder
+accounts. The worker checks for new rounds every 15 minutes; Sync now queues a
+pass. BasketNews totals remain authoritative when EuroLeague stats are ingested.
+
+Migration `1790500000_basketnews_sync.js` is tested on a local database copy.
+The production import is **pending deployment and `BASKETNEWS_COOKIE` in the
+worker environment**; this file does not claim the league is live yet. See
+[log/basketnews-import.md](log/basketnews-import.md) for the source evidence,
+query plans and recovery checks.
+
 ## In progress: Matchnight redesign (ADR-0011)
 
 A full visual and experience refresh after a design critique scored the arena

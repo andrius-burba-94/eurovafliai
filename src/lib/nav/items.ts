@@ -81,6 +81,7 @@ export type NavLeague = {
   readonly canManage: boolean;
   /** The order has been drawn, so `/order` has a ceremony to show. */
   readonly rolled: boolean;
+  readonly sourceOwned?: boolean;
 };
 
 /** The nav's view of a league, from what every league page already reads. */
@@ -96,6 +97,7 @@ export function navLeagueFrom(data: LeagueWithMembers): NavLeague {
     isCommissioner: data.isCommissioner,
     canManage: data.isCommissioner || Boolean(you?.canManage),
     rolled: Boolean(data.settings.rolled_at),
+    sourceOwned: Boolean(data.league.basketnews_team_id),
   };
 }
 
@@ -124,7 +126,7 @@ function leagueItems(league: NavLeague): NavItem[] {
         icon: "team",
       },
       { key: "lineup", href: `${base}/lineup`, label: "Lineup", icon: "lineup" },
-      { key: "matchday", href: `${base}/matchday`, label: "Live", icon: "matchday" },
+      ...(league.sourceOwned ? [] : [{ key: "matchday" as const, href: `${base}/matchday`, label: "Live", icon: "matchday" as const }]),
       {
         key: "standings",
         href: `${base}/standings`,

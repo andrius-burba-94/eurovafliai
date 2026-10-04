@@ -11,6 +11,7 @@ import { getSuperuserClient } from "@/lib/pb/superuser";
 import { fetchLeagueRosters } from "./client";
 import { decideSync, runFantasySync, syncDueLineups } from "./store";
 import { revalidateLeague } from "@/lib/nav/revalidate";
+import { queueBasketNewsSync } from "@/lib/basketnews/repository";
 
 /**
  * The commissioner's side of the Fantasy Challenge sync: link the league,
@@ -58,6 +59,7 @@ export async function linkFantasyLeague(
   const fantasyLeagueId = String(formData.get("fantasyLeagueId") ?? "").trim();
   const managed = await managedLeague(leagueId);
   if (!managed) return REFUSED;
+  if (managed.league.basketnews_team_id) return { error: "This league follows BasketNews.", done: null };
   if (fantasyLeagueId !== "" && !/^\d{1,24}$/.test(fantasyLeagueId)) {
     return { error: "The league id is the number in the official game's league address.", done: null };
   }
@@ -97,14 +99,14 @@ export async function answerFantasyQuestion(
         await managed.pb.collection("league_members").update(other.id, { fantasy_team_id: "" }, { requestKey: null });
       }
     }
-    await managed.pb.collection("league_members").update(member.id, { fantasy_team_id: officialId }, { requestKey: null });
+    await managed.pb.collection("league_members").update(member.id, { [managed.league.basketnews_team_id ? "basketnews_team_id" : "fantasy_team_id"]: officialId }, { requestKey: null });
     revalidateLeague();
     return { error: null, done: choice };
   }
 
   if (kind === "player") {
     try {
-      await managed.pb.collection("players").update(choice, { fantasy_id: officialId }, { requestKey: null });
+      await managed.pb.collection("players").update(choice, { [managed.league.basketnews_team_id ? "basketnews_id" : "fantasy_id"]: officialId }, { requestKey: null });
     } catch (error) {
       console.error(`answerFantasyQuestion: ${describeError(error)}`);
       return { error: "That player is already linked to another official player.", done: null };
@@ -123,6 +125,11 @@ export async function syncFantasyNow(
   const leagueId = String(formData.get("leagueId") ?? "");
   const managed = await managedLeague(leagueId);
   if (!managed) return REFUSED;
+  if (managed.league.basketnews_team_id) {
+    const id = await queueBasketNewsSync(managed.pb, leagueId, new Date());
+    revalidateLeague();
+    return { error: null, done: id };
+  }
   const config = serverConfig();
   if (!config.FANTASY_CHALLENGE_TOKEN) {
     return { error: "No Fantasy Challenge token is set on the server.", done: null };

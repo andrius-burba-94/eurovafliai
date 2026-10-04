@@ -132,6 +132,7 @@ export type LineupWrite = {
   /** Empty when nobody typed it: the Fantasy Challenge sync. */
   readonly recordedBy: string;
   readonly source?: "recorded" | "synced";
+  readonly basketnewsResult?: unknown;
 };
 
 export async function writeLineup(
@@ -146,6 +147,7 @@ export async function writeLineup(
     slots: write.slots,
     source: write.source ?? "recorded",
     recorded_by: write.recordedBy,
+    ...(write.basketnewsResult === undefined ? {} : { basketnews_result: write.basketnewsResult }),
   };
   const where =
     `league = '${write.leagueId}' && member = '${write.memberId}' && ` +

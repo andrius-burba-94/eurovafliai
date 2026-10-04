@@ -58,6 +58,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
   if (!data) notFound();
   const id = data.league.id;
   const base = leagueHref(data.league);
+  if (data.league.basketnews_team_id) redirect(`${base}/standings`);
   const you = data.members.find((member) => member.isYou);
   if (!you || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
   const season = serverConfig().EUROLEAGUE_SEASON;

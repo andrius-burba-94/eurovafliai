@@ -46,6 +46,7 @@ import { fetchLiveBoxscore } from "@/lib/live/boxscore";
 import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
+import { processBasketNewsJobs, queueBasketNewsLeagues } from "@/lib/basketnews/jobs";
 import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
@@ -114,6 +115,8 @@ const LIVE_EVERY_MS = 60_000;
 const LIVE_FIRST_AFTER_MS = 95_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
+const BASKETNEWS_QUEUE_EVERY_MS = 15 * 60_000;
+const BASKETNEWS_POLL_EVERY_MS = 5_000;
 
 function log(message: string, level: "info" | "warn" | "error" = "info"): void {
   const line = JSON.stringify({
@@ -560,6 +563,26 @@ function main(): void {
   scheduleNews();
   scheduleLive();
   scheduleFantasy();
+  let basketNewsInFlight: Promise<void> | null = null;
+  let basketNewsLastQueued = 0;
+  const basketNewsTimer = setInterval(() => {
+    if (stopping || basketNewsInFlight) return;
+    basketNewsInFlight = (async () => {
+      try {
+        await ensureAuth(pb, env);
+        const now = new Date();
+        if (now.getTime() - basketNewsLastQueued >= BASKETNEWS_QUEUE_EVERY_MS) {
+          await queueBasketNewsLeagues(pb, now);
+          basketNewsLastQueued = now.getTime();
+        }
+        const processed = await processBasketNewsJobs(pb, env.BASKETNEWS_COOKIE);
+        if (processed) log(`BasketNews · processed ${processed} queued sync(s)`);
+      } catch (error) {
+        log(`BasketNews pass failed: ${describeError(error)}`, "error");
+        pb.authStore.clear();
+      }
+    })().finally(() => { basketNewsInFlight = null; });
+  }, BASKETNEWS_POLL_EVERY_MS);
   // After the schedulers, so a slow feed cannot delay the sweep starting.
   void previousSeasonOnce();
 
@@ -609,6 +632,7 @@ function main(): void {
     if (newsTimer) clearInterval(newsTimer);
     if (liveTimer) clearInterval(liveTimer);
     if (fantasyTimer) clearInterval(fantasyTimer);
+    clearInterval(basketNewsTimer);
     if (slugsTimer) clearInterval(slugsTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a

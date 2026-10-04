@@ -102,6 +102,7 @@ export async function recordLineup(
   } catch {
     return { error: "That league is not here.", saved: false };
   }
+  if (league.basketnews_team_id) return { error: "BasketNews owns this league's lineups.", saved: false };
   if (league.status !== "season") {
     return {
       error: "Lineups start once the draft is complete.",

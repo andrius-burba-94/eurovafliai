@@ -41,7 +41,7 @@ export default async function NewTransactionPage({
   const viewerCanManage =
     data.isCommissioner ||
     data.members.some((member) => member.isYou && member.canManage);
-  if (!viewerCanManage || data.league.status !== "season") notFound();
+  if (!viewerCanManage || data.league.status !== "season" || data.league.basketnews_team_id) notFound();
 
   const board = await readTransactionBoard(id);
   if (!board) notFound();

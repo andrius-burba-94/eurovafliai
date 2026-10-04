@@ -2,6 +2,7 @@ import { displayName } from "@/lib/players/name";
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
+import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import { serverConfig } from "@/lib/config/server";
 import { roundSchedule } from "@/lib/fixtures/schedule";
 import { readStoredFixtures, scheduleRowsFrom } from "@/lib/fixtures/store";
@@ -104,6 +105,7 @@ export async function readLeagueRecap(
   leagueId: string,
   season: string,
   requestedRound: number | null,
+  basketNews = false,
 ): Promise<RecapPageData | null> {
   const session = await getSession();
   if (!session) return null;
@@ -144,7 +146,7 @@ export async function readLeagueRecap(
       filter: `league = '${leagueId}'`,
       requestKey: null,
     }),
-    pb.collection("player_game_stats").getFullList<{
+    basketNews ? readBasketNewsPlayerRounds(pb, leagueId, code).then((rows) => rows.filter((row) => row.round === round).map((row) => ({ ...row, pir: 0 }))) : pb.collection("player_game_stats").getFullList<{
       player: string;
       round: number;
       fantasy_pts: number;

@@ -40,10 +40,10 @@ import { lineupRoundsDue, roundWindows, syncDue, syncModeAt, type SyncDecision }
  * planning a different one from a half-written state.
  */
 
-export type SyncStatus = "preview" | "blocked" | "applying" | "applied" | "failed";
+export type SyncStatus = "preview" | "blocked" | "applying" | "applied" | "failed" | "queued" | "running";
 
 /** What a run read: the rosters, or the round's lineups. */
-export type SyncKind = "rosters" | "lineups";
+export type SyncKind = "rosters" | "lineups" | "basketnews";
 
 export type SyncRun = {
   readonly id: string;
@@ -94,7 +94,7 @@ export async function readSyncRuns(pb: PocketBase, leagueId: string, limit: numb
   });
   return page.items.map((row) => ({
     ...row,
-    kind: row.kind === "lineups" ? "lineups" : "rosters",
+    kind: row.kind === "lineups" ? "lineups" : row.kind === "basketnews" ? "basketnews" : "rosters",
     moves: Array.isArray(row.moves) ? row.moves : [],
     questions: Array.isArray(row.questions) ? row.questions : [],
   }));
