@@ -125,10 +125,10 @@ export async function syncBasketNews(
     const index = round - 1;
     const scores = await Promise.all(teams.map((team) => source.score(team.id, index, official.leagueId)));
     if (scores.some(Boolean) && scores.some((score) => !score)) throw new Error(`BasketNews round ${round} has only some team scores.`);
+    if (scores.every((score) => score === null)) break;
     const lineups = await Promise.all(teams.map((team) => source.lineup(team.id, index, official.leagueId, cookie)));
     if (lineups.some((lineup) => lineup.players.length !== 13)) throw new Error(`BasketNews round ${round} has an incomplete lineup.`);
     rounds.push({ round, scores, lineups });
-    if (scores.every((score) => score === null)) break;
   }
 
   const picks = official.draft.picks;
