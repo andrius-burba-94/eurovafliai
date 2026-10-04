@@ -73,7 +73,7 @@ function leagueDb(missingPlayer?: string): FakeDb {
   return {
     leagues: [{ id: LEAGUE, name: fixture.league.title, slug: "hostinger-cashiorai", season: "2026-27", status: "setup", commissioner: "owner", basketnews_team_id: OWN_TEAM, basketnews_league_id: "" }],
     users: [{ id: "owner", email: "owner@example.invalid", name: "Andrius" }],
-    league_members: [{ id: "ownmember", league: LEAGUE, user: "owner", team_name: "Einikio Kabliai", slug: "einikio-kabliai", draft_position: 0, basketnews_team_id: "" }],
+    league_members: [{ id: "ownmember", league: LEAGUE, user: "owner", team_name: "Andrius", slug: "andrius-burba", draft_position: 0, basketnews_team_id: "" }],
     players: playerPool.filter((row) => row.id !== missingPlayer).map((row) => ({ ...row, basketnews_id: "", slug: "" })),
     fantasy_syncs: [], drafts: [], picks: [], roster_memberships: [], transactions: [], chat_messages: [],
     round_lineups: [], standings_snapshots: [], player_game_stats: [],
@@ -107,6 +107,7 @@ describe("BasketNews worker import", () => {
     expect(db.rows("league_members")).toHaveLength(9);
     expect(db.rows("users")).toHaveLength(9);
     expect(db.rows("league_members").find((row) => row.basketnews_team_id === OWN_TEAM)?.user).toBe("owner");
+    expect(db.rows("league_members").find((row) => row.basketnews_team_id === OWN_TEAM)?.slug).toBe("einikio-kabliai");
     expect(db.rows("picks")).toHaveLength(117);
     expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
@@ -147,6 +148,7 @@ describe("BasketNews worker import", () => {
     expect(db.rows("picks")).toHaveLength(117);
     expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
+    expect(db.rows("league_members").find((row) => row.basketnews_team_id === OWN_TEAM)?.slug).toBe("einikio-kabliai");
     await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:16:00Z"));
     expect(db.rows("fantasy_syncs")[2]).toMatchObject({ status: "queued", job_meta: {} });
   });

@@ -31,10 +31,9 @@ accounts. The worker checks for new rounds every 15 minutes; Sync now queues a
 pass. BasketNews totals remain authoritative when EuroLeague stats are ingested.
 
 Migration `1790500000_basketnews_sync.js` is live, the BasketNews session is set
-on the worker, and Hostinger CA$HiorAI has its own production league. Its first
-import failed when the next unscored round had no lineup; the worker fix in this
-change stops at the first unscored round. The import still needs a retry and
-production verification. See
+on the worker, and Hostinger CA$HiorAI has its own production league. Its nine
+teams, 117 picks and three completed rounds are imported. All 27 stored team
+round totals match BasketNews exactly. See
 [log/basketnews-import.md](log/basketnews-import.md) for the source evidence,
 query plans and recovery checks.
 
