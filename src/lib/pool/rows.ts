@@ -1,4 +1,5 @@
 import type { Position } from "@/lib/engine";
+import { leaguePosition } from "@/lib/positions";
 import {
   averageFantasyOf,
   averagePirOf,
@@ -20,6 +21,7 @@ export type PoolPlayerRecord = {
   person_code?: string;
   club_name: string;
   position: Position;
+  basketnews_position?: Position;
   status: string;
   proj_last5_fantasy?: number;
   proj_last5_games?: number;
@@ -34,6 +36,7 @@ export type PoolPlayerRecord = {
 export function toPoolPlayer(
   player: PoolPlayerRecord,
   held: { by: string; at: number | null } | null | undefined,
+  basketNews = false,
 ): PoolPlayer {
   const average = averagePirOf(player);
   return {
@@ -48,7 +51,7 @@ export function toPoolPlayer(
     // The club's full name, for the filter's own list. A dropdown of bare
     // codes asks the reader to know that OLY is Olympiacos.
     clubName: player.club_name ?? player.club_code,
-    position: player.position,
+    position: leaguePosition(player, basketNews),
     status: player.status,
     takenBy: held?.by ?? null,
     takenAt: held?.at ?? null,

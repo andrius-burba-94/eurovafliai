@@ -125,7 +125,7 @@ export default async function LobbyPage({
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
         readRecentTransactions(id, teamNames).catch(() => []),
-        readPanel({ leagueId: id, season, teamNames }),
+        readPanel({ leagueId: id, season, teamNames, basketNews: Boolean(league.basketnews_team_id) }),
         readNews(100).catch(() => []),
       ])
     : [[], [], null, []];

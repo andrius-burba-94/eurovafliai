@@ -4,7 +4,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { RoundLadder } from "@/components/round-ladder";
+import { PositionPatch } from "@/components/board";
+import { countByPosition, type Position } from "@/lib/engine";
 import { navFor } from "@/lib/nav/items";
+import { leaguePosition } from "@/lib/positions";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
@@ -22,9 +25,9 @@ import { queueBasketNewsSync, readBasketNewsPlayerRounds } from "./repository";
 import type { BasketNewsSource } from "./sync";
 
 type Captured = {
-  league: { id: string; title: string; leagueId: string; draft: { picks: { playerId: string }[] } };
+  league: { id: string; title: string; leagueId: string; draft: { picks: { playerId: string; fantasyTeamId: string; player: { team: { positions: string[] } | null } }[] } };
   teams: { id: string; title: string }[];
-  lineups: Record<string, { fantasyRound: number; players: { playerId: string }[] }>;
+  lineups: Record<string, { fantasyRound: number; players: { playerId: string; player: { team: { positions: string[] } | null } }[] }>;
   scores: Record<string, { pointsGained: number; pointsTotal: number }>;
 };
 const fixture = JSON.parse(readFileSync(new URL("../../../tests/fixtures/basketnews-hostinger.json", import.meta.url), "utf8")) as Captured;
@@ -74,7 +77,7 @@ function leagueDb(missingPlayer?: string): FakeDb {
     leagues: [{ id: LEAGUE, name: fixture.league.title, slug: "hostinger-cashiorai", season: "2026-27", status: "setup", commissioner: "owner", basketnews_team_id: OWN_TEAM, basketnews_league_id: "" }],
     users: [{ id: "owner", email: "owner@example.invalid", name: "Andrius" }],
     league_members: [{ id: "ownmember", league: LEAGUE, user: "owner", team_name: "Andrius", slug: "andrius-burba", draft_position: 0, basketnews_team_id: "" }],
-    players: playerPool.filter((row) => row.id !== missingPlayer).map((row) => ({ ...row, basketnews_id: "", slug: "" })),
+    players: playerPool.filter((row) => row.id !== missingPlayer).map((row) => ({ ...row, position: "F", basketnews_id: "", basketnews_position: "", slug: "" })),
     fantasy_syncs: [], drafts: [], picks: [], roster_memberships: [], transactions: [], chat_messages: [],
     round_lineups: [], standings_snapshots: [], player_game_stats: [],
   };
@@ -112,6 +115,40 @@ describe("BasketNews worker import", () => {
     expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
     expect(db.rows("players").filter((row) => row.basketnews_id)).toHaveLength(130);
+    const sourcePositions = new Map<string, Position>();
+    const sourcePosition = (word: string): Position => {
+      if (word === "guard") return "G";
+      if (word === "forward") return "F";
+      if (word === "center") return "C";
+      throw new Error(`Unexpected BasketNews position: ${word}`);
+    };
+    for (const pick of fixture.league.draft.picks) sourcePositions.set(pick.playerId, sourcePosition(pick.player.team!.positions[0]!));
+    for (const lineup of Object.values(fixture.lineups)) for (const entry of lineup.players) {
+      if (entry.player.team) sourcePositions.set(entry.playerId, sourcePosition(entry.player.team.positions[0]!));
+    }
+    expect(sourcePositions.size).toBe(130);
+    const playersById = new Map(db.rows("players").map((row) => [row.id, row]));
+    const mappedPosition = (id: string): Position => {
+      const row = playersById.get(id)!;
+      return leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, true);
+    };
+    for (const row of db.rows("players").filter((player) => player.basketnews_id)) {
+      expect(mappedPosition(row.id)).toBe(sourcePositions.get(String(row.basketnews_id)));
+      expect(leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, false)).toBe("F");
+    }
+    for (const member of db.rows("league_members")) {
+      const drafted = db.rows("picks").filter((pick) => pick.member === member.id).map((pick) => ({ position: mappedPosition(String(pick.player)) }));
+      expect(countByPosition(drafted)).toEqual({ G: 5, F: 5, C: 3 });
+      const current = db.rows("roster_memberships").filter((window) => window.member === member.id && !window.to_date && !window.to_round)
+        .map((window) => ({ position: mappedPosition(String(window.player)) }));
+      expect(countByPosition(current)).toEqual({ G: 5, F: 5, C: 3 });
+    }
+    const ownRoster = db.rows("roster_memberships").filter((window) => window.member === "ownmember" && !window.to_date && !window.to_round);
+    const ownCounts = countByPosition(ownRoster.map((window) => ({ position: mappedPosition(String(window.player)) })));
+    const rosterHtml = renderToStaticMarkup(createElement("div", null, ...(["G", "F", "C"] as const).map((position) => createElement(PositionPatch, { position, count: ownCounts[position] }))));
+    expect(rosterHtml).toContain(">5</span><span>G</span>");
+    expect(rosterHtml).toContain(">5</span><span>F</span>");
+    expect(rosterHtml).toContain(">3</span><span>C</span>");
     expect(db.rows("player_game_stats").map((row) => row.basketnews_raw_pts)).toEqual([3200, 0]);
     const ownMember = db.rows("league_members").find((row) => row.basketnews_team_id === OWN_TEAM)!;
     const navigation = navFor({ league: {

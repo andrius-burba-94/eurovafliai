@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
+import { leaguePosition } from "@/lib/positions";
 import { readRoundFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { coversRound } from "@/lib/memberships/from";
@@ -44,6 +45,7 @@ type MembershipRow = {
       club_name: string;
       person_code?: string;
       position: Position;
+      basketnews_position?: Position;
       proj_last5_fantasy?: number;
       proj_last5_games?: number;
       prev_season_fantasy?: number;
@@ -139,7 +141,7 @@ export async function readLineupBoard(input: {
       clubCode: player.club_code,
       clubName: player.club_name,
       personCode: player.person_code,
-      position: player.position,
+      position: leaguePosition(player, Boolean(input.basketNews)),
       estimateTenths: input.basketNews ? null : (player.proj_last5_games ?? 0) > 0
         ? (player.proj_last5_fantasy ?? 0)
         : (player.prev_season_games ?? 0) > 0

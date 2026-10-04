@@ -16,6 +16,7 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import type { NavLeague } from "@/lib/nav/items";
 import { createUserClient } from "@/lib/pb/server";
+import { leaguePosition } from "@/lib/positions";
 import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
 import type { PoolPlayer } from "@/lib/pool/search";
 import { rankPirFromRecord } from "@/lib/stats/project";
@@ -218,7 +219,7 @@ export async function getDraftView(
     pb.collection("picks").getFullList<
       PickRecord & {
         expand?: {
-          player?: { name?: string; club_code?: string; position?: Position };
+          player?: { name?: string; club_code?: string; position: Position; basketnews_position?: Position };
         };
       }
     >({
@@ -259,7 +260,7 @@ export async function getDraftView(
     playerId: record.player,
     playerName: record.expand?.player?.name ?? "Unknown player",
     playerClub: record.expand?.player?.club_code ?? "",
-    position: record.expand?.player?.position ?? "G",
+    position: record.expand?.player ? leaguePosition(record.expand.player, Boolean(league.basketnews_team_id)) : "G",
     isAuto: Boolean(record.is_auto),
   }));
 
@@ -359,7 +360,7 @@ export async function getDraftView(
         const rankPir = rankPirFromRecord(player);
         return {
           id: player.id,
-          position: player.position,
+          position: leaguePosition(player, Boolean(league.basketnews_team_id)),
           ...(rankPir === undefined ? {} : { rankPir }),
         };
       }),
@@ -384,7 +385,7 @@ export async function getDraftView(
         id: player.id,
         name: player.name,
         club: player.club_code,
-        position: player.position,
+        position: leaguePosition(player, Boolean(league.basketnews_team_id)),
         rank: place.rank,
         tier: place.tier,
       });
@@ -436,7 +437,7 @@ export async function getDraftView(
     })),
     yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
     pool: players.map((player) =>
-      toPoolPlayer(player, heldBy.get(player.id)),
+      toPoolPlayer(player, heldBy.get(player.id), Boolean(league.basketnews_team_id)),
     ),
     availableCount: players.filter((player) => !heldBy.has(player.id)).length,
     radar: buildRadar(

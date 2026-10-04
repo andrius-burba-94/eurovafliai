@@ -37,6 +37,11 @@ round totals match BasketNews exactly. See
 [log/basketnews-import.md](log/basketnews-import.md) for the source evidence,
 query plans and recovery checks.
 
+BasketNews player positions now sync into a separate source field. Its league
+uses those positions in rosters, lineups, the draft, stats, player profiles and
+pool views; EuroVafliai 26-27 keeps the EuroLeague positions. The seven
+differences among the 130 captured BasketNews players are recorded in the log.
+
 ## In progress: Matchnight redesign (ADR-0011)
 
 A full visual and experience refresh after a design critique scored the arena

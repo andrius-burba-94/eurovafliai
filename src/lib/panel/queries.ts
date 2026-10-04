@@ -28,6 +28,7 @@ export async function readPanel({
   teamNames = {},
   round,
   pool,
+  basketNews = false,
 }: {
   leagueId: string;
   season: string;
@@ -40,13 +41,14 @@ export async function readPanel({
    * one and refreshes on every pick, so it should not pay for a second.
    */
   pool?: readonly PoolPlayer[];
+  basketNews?: boolean;
 }): Promise<PanelData> {
   const session = await getSession();
   if (!session) return { players: [], fixtures: {}, schedule: null, news: [] };
   const pb = createUserClient(session.token);
 
   const [players, fixtureRows, news] = await Promise.all([
-    pool ? Promise.resolve(pool) : readPool(pb, leagueId, teamNames),
+    pool ? Promise.resolve(pool) : readPool(pb, leagueId, teamNames, basketNews),
     readStoredFixtures(pb, season)
       .then(scheduleRowsFrom)
       .catch(() => []),
@@ -101,6 +103,7 @@ async function readPool(
   pb: ReturnType<typeof createUserClient>,
   leagueId: string,
   teamNames: Readonly<Record<string, string>>,
+  basketNews: boolean,
 ): Promise<PoolPlayer[]> {
   const [players, held] = await Promise.all([
     pb
@@ -133,5 +136,5 @@ async function readPool(
         { by: teamNames[row.member] ?? "Another team", at: null },
       ]),
   );
-  return players.map((player) => toPoolPlayer(player, holder.get(player.id)));
+  return players.map((player) => toPoolPlayer(player, holder.get(player.id), basketNews));
 }

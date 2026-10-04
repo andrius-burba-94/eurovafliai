@@ -11,6 +11,7 @@ import { readLiveSnapshots } from "@/lib/live/store";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import type { Position } from "@/lib/engine";
+import { leaguePosition } from "@/lib/positions";
 import { type Phase, PHASES } from "./csv";
 import type { ImpactLine, ImpactTransaction } from "./impact";
 import { last5SeriesOf } from "./project";
@@ -363,7 +364,7 @@ async function readCurrentGame(
 
 export async function readPlayerProfile(
   playerId: string,
-  options: { round?: number } = {},
+  options: { round?: number; basketNews?: boolean } = {},
 ): Promise<{ player: PlayerProfile; log: GameLogLine[]; currentGame: CurrentGame | null } | null> {
   const session = await getSession();
   if (!session) return null;
@@ -377,6 +378,7 @@ export async function readPlayerProfile(
       club_code: string;
       club_name: string;
       position: Position;
+      basketnews_position?: Position;
       status: string;
       dorsal?: string;
       height?: number;
@@ -445,7 +447,7 @@ export async function readPlayerProfile(
         personCode: record.person_code,
         clubCode: record.club_code,
         clubName: record.club_name,
-        position: record.position,
+        position: leaguePosition(record, Boolean(options.basketNews)),
         status: record.status,
         bio: {
           height: nonZero(record.height),

@@ -86,7 +86,7 @@ export default async function TeamPage({
   const [roster, deals, panel, statsPage] = await Promise.all([
     readMemberRoster(id, memberId, season, Boolean(data.league.basketnews_team_id)),
     readMemberDeals(id, memberId, season, teamNames, Boolean(data.league.basketnews_team_id)),
-    readPanel({ leagueId: id, season, teamNames }),
+    readPanel({ leagueId: id, season, teamNames, basketNews: Boolean(data.league.basketnews_team_id) }),
     readLeagueStats(id, season, Boolean(data.league.basketnews_team_id)).catch(() => null),
   ]);
   const finishedSnapshots = statsPage?.snapshots ?? [];

@@ -3,6 +3,7 @@ import "server-only";
 import { getSession } from "@/lib/auth/session";
 import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import type { Position } from "@/lib/engine";
+import { leaguePosition } from "@/lib/positions";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { lineupWeights, resolveLineups } from "@/lib/lineups/lineup";
@@ -50,8 +51,8 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
       requestKey: null,
     }),
     pb.collection("drafts").getFullList<{ id: string }>({ filter: `league = '${leagueId}'`, sort: "-created", fields: "id", requestKey: null }),
-    pb.collection("players").getFullList<{ id: string; name: string; position: Position; club_code: string; club_name?: string; person_code?: string }>({
-      fields: "id,name,position,club_code,club_name,person_code",
+    pb.collection("players").getFullList<{ id: string; name: string; position: Position; basketnews_position?: Position; club_code: string; club_name?: string; person_code?: string }>({
+      fields: "id,name,position,basketnews_position,club_code,club_name,person_code",
       requestKey: null,
     }),
     readRecordedLineups(pb, leagueId, code),
@@ -81,14 +82,14 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
     weights: lineupWeights(lineups),
     lineups,
     picks: picks.map((pick) => ({ overallNo: pick.overall_no, round: pick.round, memberId: pick.member, playerId: pick.player })),
-    positions: Object.fromEntries(pool.map((player) => [player.id, player.position])),
+    positions: Object.fromEntries(pool.map((player) => [player.id, leaguePosition(player, basketNews)])),
   });
   return {
     stats,
     snapshots: finished,
     clubNames: new Map(pool.flatMap((player) => (player.club_name ? [[player.club_code, player.club_name] as const] : []))),
     players: Object.fromEntries(
-      pool.map((player) => [player.id, { name: player.name, position: player.position, clubCode: player.club_code, personCode: player.person_code }]),
+      pool.map((player) => [player.id, { name: player.name, position: leaguePosition(player, basketNews), clubCode: player.club_code, personCode: player.person_code }]),
     ),
   };
 }

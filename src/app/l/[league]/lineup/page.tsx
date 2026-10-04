@@ -74,7 +74,7 @@ export default async function LineupPage({
   const teamNames = Object.fromEntries(
     data.members.map((row) => [row.id, row.teamName.trim() || row.name]),
   );
-  const panel = await readPanel({ leagueId: id, season, teamNames, round: asked ?? undefined });
+  const panel = await readPanel({ leagueId: id, season, teamNames, round: asked ?? undefined, basketNews: Boolean(data.league.basketnews_team_id) });
   const round = asked ?? panel.schedule?.round ?? 1;
   const board = drafted
     ? await readLineupBoard({ leagueId: id, memberId, season, round, basketNews: Boolean(data.league.basketnews_team_id) })

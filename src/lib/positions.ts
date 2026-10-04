@@ -19,6 +19,14 @@ export const POSITION_WORD: Record<Position, [string, string]> = {
   C: ["center", "centers"],
 };
 
+/** BasketNews and EuroLeague can classify the same player differently. */
+export function leaguePosition(
+  player: { position: Position; basketnews_position?: Position | null },
+  basketNews: boolean,
+): Position {
+  return basketNews ? player.basketnews_position || player.position : player.position;
+}
+
 /**
  * "3 guards, 4 forwards and 3 centers".
  *
