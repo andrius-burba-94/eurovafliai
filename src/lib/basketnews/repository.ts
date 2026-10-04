@@ -142,6 +142,7 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
       } else {
         await this.pb.collection("league_members").update(member.id, {
           team_name: team.title.trim(), basketnews_team_id: team.id,
+          slug: await newTeamSlug(this.pb, leagueId, team.title.trim(), member.id),
           draft_position: firstPickOrder.indexOf(team.id) + 1,
         }, { requestKey: null });
       }
