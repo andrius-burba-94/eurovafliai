@@ -31,13 +31,14 @@ the live address above remains the supported entry point.
 
 ## CI timing
 
-PRs and pushes to `main` run two required jobs in parallel: `verify` (lint,
-Knip, types, Vitest and a production build) and `pocketbase` (fresh migrations,
-authorization rules, OAuth2 and rollback/re-apply). The last healthy run
-completed the slower job in 1m 34s. The full desktop/mobile Playwright suite
-and advisory design detector run in a separate nightly workflow, with a manual
+PRs and pushes to `main` use one required `verify` job: lint, Knip, types,
+Vitest, production build, then fresh PocketBase migrations, authorization
+rules, OAuth2 and rollback/re-apply. It reuses one checkout and npm install,
+and needs only one hosted runner. The full desktop/mobile Playwright suite and
+advisory design detector run in a separate nightly workflow, with a manual
 trigger for risky changes. UI slices still run their relevant browser specs
-locally before pushing. Hosted runner queue time is outside this timing target.
+locally before pushing. Hosted runner queue time is outside the two-minute
+execution target.
 
 ## BasketNews Hostinger league
 

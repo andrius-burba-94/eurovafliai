@@ -16,13 +16,17 @@ finished in 1m 34s, and `pocketbase` in 46s. The four Playwright shards,
 which each install a browser, boot PocketBase and build the app before running
 one quarter of 504 desktop/mobile test runs, extended the workflow to 5m 33s.
 
-The required PR workflow now consists of the two jobs that finished inside
-two minutes in that healthy run. The unchanged browser matrix runs nightly
-and through a manual button in its own workflow; the advisory design detector
+The first revision kept those two jobs parallel. On PR #174, `verify` passed
+in 55s (1,763 Vitest tests) but `pocketbase` waited 15 minutes for a runner
+and was cancelled without executing a step. So even two jobs exposed the
+same outage. The required PR gate now runs both sets of checks in one
+`verify` job, reusing its checkout and npm install. The repository ruleset
+requires that combined check. The unchanged browser matrix runs nightly and
+through a manual button in its own workflow; the advisory design detector
 moves with it. A UI slice still runs its relevant Playwright specs locally
-before push. A GitHub runner outage can still delay or cancel a job before
-it starts, so two minutes is a measured execution target rather than a
-guarantee of wall-clock time during an Actions incident.
+before push. A GitHub runner outage can still delay or cancel the one job
+before it starts, so two minutes is a measured execution target rather than
+a guarantee of wall-clock time during an Actions incident.
 
 ## The season dashboard — four panels, and three that had to tell the truth
 
