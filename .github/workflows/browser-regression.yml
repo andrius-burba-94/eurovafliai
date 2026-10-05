@@ -1,0 +1,89 @@
+name: Browser regression
+
+# Full browser coverage stays unattended and can be run before a risky merge.
+# It is separate from CI so the required PR checks and deploy gate stay fast.
+on:
+  schedule:
+    - cron: "23 0 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: browser-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    # The full suite runs against next start over a fresh build and a
+    # throwaway PocketBase. Four shards keep ~500 desktop/mobile test runs
+    # near five minutes instead of the 12+ minutes a single runner took.
+    name: e2e (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      CI: "true"
+      PB_INTERNAL_URL: http://127.0.0.1:8095
+      NEXT_PUBLIC_PB_URL: http://127.0.0.1:8095
+      NEXT_PUBLIC_APP_URL: http://localhost:3007
+      SESSION_COOKIE_NAME: eurovafliai_session
+      PB_SUPERUSER_EMAIL: ci@eurovafliai.test
+      PB_SUPERUSER_PASSWORD: ci-superuser-pass-1234
+      GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
+      STATS_FETCH: "off"
+      LIVE_FETCH: "off"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Download the pinned PocketBase
+        run: ./scripts/pb-download.sh
+
+      - name: Write .env
+        run: env | grep -E '^(PB_|NEXT_PUBLIC_|SESSION_|GOOGLE_|STATS_)' > .env
+
+      - name: Create the superuser
+        run: >-
+          ./pb/pocketbase superuser upsert
+          "$PB_SUPERUSER_EMAIL" "$PB_SUPERUSER_PASSWORD" --dir=pb/pb_data
+
+      - name: Boot PocketBase
+        run: |
+          ./pb/pocketbase serve --http=127.0.0.1:8095 \
+            --dir=pb/pb_data --migrationsDir=pb/pb_migrations &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8095/api/health >/dev/null && exit 0
+            sleep 1
+          done
+          echo "PocketBase did not become healthy" >&2
+          exit 1
+
+      - run: npm run build
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 7
+
+  design-detect:
+    # Advisory: impeccable reports UI smells but does not gate a merge.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npx --yes impeccable detect --json src/ || true
