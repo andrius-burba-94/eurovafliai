@@ -21,6 +21,14 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
 
+## Custom domain cutover
+
+`eurovafliai.com` is being connected to the existing VPS. The committed Nginx
+vhost serves the root domain and redirects `www` and the old subdomain to it.
+The switch is complete only after DNS, the Google OAuth callback, the production
+`NEXT_PUBLIC_*` values, Certbot and public sign-in are verified. Until then,
+the live address above remains the supported entry point.
+
 ## BasketNews Hostinger league
 
 The BasketNews Draft import is implemented as a **separate** league from
