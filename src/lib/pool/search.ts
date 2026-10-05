@@ -2,6 +2,7 @@ import Fuse, { type IFuseOptions } from "fuse.js";
 
 import type { Position } from "@/lib/engine";
 import { MAX_POOL_QUERY_CHARS } from "@/lib/limits";
+import { displayName } from "@/lib/players/name";
 
 /**
  * The pool, filtered and searched — slice 3.3.
@@ -161,6 +162,7 @@ export type PoolRow = PoolPlayer & {
 const FUSE_OPTIONS: IFuseOptions<PoolPlayer> = {
   keys: [
     { name: "name", weight: 2 },
+    { name: "familiar", weight: 2, getFn: (player) => displayName(player.name) },
     { name: "normalized", weight: 2 },
     { name: "club", weight: 1 },
   ],

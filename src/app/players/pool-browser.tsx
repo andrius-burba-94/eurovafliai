@@ -1,6 +1,6 @@
 "use client";
 
-import { displayName } from "@/lib/players/name";
+import { displayName, surname } from "@/lib/players/name";
 import { useMemo, useState } from "react";
 
 import { Bank, FilterToggle, PositionPatch } from "@/components/board";
@@ -12,6 +12,7 @@ import type { PoolPlayer } from "@/lib/rosters/queries";
 import { formatTenths } from "@/lib/stats/scoring";
 
 const PAGE_SIZE = 40;
+const nameKey = (name: string) => `${surname(name)}, ${displayName(name)}`;
 
 /**
  * The pool as a scouting board (ADR-0011): ranked by the one average PIR the
@@ -34,10 +35,10 @@ export function PoolBrowser({ players, clubs }: {
       .filter((player) => (position === "all" || player.position === position)
         && (club === "all" || player.club_code === club)
         && (!hurtOnly || player.status === "injured" || player.status === "doubtful")
-        && (!term || `${player.name} ${player.club_name} ${player.club_code}`.toLocaleLowerCase().includes(term)))
+        && (!term || `${player.name} ${displayName(player.name)} ${player.club_name} ${player.club_code}`.toLocaleLowerCase().includes(term)))
       .sort((a, b) => sort === "name"
-        ? a.name.localeCompare(b.name)
-        : (b.pirTenths ?? -1) - (a.pirTenths ?? -1) || a.name.localeCompare(b.name));
+        ? nameKey(a.name).localeCompare(nameKey(b.name))
+        : (b.pirTenths ?? -1) - (a.pirTenths ?? -1) || nameKey(a.name).localeCompare(nameKey(b.name)));
   }, [players, query, position, club, sort, hurtOnly]);
 
   const reset = () => setLimit(PAGE_SIZE);

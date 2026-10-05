@@ -121,6 +121,12 @@ describe("selectPool — search", () => {
     expect(ids(run("kendrick"))).toContain("nunn");
   });
 
+  it("finds a player by the familiar name shown in the draft", () => {
+    const pool = [player("James, Michael Perry"), player("Dozier Jr, Perry Linnard")];
+    expect(ids(run("Mike James", {}, OPEN, pool))).toEqual(["james"]);
+    expect(ids(run("PJ Dozier", {}, OPEN, pool))).toEqual(["dozier jr"]);
+  });
+
   it("treats an exact club code as a filter rather than a fuzzy query", () => {
     // Three letters is a very loose fuzzy query — "PAN" genuinely scores a hit
     // on "Shane" — so a code is honoured exactly. Case does not matter.
