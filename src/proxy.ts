@@ -56,5 +56,5 @@ export default function proxy(request: NextRequest): NextResponse {
 export const config = {
   // Skip Next internals and static assets: they need no session and matching
   // them would cost a proxy invocation per asset.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|images/|favicon.ico).*)"],
 };

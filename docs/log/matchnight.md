@@ -1094,3 +1094,31 @@ freeze each player's role from the first read after his tip-off.
 Verification: `windows.test.ts` replays round 3's real tip-offs (a read due at
 17:05 after one at 16:57, not twice for one tip, one after each later tip, none
 overnight); `lineup.spec`: 16 passed.
+
+## Welcome page — a public front door
+
+The S13 login page read like a private-league invitation and led with three
+figures that did not help a new visitor. Google account creation is open to
+everyone; a code only admits an account to a particular league. The replacement
+keeps `/login` and its existing sign-in action, callback errors and deep-link
+note. The hero says **EuroLeague Fantasy Draft**, explains the three useful
+actions in one sentence and has one **Continue with Google** button. Its
+orange, cream and charcoal draft-board art is decorative and carries no words
+or controls; a separately composed portrait image is used on phones.
+
+The short section below the hero gives Create a league, Draft live and Follow
+the season one factual sentence each. Numbered buttons select a step. Automatic
+rotation is seven seconds while the section is visible and the visitor has not
+interacted. Focus, pointer hover or a selection pauses it; Play explicitly
+resumes it. Reduced-motion visitors start paused, and only deliberate changes
+are announced by the panel's live region. The signed-in application retains
+its own theme and type conventions; the welcome page deliberately stays dark.
+
+Verification: lint, dead-code scan, typecheck, all 1,764 unit tests and a
+production build passed. Login, design and welcome Playwright coverage passed
+on desktop and mobile (35 passed, one desktop-only rotation case skipped on
+mobile). The login axe checks passed in both colour schemes on both devices;
+a direct contrast scan found no violations. Captures at 1440×900 and 390×844
+show the intended art crop, readable heading and action, and no horizontal
+overflow. The welcome artwork directory is exempt from the auth proxy so the
+images load before sign-in.
