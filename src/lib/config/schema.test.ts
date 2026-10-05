@@ -12,8 +12,8 @@ const validServerEnv = {
 };
 
 const validPublicEnv = {
-  NEXT_PUBLIC_PB_URL: "https://eurovafliai.labrium.online/pb",
-  NEXT_PUBLIC_APP_URL: "https://eurovafliai.labrium.online",
+  NEXT_PUBLIC_PB_URL: "https://eurovafliai.com/pb",
+  NEXT_PUBLIC_APP_URL: "https://eurovafliai.com",
 };
 
 describe("parsePublicEnv", () => {

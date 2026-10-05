@@ -15,8 +15,8 @@ describe("redirectUriFor", () => {
   });
 
   it("does not double the slash when the origin has a trailing one", () => {
-    expect(redirectUriFor("https://eurovafliai.labrium.online/")).toBe(
-      "https://eurovafliai.labrium.online/auth/callback",
+    expect(redirectUriFor("https://eurovafliai.com/")).toBe(
+      "https://eurovafliai.com/auth/callback",
     );
   });
 
