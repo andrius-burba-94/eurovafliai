@@ -1,26 +1,25 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { Bank, Correction } from "@/components/board";
+import { Correction } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { startGoogleLogin } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
 
-/**
- * Sign-in. Google is the only way in — there is no password form, by design.
- *
- * A broadcast title screen: the name at display size, the one action, and the
- * shape of the season underneath. Every failure the callback can produce has a
- * message rather than a dead end.
- */
-/**
- * Something actually went wrong, and the board says so in its correction voice.
- * Every one of these is a failure the callback can genuinely produce.
- */
+import { WelcomeCarousel } from "./welcome-carousel";
+import "./welcome.css";
+
+export const metadata: Metadata = {
+  title: "EuroLeague Fantasy Draft | Eurovafliai",
+  description:
+    "Create a league, draft EuroLeague players live with friends, and follow the standings throughout the season.",
+};
+
+/** Every failure the Google callback can produce has a way back into sign-in. */
 const ERRORS: Record<string, string> = {
-  server_unavailable:
-    "Can't reach the server right now. Try again in a moment.",
+  server_unavailable: "Can't reach the server right now. Try again in a moment.",
   provider_unavailable:
-    "Google sign-in is not configured on the server yet. Tell the commissioner.",
+    "Google sign-in is temporarily unavailable. Try again later.",
   google_denied: "Google sign-in was cancelled.",
   missing_code: "Google did not send back a sign-in code. Try again.",
   state_mismatch:
@@ -29,16 +28,7 @@ const ERRORS: Record<string, string> = {
   exchange_failed: "Google sign-in failed. Try again.",
 };
 
-/**
- * Nothing went wrong; the reader just needs to know why they are here.
- *
- * `unauthorized` lives here rather than in ERRORS because being signed out is
- * the normal state of a first visit, not a fault. Rendering it as a correction
- * put a red alert on the front door and made a screen reader announce a
- * failure to somebody who had merely opened the site. The proxy no longer sends
- * it for `/` at all — this covers the case that remains, a deep link into a
- * league you have to sign in to see.
- */
+/** A protected deep link needs context, while a first visit does not. */
 const NOTES: Record<string, string> = {
   unauthorized: "Sign in to open that page.",
 };
@@ -53,72 +43,63 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const note = key ? NOTES[key] : undefined;
 
   return (
-    <main
-      id="main"
-      data-testid="login"
-      className="relative isolate flex min-h-dvh flex-col overflow-hidden"
-    >
-      <span aria-hidden="true" className="lattice pointer-events-none absolute inset-0 -z-10" />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-2/5 spotlight"
-      />
+    <main id="main" data-testid="login" className="welcome">
+      <section className="welcome-hero" aria-labelledby="welcome-title">
+        <div className="welcome-hero-inner">
+          <div className="welcome-brand">
+            <span aria-hidden="true" className="waffle-mark welcome-mark" />
+            <span>Eurovafliai</span>
+          </div>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-5 py-10 sm:px-8">
-        <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="waffle-mark size-10" />
-          <span className="slot-label text-ink-soft">EuroLeague 2026&ndash;27 &middot; Fantasy draft</span>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <p className="display text-6xl leading-none text-live sm:text-8xl">Eurovafliai</p>
-          <h1 className="display text-3xl sm:text-4xl">Take your slot</h1>
-          <p className="max-w-md text-ink-soft">
-            Invite only. Google verifies identity; the invite code takes the
-            slot after sign-in.
-          </p>
-          {/* Sits with the standfirst rather than above the action, because it
-              qualifies the invitation — it is not an event on the board. */}
-          {note ? (
-            <p data-testid="login-note" className="text-sm text-ink-soft">
-              {note}
+          <div className="welcome-content">
+            <h1 id="welcome-title" className="welcome-title">
+              <span>EuroLeague</span>
+              <span>Fantasy Draft</span>
+            </h1>
+            <p className="welcome-lead">
+              Create a league, invite your friends, draft EuroLeague players
+              live, and follow the season.
             </p>
-          ) : null}
+            {note ? (
+              <p data-testid="login-note" className="welcome-note">
+                {note}
+              </p>
+            ) : null}
+            {message ? (
+              <div className="welcome-error">
+                <Correction testId="login-error">{message}</Correction>
+              </div>
+            ) : null}
+
+            <form action={startGoogleLogin} className="welcome-signin">
+              <SubmitButton
+                testId="login-google"
+                tone="live"
+                pendingLabel="Redirecting to Google…"
+              >
+                Continue with Google
+              </SubmitButton>
+            </form>
+          </div>
         </div>
 
-        {message ? (
-          <Correction testId="login-error">{message}</Correction>
-        ) : null}
+        <picture className="welcome-art">
+          <source
+            media="(min-width: 768px)"
+            srcSet="/images/welcome-draft-board-wide.webp"
+          />
+          <img
+            src="/images/welcome-draft-board-mobile.webp"
+            alt=""
+            width="1122"
+            height="1402"
+            fetchPriority="high"
+            decoding="async"
+          />
+        </picture>
+      </section>
 
-        <div className="max-w-md">
-          <Bank label="Sign in" framed>
-            <div className="flex flex-col gap-4 px-3 py-4">
-              <form action={startGoogleLogin}>
-                <SubmitButton
-                  testId="login-google"
-                  tone="live"
-                  pendingLabel="Redirecting to Google…"
-                >
-                  Continue with Google
-                </SubmitButton>
-              </form>
-            </div>
-          </Bank>
-        </div>
-
-        <dl className="grid max-w-md grid-cols-3 divide-x divide-panel-border rounded-card border border-panel-border bg-stock-panel">
-          {[
-            ["13", "rounds"],
-            ["12", "teams at most"],
-            ["38", "season rounds"],
-          ].map(([figure, label]) => (
-            <div key={label} className="flex flex-col items-center gap-0.5 px-2 py-3 text-center">
-              <dt className="slot-label text-ink-soft">{label}</dt>
-              <dd className="display-figure order-first text-3xl">{figure}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <WelcomeCarousel />
     </main>
   );
 }

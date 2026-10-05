@@ -12,7 +12,9 @@ web
 
 ## Users
 
-A single private league of friends, 8–12 people, 12 maximum. Two roles:
+People can sign in with Google and create a private league; an invite code is
+needed only to join somebody else's league. A league usually has 8–12 friends,
+with 12 members at most. Within each league there are two roles:
 
 - **Commissioner** (one person, the maintainer). Configures the league, ingests
   player rosters, rolls or sets the draft order, runs the live draft, pauses and
@@ -23,8 +25,8 @@ A single private league of friends, 8–12 people, 12 maximum. Two roles:
   trade impact between game days. Mostly on phones, frequently on the same couch
   in the same room, occasionally remote and half-distracted.
 
-Both roles are the same small group of friends. Nobody is a customer; nobody
-gets onboarding hand-holding beyond what the room needs to keep playing.
+Both roles play with a small group of friends. The welcome page explains the
+game and the sign-in action; the league room needs no onboarding tour.
 
 ## Product Purpose
 
@@ -49,8 +51,8 @@ squads, captains, bench multipliers — no draft, no exclusive ownership, no
 trades). Generic draft tools have no EuroLeague player data.
 
 This product is the intersection: a real snake/linear draft over EuroLeague
-players, scored with the official player formula, for one specific group of
-friends who already argue about these players. Its distinguishing mechanism is
+players, scored with the official player formula, for small groups of friends
+who already argue about these players. Its distinguishing mechanism is
 correctness under contention — a server-authoritative draft where a double pick
 is physically impossible, deadlines are enforced by a process rather than by a
 phone, and a mid-draft rollback is a supported operation rather than a disaster.
@@ -68,8 +70,9 @@ phone, and a mid-draft rollback is a supported operation rather than a disaster.
 - **Roster ingestion.** Player data comes from the EuroLeague API all summer and
   from a hand-corrected CSV near draft night; one of the two is authoritative at
   any moment and the other reports what it would have changed.
-- **Deployment.** A private subdomain on an existing VPS. Invite-only; no public
-  signup, no second league at scale.
+- **Deployment.** A public welcome page on an existing VPS. First-time Google
+  sign-in can create an account and a league; direct password signup is closed.
+  Each league stays private, and joining one requires its invite code.
 
 ## Capabilities and Constraints
 

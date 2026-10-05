@@ -1,14 +1,15 @@
 # Eurovafliai
 
-A private, invite-based **Euroleague fantasy draft platform** for one friend
-group. A commissioner configures a league, friends join a lobby, the
+A **EuroLeague fantasy draft platform** for private leagues of friends. Anyone
+can sign in with Google and create a league; joining a friend's league requires
+its invite code. A commissioner configures a league, friends join a lobby, the
 commissioner rolls the draft order and runs a **live draft that every
 participant watches update simultaneously** on their own phone or laptop. After
 the draft the app tracks real Euroleague performance nightly (PIR + fantasy
 points), computes standings, and measures the point impact of every trade.
 
 Season: **Euroleague 2026–27** (20 clubs, 38 regular-season rounds). Scale target
-is ~10 concurrent users — optimize for correctness and clarity, never for
+is ~10 concurrent users per league — optimize for correctness and clarity, never for
 horizontal scale. Phases ship in order; nothing here is planned against a date.
 
 **Roster template:** 13 players — 5 Guards, 5 Forwards, 3 Centers → 13 rounds.

@@ -104,10 +104,10 @@ test("a held ground survives a reload and ignores the device", async ({ page, co
   await expect.poll(() => colorScheme(page)).toBe("dark");
 });
 
-test("headlines are set in the broadcast face", async ({ page }) => {
+test("the welcome headline uses the quieter display face", async ({ page }) => {
   await page.goto("/login");
   const family = await page.locator("h1").first().evaluate((el) => getComputedStyle(el).fontFamily);
-  expect(family).toContain("Barlow Condensed");
+  expect(family).toContain("Space Grotesk");
 });
 
 test("the board's own font is the one actually rendering", async ({ page }) => {

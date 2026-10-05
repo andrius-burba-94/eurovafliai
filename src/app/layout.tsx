@@ -6,7 +6,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Eurovafliai",
-  description: "Euroleague fantasy draft platform for one small, loud league.",
+  description:
+    "Create a private EuroLeague fantasy draft league, invite friends, and follow the season.",
 };
 
 export const viewport: Viewport = {

@@ -163,6 +163,10 @@ dark (default) and light (`:root[data-theme="light"]`), each solved against
 the same floors. The ground follows the device unless the reader holds one
 with the theme switch (sidebar beside the account, or More on a phone).
 
+The signed-out welcome page is a deliberate fixed-dark campaign surface. Its
+orange, cream and charcoal draft-board artwork does not change with the device
+theme; the signed-in product's two-ground system still does.
+
 | Token | Job |
 |---|---|
 | `stock`, `stock-panel`, `stock-high`, `stock-sunk` | ground, panel, raised control/hover, the sidebar and tab bar layer |
@@ -201,6 +205,8 @@ Named rules:
 
 Display type is never a button label, a form label or a sentence. Headlines
 step 1.25× or more above the next level; body copy caps at 65–75ch.
+The welcome page's large "EuroLeague Fantasy Draft" title uses Space Grotesk
+for a wider graphic silhouette, with Barlow Condensed retained for the app.
 
 ## Layout
 

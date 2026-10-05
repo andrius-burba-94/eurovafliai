@@ -63,6 +63,17 @@ in the current pool or roster feed. Player-facing names use the familiar forms
 for the confirmed players while the stored feed names remain the matching keys.
 See [log/player-mapping-2026-10-05.md](log/player-mapping-2026-10-05.md).
 
+## Welcome page, 5 October 2026
+
+`/login` welcomes anyone with **EuroLeague Fantasy Draft**, a short account of
+creating a league, drafting with friends and following the season, and one
+Google sign-in action. Creating an account needs no invite. A league's invite
+code is used after sign-in to join that league. The hero uses text-free draft
+board artwork with a separate phone crop; a three-step How it works section
+rotates while visible, pauses on interaction and starts paused for reduced
+motion. Existing deep-link guidance and sign-in corrections remain. See
+[log/matchnight.md](log/matchnight.md) for the design and verification record.
+
 ## In progress: Matchnight redesign (ADR-0011)
 
 A full visual and experience refresh after a design critique scored the arena
@@ -87,7 +98,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S10 League Stats | Done | New `/leagues/[id]/stats` and a Stats nav item. Record book (highest and lowest round, biggest margin, best single night, best captain call), honours, team profiles (average, best, worst, spread, rounds won, top-3, spoons), lineup efficiency (bench points lost, captain hit rate), draft value (steals, busts, autodraft vs people), players of the season (top, hot, best free agents, by position) and the deal ledger. Pure `stats/league-stats.ts`, one query in `league-stats-queries.ts`. |
 | S11 Team, player, pool | Done | My Team: crest header, "Carrying you" / "On thin ice", the roster grouped G/F/C with injury badges, season points (raw, while on this roster), last round, form and next opponent; the radar is gone and the crest editor sits at the foot. Player profile: a card hero (portrait, club, badge, current PIR) and a game-log table with heat shading. Pool: ranked by the same average PIR the draft uses, with position, Injured and sort filters; the ingest summary is folded for members. News keeps S1's Out / Doubtful badges; an ownership filter needs a league context the global news page does not have, and is left to the side panel. |
 | S12 Draft and roll | Done | The on-clock band carries the picker's crest at headline size. Every landed pick raises a "The pick is in" lower-third for the whole room (team crest, player, position, pick number, AUTO when the worker made it) with a short two-note sting where cues are on; a first paint or reload shows nothing. A finished draft reads "That's the draft", links to the standings and to Stats' steals and busts, and folds undo / start over behind "Commissioner tools". The roll is a stage: a lattice panel, the drawn team's crest and name at display size, crests down the order, and a gold "First pick" reveal. The full-screen shell-less stage from the plan is not done: the roll still renders inside the league shell. |
-| S13 Sheet, export, login, leagues | Done | Login is a full-bleed title screen: the wordmark at display size, one Google action, the season's shape as three figures. Your leagues is one big card per league whose button is the likely next act (lobby, draft room, lineup, final table). A Download menu (results CSV, rosters CSV, everything JSON, or choose) sits on the standings header and above the draft board; `/export` stays for the full picker and deep links, and the lobby door still leads there. An empty cheat sheet offers "Use the PIR ranking" — the top 60 by the draft's own average PIR (pure `sheets/seed.ts`), written only onto an empty sheet — and a sheet with rows gets "Not on your sheet", the best 12 unranked players with an Add button (the existing `insert` operation). Paste stays below. The plan's "star" is the Add button; there is no separate favourites list. |
+| S13 Sheet, export, login, leagues | Done | Login was later reworked as the public welcome page described above: one Google action and a three-step explainer, without the season's three figures. Your leagues is one big card per league whose button is the likely next act (lobby, draft room, lineup, final table). A Download menu (results CSV, rosters CSV, everything JSON, or choose) sits on the standings header and above the draft board; `/export` stays for the full picker and deep links, and the lobby door still leads there. An empty cheat sheet offers "Use the PIR ranking" — the top 60 by the draft's own average PIR (pure `sheets/seed.ts`), written only onto an empty sheet — and a sheet with rows gets "Not on your sheet", the best 12 unranked players with an Add button (the existing `insert` operation). Paste stays below. The plan's "star" is the Add button; there is no separate favourites list. |
 | S14 Commissioner pages | Done | Mapping is a queue: "Question 3 of 23" across feed names, box-score codes and news names, one current row (the board's keyboard-cursor outline), J / K to move, Y / N to answer the current question. A rename is two records side by side, "In the pool" and "In the feed". Every row stays on the page and answerable by tap — the specs (and a commissioner) act on a specific question, not only the first. Roster and stat imports show Paste → Review → Apply, derived from the form's own state (a plan on screen is Review, a stored result is done). |
 | S15 Polish and re-critique | Done | Re-scored **31/40** (from 22). Standings' team column fits a crest and name, honours group with counts. The draft pool row sizes its extras by the row (container queries), so desktop no longer cuts surnames to three letters; portrait and club crest CSS moved into `@layer components` so `hidden` works on them. a11y runs every surface in both grounds. E2E cleanup removes roster windows before players, which fixes the pool-count flake. On a laptop the draft room's "Draft for me" and sound switches head the watching column, so the first pool row sits at 754px of a 900px screen (it was 990). Open from the critique: the roll stage is not shell-less (P2), League Home's phone tail (P2), recap headlines are always plural (P3), no scoring explainer page (P3). |
 | S16 Header and lineup layout | Done | From `lg` the shell header no longer repeats the league name above the page's own title; it is drawn only while the side panel still needs its toggle (the draft room, and `lg`–`xl` pages with a docked panel). The lineup court is drawn to FIBA's 15 × 14 m half court (key, arc with corner lines, restricted area, hoop) and up to 42rem wide; player discs are 4.5rem on desktop. The tiers stand in two columns once the list has room (container query): Starting five beside Sixth man and Bench, Inactive across the foot. In a narrow column a row's Move button is its icon and long names wrap to two lines. |
@@ -117,7 +128,9 @@ the ground, headlines and primary buttons change with it. On a lineup, the grid
 view shows each position in its own colour and the captain reads `C×2`. Open
 your team page, expand **Your crest**, pick a colour and a shape and save: the
 crest appears beside your name in chat and on the draft board. Signed out,
-`/login` is the title screen. On a league's Cheat Sheet with nothing ranked,
+`/login` shows the public welcome page; scroll to How it works and select its
+three numbered steps. With reduced motion on, Play resumes the rotation. On a
+league's Cheat Sheet with nothing ranked,
 press **Use the PIR ranking**, then add someone from **Not on your sheet**.
 Standings has a **Download** menu. In a draft room on a desktop, pool rows show
 the whole surname beside the club and position. On a desktop, open a lineup:
@@ -1546,7 +1559,7 @@ anything.
 | Slice | State | Landed | Notes |
 |---|---|---|---|
 | 1.1 Schema — `leagues`, `league_members`, Google OAuth2 on `users` | done | #2 | Rules and indexes asserted by `npm run pb:verify` |
-| 1.2 Auth — Google sign-in, httpOnly session, route protection | done | #6, #11, #12, #13 | Public sign-up closed; first-time OAuth2 sign-up proven against a local OIDC issuer |
+| 1.2 Auth — Google sign-in, httpOnly session, route protection | done | #6, #11, #12, #13 | Password sign-up closed; first-time Google OAuth2 sign-up proven against a local OIDC issuer |
 | 1.3a League & lobby — create, join by code, lobby page | done | #10 | Shipped without the realtime list or the commissioner controls; both landed in 1.3b |
 | 1.3b Lobby, finished — live list, real names, team names, ready, kick | done | #19 | Closes #15. Realtime SSE with the viewer's token — the first use of the `authToken` pattern, and the shape the draft room will copy |
 | 1.4 Design foundation — tokens, app shell, the board's vocabulary | done | #17 | The Draft Board Wall. Contract recorded in `DESIGN.md` |
