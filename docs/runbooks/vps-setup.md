@@ -268,6 +268,43 @@ The dry run must mention the four `eurovafliai-*.log` files and must not name
 another app's logs. `scripts/deploy.sh` warns when the file is missing or
 differs from git.
 
+## 10. Switch to eurovafliai.com
+
+The existing `eurovafliai.labrium.online` vhost is the source file for all
+three names. The old subdomain and `www` redirect to the root domain. Keep
+its certificate valid so old bookmarks can follow the redirect over HTTPS.
+
+1. In the DNS zone for `eurovafliai.com`, set the root (`@`) A record to
+   `185.230.64.48`. Keep `www` as a CNAME to the root. Do not change MX or TXT
+   records. Confirm both names resolve to the VPS before requesting TLS.
+2. Add `https://eurovafliai.com/auth/callback` to the **existing** Google OAuth
+   web client's authorized redirect URIs. Keep the localhost and old subdomain
+   callbacks. The URI must match exactly.
+3. After the Nginx change is merged and deployed, install its committed vhost
+   at `/etc/nginx/sites-available/eurovafliai.labrium.online`. Check `nginx -t`,
+   then run Certbot for all three names:
+
+   ```bash
+   certbot --nginx --expand --cert-name eurovafliai.labrium.online \
+     -d eurovafliai.labrium.online -d eurovafliai.com \
+     -d www.eurovafliai.com
+   nginx -t && systemctl reload nginx
+   ```
+
+   Installing the committed plain-HTTP file temporarily removes the old
+   Certbot TLS block; issue the expanded certificate immediately afterwards.
+   If issuance fails, restore the previous vhost copy, test and reload Nginx
+   before retrying.
+4. In the VPS-only `.env`, set
+   `NEXT_PUBLIC_APP_URL=https://eurovafliai.com` and
+   `NEXT_PUBLIC_PB_URL=https://eurovafliai.com/pb`. Run
+   `/var/www/eurovafliai/scripts/deploy.sh` to rebuild the browser bundle and
+   reload PM2. The server-side PocketBase URL stays `127.0.0.1:8095`.
+5. Verify HTTPS `/login` at the root; `www` and the old subdomain redirect to
+   it; `/pb/api/health` responds; `/pb/_/` stays forbidden. Complete a Google
+   sign-in at the root and check a live PocketBase subscription through `/pb/`.
+   Finally update the deploy workflow's public smoke URL and the status file.
+
 ## Never patch in production
 
 No editing files on the box, no hotfix straight to `main`, no schema clicked
