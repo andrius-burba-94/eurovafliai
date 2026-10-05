@@ -4,11 +4,11 @@ Private Euroleague fantasy draft platform for one friend group: a live,
 real-time draft that every participant watches update on their own device, then
 nightly stats, standings and trade-impact tracking for the rest of the season.
 
-**Production:** `https://eurovafliai.labrium.online` · **Season:** Euroleague
+**Production:** `https://eurovafliai.com` · **Season:** Euroleague
 2026–27 · **Rosters:** 13 players (5G / 5F / 3C)
 
 > **Status:** production tracks `main` at
-> [eurovafliai.labrium.online](https://eurovafliai.labrium.online). Phases 1–3
+> [eurovafliai.com](https://eurovafliai.com). Phases 1–3
 > (auth, lobby, live draft, board, nightly ingest) are done; Phase 4 (season
 > scoring and standings) is in progress. Slice-by-slice detail is in
 > [docs/STATUS.md](docs/STATUS.md); the plan is

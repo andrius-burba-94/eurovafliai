@@ -94,10 +94,10 @@ function normalizeVhost(text: string): string {
   return `${text
     .split("\n")
     .map((line) => line.replace(/[ \t]+$/u, ""))
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/^\n+/, "")
-    .replace(/\n+$/, "")}\n`;
+    // Certbot adds spacer lines around generated directives. Empty lines are
+    // never nginx directives and should not make a live vhost look drifted.
+    .filter((line) => line.trim() !== "")
+    .join("\n")}\n`;
 }
 
 export function vhostsEquivalent(live: string, committed: string): boolean {

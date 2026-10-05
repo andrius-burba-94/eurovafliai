@@ -42,17 +42,20 @@ Recorded so nobody repeats them:
 
 ## 1. DNS
 
-One A record, matching every sibling app:
+Point the root domain at the existing VPS and keep `www` as an alias:
 
 | Type | Name | Value | TTL |
 |---|---|---|---|
-| A | `eurovafliai` | `185.230.64.48` | 3600 |
+| A | `@` on `eurovafliai.com` | `185.230.64.48` | 3600 |
+| CNAME | `www` | `eurovafliai.com` | 3600 |
 
-`labrium.online` is on Hostinger's nameservers (`ns1/ns2.dns-parking.com`), so
-this is done in hPanel under **Domains → labrium.online → DNS Zone**.
+The old `eurovafliai.labrium.online` A record still points at the same VPS so
+bookmarks can redirect. Manage each record at its domain's authoritative DNS
+provider. Leave email records untouched.
 
 ```bash
-dig +short eurovafliai.labrium.online A   # must print 185.230.64.48
+dig +short eurovafliai.com A               # must print 185.230.64.48
+dig +short www.eurovafliai.com A           # must print 185.230.64.48
 ```
 
 Do not continue until it does — certbot cannot issue a certificate for a name
@@ -81,15 +84,16 @@ Production values that differ from local — getting these two backwards is the
 mistake `AGENTS.md` warns about:
 
 ```ini
-NEXT_PUBLIC_PB_URL=https://eurovafliai.labrium.online/pb   # browser, through nginx
+NEXT_PUBLIC_PB_URL=https://eurovafliai.com/pb   # browser, through nginx
 PB_INTERNAL_URL=http://127.0.0.1:8095                      # server-side, direct
-NEXT_PUBLIC_APP_URL=https://eurovafliai.labrium.online
+NEXT_PUBLIC_APP_URL=https://eurovafliai.com
 ```
 
 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` are the same client as local, and
 its authorized redirect URIs must already include
-`https://eurovafliai.labrium.online/auth/callback`. Add it in Google Cloud
-Console before testing sign-in, or you get `redirect_uri_mismatch`.
+`https://eurovafliai.com/auth/callback`. Keep the old subdomain callback for
+legacy bookmarks. Add the new URI in Google Cloud Console before testing
+sign-in, or you get `redirect_uri_mismatch`.
 
 Pick a fresh `PB_SUPERUSER_PASSWORD`; do not reuse the local one.
 
@@ -133,7 +137,8 @@ ln -sf /etc/nginx/sites-available/eurovafliai.labrium.online \
        /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 
-certbot --nginx -d eurovafliai.labrium.online
+certbot --nginx -d eurovafliai.com -d www.eurovafliai.com \
+  -d eurovafliai.labrium.online
 nginx -t && systemctl reload nginx
 ```
 
@@ -160,7 +165,8 @@ pm2 save       # so both apps come back after a reboot
 Phase 1.5 is not finished until realtime works **in production**. Local passes
 prove nothing about nginx buffering.
 
-1. `https://eurovafliai.labrium.online/login` loads over TLS.
+1. `https://eurovafliai.com/login` loads over TLS; `www` and the old
+   subdomain redirect there.
 2. Sign in with Google. Two different accounts, two devices — a phone and a PC.
 3. One creates a league, the other joins with the invite code.
 4. **The first person's member list grows without a reload**, and shows the
@@ -303,7 +309,8 @@ its certificate valid so old bookmarks can follow the redirect over HTTPS.
 5. Verify HTTPS `/login` at the root; `www` and the old subdomain redirect to
    it; `/pb/api/health` responds; `/pb/_/` stays forbidden. Complete a Google
    sign-in at the root and check a live PocketBase subscription through `/pb/`.
-   Finally update the deploy workflow's public smoke URL and the status file.
+   The deploy workflow's public smoke URL and the status file should name
+   the verified root domain.
 
 ## Never patch in production
 

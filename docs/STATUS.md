@@ -19,15 +19,17 @@ keeps the tables, the open debt, the next step and the current phase's
 > triggers the deploy workflow — so "what is live" is always just `main`, and
 > this file names no SHA, because a SHA here is a line that goes stale on the
 > next merge and then quietly misleads. Live at
-> [eurovafliai.labrium.online](https://eurovafliai.labrium.online).
+> [eurovafliai.com](https://eurovafliai.com).
 
 ## Custom domain cutover
 
-`eurovafliai.com` is being connected to the existing VPS. The committed Nginx
-vhost serves the root domain and redirects `www` and the old subdomain to it.
-The switch is complete only after DNS, the Google OAuth callback, the production
-`NEXT_PUBLIC_*` values, Certbot and public sign-in are verified. Until then,
-the live address above remains the supported entry point.
+`eurovafliai.com` points to the existing VPS and serves the app over HTTPS.
+`www` and the old `eurovafliai.labrium.online` address redirect to the root
+name. The production public URLs and Google OAuth callback have been updated;
+DNS, TLS, `/login`, PocketBase health, the admin deny rule and the first live
+realtime event were verified on 5 October 2026. A completed Google sign-in on
+the new domain still needs a user check. See
+[log/domain-cutover-2026-10-05.md](log/domain-cutover-2026-10-05.md).
 
 ## CI timing
 

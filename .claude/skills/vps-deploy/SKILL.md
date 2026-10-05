@@ -10,7 +10,7 @@ paths:
 
 # VPS deploy runbook
 
-Production is `https://eurovafliai.labrium.online`. The pipeline is
+Production is `https://eurovafliai.com`. The pipeline is
 `local → GitHub → VPS`, automated on merge to `main`.
 
 > **Status:** the artifacts described here (`deploy.sh`, `ecosystem.config.js`,
@@ -89,7 +89,7 @@ location /pb/_/ { return 403; }   # admin UI never public
   never receives anything" for authenticated collections.
 - The admin UI is reached by SSH tunnel:
   `ssh -L 8095:127.0.0.1:8095 <host>` → `http://127.0.0.1:8095/_/`.
-- Client PB base URL is `https://eurovafliai.labrium.online/pb`; server-side
+- Client PB base URL is `https://eurovafliai.com/pb`; server-side
   Next and the worker use `http://127.0.0.1:8095`.
 
 Vhost pitfalls that have bitten before: placeholder domains left in place,

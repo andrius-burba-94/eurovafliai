@@ -11,7 +11,7 @@ import { z } from "zod";
 export const publicEnvSchema = z.object({
   /**
    * Browser-facing PocketBase base URL. In production this is the Nginx-proxied
-   * path (`https://eurovafliai.labrium.online/pb`) — never the internal port,
+   * path (`https://eurovafliai.com/pb`) — never the internal port,
    * which is bound to 127.0.0.1 and unreachable from a browser.
    */
   NEXT_PUBLIC_PB_URL: z.url(),

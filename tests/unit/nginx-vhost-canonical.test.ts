@@ -70,6 +70,13 @@ describe("canonicalizeVhost", () => {
     expect(vhostsEquivalent(drifted, committed)).toBe(false);
   });
 
+  it("ignores Certbot spacer lines in redirect vhosts", () => {
+    const committed = readFileSync(committedPath, "utf8");
+    const live = committed.replaceAll("    listen 80;\n}", "    listen 80;\n\n}");
+    expect(live).not.toBe(committed);
+    expect(vhostsEquivalent(live, committed)).toBe(true);
+  });
+
   it("ignores trailing whitespace", () => {
     const committed = readFileSync(committedPath, "utf8");
     const padded = committed.replace(

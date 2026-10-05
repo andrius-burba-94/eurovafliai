@@ -19,6 +19,7 @@ disagrees with STATUS.md, STATUS.md is right and the line is history.
 | [design-history.md](design-history.md) | Every design contract before Matchnight (ADR-0011), verbatim |
 | [matchnight.md](matchnight.md) | The Matchnight redesign, slice by slice: the critique, the gallery picks and what each slice changed |
 | [basketnews-import.md](basketnews-import.md) | BasketNews Hostinger league import, source evidence, worker recovery and database verification |
+| [domain-cutover-2026-10-05.md](domain-cutover-2026-10-05.md) | Custom domain DNS, TLS, deploy and public verification |
 
 Append to these when a slice's narrative would otherwise go into STATUS.md.
 The rule for what goes where: a **table row, a Next-up line, an open debt
