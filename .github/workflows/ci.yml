@@ -1,5 +1,9 @@
 name: CI
 
+# Required PR checks finish in parallel. The full browser regression runs in
+# browser-regression.yml at night or on demand; it takes ~5 minutes on four
+# runners and must not delay feedback or the production deploy.
+
 on:
   pull_request:
     branches: [main]
@@ -110,87 +114,3 @@ jobs:
           done
           npm run --silent pb:dump-schema > /tmp/schema-after.json
           diff -u /tmp/schema-before.json /tmp/schema-after.json
-
-  e2e:
-    # The browser suite, against the same throwaway PocketBase the job above
-    # boots. It was local-first for as long as nobody had proved it could run
-    # unattended; now a slice that breaks the lobby, the room or chat fails
-    # the PR rather than the next person's rehearsal. `next start` over a
-    # fresh build, not `next dev` — see playwright.config.ts.
-    #
-    # Sharded because one two-core runner is the bottleneck: ~500 test runs
-    # (both projects) at two workers took 12+ minutes and grew with every
-    # slice. Each shard boots its own PocketBase, so shards share no data.
-    # Not a required check, so the per-shard names ("e2e (1/4)") are safe.
-    name: e2e (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    env:
-      CI: "true"
-      PB_INTERNAL_URL: http://127.0.0.1:8095
-      NEXT_PUBLIC_PB_URL: http://127.0.0.1:8095
-      NEXT_PUBLIC_APP_URL: http://localhost:3007
-      SESSION_COOKIE_NAME: eurovafliai_session
-      PB_SUPERUSER_EMAIL: ci@eurovafliai.test
-      PB_SUPERUSER_PASSWORD: ci-superuser-pass-1234
-      GOOGLE_CLIENT_ID: ci-placeholder-client-id
-      GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
-      STATS_FETCH: "off"
-      LIVE_FETCH: "off"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-
-      - name: Download the pinned PocketBase
-        run: ./scripts/pb-download.sh
-
-      - name: Write .env
-        run: env | grep -E '^(PB_|NEXT_PUBLIC_|SESSION_|GOOGLE_|STATS_)' > .env
-
-      - name: Create the superuser
-        run: >-
-          ./pb/pocketbase superuser upsert
-          "$PB_SUPERUSER_EMAIL" "$PB_SUPERUSER_PASSWORD" --dir=pb/pb_data
-
-      - name: Boot PocketBase
-        run: |
-          ./pb/pocketbase serve --http=127.0.0.1:8095 \
-            --dir=pb/pb_data --migrationsDir=pb/pb_migrations &
-          for _ in $(seq 1 30); do
-            curl -sf http://127.0.0.1:8095/api/health >/dev/null && exit 0
-            sleep 1
-          done
-          echo "PocketBase did not become healthy" >&2
-          exit 1
-
-      - run: npm run build
-      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
-
-      - uses: actions/upload-artifact@v7
-        if: failure()
-        with:
-          name: playwright-report-${{ matrix.shard }}
-          path: playwright-report/
-          retention-days: 7
-
-  design-detect:
-    # Non-blocking by design: impeccable's detector reports UI smells, it does
-    # not gate merges. Read the output, act on it in an /impeccable pass.
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npx --yes impeccable detect --json src/ || true

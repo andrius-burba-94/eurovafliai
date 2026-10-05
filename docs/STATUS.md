@@ -29,6 +29,16 @@ The switch is complete only after DNS, the Google OAuth callback, the production
 `NEXT_PUBLIC_*` values, Certbot and public sign-in are verified. Until then,
 the live address above remains the supported entry point.
 
+## CI timing
+
+PRs and pushes to `main` run two required jobs in parallel: `verify` (lint,
+Knip, types, Vitest and a production build) and `pocketbase` (fresh migrations,
+authorization rules, OAuth2 and rollback/re-apply). The last healthy run
+completed the slower job in 1m 34s. The full desktop/mobile Playwright suite
+and advisory design detector run in a separate nightly workflow, with a manual
+trigger for risky changes. UI slices still run their relevant browser specs
+locally before pushing. Hosted runner queue time is outside this timing target.
+
 ## BasketNews Hostinger league
 
 The BasketNews Draft import is implemented as a **separate** league from
@@ -1759,12 +1769,13 @@ retrying forever.
 
 The code-health pass that followed put the same discipline on the codebase
 itself. **Knip runs in CI** (`lint:dead`) so an export nobody imports fails the
-build rather than accumulating. **Playwright runs in CI** against `next start`
-over a fresh build, on both browser projects, booting PocketBase the same way
-`pb:verify` does — the E2E suite was local-first for three phases and is now a
-merge gate. It runs as **four shards** (`e2e (1/4)`…`e2e (4/4)`), each with its
-own PocketBase, because one two-core runner had grown to 12+ minutes for the
-suite alone. The framework-free stores (`sheets`, `chat`, `stats`, `rosters`)
+build rather than accumulating. **Playwright runs nightly and on demand**
+against `next start` over a fresh build, on both browser projects, booting
+PocketBase the same way `pb:verify` does. It runs as **four shards**
+(`e2e (1/4)`…`e2e (4/4)`), each with its own PocketBase, because one two-core
+runner had grown to 12+ minutes for the suite alone. It used to run on every
+PR; the measured 5m 33s workflow time missed the two-minute feedback target.
+The framework-free stores (`sheets`, `chat`, `stats`, `rosters`)
 and both repairs have unit tests over `fake-pb`, each exercising the failure
 story the module's header promised. The lobby, the room and chat share one
 realtime lifecycle (`useLiveSubscription`), so the three surfaces cannot

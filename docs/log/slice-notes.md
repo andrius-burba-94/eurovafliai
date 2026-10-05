@@ -3,6 +3,27 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## A two-minute PR gate, with the full browser suite overnight
+
+Two attempts on PR #173 were cancelled before GitHub acquired hosted runners
+for all jobs. The affected jobs reported `job was not acquired by Runner of
+type hosted` and an internal server error; the shards that did start passed.
+The cancellation was an Actions service problem, not a test failure.
+
+The last healthy CI run, on PR #172, took 5m 33s from start to finish. Its
+`verify` job (lint, Knip, types, 1,760 Vitest tests and production build)
+finished in 1m 34s, and `pocketbase` in 46s. The four Playwright shards,
+which each install a browser, boot PocketBase and build the app before running
+one quarter of 504 desktop/mobile test runs, extended the workflow to 5m 33s.
+
+The required PR workflow now consists of the two jobs that finished inside
+two minutes in that healthy run. The unchanged browser matrix runs nightly
+and through a manual button in its own workflow; the advisory design detector
+moves with it. A UI slice still runs its relevant Playwright specs locally
+before push. A GitHub runner outage can still delay or cancel a job before
+it starts, so two minutes is a measured execution target rather than a
+guarantee of wall-clock time during an Actions incident.
+
 ## The season dashboard — four panels, and three that had to tell the truth
 
 The ask came with a rendered reference and a panel-by-panel brief: a 2-column
