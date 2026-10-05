@@ -23,6 +23,30 @@ describe("displayName", () => {
     expect(displayName("Nunn,")).toBe("Nunn");
     expect(displayName("")).toBe("");
   });
+
+  it("shows familiar player names while leaving feed names available for matching", () => {
+    expect([
+      "James, Michael Perry",
+      "Dozier Jr, Perry Linnard",
+      "Shorts Vtori, Timothy Neocartes",
+      "Tucker, Talen Jalee",
+      "Durisic, Nikola",
+      "Len, Oleksii",
+      "Lawson, Anthony",
+      "Dunston Jr, Bryant Kevin",
+      "Smith Jr, Nicholas Terrell",
+    ].map(displayName)).toEqual([
+      "Mike James",
+      "PJ Dozier",
+      "TJ Shorts",
+      "Talen Horton-Tucker",
+      "Nikola Djurisic",
+      "Alex Len",
+      "A.J. Lawson",
+      "Bryant Dunston",
+      "Nick Smith Jr",
+    ]);
+  });
 });
 
 /**
@@ -43,5 +67,12 @@ describe("surname", () => {
   it("survives the ragged edges of a pasted sheet", () => {
     expect(surname("Nunn ,  Kendrick")).toBe("Nunn");
     expect(surname("")).toBe("");
+  });
+
+  it("uses the familiar surname on compact player labels", () => {
+    expect(surname("Dozier Jr, Perry Linnard")).toBe("Dozier");
+    expect(surname("Tucker, Talen Jalee")).toBe("Horton-Tucker");
+    expect(surname("Durisic, Nikola")).toBe("Djurisic");
+    expect(surname("Smith Jr, Nicholas Terrell")).toBe("Smith Jr");
   });
 });

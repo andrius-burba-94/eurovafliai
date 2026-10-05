@@ -50,6 +50,17 @@ uses those positions in rosters, lineups, the draft, stats, player profiles and
 pool views; EuroVafliai 26-27 keeps the EuroLeague positions. The seven
 differences among the 130 captured BasketNews players are recorded in the log.
 
+## Player mapping, 5 October 2026
+
+The commissioner confirmed six news-to-player identities, A.J. Lawson, and
+three new players named in box scores. The live pool now has Bandja Sy,
+Bryant Dunston and Nick Smith Jr under their official feed codes; a targeted
+re-import restored six missing game lines. Only George Papas and Lorenzo Brown
+remain unmatched in the news queue, by decision, because neither has a player
+in the current pool or roster feed. Player-facing names use the familiar forms
+for the confirmed players while the stored feed names remain the matching keys.
+See [log/player-mapping-2026-10-05.md](log/player-mapping-2026-10-05.md).
+
 ## In progress: Matchnight redesign (ADR-0011)
 
 A full visual and experience refresh after a design critique scored the arena
