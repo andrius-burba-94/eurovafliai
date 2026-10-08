@@ -11,6 +11,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    # Decides whether the browser jobs have anything to test. A pull request
+    # that touches only docs and Markdown skips them; `verify` and `pocketbase`
+    # are the required checks and always run. Pushes to main always test.
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request'
+        with:
+          # The PR checkout is a merge commit; its first parent is the base.
+          fetch-depth: 2
+      - id: diff
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only HEAD^1 HEAD)
+          echo "$changed"
+          if echo "$changed" | grep -qvE '^docs/|\.md$'; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -24,6 +51,14 @@ jobs:
       - run: npm run lint:dead
       - run: npm run typecheck
       - run: npm run test
+      - name: Restore the Next build cache
+        # Next's incremental cache. Keyed per job: verify builds without the
+        # NEXT_PUBLIC_* values e2e inlines, so the two must not share one.
+        uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: next-${{ github.job }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts', 'postcss.config.mjs', 'tsconfig.json') }}
+          restore-keys: next-${{ github.job }}-${{ hashFiles('package-lock.json') }}-
       - run: npm run build
 
   pocketbase:
@@ -118,11 +153,15 @@ jobs:
     # the PR rather than the next person's rehearsal. `next start` over a
     # fresh build, not `next dev` — see playwright.config.ts.
     #
-    # Sharded because one two-core runner is the bottleneck: ~500 test runs
-    # (both projects) at two workers took 12+ minutes and grew with every
-    # slice. Each shard boots its own PocketBase, so shards share no data.
+    # Sharded because one runner is the bottleneck: ~500 test runs (both
+    # projects) at two workers took 12+ minutes and grew with every slice.
+    # Each shard boots its own PocketBase, so shards share no data. Pull
+    # requests run the mobile project over the layout specs only; pushes to
+    # main run all of it (see E2E_MOBILE_SCOPE in playwright.config.ts).
     # Not a required check, so the per-shard names ("e2e (1/4)") are safe.
     name: e2e (${{ matrix.shard }}/4)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -141,6 +180,7 @@ jobs:
       GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
       STATS_FETCH: "off"
       LIVE_FETCH: "off"
+      E2E_MOBILE_SCOPE: ${{ github.event_name == 'pull_request' && 'layout' || 'all' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -148,7 +188,23 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+
+      - name: Resolve the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Restore the Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Chromium's system libraries
+        # The browser came from the cache; the apt packages it needs did not.
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Download the pinned PocketBase
         run: ./scripts/pb-download.sh
@@ -172,6 +228,12 @@ jobs:
           echo "PocketBase did not become healthy" >&2
           exit 1
 
+      - name: Restore the Next build cache
+        uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: next-${{ github.job }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts', 'postcss.config.mjs', 'tsconfig.json') }}
+          restore-keys: next-${{ github.job }}-${{ hashFiles('package-lock.json') }}-
       - run: npm run build
       - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
 
@@ -185,6 +247,8 @@ jobs:
   design-detect:
     # Non-blocking by design: impeccable's detector reports UI smells, it does
     # not gate merges. Read the output, act on it in an /impeccable pass.
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
