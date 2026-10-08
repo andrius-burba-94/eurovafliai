@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
-import { PageHeader, TeamCrest } from "@/components/broadcast";
+import { PageHeader, PoolCrest, TeamCrest } from "@/components/broadcast";
 import { ChipNav } from "@/components/chip-nav";
 import { Glyph } from "@/components/glyphs";
 import { MarketBars } from "@/components/market-bars";
@@ -21,7 +21,8 @@ import { leagueHref } from "@/lib/nav/urls";
 
 /**
  * Trades (ADR-0011): who is winning the market, then every move on a round
- * timeline, one line per team. A move's verdict is player against player
+ * timeline. A trade between two teams faces off on one line; a free-agent move
+ * is one team against the pool. A move's verdict is player against player
  * since the round it counts from, the same delta the team page uses.
  */
 export default async function TransactionsPage({ params, searchParams }: PageProps<"/l/[league]/transactions">) {
@@ -51,15 +52,21 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
   const team = typeof query.team === "string" && data.members.some((row) => row.id === query.team) ? query.team : null;
   const roundParam = typeof query.round === "string" ? Number(query.round) : Number.NaN;
   const round = rounds.includes(roundParam) ? roundParam : null;
-  const filterHref = (next: { team: string | null; round: number | null }) => {
+  const kinds = new Set(deals.map(kindOf));
+  const kind = (query.kind === "trade" || query.kind === "free") && kinds.has(query.kind) ? query.kind : null;
+  const filterHref = (next: { team: string | null; round: number | null; kind: MoveKind | null }) => {
     const search = new URLSearchParams();
     if (next.team) search.set("team", next.team);
     if (next.round !== null) search.set("round", String(next.round));
+    if (next.kind) search.set("kind", next.kind);
     const tail = search.toString();
     return `${base}/transactions${tail ? `?${tail}` : ""}`;
   };
   const shown = deals.filter(
-    (deal) => (!team || deal.sides.some((side) => side.memberId === team)) && (round === null || deal.fromRound === round),
+    (deal) =>
+      (!team || deal.sides.some((side) => side.memberId === team)) &&
+      (round === null || deal.fromRound === round) &&
+      (kind === null || kindOf(deal) === kind),
   );
   const timeline = rounds
     .map((n) => ({ round: n, deals: shown.filter((deal) => deal.fromRound === n) }))
@@ -67,8 +74,8 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
   const market = Object.entries(ledger).sort(([, a], [, b]) => b.netTenths - a.netTenths);
   const traders = data.members.filter((member) => ledger[member.id]);
 
-  const faces = (ids: readonly string[]) => (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+  const faces = (ids: readonly string[], className = "") => (
+    <span className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 ${className}`}>
       {ids.map((playerId) => {
         const player = players[playerId];
         const full = player ? displayName(player.name) : "A player";
@@ -86,8 +93,14 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
     </span>
   );
 
-  const moveLine = (side: DealSide) => (
+  const moveLine = (side: DealSide, pool: boolean) => (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+      {pool ? (
+        <>
+          <PoolCrest size={22} />
+          <span className="sr-only">With free agency:</span>
+        </>
+      ) : null}
       {side.outIds.length > 0 ? (
         <span className="flex min-w-0 items-center gap-2 text-ink-faint">
           <span className="sr-only">Out:</span>
@@ -133,7 +146,45 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
     );
   };
 
-  const filterWords = [team ? name(team) : null, round !== null ? `round ${round}` : null].filter(Boolean).join(" · ");
+  const tradeLine = (deal: LeagueDeal, a: DealSide, b: DealSide) => {
+    const header = (side: DealSide, mirrored: boolean) => (
+      <span className={`flex min-w-0 items-center justify-between gap-3 sm:justify-start ${mirrored ? "sm:flex-row-reverse" : ""}`}>
+        <span className={`flex min-w-0 items-center gap-2 text-sm font-semibold ${mirrored ? "sm:flex-row-reverse" : ""}`}>
+          {crest(side.memberId, 24)}
+          <span className="truncate">{name(side.memberId)}</span>
+        </span>
+        {verdict(deal, side)}
+      </span>
+    );
+    const sent = (from: DealSide, to: DealSide, mirrored: boolean) => (
+      <span className={`flex min-w-0 text-sm text-ink ${mirrored ? "" : "sm:justify-end"}`}>
+        <span className="sr-only">{name(from.memberId)} sent {name(to.memberId)}:</span>
+        {faces(from.outIds, mirrored ? "" : "sm:justify-end")}
+      </span>
+    );
+    return (
+      <div
+        data-testid="trade-line"
+        className="grid grid-cols-1 gap-x-4 gap-y-1.5 py-2.5 [grid-template-areas:'ah'_'as'_'sw'_'bs'_'bh'] sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-y-2 sm:[grid-template-areas:'ah_._bh'_'as_sw_bs']"
+      >
+        <span className="min-w-0 [grid-area:ah]">{header(a, false)}</span>
+        <span className="min-w-0 pl-8 [grid-area:as] sm:pl-0">{sent(a, b, false)}</span>
+        <span className="flex items-center pl-8 text-ink-faint [grid-area:sw] sm:justify-center sm:pl-0">
+          <Glyph name="swap" size={18} />
+        </span>
+        <span className="min-w-0 pl-8 [grid-area:bs] sm:pl-0">{sent(b, a, true)}</span>
+        <span className="min-w-0 [grid-area:bh]">{header(b, true)}</span>
+      </div>
+    );
+  };
+
+  const filterWords = [
+    team ? name(team) : null,
+    round !== null ? `round ${round}` : null,
+    kind === "trade" ? "trades" : kind === "free" ? "free agents" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <AppShell current="trades" league={navLeagueFrom(data)} measure="wide" testId="transactions">
@@ -177,10 +228,10 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
               testId="deal-teams"
               wrap
               chips={[
-                { key: "all", href: filterHref({ team: null, round }), current: team === null, children: "All" },
+                { key: "all", href: filterHref({ team: null, round, kind }), current: team === null, children: "All" },
                 ...traders.map((member) => ({
                   key: member.id,
-                  href: filterHref({ team: member.id, round }),
+                  href: filterHref({ team: member.id, round, kind }),
                   current: team === member.id,
                   label: name(member.id),
                   square: true,
@@ -192,10 +243,10 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
               label="Filter by round"
               testId="deal-rounds"
               chips={[
-                { key: "all", href: filterHref({ team, round: null }), current: round === null, children: "All rounds" },
+                { key: "all", href: filterHref({ team, round: null, kind }), current: round === null, children: "All rounds" },
                 ...rounds.map((n) => ({
                   key: String(n),
-                  href: filterHref({ team, round: n }),
+                  href: filterHref({ team, round: n, kind }),
                   current: round === n,
                   label: `Round ${n}`,
                   testId: `deal-round-${n}`,
@@ -203,6 +254,17 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
                 })),
               ]}
             />
+            {kinds.size > 1 ? (
+              <ChipNav
+                label="Filter by kind of move"
+                testId="deal-kinds"
+                chips={[
+                  { key: "all", href: filterHref({ team, round, kind: null }), current: kind === null, children: "All moves" },
+                  { key: "trade", href: filterHref({ team, round, kind: "trade" }), current: kind === "trade", children: "Trades" },
+                  { key: "free", href: filterHref({ team, round, kind: "free" }), current: kind === "free", children: "Free agents" },
+                ]}
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -214,7 +276,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
         ) : timeline.length === 0 ? (
           <EmptyNotice>
             No moves for {filterWords}.{" "}
-            <Link href={filterHref({ team: null, round: null })} className="font-semibold text-ink underline underline-offset-4">
+            <Link href={filterHref({ team: null, round: null, kind: null })} className="font-semibold text-ink underline underline-offset-4">
               Show every move
             </Link>
           </EmptyNotice>
@@ -231,7 +293,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
                 <ol className="flex flex-col">
                   {group.deals.map((deal) => (
                     <li key={deal.id} data-testid="deal" data-kind={deal.kind} className="flex flex-col border-b border-panel-border py-1 last:border-b-0">
-                      {deal.sides.map((side) => (
+                      {deal.kind === "trade" && deal.sides.length === 2 ? tradeLine(deal, deal.sides[0]!, deal.sides[1]!) : deal.sides.map((side) => (
                         <div
                           key={side.memberId}
                           className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-1.5 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto]"
@@ -240,7 +302,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
                             {crest(side.memberId, 24)}
                             <span className="truncate">{name(side.memberId)}</span>
                           </span>
-                          <span className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">{moveLine(side)}</span>
+                          <span className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">{moveLine(side, kindOf(deal) === "free")}</span>
                           <span className="col-start-2 row-start-1 sm:col-start-3">{verdict(deal, side)}</span>
                         </div>
                       ))}
@@ -254,4 +316,11 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
       </Bank>
     </AppShell>
   );
+}
+
+type MoveKind = "trade" | "free";
+
+/** A trade is between teams; a release, a signing or both together is with the pool. */
+function kindOf(deal: LeagueDeal): MoveKind {
+  return deal.kind === "trade" ? "trade" : "free";
 }

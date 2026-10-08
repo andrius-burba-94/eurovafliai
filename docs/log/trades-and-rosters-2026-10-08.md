@@ -161,3 +161,31 @@ What changed, by page:
 Every test id the specs use is kept. One mapping spec selected an alternative
 before hydration and, under a full parallel run, React reset the select; it
 now waits on `mapping-progress[data-ready]` like the keyboard specs do.
+
+## Slice 5: trades face off, free agents stand against the pool
+
+The user reported that trades and free-agent moves read the same on the
+timeline. Every trade was two mirrored rows that looked just like the
+one-team rows around them. Four mock-ups were offered: two lists per round,
+a kind tag, a head-to-head line, and a partner column. The user picked
+head-to-head, plus a kind filter.
+
+- **Trade line.** It renders only when `readLeagueDeals` reports
+  `kind: "trade"` with exactly two sides, which a sync's `swap` and a recorded
+  trade both produce. Each team shows what it sent, since one side's out is the
+  other side's in. From `sm` up the teams sit at opposite ends with the
+  players meeting at the swap glyph; on a phone the line stacks with team A on
+  top and team B at the foot. It is not a boxed card, because the Moves bank
+  is already a panel.
+- **Free agency.** `PoolCrest` (`components/broadcast.tsx`) is a dashed
+  outline printing FA, hidden from assistive tech beside a "With free agency"
+  phrase.
+- **Filter.** `?kind=trade|free` lives in the same `filterHref` as team and
+  round. The chip row shows only when the league has both kinds.
+- **Unchanged.** Verdict stamps keep their Moment ids, so a seen stamp does not
+  replay. `deal`, `data-kind` and `deal-delta` are kept for the specs.
+
+The report also surfaced a data problem, not a display one. Theis was traded
+Laurynas → Birka and then released by Birka within one sync window, and the
+snapshot diff recorded it as Laurynas's release. That fix is the next slice;
+see STATUS.md.
