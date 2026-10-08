@@ -14,9 +14,9 @@ import type { Position } from "@/lib/engine";
 import { leaguePosition } from "@/lib/positions";
 import { readNextFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
-import { readLineupWeights } from "@/lib/lineups/store";
 import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
+import { readLeaguePlayerRounds } from "@/lib/stats/player-rounds";
 import { last5SeriesOf } from "@/lib/stats/project";
 
 import { groupTransactionHistory } from "./history";
@@ -303,20 +303,7 @@ export async function readMemberDeals(
       ]),
     ),
   ];
-  const lines =
-    playerIds.length === 0
-      ? []
-      : basketNews ? (await readBasketNewsPlayerRounds(pb, leagueId, season)).filter((row) => playerIds.includes(row.player)).map((row) => ({ ...row, pir: 0 }))
-      : await pb.collection("player_game_stats").getFullList<{
-          player: string;
-          round: number;
-          fantasy_pts: number;
-          pir: number;
-        }>({
-          filter: `(${playerIds.map((id) => `player = '${id}'`).join(" || ")}) && season = "${season}"`,
-          fields: "player,round,fantasy_pts,pir",
-          requestKey: null,
-        });
+  const lines = await readLeaguePlayerRounds(pb, { leagueId, season, basketNews, players: playerIds });
 
   const names = new Map<string, string>();
   if (playerIds.length > 0) {
@@ -331,13 +318,6 @@ export async function readMemberDeals(
     for (const person of people) names.set(person.id, displayName(person.name));
   }
 
-  const weights = await readLineupWeights(
-    pb,
-    leagueId,
-    season,
-    [...new Set(lines.map((line) => line.round))],
-    [memberId],
-  );
   const scored = impactForMember(
     memberId,
     transactions,
@@ -347,7 +327,6 @@ export async function readMemberDeals(
       fantasyTenths: line.fantasy_pts,
       pir: line.pir,
     })),
-    weights,
   );
 
   const label = (id: string) => names.get(id) ?? id;
@@ -566,7 +545,7 @@ export type DealSide = {
   readonly memberId: string;
   readonly inIds: readonly string[];
   readonly outIds: readonly string[];
-  /** Live fantasy tenths since `fromRound`, lineup-weighted — `impactForMember`. */
+  /** Live fantasy tenths since `fromRound`, player against player — `impactForMember`. */
   readonly deltaTenths: number;
 };
 
@@ -637,11 +616,7 @@ export async function readLeagueDeals(leagueId: string, season: string, basketNe
     playerIds.length === 0
       ? [[], []]
       : await Promise.all([
-          basketNews ? readBasketNewsPlayerRounds(pb, leagueId, season).then((rows) => rows.filter((row) => playerIds.includes(row.player)).map((row) => ({ ...row, pir: 0 }))) : pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; pir: number }>({
-            filter: `(${playerIds.map((id) => `player = '${id}'`).join(" || ")}) && season = "${season}"`,
-            fields: "player,round,fantasy_pts,pir",
-            requestKey: null,
-          }),
+          readLeaguePlayerRounds(pb, { leagueId, season, basketNews, players: playerIds }),
           pb.collection("players").getFullList<{ id: string; name: string; person_code?: string; position: Position; basketnews_position?: Position; club_code?: string }>({
             filter: idFilter,
             fields: "id,name,person_code,position,basketnews_position,club_code",
@@ -649,11 +624,10 @@ export async function readLeagueDeals(leagueId: string, season: string, basketNe
           }),
         ]);
 
-  const weights = await readLineupWeights(pb, leagueId, season, [...new Set(lines.map((line) => line.round))], memberIds);
   const impactLines = lines.map((line) => ({ playerId: line.player, round: line.round, fantasyTenths: line.fantasy_pts, pir: line.pir }));
   const deltaOf = new Map<string, number>();
   for (const memberId of memberIds) {
-    for (const deal of impactForMember(memberId, transactions, impactLines, weights)) {
+    for (const deal of impactForMember(memberId, transactions, impactLines)) {
       deltaOf.set(`${deal.transactionId}|${memberId}`, deal.deltaTenths);
     }
   }

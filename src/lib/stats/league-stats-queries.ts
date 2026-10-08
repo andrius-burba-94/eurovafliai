@@ -1,7 +1,6 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
-import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import type { Position } from "@/lib/engine";
 import { leaguePosition } from "@/lib/positions";
 import { completedOnly } from "@/lib/fixtures/progress";
@@ -12,6 +11,7 @@ import { createUserClient } from "@/lib/pb/server";
 
 import { leagueStats, type LeagueStats } from "./league-stats";
 import type { RoundSnapshot } from "./standings";
+import { readLeaguePlayerRounds } from "./player-rounds";
 import { readStandingsSnapshots } from "./queries";
 
 export type StatsPlayer = { readonly name: string; readonly position: Position; readonly clubCode: string; readonly personCode?: string };
@@ -45,11 +45,7 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
       to_round?: number | null;
       to_date?: string | null;
     }>({ filter: `league = '${leagueId}'`, fields: "member,player,from_round,to_round,to_date", requestKey: null }),
-    basketNews ? readBasketNewsPlayerRounds(pb, leagueId, code) : pb.collection("player_game_stats").getFullList<{ player: string; round: number; fantasy_pts: number; club_code?: string }>({
-      filter: `season = "${code}"`,
-      fields: "player,round,fantasy_pts,club_code",
-      requestKey: null,
-    }),
+    readLeaguePlayerRounds(pb, { leagueId, season: code, basketNews }),
     pb.collection("drafts").getFullList<{ id: string }>({ filter: `league = '${leagueId}'`, sort: "-created", fields: "id", requestKey: null }),
     pb.collection("players").getFullList<{ id: string; name: string; position: Position; basketnews_position?: Position; club_code: string; club_name?: string; person_code?: string }>({
       fields: "id,name,position,basketnews_position,club_code,club_name,person_code",
@@ -76,7 +72,7 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
       playerId: line.player,
       round: line.round,
       fantasyTenths: line.fantasy_pts,
-      clubCode: ("club_code" in line && typeof line.club_code === "string" ? line.club_code : undefined) || clubOf.get(line.player),
+      clubCode: line.club_code || clubOf.get(line.player),
     })),
     windows: windows.map((row) => ({ memberId: row.member, playerId: row.player, from_round: row.from_round, to_round: row.to_round, to_date: row.to_date })),
     weights: lineupWeights(lineups),

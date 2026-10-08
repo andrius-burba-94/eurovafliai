@@ -6,9 +6,13 @@
  * scores have a Euroleague round and no game date (same cut as standings).
  * Missing a line is 0. Every stored phase counts: a trade's impact is from
  * that round onward, not the standings RS filter.
+ *
+ * It is player against player for the whole season: the arrivals' raw points
+ * minus the departures', whatever lineup spot either sits in and whoever owns
+ * them later. Weighing only the arrivals by this team's lineup (9.3) measured
+ * the two sides differently — a benched arrival counted half while a released
+ * departure counted in full — so the deal stopped describing the players.
  */
-
-import { FULL_WEIGHTS, type LineupWeights } from "@/lib/lineups/lineup";
 
 import { hundredthsToTenths, weighHundredths } from "./scoring";
 
@@ -74,7 +78,6 @@ function sumFor(
   ids: readonly string[],
   lines: readonly ImpactLine[],
   fromRound: number,
-  weigh: (round: number, playerId: string) => number,
 ): { tenths: number; pir: number; byRound: Map<number, { tenths: number; pir: number }> } {
   const wanted = new Set(ids);
   const raw = new Map<number, Map<string, { tenths: number; pir: number }>>();
@@ -95,8 +98,8 @@ function sumFor(
   for (const [round, players] of raw) {
     let roundHundredths = 0;
     let roundPir = 0;
-    for (const [playerId, slot] of players) {
-      roundHundredths += weighHundredths(slot.tenths, weigh(round, playerId));
+    for (const slot of players.values()) {
+      roundHundredths += weighHundredths(slot.tenths, 1);
       roundPir += slot.pir;
     }
     const roundTenths = hundredthsToTenths(roundHundredths);
@@ -107,26 +110,17 @@ function sumFor(
   return { tenths, pir, byRound };
 }
 
-/**
- * `weights` is this member's lineup (9.3), so a deal's fantasy delta matches
- * the table rather than telling a second story: a player traded in and then
- * benched was worth half. PIR stays raw — it is the basketball number, not
- * the fantasy one, and halving it would describe a night nobody played.
- */
 export function impactForMember(
   memberId: string,
   transactions: readonly ImpactTransaction[],
   lines: readonly ImpactLine[],
-  weights: LineupWeights = FULL_WEIGHTS,
 ): MemberImpact[] {
-  const weigh = (round: number, playerId: string) =>
-    weights.multiplierFor(memberId, round, playerId);
   const out: MemberImpact[] = [];
   for (const tx of transactions) {
     const sides = namesThisMember(tx, memberId);
     if (!sides) continue;
-    const incoming = sumFor(sides.inIds, lines, tx.fromRound, weigh);
-    const outgoing = sumFor(sides.outIds, lines, tx.fromRound, weigh);
+    const incoming = sumFor(sides.inIds, lines, tx.fromRound);
+    const outgoing = sumFor(sides.outIds, lines, tx.fromRound);
     const rounds = new Set([...incoming.byRound.keys(), ...outgoing.byRound.keys()]);
     const byRound = [...rounds]
       .sort((a, b) => a - b)

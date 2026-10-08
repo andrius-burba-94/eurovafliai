@@ -2,7 +2,6 @@ import { displayName } from "@/lib/players/name";
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
-import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import { serverConfig } from "@/lib/config/server";
 import { roundSchedule } from "@/lib/fixtures/schedule";
 import { readStoredFixtures, scheduleRowsFrom } from "@/lib/fixtures/store";
@@ -14,6 +13,7 @@ import type { Position } from "@/lib/engine";
 import { leaguePosition } from "@/lib/positions";
 import { type Phase, PHASES } from "./csv";
 import type { ImpactLine, ImpactTransaction } from "./impact";
+import { readLeaguePlayerRounds } from "./player-rounds";
 import { last5SeriesOf } from "./project";
 import { recapForRound, type Recap } from "./recap";
 import { type RoundSnapshot, snapshotRowsFrom } from "./standings";
@@ -147,16 +147,7 @@ export async function readLeagueRecap(
       filter: `league = '${leagueId}'`,
       requestKey: null,
     }),
-    basketNews ? readBasketNewsPlayerRounds(pb, leagueId, code).then((rows) => rows.filter((row) => row.round === round).map((row) => ({ ...row, pir: 0 }))) : pb.collection("player_game_stats").getFullList<{
-      player: string;
-      round: number;
-      fantasy_pts: number;
-      pir: number;
-    }>({
-      filter: `season = "${code}" && round = ${round}`,
-      fields: "player,round,fantasy_pts,pir",
-      requestKey: null,
-    }),
+    readLeaguePlayerRounds(pb, { leagueId, season: code, basketNews, round }),
   ]);
 
   const lines: ImpactLine[] = statRows.map((row) => ({

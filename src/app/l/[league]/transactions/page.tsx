@@ -28,7 +28,7 @@ const KIND_WORD: Record<LeagueDeal["kind"], string> = {
 /**
  * Trades (ADR-0011): who is winning the market, then every deal as a card —
  * faces out and in, from which round, and a running verdict stamped on it.
- * The verdict is the same live, lineup-weighted delta the team page and the
+ * The verdict is the same live, player-against-player delta the team page and the
  * recap use.
  */
 export default async function TransactionsPage({ params, searchParams }: PageProps<"/l/[league]/transactions">) {

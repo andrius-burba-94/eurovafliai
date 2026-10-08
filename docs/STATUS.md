@@ -83,6 +83,27 @@ Lineup, roster and trade writes stay BasketNews-owned. See the log for details.
 - After the next worker pass, `/l/<league>/transactions` lists any transfer
   BasketNews has processed for the next round.
 
+## Trades and rosters, 8 October 2026
+
+**Trade impact is player against player, all season, in both rulesets.** A
+deal's +/- is the arrivals' raw fantasy points minus the departures', every
+round from the trade round on, whoever owns them later and wherever they sit.
+It no longer weighs the arrivals by the team's lineup (9.3). A BasketNews
+league now scores a released player from the box-score feed, so a free-agent
+swap's Out side no longer reads zero; League Stats' free agents fill in for it
+too. One reader, `readLeaguePlayerRounds`, holds the per-ruleset difference.
+
+EuroVafliai 26-27's round 4 was blocked on Cameron Payne, a new Efes signing
+missing from the pool. A production `rosters:sync` added him and Abdrahamane
+Kone on 8 October. See
+[log/trades-and-rosters-2026-10-08.md](log/trades-and-rosters-2026-10-08.md).
+
+**Try it on localhost:**
+- `npm run dev`, then open `/l/<league>/transactions` for either league.
+- A free-agent swap's Out side shows the released player's points since the
+  deal; a benched arrival counts in full.
+- `/l/<league>/stats` lists best free agents for a BasketNews league.
+
 ## Player mapping, 5 October 2026
 
 The commissioner confirmed six news-to-player identities, A.J. Lawson, and
