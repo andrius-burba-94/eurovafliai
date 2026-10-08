@@ -97,6 +97,34 @@ export async function readLatestCheck(
   };
 }
 
+export type LastRosterChange = {
+  readonly at: string;
+  readonly source: string;
+  readonly added: readonly string[];
+};
+
+/**
+ * The newest roster import that wrote something. The worker syncs by itself
+ * (8 October 2026) and stores no batch when nothing changed, so this is "when
+ * the pool last moved", which is the useful half of "is it up to date".
+ */
+export async function readLastRosterChange(): Promise<LastRosterChange | null> {
+  const pb = await getSuperuserClient();
+  const page = await pb.collection("roster_imports").getList<{ created: string; source: string; diff?: { adds?: { name?: string }[] } }>(1, 1, {
+    filter: "applied = true",
+    sort: "-created",
+    fields: "created,source,diff",
+    requestKey: null,
+  });
+  const batch = page.items[0];
+  if (!batch) return null;
+  return {
+    at: batch.created,
+    source: batch.source,
+    added: (batch.diff?.adds ?? []).flatMap((row) => (row.name ? [row.name] : [])),
+  };
+}
+
 /** Every code recent imports could not attach, with the players it might be. */
 export async function readUnmatchedCodes(limit = 20): Promise<UnmatchedCode[]> {
   const pb = await getSuperuserClient();

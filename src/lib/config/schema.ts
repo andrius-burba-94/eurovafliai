@@ -72,6 +72,12 @@ export const serverEnvSchema = z.object({
    */
   NEWS_FETCH: z.enum(["on", "off"]).default("on"),
   /**
+   * Whether the worker syncs the 20 club rosters from the official feed: every
+   * six hours, and within the hour of a name nobody in the pool answers to.
+   * The import still honours `roster_authority` and `manual_lock`.
+   */
+  ROSTER_FETCH: z.enum(["on", "off"]).default("on"),
+  /**
    * A session token for the official EuroLeague Fantasy Challenge, copied from
    * a signed-in browser. Its owner sees every roster in their league, which is
    * all the roster sync reads. Unset turns the sync off. Opaque and of unknown

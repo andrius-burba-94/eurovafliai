@@ -87,34 +87,10 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
     <>
       <ImportSteps current={plan ? 1 : 0} done={done} />
 
-      <Bank label="Roster authority" aside={`${authority} may write`}>
-        {auth.error ? (
-          <Correction testId="authority-error">{auth.error}</Correction>
-        ) : null}
-        <p className="text-sm text-ink-soft">
-          Only the authoritative source writes to the pool. The other still runs
-          and still records what it <em>would</em> have changed, so switching is
-          not switching a source off.
-        </p>
-        <form action={authAction} className="flex flex-col gap-4">
-          <input
-            type="hidden"
-            name="authority"
-            value={authority === "api" ? "csv" : "api"}
-          />
-          <SubmitButton
-            testId="authority-switch"
-            tone={authority === "api" ? "ink" : "live"}
-            pendingLabel="Switching…"
-          >
-            {authority === "api"
-              ? "Hand authority to the CSV"
-              : "Hand authority back to the API"}
-          </SubmitButton>
-        </form>
-      </Bank>
-
-      <Bank label="Upload a roster">
+      <Bank
+        label="Upload a roster"
+        info='A header row is optional, and column order does not matter if you have one. Wrap a name containing a comma in "quotes".'
+      >
         {result.error ? (
           <Correction testId="import-error">{result.error}</Correction>
         ) : null}
@@ -139,7 +115,7 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
           </div>
         ) : null}
 
-        <form action={previewAction} className="flex flex-col gap-5">
+        <form action={previewAction} className="flex flex-col gap-4">
           <Field label="CSV — name, club code, position[, person code, status]">
             <textarea
               name="csv"
@@ -153,10 +129,6 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
               className={`${inputStyles} font-normal`}
             />
           </Field>
-          <p className="text-sm text-ink-soft">
-            A header row is optional and column order does not matter if you
-            have one. Wrap a name containing a comma in &quot;quotes&quot;.
-          </p>
           <SubmitButton testId="csv-preview" pendingLabel="Reading…">
             Preview the changes
           </SubmitButton>
@@ -251,6 +223,33 @@ export function ImportForm({ authority }: { authority: RosterAuthority }) {
           </form>
         </Bank>
       ) : null}
+
+      <Bank
+        label="Roster authority"
+        aside={`${authority} may write`}
+        info="Only the authoritative source writes to the pool. The other still runs and records what it would have changed, so switching is not switching a source off. The worker's automatic sync is the API."
+      >
+        {auth.error ? (
+          <Correction testId="authority-error">{auth.error}</Correction>
+        ) : null}
+        <form action={authAction}>
+          <input
+            type="hidden"
+            name="authority"
+            value={authority === "api" ? "csv" : "api"}
+          />
+          <SubmitButton
+            testId="authority-switch"
+            tone={authority === "api" ? "ink" : "live"}
+            compact
+            pendingLabel="Switching…"
+          >
+            {authority === "api"
+              ? "Hand authority to the CSV"
+              : "Hand authority back to the API"}
+          </SubmitButton>
+        </form>
+      </Bank>
     </>
   );
 }

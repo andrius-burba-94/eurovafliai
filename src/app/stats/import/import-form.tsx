@@ -68,7 +68,11 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
     <>
       <ImportSteps current={plan ? 1 : 0} done={Boolean(applied)} />
 
-      <Bank label="Paste a round" aside={season}>
+      <Bank
+        label="Paste a round"
+        aside={season}
+        info="One line per player with a header row; column order does not matter. Include valuation, the official PIR, and every line is checked against what its own numbers add up to."
+      >
         {fresh.error ? (
           <Correction testId="stat-import-error">{fresh.error}</Correction>
         ) : null}
@@ -95,19 +99,21 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
           </div>
         ) : null}
 
-        <form action={action} className="flex flex-col gap-5">
-          <Field label="Season code">
-            <input
-              name="season"
-              value={season}
-              onChange={(event) => setSeason(event.target.value.toUpperCase())}
-              data-testid="stat-season"
-              spellCheck={false}
-              autoCapitalize="characters"
-              className={inputStyles}
-            />
-          </Field>
-          <Field label="One line per player, with a header row">
+        <form action={action} className="flex flex-col gap-4">
+          <div className="max-w-40">
+            <Field label="Season code">
+              <input
+                name="season"
+                value={season}
+                onChange={(event) => setSeason(event.target.value.toUpperCase())}
+                data-testid="stat-season"
+                spellCheck={false}
+                autoCapitalize="characters"
+                className={inputStyles}
+              />
+            </Field>
+          </div>
+          <Field label="The round's player lines">
             <textarea
               name="csv"
               rows={8}
@@ -120,11 +126,6 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
           </Field>
 
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-ink-soft">
-              Column order does not matter; the header names them. Include{" "}
-              <code>valuation</code> — the official PIR — and every line is
-              checked against what its own numbers add up to.
-            </p>
             <button
               type="button"
               onClick={() => setShowHeader((open) => !open)}
@@ -191,10 +192,7 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
 
           {plan.updates > 0 ? (
             <>
-              <p className="text-sm text-ink-soft">
-                A correction rewrites a game that has already been scored, so
-                the standings will move. These are the lines it would change.
-              </p>
+              <h3 className="slot-label text-ink-soft">Corrections move the standings</h3>
               <Slots testId="stat-corrections">
                 {plan.corrections.map((correction) => (
                   <Slot key={correction} state="live">
@@ -218,8 +216,9 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
                 <span>
                   {plan.unmatched.length} person{" "}
                   {plan.unmatched.length === 1 ? "code" : "codes"} match no
-                  player in the pool, so those lines will not be stored. Sync
-                  the rosters first, or fix the code.
+                  player in the pool, so those lines will not be stored. The
+                  roster sync adds a player the feed lists within the hour;
+                  otherwise fix the code.
                 </span>
                 {plan.unmatched.slice(0, 6).map((entry) => (
                   <span key={entry.personCode} className="break-words">
@@ -258,10 +257,6 @@ export function StatImportForm({ season: defaultSeason }: { season: string }) {
             <form action={action} className="flex flex-col gap-4">
               <input type="hidden" name="csv" value={csv} />
               <input type="hidden" name="season" value={season} />
-              <p className="text-sm text-ink-soft">
-                This writes to the season&apos;s record. Importing it again
-                stores nothing twice.
-              </p>
               <input type="hidden" name="intent" value="apply" />
               <SubmitButton
                 testId="stat-csv-apply"

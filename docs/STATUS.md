@@ -83,6 +83,57 @@ Lineup, roster and trade writes stay BasketNews-owned. See the log for details.
 - After the next worker pass, `/l/<league>/transactions` lists any transfer
   BasketNews has processed for the next round.
 
+## Trades and rosters, 8 October 2026
+
+**Trade impact is player against player, all season, in both rulesets.** A
+deal's +/- is the arrivals' raw fantasy points minus the departures', every
+round from the trade round on, whoever owns them later and wherever they sit.
+It no longer weighs the arrivals by the team's lineup (9.3). A BasketNews
+league now scores a released player from the box-score feed, so a free-agent
+swap's Out side no longer reads zero; League Stats' free agents fill in for it
+too. One reader, `readLeaguePlayerRounds`, holds the per-ruleset difference.
+
+**Trades page is a round timeline.** Moves sit under the round they count
+from, one line per team: crest and name, the players out (faint) and in, and
+the verdict. The stored note sentence and the per-side cards are gone. Team
+chips are crests alone and wrap, so a full league fits a phone without
+sideways scroll; round chips sit under them, and both filters compose in the
+URL (`?team=…&round=…`). The recap's round chips and these share one
+`ChipNav`.
+
+**Rosters sync by themselves.** EuroVafliai 26-27's round 4 was blocked on
+Cameron Payne, a new Efes signing missing from the pool (a production
+`rosters:sync` added him and Abdrahamane Kone on 8 October). The worker now
+syncs the 20 club rosters every six hours, and within the hour of a name
+nobody in the pool answers to — a box-score code, a news name, or a player
+question from either external sync (Fantasy Challenge or BasketNews). After a
+pass that adds a player or fills a code it re-imports the games his lines were
+refused from, attaches his news, and re-runs any blocked external sync. An
+unchanged roster stores no batch. Bios no longer count as changes when they
+are unchanged. See
+[log/trades-and-rosters-2026-10-08.md](log/trades-and-rosters-2026-10-08.md).
+
+**Commissioner pages, compacter.** `/players/mapping` leads with when the
+pool last moved and asks one question per line (current question in the live
+field, explanations behind info tips). `/stats/import` and `/players/import`
+say the feed does this by itself and put the paste box first; the roster
+authority switch is one line at the foot. A finished `/l/<league>/draft` is
+the board at full width with Download, no radar, no room chat and a plain
+commissioner fold; an imported league's band says "Imported from BasketNews".
+
+**Try it on localhost:**
+- `npm run dev`, then open `/l/<league>/transactions` for either league.
+- A free-agent swap's Out side shows the released player's points since the
+  deal; a benched arrival counts in full.
+- `/l/<league>/stats` lists best free agents for a BasketNews league.
+- `ROSTER_FETCH=on npm run worker:dev`: a few minutes after boot the log
+  shows a `rosters ·` line when the feed lists somebody the pool lacks, and
+  says nothing when it does not.
+- `/players/mapping`, `/stats/import`, `/players/import` and a finished
+  `/l/<league>/draft` each fit their main act on the first screen at 1280×900.
+- At 375px every team chip is on screen; `?team=<member>&round=<n>` narrows
+  the timeline and an empty combination says so with a way back.
+
 ## Player mapping, 5 October 2026
 
 The commissioner confirmed six news-to-player identities, A.J. Lawson, and
@@ -550,13 +601,16 @@ did not finish.
 | Injury news (60min) | ✔ via worker | ✔ via worker |
 | Last-season averages | ✔ **new**, on boot when absent | ✔ same worker |
 | Nightly backup | — | ✔ systemd timer |
-| **Roster ingestion** (`rosters:sync`) | ✖ by hand | ✖ by hand |
+| **Roster sync** (6h, or within the hour of a new unknown name) | ✔ via worker | ✔ via worker |
 
-PM2 is `enabled` for boot, so both processes survive a reboot. **Roster
-ingestion stays manual by design** — ADR/blueprint 2.1 makes the API and the
-hand-corrected CSV alternately authoritative, and a process that silently
-re-synced the pool could overwrite a commissioner's corrections the night
-before a draft.
+PM2 is `enabled` for boot, so both processes survive a reboot. **Roster sync
+runs by itself since 8 October 2026.** It used to stay manual so a silent
+re-sync could not overwrite a commissioner's corrections the night before a
+draft; D8's own safeguards cover that: only the authoritative source writes
+(the API is report-only while the CSV holds authority), `manual_lock` rows are
+never touched, suspected renames wait on `/players/mapping`, and a departure
+share that looks like a truncated feed writes nothing. `ROSTER_FETCH=off`
+stops it; `npm run rosters:sync` remains the manual door.
 
 ## Try it on localhost — four reports from a real draft night
 

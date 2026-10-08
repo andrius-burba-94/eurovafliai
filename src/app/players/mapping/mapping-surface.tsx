@@ -162,7 +162,7 @@ export function MappingSurface({
         <div
           data-testid="mapping-progress"
           data-ready={ready}
-          className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 rounded-card border border-panel-border bg-stock-panel px-4 py-3"
+          className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-rule pb-2"
         >
           <p className="display text-2xl" aria-live="polite">
             Question {at + 1} <span className="text-ink-soft">of {queue.length}</span>
@@ -172,39 +172,39 @@ export function MappingSurface({
             <kbd className="stat">Y</kbd> yes · <kbd className="stat">N</kbd> no
           </p>
         </div>
-      ) : null}
+      ) : (
+        <p className="slot-filled px-3 py-3 text-sm" data-testid="mapping-clear">
+          Nothing to map. Every name the feed, the box scores and the news use
+          belongs to one player.
+        </p>
+      )}
 
       <Bank
         label="The feed's names"
-        aside={checked ? `${renames.length} to answer` : "not checked"}
+        info="A sync holds back any pair that looks like one player under two names, rather than adding one and departing the other. Checking asks the feed what it says today and writes nothing."
+        aside={
+          <span className="flex items-center gap-3">
+            {checked ? `${renames.length} to answer` : "not checked"}
+            <form action={checkAction}>
+              <SubmitButton testId="mapping-check" compact pendingLabel="Asking…">
+                Check the feed
+              </SubmitButton>
+            </form>
+          </span>
+        }
       >
-        <p className="text-sm text-ink-soft">
-          A sync holds back any pair that looks like one player under two names,
-          rather than adding one and departing the other. Checking asks the feed
-          what it says today and writes nothing.
-        </p>
-        <form action={checkAction}>
-          <SubmitButton testId="mapping-check" pendingLabel="Asking the feed…">
-            Check the feed
-          </SubmitButton>
-        </form>
-
         {checked && renames.length === 0 ? (
-          <p className="text-sm" data-testid="mapping-none">
-            Nothing is held back. The feed and the pool agree about who
-            everybody is
+          <p className="text-sm text-ink-soft" data-testid="mapping-none">
+            Nothing is held back
             {typeof source?.adds === "number"
-              ? `, and a sync would add ${source.adds} and depart ${source.leaving}.`
+              ? `; a sync would add ${source.adds} and depart ${source.leaving}.`
               : "."}
           </p>
         ) : null}
 
         {likely.length > 0 ? (
-          <>
-            <p className="text-sm">
-              <strong>{likely.length}</strong> look like the same player under a
-              new name. Nothing about them is written until you say so.
-            </p>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="slot-label text-ink-soft">Same player, new name? · {likely.length}</h3>
             <Slots testId="mapping-likely">
               {likely.map((rename) => (
                 <RenameRow
@@ -217,16 +217,12 @@ export function MappingSurface({
                 />
               ))}
             </Slots>
-          </>
+          </div>
         ) : null}
 
         {asking.length > 0 ? (
-          <>
-            <p className="text-sm">
-              <strong>{asking.length}</strong> have no person code and sit in a
-              club with an arrival nothing else explains. These are guesses —
-              pick the right one, or reject it.
-            </p>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="slot-label text-ink-soft">Guesses: no code yet, one unexplained arrival · {asking.length}</h3>
             <Slots testId="mapping-candidates">
               {asking.map((rename) => (
                 <RenameRow
@@ -240,23 +236,18 @@ export function MappingSurface({
                 />
               ))}
             </Slots>
-          </>
+          </div>
         ) : null}
       </Bank>
 
       <Bank
         label="Codes from box scores"
+        info="A person code an import could not attach to anybody. Attaching it re-imports the games it appeared in, so the refused lines arrive. The roster sync does this by itself when the feed lists the player."
         aside={`${unmatched.length} unattached`}
       >
-        <p className="text-sm text-ink-soft">
-          A person code an import could not attach to anybody. Attaching it also
-          re-imports the games it appeared in, so the lines that were refused
-          before the code existed arrive.
-        </p>
-
         {unmatched.length === 0 ? (
-          <p className="text-sm" data-testid="mapping-no-codes">
-            Every code in every stored import found its player.
+          <p className="text-sm text-ink-soft" data-testid="mapping-no-codes">
+            Every stored box-score code found its player.
           </p>
         ) : (
           <Slots testId="mapping-codes">
@@ -272,15 +263,13 @@ export function MappingSurface({
         )}
       </Bank>
 
-      <Bank label="Names in the news" aside={`${news.length} unmatched`}>
-        <p className="text-sm text-ink-soft">
-          A player RotoWire has published about whose name matches nobody in the
-          pool — or matches two people, which is the same question. Answering it
-          attaches every item about them, including the ones that arrive later.
-        </p>
-
+      <Bank
+        label="Names in the news"
+        info="A player RotoWire published about whose name matches nobody in the pool, or two people. Answering attaches every item about them, including later ones."
+        aside={`${news.length} unmatched`}
+      >
         {news.length === 0 ? (
-          <p className="text-sm" data-testid="mapping-no-news">
+          <p className="text-sm text-ink-soft" data-testid="mapping-no-news">
             Every published name found its player.
           </p>
         ) : (
@@ -300,6 +289,10 @@ export function MappingSurface({
   );
 }
 
+/** A question's answer controls: a choice when there is one, then the act, on one line where it fits. */
+const ANSWER = "flex flex-wrap items-center gap-2";
+const CHOICE = "min-h-11 w-full rounded-md border border-rule bg-transparent px-2 text-sm sm:w-64";
+
 function NewsRow({
   entry,
   action,
@@ -312,54 +305,44 @@ function NewsRow({
   const [playerId, setPlayerId] = useState(entry.candidates[0]?.id ?? "");
 
   return (
-    <Slot state="live" current={current} testId={`news-name-${entry.slug}`}>
-      <span className="flex w-full flex-col gap-2">
-        <span className="text-sm">
-          <strong>{entry.name}</strong>{" "}
-          <span className="text-ink-soft">
-            {entry.clubName || "no club given"} · {entry.items} item
-            {entry.items === 1 ? "" : "s"}
-            {entry.latest ? ` · latest ${entry.latest}` : ""}
+    <Slot state={current ? "live" : "waiting"} current={current} testId={`news-name-${entry.slug}`}>
+      <span className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <span className="flex min-w-0 flex-col text-sm">
+          <span>
+            <strong>{entry.name}</strong>{" "}
+            <span className="text-ink-soft">
+              {entry.clubName || "no club given"} · {entry.items} item{entry.items === 1 ? "" : "s"}
+              {entry.latest ? ` · ${entry.latest}` : ""}
+            </span>
           </span>
-        </span>
-        <span className="text-xs text-ink-soft break-words">
-          {entry.latestHeadline}
+          <span className="truncate text-xs text-ink-faint" title={entry.latestHeadline}>{entry.latestHeadline}</span>
         </span>
 
         {entry.candidates.length === 0 ? (
-          <span className="text-xs text-ink-soft">
-            The pool is empty, so there is nobody to attach them to yet.
-          </span>
+          <span className="text-xs text-ink-soft">The pool is empty, so there is nobody to attach them to yet.</span>
         ) : (
-          <>
-            <label className="flex flex-col gap-1 text-xs">
-              This is
-              <select
-                value={playerId}
-                onChange={(event) => setPlayerId(event.target.value)}
-                data-testid={`news-choice-${entry.slug}`}
-                className="border-t-2 border-ink bg-transparent px-2 py-2 text-sm"
-              >
-                {entry.candidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.name} ({candidate.clubCode})
-                  </option>
-                ))}
-              </select>
-            </label>
+          <span className={ANSWER}>
+            <select
+              aria-label={`${entry.name} is`}
+              value={playerId}
+              onChange={(event) => setPlayerId(event.target.value)}
+              data-testid={`news-choice-${entry.slug}`}
+              className={CHOICE}
+            >
+              {entry.candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name} ({candidate.clubCode})
+                </option>
+              ))}
+            </select>
             <form action={action} data-answer="yes">
               <input type="hidden" name="slug" value={entry.slug} />
               <input type="hidden" name="player" value={playerId} />
-              <SubmitButton
-                testId={`news-attach-${entry.slug}`}
-                tone="liveOnField"
-                compact
-                pendingLabel="Attaching…"
-              >
-                Attach the name
+              <SubmitButton testId={`news-attach-${entry.slug}`} tone="liveOnField" compact pendingLabel="Attaching…">
+                Attach
               </SubmitButton>
             </form>
-          </>
+          </span>
         )}
       </span>
     </Slot>
@@ -384,79 +367,64 @@ function RenameRow({
   const [code, setCode] = useState(rename.personCode);
 
   return (
-    <Slot state="live" current={current} testId={`rename-${rename.existingId}`}>
-      <span className="flex w-full flex-col gap-3">
-        <span className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 text-sm">
-          <span className="flex min-w-0 flex-col gap-0.5 rounded-md border border-rule-strong px-3 py-2">
-            <span className="slot-label text-ink-soft">In the pool</span>
+    <Slot state={current ? "live" : "waiting"} current={current} testId={`rename-${rename.existingId}`}>
+      <span className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <span className="flex min-w-0 flex-col gap-0.5 text-sm">
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            <span className="slot-label text-ink-faint">In the pool</span>
             <strong className="break-words">{rename.existingName}</strong>
-            <span className="text-xs text-ink-soft">{rename.clubCode}</span>
-          </span>
-          <span aria-hidden="true" className="self-center text-ink-faint">
-            ?
-          </span>
-          <span className="flex min-w-0 flex-col gap-0.5 rounded-md border border-rule-strong px-3 py-2">
-            <span className="slot-label text-ink-soft">In the feed</span>
+            <span aria-hidden="true" className="text-ink-faint">→</span>
+            <span className="slot-label text-ink-faint">In the feed</span>
             <strong className="break-words">{rename.incomingName}</strong>
             <span className="text-xs text-ink-soft">{rename.clubCode}</span>
           </span>
-        </span>
-        <span className="text-xs text-ink-soft break-words">
-          {rename.reason}
+          <span className="text-xs text-ink-faint break-words">{rename.reason}</span>
         </span>
 
-        <>
+        <span className={ANSWER}>
           {choosable && rename.alternatives.length > 1 ? (
-            <label className="flex flex-col gap-1 text-xs">
-              Which arrival is this?
-              <select
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                data-testid={`rename-choice-${rename.existingId}`}
-                className="border-t-2 border-ink bg-transparent px-2 py-2 text-sm"
-              >
-                {rename.alternatives.map((alternative) => (
-                  <option
-                    key={alternative.personCode}
-                    value={alternative.personCode}
-                  >
-                    {alternative.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select
+              aria-label="Which arrival is this?"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              data-testid={`rename-choice-${rename.existingId}`}
+              className={CHOICE}
+            >
+              {rename.alternatives.map((alternative) => (
+                <option key={alternative.personCode} value={alternative.personCode}>
+                  {alternative.name}
+                </option>
+              ))}
+            </select>
           ) : null}
-
-          <span className="flex flex-wrap gap-2">
-            <form action={confirmAction} data-answer="yes">
-              <input type="hidden" name="batch" value={batchId} />
-              <input type="hidden" name="player" value={rename.existingId} />
-              <input type="hidden" name="code" value={code} />
-              <SubmitButton
-                testId={`rename-confirm-${rename.existingId}`}
-                tone="liveOnField"
-                compact
-                pendingLabel="Merging…"
-                ariaLabel={`${rename.existingName} and ${rename.incomingName} are the same player`}
-              >
-                Same player
-              </SubmitButton>
-            </form>
-            <form action={rejectAction} data-answer="no">
-              <input type="hidden" name="batch" value={batchId} />
-              <input type="hidden" name="player" value={rename.existingId} />
-              <input type="hidden" name="code" value={code} />
-              <SubmitButton
-                testId={`rename-reject-${rename.existingId}`}
-                compact
-                pendingLabel="Splitting…"
-                ariaLabel={`${rename.existingName} and ${rename.incomingName} are different people`}
-              >
-                Different people
-              </SubmitButton>
-            </form>
-          </span>
-        </>
+          <form action={confirmAction} data-answer="yes">
+            <input type="hidden" name="batch" value={batchId} />
+            <input type="hidden" name="player" value={rename.existingId} />
+            <input type="hidden" name="code" value={code} />
+            <SubmitButton
+              testId={`rename-confirm-${rename.existingId}`}
+              tone="liveOnField"
+              compact
+              pendingLabel="Merging…"
+              ariaLabel={`${rename.existingName} and ${rename.incomingName} are the same player`}
+            >
+              Same player
+            </SubmitButton>
+          </form>
+          <form action={rejectAction} data-answer="no">
+            <input type="hidden" name="batch" value={batchId} />
+            <input type="hidden" name="player" value={rename.existingId} />
+            <input type="hidden" name="code" value={code} />
+            <SubmitButton
+              testId={`rename-reject-${rename.existingId}`}
+              compact
+              pendingLabel="Splitting…"
+              ariaLabel={`${rename.existingName} and ${rename.incomingName} are different people`}
+            >
+              Different people
+            </SubmitButton>
+          </form>
+        </span>
       </span>
     </Slot>
   );
@@ -474,56 +442,50 @@ function CodeRow({
   const [playerId, setPlayerId] = useState(entry.candidates[0]?.id ?? "");
 
   return (
-    <Slot state="live" current={current} testId={`code-${entry.personCode}`}>
-      <span className="flex w-full flex-col gap-2">
-        <span className="text-sm">
-          <strong>{entry.name ?? "(no name in the import)"}</strong>{" "}
-          <span className="text-ink-soft">
-            code {entry.personCode}
-            {entry.clubCode ? ` · ${entry.clubCode}` : ""} ·{" "}
-            {entry.games.length} game
-            {entry.games.length === 1 ? "" : "s"}
+    <Slot state={current ? "live" : "waiting"} current={current} testId={`code-${entry.personCode}`}>
+      <span className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <span className="flex min-w-0 flex-col text-sm">
+          <span>
+            <strong>{entry.name ?? "(no name in the import)"}</strong>{" "}
+            <span className="text-ink-soft">
+              code {entry.personCode}
+              {entry.clubCode ? ` · ${entry.clubCode}` : ""} · {entry.games.length} game{entry.games.length === 1 ? "" : "s"}
+            </span>
           </span>
+          {entry.candidates.length === 0 ? (
+            <span className="text-xs text-ink-faint">
+              {entry.name
+                ? "No player in the pool is missing a code in that club. The roster sync adds him once the feed lists him."
+                : "This import carried no name, so there is nothing to match on. A stat CSV has no name column; a fetched game does."}
+            </span>
+          ) : null}
         </span>
 
-        {entry.candidates.length === 0 ? (
-          <span className="text-xs text-ink-soft">
-            {entry.name
-              ? "No player in the pool is missing a code in that club. Sync the rosters — this is probably somebody the pool has never had."
-              : "This import carried no name, so there is nothing to match on. A stat CSV has no name column; a fetched game does."}
-          </span>
-        ) : (
-          <>
-            <label className="flex flex-col gap-1 text-xs">
-              Attach it to
-              <select
-                value={playerId}
-                onChange={(event) => setPlayerId(event.target.value)}
-                data-testid={`code-choice-${entry.personCode}`}
-                className="border-t-2 border-ink bg-transparent px-2 py-2 text-sm"
-              >
-                {entry.candidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.name} ({candidate.clubCode})
-                  </option>
-                ))}
-              </select>
-            </label>
+        {entry.candidates.length > 0 ? (
+          <span className={ANSWER}>
+            <select
+              aria-label={`Attach code ${entry.personCode} to`}
+              value={playerId}
+              onChange={(event) => setPlayerId(event.target.value)}
+              data-testid={`code-choice-${entry.personCode}`}
+              className={CHOICE}
+            >
+              {entry.candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name} ({candidate.clubCode})
+                </option>
+              ))}
+            </select>
             <form action={action} data-answer="yes">
               <input type="hidden" name="player" value={playerId} />
               <input type="hidden" name="code" value={entry.personCode} />
               <input type="hidden" name="games" value={entry.games.join(",")} />
-              <SubmitButton
-                testId={`code-attach-${entry.personCode}`}
-                tone="liveOnField"
-                compact
-                pendingLabel="Attaching…"
-              >
+              <SubmitButton testId={`code-attach-${entry.personCode}`} tone="liveOnField" compact pendingLabel="Attaching…">
                 Attach and re-import
               </SubmitButton>
             </form>
-          </>
-        )}
+          </span>
+        ) : null}
       </span>
     </Slot>
   );

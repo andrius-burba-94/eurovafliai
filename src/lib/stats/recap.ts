@@ -149,7 +149,6 @@ function biggestSwing(
   transactions: readonly ImpactTransaction[],
   lines: readonly ImpactLine[],
   round: number,
-  weights: LineupWeights,
 ): RecapSwing | null {
   const covering = transactions.filter((tx) => tx.fromRound <= round);
   if (covering.length === 0) return null;
@@ -159,7 +158,7 @@ function biggestSwing(
     const memberIds = membersOf(tx);
     let winner: RecapSwing | null = null;
     for (const memberId of memberIds) {
-      const [deal] = impactForMember(memberId, [tx], lines, weights);
+      const [deal] = impactForMember(memberId, [tx], lines);
       if (!deal) continue;
       const deltaTenths =
         deal.byRound.find((row) => row.round === round)?.deltaTenths ?? 0;
@@ -216,6 +215,6 @@ export function recapForRound(
     round,
     rows: rankRound(table),
     bestNight: bestNight(windows, lines, round, weights),
-    biggestSwing: biggestSwing(transactions, lines, round, weights),
+    biggestSwing: biggestSwing(transactions, lines, round),
   };
 }

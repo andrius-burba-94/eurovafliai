@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
 import { canManageRosters, readRosterAuthority } from "@/lib/rosters/actions";
 import { getSuperuserClient } from "@/lib/pb/superuser";
@@ -25,15 +26,10 @@ export default async function ImportPage() {
 
   return (
     <AppShell current="import-players" testId="roster-import">
-      <div className="flex max-w-xl flex-col gap-3">
-        <h1 className="display text-4xl sm:text-5xl">
-          Upload a roster
-        </h1>
-        <p className="text-ink-soft">
-          Paste the sheet, read what it would change, then apply it. Nothing
-          is written until you say so.
-        </p>
-      </div>
+      <PageHeader
+        title="Upload a roster"
+        lead="The official feed keeps the pool current by itself. A sheet is for correcting it: paste, review, then apply. It writes only while the CSV holds roster authority."
+      />
 
       <ImportForm authority={authority} />
     </AppShell>

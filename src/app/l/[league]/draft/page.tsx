@@ -170,7 +170,7 @@ export default async function DraftPage({
         // and the plain utility wins. A finished draft is `slot-filled`,
         // which is a border and nothing else, so that one does need a field
         // or the board would scroll through it.
-        className={`sticky top-0 z-20 px-3 py-3 sm:py-5 ${
+        className={`px-3 py-3 sm:py-5 ${draft.status === "complete" ? "" : "sticky top-0 z-20"} ${
           isPaused || onClock ? "slot-live" : "slot-filled bg-stock"
         }`}
       >
@@ -232,7 +232,9 @@ export default async function DraftPage({
           </>
         ) : (
           <>
-            <p className="slot-label">Complete · {picks.length} picks</p>
+            <p className="slot-label">
+              {view.sourceOwned ? "Imported from BasketNews" : "Complete"} · {picks.length} picks
+            </p>
             <h1 className="display mt-1 text-3xl sm:text-4xl">
               That&rsquo;s the draft
             </h1>
@@ -407,7 +409,7 @@ export default async function DraftPage({
             </Bank>
           ) : null}
         </div>
-        <div className="flex flex-col gap-8 sm:gap-slot lg:col-start-2 lg:row-start-2">
+        <div className={`flex flex-col gap-8 sm:gap-slot ${draft.status === "complete" ? "lg:col-span-2 lg:row-start-1" : "lg:col-start-2 lg:row-start-2"}`}>
           {/* Before the board on purpose. On a phone the pick path owns the top
               of the room — clock, then a way to pick — and the radar is the first
               thing you meet when you scroll to *study* the draft rather than to
@@ -415,19 +417,23 @@ export default async function DraftPage({
               for the same reason. It also pairs with the board: the radar is
               sorted by what a roster is missing, the board by when a pick
               happened, and the two answer different questions. */}
-          <Bank
-            label="The radar"
-            aside={`${draft.order.length} rosters × ${view.rosterTotal}`}
-            framed
-          >
-            <RosterRadar
-              rows={view.radar}
-              columns={columns}
-              total={view.rosterTotal}
-              onClockMemberId={onClock?.memberId ?? null}
-              linkToBoard
-            />
-          </Bank>
+          {/* Every roster is full once the draft is done, so the radar would
+              only repeat thirteen filled slots per team. */}
+          {draft.status !== "complete" ? (
+            <Bank
+              label="The radar"
+              aside={`${draft.order.length} rosters × ${view.rosterTotal}`}
+              framed
+            >
+              <RosterRadar
+                rows={view.radar}
+                columns={columns}
+                total={view.rosterTotal}
+                onClockMemberId={onClock?.memberId ?? null}
+                linkToBoard
+              />
+            </Bank>
+          ) : null}
 
           {/* The board proper. No empty state: an empty board is still a board,
               which is the whole of the Board-Shows-Its-Shape rule. */}
@@ -455,7 +461,7 @@ export default async function DraftPage({
               order — the order the board reads across and the radar reads down —
               so the three surfaces name the same league in the same sequence. */}
           {draft.status === "complete" && view.canManage && !view.sourceOwned ? (
-            <details className="group rounded-card border border-panel-border bg-stock-panel px-4 py-2" data-testid="complete-tools">
+            <details className="group border-t border-panel-border pt-2" data-testid="complete-tools">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold [&::-webkit-details-marker]:hidden">
                 Commissioner tools
                 <span aria-hidden="true" className="text-ink-soft transition-transform group-open:rotate-90">&rsaquo;</span>
@@ -513,7 +519,7 @@ export default async function DraftPage({
               The trade, stated: collapsed, the room shows one line of recent
               activity where the ticker showed eight. The board above it still
               holds every pick, and one tap gives the full transcript. */}
-          <LeagueChat
+          {draft.status !== "complete" ? <LeagueChat
             leagueId={id}
             authToken={session.token}
             initial={view.chat}
@@ -524,7 +530,7 @@ export default async function DraftPage({
             authorStyles={Object.fromEntries(
               view.members.map((member) => [member.id, member.style]),
             )}
-          />
+          /> : null}
         </div>
       </div>
       </ArmedPickProvider>
