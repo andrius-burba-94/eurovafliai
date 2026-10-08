@@ -63,6 +63,8 @@ export type StatRowFields = {
   readonly pir: number;
   readonly fantasy_pts: number;
   readonly basketnews_raw_pts: number;
+  /** In his club's starting five: `yes`, `no`, or empty when the source could not say. */
+  readonly started: "yes" | "no" | "";
 };
 
 /** A row already in the table, as far as this module cares. */
@@ -137,6 +139,7 @@ const COMPARED: readonly (keyof StatRowFields)[] = [
   "plus_minus",
   "pir",
   "fantasy_pts",
+  "started",
 ];
 
 const key = (playerId: string, season: string, gameCode: number) =>
@@ -201,6 +204,7 @@ export function toStatFields(
     pir: base,
     fantasy_pts: fantasyTenths,
     basketnews_raw_pts: Math.round(scoreBasketNewsModern(row.box, row.won) * 100),
+    started: row.started === undefined ? "" : row.started ? "yes" : "no",
   };
 }
 
@@ -268,19 +272,23 @@ export function planStatImport({
       continue;
     }
 
+    // A source that cannot say who started (a sheet) never erases a start
+    // the feed recorded; a row stored before the field existed reads as unknown.
+    const was = { ...current, started: current.started ?? "" };
+    const next = fields.started === "" ? { ...fields, started: was.started } : fields;
     const changes = COMPARED.filter(
-      (field) => current[field] !== fields[field],
+      (field) => was[field] !== next[field],
     ).map((field) => ({
       field,
-      from: current[field],
-      to: fields[field],
+      from: was[field],
+      to: next[field],
     }));
 
     if (changes.length === 0) {
       unchanged += 1;
       continue;
     }
-    updates.push({ id: current.id, fields, changes, line: row.line });
+    updates.push({ id: current.id, fields: next, changes, line: row.line });
   }
 
   return {

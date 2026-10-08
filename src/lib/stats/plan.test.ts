@@ -205,6 +205,39 @@ describe("planStatImport", () => {
     expect(result.creates).toHaveLength(1);
     expect(result.unchanged).toBe(0);
   });
+
+  it("stores a start the feed knows and leaves a sheet's line unknown", () => {
+    const fromFeed = { ...rowsFrom(LINE)[0]!, started: true };
+    expect(planStatImport({ rows: [fromFeed], players: PLAYERS, existing: [], season: "E2026" }).creates[0]!.fields.started).toBe(
+      "yes",
+    );
+    expect(plan([LINE]).creates[0]!.fields.started).toBe("");
+  });
+
+  it("fills in a start on a row stored before it was known", () => {
+    const fromFeed = { ...rowsFrom(LINE)[0]!, started: false };
+    const result = planStatImport({
+      rows: [fromFeed],
+      players: PLAYERS,
+      existing: [storedFrom(LINE, "s1", { started: "" })],
+      season: "E2026",
+    });
+    expect(result.updates).toHaveLength(1);
+    expect(result.updates[0]!.changes).toEqual([{ field: "started", from: "", to: "no" }]);
+  });
+
+  it("never lets a sheet erase a start the feed recorded", () => {
+    const result = plan([LINE], [storedFrom(LINE, "s1", { started: "yes" })]);
+    expect(result.updates).toEqual([]);
+    expect(result.unchanged).toBe(1);
+  });
+
+  it("keeps a recorded start when a sheet corrects the rest of the line", () => {
+    const corrected = LINE.replace(",85,78,7,", ",85,78,9,");
+    const result = plan([corrected], [storedFrom(LINE, "s1", { started: "yes" })]);
+    expect(result.updates).toHaveLength(1);
+    expect(result.updates[0]!.fields.started).toBe("yes");
+  });
 });
 
 describe("describeStatPlan", () => {
