@@ -3,6 +3,33 @@
 The story of each slice as it landed, moved out of `docs/STATUS.md` when that
 file was cut back to its tables. Newest first. See [README.md](README.md).
 
+## Faster PR checks, without taking the browser suite off pull requests
+
+#174 moved Playwright to nightly to reach a two-minute gate and #175 reverted
+it: the cancellations were a hosted-runner outage, and every PR should still
+run the browser suite. This pass removes the suite's cost instead of moving it.
+
+On run 37380548684 (PR, 5m 28s) the four e2e shards set the wall clock at
+~275–325s each. About 70s per shard was setup (`npm ci` 18s, Playwright install
+23s, build 22s, PocketBase 6s); the rest was tests, 200–250s per shard. There
+were no flaky tests or retries. The `mobile` project accounted for 854s of the
+1,718s of test time, running specs whose outcome does not depend on the
+viewport a second time.
+
+- Pull requests run the mobile project over the layout specs only (111 of 291
+  tests); pushes to main still run all of them, so a mobile-only regression in
+  an untagged spec surfaces on main before the deploy, not on the PR.
+- `.next/cache` is cached per job, and the Playwright browser is cached by
+  version (the apt dependencies are still installed each time).
+- CI runs three Playwright workers instead of the default two.
+- A docs/Markdown-only PR skips the e2e and design jobs; `verify` and
+  `pocketbase`, the required checks, always run.
+
+Not done: duration-balanced shards. With `fullyParallel`, Playwright splits
+shards by test count in file order, and 1.63 has no duration-aware mode
+(`PWTEST_SHARD_WEIGHTS` is internal and order-dependent), so the 3.3m/4.1m
+spread between shards stays.
+
 ## The season dashboard — four panels, and three that had to tell the truth
 
 The ask came with a rendered reference and a panel-by-panel brief: a 2-column

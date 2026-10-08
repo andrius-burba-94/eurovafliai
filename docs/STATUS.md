@@ -1821,7 +1821,10 @@ over a fresh build, on both browser projects, booting PocketBase the same way
 `pb:verify` does — the E2E suite was local-first for three phases and is now a
 merge gate. It runs as **four shards** (`e2e (1/4)`…`e2e (4/4)`), each with its
 own PocketBase, because one two-core runner had grown to 12+ minutes for the
-suite alone. The framework-free stores (`sheets`, `chat`, `stats`, `rosters`)
+suite alone. On pull requests the `mobile` project runs only the layout specs
+listed in `playwright.config.ts` (`E2E_MOBILE_SCOPE=layout`); pushes to `main`
+run every spec on both projects. A PR that touches only `docs/` or Markdown
+skips the browser jobs. The framework-free stores (`sheets`, `chat`, `stats`, `rosters`)
 and both repairs have unit tests over `fake-pb`, each exercising the failure
 story the module's header promised. The lobby, the room and chat share one
 realtime lifecycle (`useLiveSubscription`), so the three surfaces cannot
