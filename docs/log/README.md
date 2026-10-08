@@ -21,6 +21,7 @@ disagrees with STATUS.md, STATUS.md is right and the line is history.
 | [basketnews-import.md](basketnews-import.md) | BasketNews Hostinger league import, source evidence, worker recovery and database verification |
 | [domain-cutover-2026-10-05.md](domain-cutover-2026-10-05.md) | Custom domain DNS, TLS, deploy and public verification |
 | [trades-and-rosters-2026-10-08.md](trades-and-rosters-2026-10-08.md) | Trade impact player against player in both rulesets, the trades timeline, automatic roster sync and the commissioner page clean-up |
+| [ai-groundwork-2026-10-09.md](ai-groundwork-2026-10-09.md) | 7.0: why the model only narrates, tokens instead of names, the key and the tier, the starting-five capture and the backfill's same-line guard |
 
 Append to these when a slice's narrative would otherwise go into STATUS.md.
 The rule for what goes where: a **table row, a Next-up line, an open debt

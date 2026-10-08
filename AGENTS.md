@@ -69,6 +69,10 @@ src/lib/nav/urls.ts  every league, team and player address (S28): /l/<league>,
 src/lib/slugs/    readable address segments: pure `slug.ts`, framework-free
                   `store.ts` (`ensureSlugs`, worker + `npm run slugs:backfill`)
 src/lib/panel/    the side panel's one read (11.2): pool, a round's games, news
+src/lib/ai/       AI commentary (7.0, ADR-0012): pure `round-facts.ts` builds the
+                  fact sheet, `tokens.ts` keeps names out, `guard.ts` refuses
+                  uncited numbers; `gemini.ts` is the ONE model client.
+                  The model narrates; it never computes or decides
 src/worker/       PM2 worker: ~1s sweep, autodraft, stats ingest
 pb/VERSION        pinned PocketBase version — the download script reads it
 pb/pb_migrations/ schema as code, COMMITTED

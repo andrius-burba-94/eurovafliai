@@ -21,6 +21,38 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## AI commentary — 7.0 groundwork, 9 October 2026
+
+**Phase 7 is rescoped to the season (blueprint D28, ADR-0012) and its
+groundwork is in; nothing a member sees has changed.** The model narrates a
+fact sheet that tested code computes; teams and players reach it as tokens,
+never names; a guard refuses prose citing anything the sheet does not hold;
+write-ups are stored once in `ai_writeups`. What landed:
+- `src/lib/ai/`: one stateless Gemini client (Interactions API, `store:
+  false`, model from `GEMINI_MODEL`, default `gemini-3.8-flash`), the round
+  fact sheet and its framework-free reader, tokens, the guard, two voices,
+  the guarded summary pass and the write-up claim store.
+- `player_game_stats.started` (who started each game, from the feed's
+  `startFive`) and `npm run stats:starters` for games stored before it.
+- `npm run ai:preview`. Live runs on the local league passed the guard first
+  time on `gemini-3.5-flash-lite` and `gemini-3.8-flash`; figures in
+  [research/gemini-api.md](research/gemini-api.md).
+- **Production:** `GEMINI_API_KEY` is **not yet on the VPS** (adding it was
+  left to a person; see the log). Nothing in production reads it until 7.1.
+  After this merges, run `npm run stats:starters` once on the box.
+
+**Next up: 7.1, the round written** — the worker job, the recap page's
+analyst bank, the chat post and the commissioner's voice setting.
+
+**Try it on localhost:**
+- `.env`: `GEMINI_API_KEY=…` and `GEMINI_MODEL=gemini-3.5-flash-lite`.
+- `npm run dev`, then `npm run stats:starters` once.
+- `npm run ai:preview -- --league=<slug> --facts-only` prints what the model
+  would read: tokens only, no team or player names.
+- `npm run ai:preview -- --league=<slug> --voice=pundit` writes 3–5 lines and
+  prints them as a member would read them; add `--save` twice and the second
+  run says `unchanged`.
+
 ## Custom domain cutover
 
 `eurovafliai.com` points to the existing VPS and serves the app over HTTPS.
@@ -1868,7 +1900,7 @@ declined, because they reverse ADR-0006's No-Atmosphere Rule.
 |---|---|
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
-| 7 — AI features (Gemini 2.5 Flash) | todo |
+| 7 — AI commentary (Gemini; rescoped by D28) | **in progress** — 7.0 groundwork done; 7.1 the round written is next |
 | 8 — Hardening & ops polish | **done** — 8.0–8.5 are in, and the backup timer and logrotate are installed on the box |
 
 ---
@@ -1923,6 +1955,10 @@ touch should be fixed by that slice rather than deferred again.
 
 | # | What | Blocks |
 |---|---|---|
+| **Recap's "Biggest swing" ignores grouped deals** | Found in 7.0. `recapForRound` ranks raw transaction rows one by one, so a free-agent exchange stored as a drop row and an add row is never netted: the swing shown is one half of the deal. The fact sheet already groups with `groupTransactionHistory`; the recap page should too | Nothing; the recap overstates one deal |
+| **When a stat correction may rewrite a published write-up** | A corrected box score changes a fact sheet's hash, and with it the write-up. 7.1 must choose a window after which prose people have read stays as it is, or is marked updated | 7.1's worker job |
+| **A round with no stored fixtures counts as complete** | `roundProgress` treats a snapshot round with no unplayed fixture as finished, including one whose fixtures were never stored. A write-up could be written early on a database without a schedule | Nothing in production, where the schedule is stored |
+| **A captain change between game days is invisible to the fact sheet** | Roles come from the round's stored lineup, the same one the table scores; a captain moved after a tip-off (S35) reads as the final one | Nothing; consistent with the table |
 | **Recap's open round reads fewer lines than League Home** | Found in S25. League Home's "Round N so far" and Live read `readMatchdayData` (recorded box scores plus the live feed); Recap's in-progress view reads `readLeagueRecap` (the stored snapshot plus recorded box scores only). While a game is on air the two can rank the round differently until its box score is recorded. The fix is Recap reading `liveRecap` for an open round | Nothing; the figures meet when each game is recorded |
 | **The Fantasy Challenge token expires by hand** | `FANTASY_CHALLENGE_TOKEN` is a browser session token of unknown lifetime; password login is not available to an SSO account. A refused token is a `failed` run saying so on the sync page and in the worker log, and nothing is written; replacing it means editing the VPS `.env` and restarting both PM2 apps | Rosters stop syncing until somebody notices |
 | **The sync page has no E2E spec** | It talks to somebody else's API, which CI must not. Covered by unit tests over the real 30 September rosters and pool, and `fake-pb` store tests; the page itself is checked by hand | Nothing; a UI regression would be caught late |

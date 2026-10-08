@@ -81,6 +81,17 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **game code** | The Euroleague's own id for a game, unique **within a season** (E2025 ran 1–406 with gaps). With the season and the player it is the physical key a re-run of an import is refused by. | `player_game_stats.game_code` |
 | **phase** | Which part of the season a round belongs to: `RS` regular season (rounds 1–38), `PI` play-in (39–40), `PO` playoffs (41–45), `FF` Final Four (46–47). Everything is stored; what counts for fantasy is a filter. | `player_game_stats.phase` |
 | **tenths** | How fantasy points are stored and summed: an integer count of tenths, `33` meaning 3.3. Never a float, anywhere, because PIR × 1.1 is not exact in binary. | `fantasy_pts`; `formatTenths` |
+| **started** | In his club's starting five that game, from the feed's `startFive`: `yes`, `no`, or empty when the source could not say (a CSV line, an older season, a side that did not list five). The real game's starting five — not a fantasy lineup's **starter**, which is a role a member chose. | `player_game_stats.started` |
+
+## AI commentary
+
+| Term | Meaning | In code |
+|---|---|---|
+| **write-up** | Prose a model wrote about the league, stored once and read the same by everyone. Never written on page load. | `ai_writeups`; `src/lib/ai/` |
+| **fact sheet** | Everything a write-up may say, computed and labelled by tested code before the model sees it: figures, ranks, and judgements such as *overperformer* with their thresholds. The model narrates it and adds nothing. | `buildRoundFacts()` |
+| **token** | How a team (`@T3`) or a player (`#P12`) appears to the model. Names never leave the box; they are put back when a write-up is read. | `assignTokens()`, `renderSegments()` |
+| **guard** | The check every write-up passes before it is stored: known tokens only, numbers from the sheet only, no names, no markdown. | `checkWriteup()` |
+| **voice** | How a league's write-ups sound, a commissioner's setting: *analyst* (straight) or *pundit* (banter about the fantasy teams, never about players as people). | `Voice` in `src/lib/ai/voice.ts` |
 
 ## Words we do not use
 
