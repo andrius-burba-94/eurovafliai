@@ -6,6 +6,7 @@ import { normalizeName } from "@/lib/rosters/normalize";
 import type { Position } from "@/lib/engine";
 
 import {
+  BasketNewsSessionExpired,
   readBasketNewsLeague, readBasketNewsLineup, readBasketNewsScore,
   readBasketNewsTeamReference, readBasketNewsTeams,
   type BasketNewsLeague, type BasketNewsLineup, type BasketNewsScore,
@@ -14,7 +15,16 @@ import {
 
 /** The business flow knows persistence operations, never PocketBase or its query syntax. */
 export interface BasketNewsRepository {
-  load(leagueId: string): Promise<{ name: string; season: string; commissioner: string; sourceTeamId: string; latestRound: number; pool: (PoolPlayer & { basketnewsId?: string; basketnewsPosition?: Position | "" })[] }>;
+  load(leagueId: string): Promise<{
+    name: string; season: string; commissioner: string; sourceTeamId: string;
+    /** The first round not every team has a final result for. */
+    firstOpenRound: number;
+    /** The newest round with any stored lineup; rosters were mirrored up to it. */
+    latestStoredRound: number;
+    /** Each stored EuroLeague fixture's round and whether it has been played. */
+    fixtures: readonly { round: number; played: boolean }[];
+    pool: (PoolPlayer & { basketnewsId?: string; basketnewsPosition?: Position | "" })[];
+  }>;
   linkLeague(leagueId: string, sourceLeagueId: string): Promise<void>;
   ensureMembers(leagueId: string, teams: readonly BasketNewsTeam[], ownTeamId: string, commissioner: string, firstPickOrder: readonly string[]): Promise<ReadonlyMap<string, { id: string; name: string }>>;
   linkPlayers(links: readonly { playerId: string; sourceId: string; position: Position; updateId: boolean; updatePosition: boolean }[]): Promise<void>;
@@ -27,6 +37,8 @@ export interface BasketNewsRepository {
 }
 
 export type BasketNewsRoundResult = {
+  /** Every EuroLeague game of the round was played when this was read. */
+  readonly final: boolean;
   readonly totalHundredths: number;
   readonly calculatedHundredths: number;
   readonly players: readonly { playerId: string; rawHundredths: number; weightedHundredths: number; role: string }[];
@@ -81,7 +93,7 @@ function slotsFor(lineup: BasketNewsLineup, ids: ReadonlyMap<string, string>): L
   };
 }
 
-export function basketNewsResult(lineup: BasketNewsLineup, score: BasketNewsScore, ids: ReadonlyMap<string, string>): BasketNewsRoundResult {
+export function basketNewsResult(lineup: BasketNewsLineup, score: BasketNewsScore, ids: ReadonlyMap<string, string>, final = true): BasketNewsRoundResult {
   const players = lineup.players.map((entry) => {
     const playerId = ids.get(entry.playerId);
     if (!playerId) throw new Error(`BasketNews player ${entry.playerId} has no mapping.`);
@@ -91,6 +103,7 @@ export function basketNewsResult(lineup: BasketNewsLineup, score: BasketNewsScor
     return { playerId, rawHundredths, weightedHundredths: Math.round(rawHundredths * multiplier), role };
   });
   return {
+    final,
     totalHundredths: Math.round(score.pointsGained * 100),
     calculatedHundredths: players.reduce((sum, player) => sum + player.weightedHundredths, 0),
     players,
@@ -121,15 +134,35 @@ export async function syncBasketNews(
     throw new Error("BasketNews league membership or draft changed; refusing a partial import.");
   }
 
-  const rounds: { round: number; lineups: BasketNewsLineup[]; scores: (BasketNewsScore | null)[] }[] = [];
-  for (let round = Math.max(1, startRound || local.latestRound + 1); round <= 40; round += 1) {
+  // A round is final once its games are played. Without a stored schedule a
+  // scored round counts as final, which is what `roundProgress` assumes too.
+  const gamesOf = (round: number) => local.fixtures.filter((game) => game.round === round);
+  const isFinal = (round: number) => gamesOf(round).every((game) => game.played);
+  const unplayed = local.fixtures.filter((game) => !game.played).map((game) => game.round);
+  // The next round's lineup is where a trade made during this one first shows.
+  const lastReadable = unplayed.length ? Math.min(...unplayed) + 1 : 0;
+
+  const rounds: { round: number; final: boolean; lineups: BasketNewsLineup[]; scores: (BasketNewsScore | null)[] }[] = [];
+  const first = Math.max(1, startRound ? Math.min(startRound, local.firstOpenRound) : local.firstOpenRound);
+  for (let round = first; round <= 40; round += 1) {
     const index = round - 1;
     const scores = await Promise.all(teams.map((team) => source.score(team.id, index, official.leagueId)));
-    if (scores.some(Boolean) && scores.some((score) => !score)) throw new Error(`BasketNews round ${round} has only some team scores.`);
-    if (scores.every((score) => score === null)) break;
-    const lineups = await Promise.all(teams.map((team) => source.lineup(team.id, index, official.leagueId, cookie)));
-    if (lineups.some((lineup) => lineup.players.length !== 13)) throw new Error(`BasketNews round ${round} has an incomplete lineup.`);
-    rounds.push({ round, scores, lineups });
+    const final = scores.some(Boolean) && isFinal(round);
+    if (final && scores.some((score) => !score)) throw new Error(`BasketNews round ${round} has only some team scores.`);
+    if (scores.every((score) => score === null) && round > lastReadable) break;
+    let lineups: BasketNewsLineup[];
+    try {
+      lineups = await Promise.all(teams.map((team) => source.lineup(team.id, index, official.leagueId, cookie)));
+    } catch (error) {
+      // An open round's lineups may not be published yet; a scored one must be.
+      if (error instanceof BasketNewsSessionExpired || scores.some(Boolean)) throw error;
+      break;
+    }
+    if (lineups.some((lineup) => lineup.players.length !== 13)) {
+      if (scores.some(Boolean)) throw new Error(`BasketNews round ${round} has an incomplete lineup.`);
+      break;
+    }
+    rounds.push({ round, final, scores, lineups });
   }
 
   const picks = official.draft.picks;
@@ -173,7 +206,7 @@ export async function syncBasketNews(
   for (const round of rounds) for (const [index, lineup] of round.lineups.entries()) {
     slotsFor(lineup, mapped);
     const score = round.scores[index];
-    if (!score) continue;
+    if (!score || !round.final) continue;
     const result = basketNewsResult(lineup, score, mapped);
     if (result.calculatedHundredths !== result.totalHundredths) {
       throw new Error(`BasketNews round ${round.round} team ${teams[index]!.title} does not add up to its official score.`);
@@ -188,23 +221,27 @@ export async function syncBasketNews(
   await repo.ensureDraft(leagueId, draftPicks, firstPickOrder.map((id) => members.get(id)!.id), new Date(official.draftDate ?? Date.now()));
 
   for (const round of rounds) {
-    const target = new Map<string, string[]>();
-    round.lineups.forEach((lineup, index) => target.set(members.get(teams[index]!.id)!.id, lineup.players.map((entry) => mapped.get(entry.playerId)!)));
-    const plan = planSync({
-      round: round.round,
-      seats: await repo.seats(leagueId), target,
-      teamName: (id) => [...members.values()].find((member) => member.id === id)?.name ?? id,
-      playerName: (id) => local.pool.find((player) => player.id === id)?.name ?? id,
-      source: "BasketNews",
-    });
-    await repo.apply(leagueId, plan.steps, new Date());
+    // Re-reading an open or legacy round must not replay its roster over
+    // trades already mirrored from a later round.
+    if (round.round >= local.latestStoredRound) {
+      const target = new Map<string, string[]>();
+      round.lineups.forEach((lineup, index) => target.set(members.get(teams[index]!.id)!.id, lineup.players.map((entry) => mapped.get(entry.playerId)!)));
+      const plan = planSync({
+        round: round.round,
+        seats: await repo.seats(leagueId), target,
+        teamName: (id) => [...members.values()].find((member) => member.id === id)?.name ?? id,
+        playerName: (id) => local.pool.find((player) => player.id === id)?.name ?? id,
+        source: "BasketNews",
+      });
+      await repo.apply(leagueId, plan.steps, new Date());
+    }
     for (const [index, lineup] of round.lineups.entries()) {
       const member = members.get(teams[index]!.id)!;
       const score = round.scores[index];
-      await repo.writeRound(leagueId, local.season, round.round, member.id, slotsFor(lineup, mapped), score ? basketNewsResult(lineup, score, mapped) : null);
+      await repo.writeRound(leagueId, local.season, round.round, member.id, slotsFor(lineup, mapped), score ? basketNewsResult(lineup, score, mapped, round.final) : null);
     }
     await repo.recompute(local.season, leagueId);
-    if (round.scores.every((score) => score !== null)) await repo.progress(jobId, round.round + 1);
+    if (round.final) await repo.progress(jobId, round.round + 1);
   }
   return { status: "applied", message: `Mirrored ${teams.length} teams, ${picks.length} draft picks and ${rounds.length} round(s).`, questions: [], rounds: rounds.length };
 }
