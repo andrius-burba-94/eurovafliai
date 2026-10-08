@@ -5,14 +5,14 @@ import { readStoredFixtures } from "@/lib/fixtures/store";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { formationName, type LineupSlots, type LineupSquadPlayer } from "@/lib/lineups/lineup";
 import { readSquadWithPositions, writeLineup } from "@/lib/lineups/store";
-import { applyTransaction, listActiveMemberships } from "@/lib/memberships/store";
+import { applyTransaction, asPbDate, listActiveMemberships } from "@/lib/memberships/store";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
-import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueRosters, fetchRoundLineup } from "./client";
+import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueMoves, fetchLeagueRosters, fetchRoundLineup } from "./client";
 import { linkLineupPlayers, matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
 import { resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
-import { planSync, rostersAgree, type SyncSeat, type SyncStep } from "./plan";
+import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncSeat, type SyncStep } from "./plan";
 import { lineupRoundsDue, roundWindows, syncDue, syncModeAt, type SyncDecision } from "./windows";
 
 /**
@@ -212,6 +212,42 @@ async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
   }));
 }
 
+/**
+ * The round's moves as the official log records them, or null when the log
+ * cannot be read or does not explain the rosters. Never throws: the roster
+ * difference is always there to fall back on.
+ */
+async function planFromOfficialLog(
+  input: SyncPlanInput,
+  source: {
+    readonly token: string;
+    readonly fantasyLeagueId: string;
+    readonly round: number;
+    /** Official team id → member. */
+    readonly teams: ReadonlyMap<string, string>;
+    /** Official player id → pool player, released players included. */
+    readonly players: ReadonlyMap<string, string>;
+    readonly doFetch?: typeof fetch;
+  },
+): Promise<SyncPlan | null> {
+  try {
+    const current = await fetchCurrentMatchday(source.token, source.fantasyLeagueId, source.doFetch);
+    const moves = await fetchLeagueMoves(source.token, source.fantasyLeagueId, matchdayIdForRound(current, source.round), source.doFetch);
+    const log: LoggedMove[] = [];
+    for (const move of moves) {
+      const member = source.teams.get(move.arrival.teamId);
+      const departureTo = move.departure.teamId === null ? null : source.teams.get(move.departure.teamId);
+      const arrival = source.players.get(move.arrival.playerId);
+      const departure = source.players.get(move.departure.playerId);
+      if (!member || departureTo === undefined || !arrival || !departure) return null;
+      log.push({ order: move.id, member, arrival, departure, departureTo });
+    }
+    return planFromLog({ ...input, log });
+  } catch {
+    return null;
+  }
+}
+
 export type SyncOptions = {
   readonly pb: PocketBase;
   readonly leagueId: string;
@@ -263,20 +299,40 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
   }
   const teamNames = new Map(members.map((member) => [member.id, member.teamName]));
   const playerNames = new Map(pool.map((player) => [player.id, displayName(player.name)]));
-  const plan = planSync({
+  const input: SyncPlanInput = {
     round: decision.round ?? 0,
     seats,
     target,
     teamName: (id) => teamNames.get(id) ?? "A team",
     playerName: (id) => playerNames.get(id) ?? "a player",
-  });
+  };
+  const difference = planSync(input);
+  const fromLog =
+    difference.steps.length > 0 && decision.round
+      ? await planFromOfficialLog(input, {
+          token,
+          fantasyLeagueId: league.fantasy_league_id,
+          round: decision.round,
+          teams: resolution.teams,
+          players: new Map([
+            ...pool.flatMap((player) => (player.fantasyId ? [[player.fantasyId, player.id] as const] : [])),
+            ...resolution.players,
+          ]),
+          doFetch,
+        })
+      : null;
+  const plan = fromLog ?? difference;
+  const unexplained =
+    difference.steps.length > 0 && decision.round && !fromLog
+      ? " The official move log did not explain the change, so it was read from the roster difference: a player traded and released between passes may be credited to the wrong team."
+      : "";
 
   if (decision.mode === "preview") {
     const message =
       plan.steps.length === 0
         ? "The official rosters match the league's."
         : decision.round
-          ? `${plural(plan.moves.length, "change")} waiting for round ${decision.round} to tip off.`
+          ? `${plural(plan.moves.length, "change")} waiting for round ${decision.round} to tip off.${unexplained}`
           : `${plural(plan.moves.length, "change")} on the official rosters.`;
     return record(pb, leagueId, decision, now, { status: "preview", message, moves: decision.round ? plan.moves : [] });
   }
@@ -287,7 +343,7 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
 
   const run = await record(pb, leagueId, decision, now, {
     status: "applying",
-    message: `${plural(plan.moves.length, "change")} from the official rosters for round ${decision.round}.`,
+    message: clip(`${plural(plan.moves.length, "change")} from the official rosters for round ${decision.round}.${unexplained}`),
     moves: plan.moves,
     steps: plan.steps,
   });
@@ -307,6 +363,109 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
   const status: SyncStatus = agreed ? "applied" : "failed";
   await pb.collection("fantasy_syncs").update(run.id, { status, message: clip(message) }, { requestKey: null });
   return { ...run, status, message: clip(message) };
+}
+
+export type MoveRepair = {
+  readonly round: number;
+  readonly status: "unchanged" | "would-repair" | "repaired" | "unexplained";
+  /** Notes of the rows added, or that a write would add. */
+  readonly added: readonly string[];
+  /** Notes of the rows removed, or that a write would remove. */
+  readonly removed: readonly string[];
+};
+
+/**
+ * Re-record one stored round's synced moves from the official log.
+ *
+ * Rounds synced before the log was read were planned from roster differences,
+ * which credit a player traded and released between two passes to the team
+ * that traded him. Rosters were right all along, so this touches only
+ * `transactions` rows the sync wrote for the round, never a roster window:
+ * the round's before and after rosters are read from the windows themselves,
+ * the log is replayed over them, and the stored rows are reconciled with the
+ * plan. Hand-recorded rows are left alone. Nothing is announced.
+ *
+ * ## Failure-recovery story
+ *
+ * Adds first, then removals, each one row. A run that dies between them
+ * leaves both versions; the next run finds the planned rows already stored,
+ * removes only the stale ones, and after that finds nothing to do.
+ */
+export async function repairRoundMoves(options: {
+  readonly pb: PocketBase;
+  readonly leagueId: string;
+  readonly token: string;
+  readonly round: number;
+  readonly now: Date;
+  /** False reports what would change and writes nothing. */
+  readonly write: boolean;
+  readonly doFetch?: typeof fetch;
+}): Promise<MoveRepair> {
+  const { pb, leagueId, token, round, now, write, doFetch } = options;
+  const league = await pb.collection("leagues").getOne<LeagueRow>(leagueId, { requestKey: null });
+  if (!league.fantasy_league_id) throw new Error("This league is not linked to a Fantasy Challenge league.");
+
+  const [members, pool, windows] = await Promise.all([
+    readMembers(pb, leagueId),
+    readPool(pb),
+    pb.collection("roster_memberships").getFullList<{ id: string; member: string; player: string; from_round: number; to_round: number }>({
+      filter: `league = '${leagueId}'`,
+      fields: "id,member,player,from_round,to_round",
+      requestKey: null,
+    }),
+  ]);
+  const heldThrough = (window: { from_round: number; to_round: number }, at: number) =>
+    window.from_round <= at && (window.to_round === 0 || window.to_round > at);
+  const seats = windows.filter((window) => heldThrough(window, round - 1)).map(({ id, member, player }) => ({ id, member, player }));
+  const target = new Map<string, string[]>(members.map((member) => [member.id, []]));
+  for (const window of windows) if (heldThrough(window, round)) target.get(window.member)?.push(window.player);
+
+  const teamNames = new Map(members.map((member) => [member.id, member.teamName]));
+  const playerNames = new Map(pool.map((player) => [player.id, displayName(player.name)]));
+  const plan = await planFromOfficialLog(
+    {
+      round,
+      seats,
+      target,
+      teamName: (id) => teamNames.get(id) ?? "A team",
+      playerName: (id) => playerNames.get(id) ?? "a player",
+    },
+    {
+      token,
+      fantasyLeagueId: league.fantasy_league_id,
+      round,
+      teams: new Map(members.flatMap((member) => (member.fantasyTeamId ? [[member.fantasyTeamId, member.id] as const] : []))),
+      players: new Map(pool.flatMap((player) => (player.fantasyId ? [[player.fantasyId, player.id] as const] : []))),
+      doFetch,
+    },
+  );
+  if (!plan || plan.steps.length === 0) return { round, status: plan ? "unchanged" : "unexplained", added: [], removed: [] };
+
+  const prefix = `Fantasy Challenge, round ${round}:`;
+  const stored = (
+    await pb.collection("transactions").getFullList<{ id: string; type: string; members: unknown; players_in: unknown; players_out: unknown; note?: string; date?: string }>({
+      filter: `league = '${leagueId}' && from_round = ${round}`,
+      requestKey: null,
+    })
+  ).filter((row) => row.note?.startsWith(prefix));
+  const planned = plan.steps.map((step) => ({
+    type: step.plan.type,
+    members: [...step.plan.members],
+    players_in: step.plan.playersIn,
+    players_out: step.plan.playersOut,
+    note: step.note,
+  }));
+  const { create, remove } = reconcileMoves(stored, planned);
+  const report = { round, added: create.map((row) => row.note), removed: remove.map((row) => row.note ?? "") };
+  if (create.length === 0 && remove.length === 0) return { ...report, status: "unchanged" };
+  if (!write) return { ...report, status: "would-repair" };
+
+  const date = stored.map((row) => row.date ?? "").filter(Boolean).sort()[0] || asPbDate(now);
+  for (const row of create) {
+    await pb.collection("transactions").create({ league: leagueId, from_round: round, date, ...row }, { requestKey: null });
+  }
+  for (const row of remove) await pb.collection("transactions").delete(row.id, { requestKey: null });
+  return { ...report, status: "repaired" };
 }
 
 /**

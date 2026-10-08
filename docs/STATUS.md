@@ -101,6 +101,28 @@ sideways scroll; round chips sit under them, and both filters compose in the
 URL (`?team=…&round=…`). The recap's round chips and these share one
 `ChipNav`.
 
+**Trades and free-agent moves look different.** A trade between two teams is
+one head-to-head line: each team at its own end with its verdict, and what
+each sent meeting at the swap. A free-agent move stays one team's line with a
+dashed FA crest (`PoolCrest`) where a partner would be. A third chip row,
+All moves · Trades · Free agents (`?kind=trade|free`), composes with the
+other two. Trades between three or more teams keep one line per team.
+
+**Fantasy Challenge moves come from the official log.** The sync diffed
+roster snapshots, so a player traded and then released before the next pass
+was recorded as a release by the team that traded him. In round 4 Theis
+showed as Laurynas Birutis's release, and the Laurynas–Birka trade read
+2-for-1. When the rosters differ, the sync now reads the round's
+`fantasy-trades` log and replays it in id order (`planFromLog`). A
+pass-through player is in both teams' rows but gets no roster window. If the
+log can't be read, or doesn't end at the official rosters, the sync plans
+from the difference as before and the report says so. `npm run moves:repair
+-- --rounds=…` (dry run unless `--write`) re-records rounds already stored,
+touching only the sync's own `transactions` rows. **Not yet run on
+production**, so round 4 still shows the old rows until it is.
+Debt: the BasketNews sync has the same blind spot. Its public
+`draftTransfersFromClient` log is described in research/basketnews-api.md.
+
 **Rosters sync by themselves.** EuroVafliai 26-27's round 4 was blocked on
 Cameron Payne, a new Efes signing missing from the pool (a production
 `rosters:sync` added him and Abdrahamane Kone on 8 October). The worker now
@@ -133,6 +155,12 @@ commissioner fold; an imported league's band says "Imported from BasketNews".
   `/l/<league>/draft` each fit their main act on the first screen at 1280×900.
 - At 375px every team chip is on screen; `?team=<member>&round=<n>` narrows
   the timeline and an empty combination says so with a way back.
+- On `/l/<league>/transactions` a trade is one line with both teams at
+  either end; a free-agent move has the dashed FA crest. Trades / Free agents
+  chips narrow the list.
+- `npm run moves:repair -- --rounds=4` against a database with the
+  EuroVafliai 26-27 league prints the round's rows it would add and remove;
+  with `--write`, round 4's trade reads Hoard + Theis for Sorkin + Mantzoukas.
 
 ## Player mapping, 5 October 2026
 

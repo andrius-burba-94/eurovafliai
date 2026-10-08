@@ -7,7 +7,7 @@ import seatsJson from "./fixtures/league-seats.json";
 import poolJson from "./fixtures/pool.json";
 import { resolveFantasy } from "./match";
 import { parseLeagueRosters } from "./parse";
-import { planSync, rostersAgree, type SyncSeat } from "./plan";
+import { planFromLog, planSync, rostersAgree, type LoggedMove, type SyncSeat } from "./plan";
 
 const names: Record<string, string> = { a: "Alpha", b: "Bravo", c: "Charlie" };
 const teamName = (id: string) => names[id] ?? id;
@@ -133,6 +133,93 @@ describe("planSync", () => {
 
   it("does nothing when the rosters already agree", () => {
     expect(plan({ a: ["p1"], b: ["p2"] }, { a: ["p1"], b: ["p2"] }).steps).toEqual([]);
+  });
+});
+
+describe("planFromLog", () => {
+  // Bravo traded Theis and Hoard to Alpha for Sorkin and Mantzoukas, and Alpha
+  // released Theis for Diarra before the next pass: round 4 of EuroVafliai
+  // 26-27, as the official log has it (matchday 1531, 9 October 2026).
+  const before = { a: ["sorkin", "mantz", "bloss"], b: ["hoard", "theis", "faried"] };
+  const after = { a: ["hoard", "ndiaye", "diarra"], b: ["sorkin", "mantz", "dokossi"] };
+  const log: LoggedMove[] = [
+    { order: 1271182, member: "b", arrival: "sorkin", departure: "theis", departureTo: "a" },
+    { order: 1271183, member: "b", arrival: "mantz", departure: "hoard", departureTo: "a" },
+    { order: 1271190, member: "a", arrival: "diarra", departure: "theis", departureTo: null },
+    { order: 1271193, member: "a", arrival: "ndiaye", departure: "bloss", departureTo: null },
+    { order: 1284225, member: "b", arrival: "dokossi", departure: "faried", departureTo: null },
+  ];
+  const fromLog = (current: Record<string, string[]>, wanted: Record<string, string[]>, moves: LoggedMove[]) =>
+    planFromLog({ round: 4, seats: seatsOf(current), target: new Map(Object.entries(wanted)), teamName, playerName, log: moves });
+  const windows = (steps: NonNullable<ReturnType<typeof fromLog>>["steps"]) =>
+    steps.map((step) => ({
+      type: step.plan.type,
+      closes: step.plan.closes.map((close) => close.membershipId).sort(),
+      opens: step.plan.opens.map((open) => `${open.player}@${open.member}:${open.acquired_via}`).sort(),
+    }));
+
+  it("records a player traded and then released with both teams that held him", () => {
+    const result = fromLog(before, after, log)!;
+    expect(result.steps.map((step) => step.plan.type)).toEqual(["drop", "drop", "trade", "add", "add"]);
+    const trade = result.steps[2]!.plan;
+    expect(trade.playersOut).toEqual({ a: ["sorkin", "mantz"], b: ["theis", "hoard"] });
+    expect(trade.playersIn).toEqual({ a: ["theis", "hoard"], b: ["sorkin", "mantz"] });
+    expect(result.steps[0]!.plan.playersOut).toEqual({ a: ["theis", "bloss"] });
+    expect(result.steps[3]!.plan.playersIn).toEqual({ a: ["diarra", "ndiaye"] });
+    expect(result.steps[2]!.note).toBe("Fantasy Challenge, round 4: Alpha sent SORKIN, MANTZ to Bravo for THEIS, HOARD.");
+    expect(result.moves[0]).toBe(result.steps[2]!.announcement);
+  });
+
+  it("gives the passing player no window on the team he passed through", () => {
+    expect(windows(fromLog(before, after, log)!.steps)).toEqual([
+      { type: "drop", closes: ["seat_bloss"], opens: [] },
+      { type: "drop", closes: ["seat_faried"], opens: [] },
+      { type: "trade", closes: ["seat_hoard", "seat_mantz", "seat_sorkin", "seat_theis"], opens: ["hoard@a:trade", "mantz@b:trade", "sorkin@b:trade"] },
+      { type: "add", closes: [], opens: ["diarra@a:signing", "ndiaye@a:signing"] },
+      { type: "add", closes: [], opens: ["dokossi@b:signing"] },
+    ]);
+  });
+
+  it("reads back as one trade and one exchange per team", () => {
+    const date = "2026-10-09 10:00:00.000Z";
+    const rows = fromLog(before, after, log)!.steps.map((step, index) => ({
+      id: `t${index}`,
+      type: step.plan.type,
+      from_round: step.plan.fromRound,
+      members: step.plan.members,
+      players_in: step.plan.playersIn,
+      players_out: step.plan.playersOut,
+      note: step.note,
+      date,
+    }));
+    const events = groupTransactionHistory(rows);
+    expect(events.filter((event) => event.rows[0]!.type === "trade" && !event.exchange && !event.swap)).toHaveLength(1);
+    expect(events.map((event) => event.exchange).filter(Boolean)).toEqual([
+      { memberId: "a", acquiredIds: ["diarra", "ndiaye"], releasedIds: ["theis", "bloss"] },
+      { memberId: "b", acquiredIds: ["dokossi"], releasedIds: ["faried"] },
+    ]);
+  });
+
+  it("has nothing to do when an earlier pass already applied the log", () => {
+    expect(fromLog(after, after, log)).toEqual({ moves: [], steps: [] });
+  });
+
+  it("gives up when the log does not explain the rosters", () => {
+    expect(fromLog(before, after, log.slice(0, 4))).toBeNull();
+    expect(fromLog(before, after, [{ ...log[0]!, departure: "bloss" }, ...log.slice(1)])).toBeNull();
+  });
+
+  it("opens a signing traded on inside one window only where he ends up", () => {
+    const result = fromLog({ a: ["x1"], b: ["y1"] }, { a: ["y1"], b: ["p"] }, [
+      { order: 1, member: "a", arrival: "p", departure: "x1", departureTo: null },
+      { order: 2, member: "a", arrival: "y1", departure: "p", departureTo: "b" },
+    ])!;
+    expect(windows(result.steps)).toEqual([
+      { type: "drop", closes: ["seat_x1"], opens: [] },
+      { type: "trade", closes: ["seat_y1"], opens: ["p@b:trade", "y1@a:trade"] },
+      { type: "add", closes: [], opens: [] },
+    ]);
+    expect(result.steps[2]!.plan.playersIn).toEqual({ a: ["p"] });
   });
 });
 

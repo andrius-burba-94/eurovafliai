@@ -204,6 +204,20 @@ export function TeamCrest({
   );
 }
 
+/** Free agency where a trading partner's crest would stand: no colour, no team, just FA. */
+export function PoolCrest({ size = 24, className = "" }: { size?: number; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="pool-crest"
+      className={`inline-grid shrink-0 place-items-center rounded-block border-[1.5px] border-dashed border-rule-strong font-display font-extrabold leading-none text-ink-soft ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
+    >
+      FA
+    </span>
+  );
+}
+
 /** The member's colour as a field behind a hero strip or a band. */
 export function teamFieldStyle(color: TeamColor): CSSProperties {
   return { "--team": `var(--color-team-${color})` } as CSSProperties;
