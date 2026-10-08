@@ -85,4 +85,36 @@ describe("parseServerEnv", () => {
       parseServerEnv({ ...validServerEnv, PB_INTERNAL_URL: "127.0.0.1:8095" }),
     ).toThrow(/PB_INTERNAL_URL/);
   });
+
+  it("treats a blank Gemini key as unset and keeps a real one", () => {
+    expect(parseServerEnv({ ...validServerEnv, GEMINI_API_KEY: "  " }).GEMINI_API_KEY).toBeUndefined();
+    expect(parseServerEnv({ ...validServerEnv, GEMINI_API_KEY: "AQ.example" }).GEMINI_API_KEY).toBe(
+      "AQ.example",
+    );
+  });
+
+  it("defaults the Gemini model, including when the variable is blank", () => {
+    expect(parseServerEnv(validServerEnv).GEMINI_MODEL).toBe("gemini-3.8-flash");
+    expect(parseServerEnv({ ...validServerEnv, GEMINI_MODEL: "" }).GEMINI_MODEL).toBe("gemini-3.8-flash");
+    expect(parseServerEnv({ ...validServerEnv, GEMINI_MODEL: "gemini-3.5-flash-lite" }).GEMINI_MODEL).toBe(
+      "gemini-3.5-flash-lite",
+    );
+  });
+
+  it("refuses a model name that could leave the model path", () => {
+    for (const model of ["models/../x", "gemini 3", "Gemini-3.8-flash", "a?key=1"]) {
+      expect(() => parseServerEnv({ ...validServerEnv, GEMINI_MODEL: model })).toThrow(/GEMINI_MODEL/);
+    }
+  });
+
+  it("never echoes the Gemini key in an error", () => {
+    let message = "";
+    try {
+      parseServerEnv({ ...validServerEnv, GEMINI_API_KEY: "AQ.secret-value", GEMINI_MODEL: "bad model" });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("GEMINI_MODEL");
+    expect(message).not.toContain("AQ.secret-value");
+  });
 });
