@@ -80,6 +80,10 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   ],
   leagues: [{ fields: ["slug"], whereSet: "slug" }],
   league_members: [{ fields: ["league", "slug"], whereSet: "slug" }],
+  // `unique(league, season, round, kind, member)` — 7.0's write-ups. An
+  // unset relation is '' in PocketBase, so the store writes it explicitly and
+  // two league-wide rows for one round collide here as they do there.
+  ai_writeups: [["league", "season", "round", "kind", "member"]],
 };
 
 /**
