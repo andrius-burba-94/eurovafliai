@@ -34,7 +34,10 @@ export function planStarterBackfill({
     const playerId = playerByCode.get(row.personCode);
     if (playerId === undefined) continue;
     const current = stored.get(`${playerId}|${row.gameCode}`);
-    if (!current) continue;
+    // The same player and game code is not proof of the same line: a database
+    // holding another season's games under this one (a rehearsal did) would
+    // take another night's start. The club and round must agree too.
+    if (!current || current.club_code !== row.clubCode || current.round !== row.round) continue;
     const started = row.started ? "yes" : "no";
     if ((current.started ?? "") !== started) updates.push({ id: current.id, started });
   }

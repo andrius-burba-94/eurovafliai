@@ -36,6 +36,13 @@ describe("planStarterBackfill", () => {
     expect(planStarterBackfill({ rows: [row(true)], players, existing: [stored("yes")] })).toEqual([]);
   });
 
+  it("never writes onto a stored line from a different club or round", () => {
+    const elsewhere = { ...stored(""), club_code: "OLY" } as ExistingStatRow;
+    const earlier = { ...stored(""), round: 2 } as ExistingStatRow;
+    expect(planStarterBackfill({ rows: [row(true)], players, existing: [elsewhere] })).toEqual([]);
+    expect(planStarterBackfill({ rows: [row(true)], players, existing: [earlier] })).toEqual([]);
+  });
+
   it("skips a side the feed could not read, a player the pool lacks and a row never stored", () => {
     expect(planStarterBackfill({ rows: [row()], players, existing: [stored("")] })).toEqual([]);
     expect(planStarterBackfill({ rows: [row(true)], players: [], existing: [stored("")] })).toEqual([]);
