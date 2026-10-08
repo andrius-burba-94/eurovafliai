@@ -61,3 +61,29 @@ member's own BasketNews lineups: those are the points that team banked.
 **Tests.** The merge (official wins, feed-only rounds kept, hundredths to
 tenths), raw counting across a whole season, and one deal read through both
 rulesets with a released player who keeps scoring.
+
+## Slice 2 — the trades page as a round timeline
+
+The user picked a round timeline from three mock-ups (ledger rows, round
+timeline, team scorecards). Each deal used to be a card with a header line, a
+note, and a block per side with Out and In columns, so one free-agent swap
+filled a phone screen. Now a round is a heading with its move count and every
+team side is one line, which wraps the players under the team on a phone.
+
+- **The note sentence is not shown.** It was either typed by hand ("Official
+  game: … swapped for free agent … before round 1.") or written by a sync, and
+  in both cases it restated the faces beside it. The stored note is unchanged.
+- **Team chips are crests.** Ten named chips cannot fit 375px, and the
+  scrolling row hid most of the league. Each crest chip keeps a 44px target and
+  carries the team name as its accessible name and tooltip; the active filter
+  is printed in the section's aside, so the colour still has a word.
+- **The round filter** lists the rounds that have moves and composes with the
+  team filter. An empty combination says so and links back to every move.
+- **The stamp moment stays**, smaller and from `sm` up, beside the signed
+  figure; the figure carries a screen-reader "winning" or "losing".
+- The recap's round picker and these filters now share `ChipNav`, so the two
+  rows cannot drift apart.
+
+`tests/e2e/trades-timeline.spec.ts` plants a trade and a free-agent swap and
+checks the grouping, the raw player-against-player figures, that the team row
+does not overflow, and both filters.

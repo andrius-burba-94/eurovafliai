@@ -1,10 +1,11 @@
-import { displayName } from "@/lib/players/name";
+import { displayName, surname } from "@/lib/players/name";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
 import { Bank, EmptyNotice, PositionPatch } from "@/components/board";
 import { PageHeader, TeamCrest } from "@/components/broadcast";
+import { ChipNav } from "@/components/chip-nav";
 import { Glyph } from "@/components/glyphs";
 import { MarketBars } from "@/components/market-bars";
 import { Moment } from "@/components/moment";
@@ -18,18 +19,10 @@ import { formatSignedTenths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
 import { leagueHref } from "@/lib/nav/urls";
 
-const KIND_WORD: Record<LeagueDeal["kind"], string> = {
-  trade: "Trade",
-  exchange: "Free-agent swap",
-  add: "Signing",
-  drop: "Release",
-};
-
 /**
- * Trades (ADR-0011): who is winning the market, then every deal as a card —
- * faces out and in, from which round, and a running verdict stamped on it.
- * The verdict is the same live, player-against-player delta the team page and the
- * recap use.
+ * Trades (ADR-0011): who is winning the market, then every move on a round
+ * timeline, one line per team. A move's verdict is player against player
+ * since the round it counts from, the same delta the team page uses.
  */
 export default async function TransactionsPage({ params, searchParams }: PageProps<"/l/[league]/transactions">) {
   const session = await getSession();
@@ -53,60 +46,101 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
   };
   const crest = (memberId: string, size: number) =>
     styles[memberId] ? <TeamCrest name={name(memberId)} color={styles[memberId]!.color} shape={styles[memberId]!.crest} size={size} /> : null;
+
+  const rounds = [...new Set(deals.map((deal) => deal.fromRound))].sort((a, b) => b - a);
   const team = typeof query.team === "string" && data.members.some((row) => row.id === query.team) ? query.team : null;
-  const shown = team ? deals.filter((deal) => deal.sides.some((side) => side.memberId === team)) : deals;
+  const roundParam = typeof query.round === "string" ? Number(query.round) : Number.NaN;
+  const round = rounds.includes(roundParam) ? roundParam : null;
+  const filterHref = (next: { team: string | null; round: number | null }) => {
+    const search = new URLSearchParams();
+    if (next.team) search.set("team", next.team);
+    if (next.round !== null) search.set("round", String(next.round));
+    const tail = search.toString();
+    return `${base}/transactions${tail ? `?${tail}` : ""}`;
+  };
+  const shown = deals.filter(
+    (deal) => (!team || deal.sides.some((side) => side.memberId === team)) && (round === null || deal.fromRound === round),
+  );
+  const timeline = rounds
+    .map((n) => ({ round: n, deals: shown.filter((deal) => deal.fromRound === n) }))
+    .filter((group) => group.deals.length > 0);
   const market = Object.entries(ledger).sort(([, a], [, b]) => b.netTenths - a.netTenths);
-  const faces = (ids: readonly string[]) =>
-    ids.length === 0 ? (
-      <p className="text-sm text-ink-faint">Nobody</p>
-    ) : (
-      <ul role="list" className="flex flex-col gap-2">
-        {ids.map((playerId) => {
-          const player = players[playerId];
-          return (
-            <li key={playerId} className="flex min-w-0 items-center gap-2">
-              <PlayerPortrait personCode={player?.personCode} name={player?.name ?? "A player"} />
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-semibold">{player ? displayName(player.name) : "A player"}</span>
-                <span className="flex items-center gap-1.5 text-xs text-ink-soft">
-                  {player?.position ? <PositionPatch position={player.position} /> : null}
-                  {player?.clubCode ?? ""}
-                </span>
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    );
+  const traders = data.members.filter((member) => ledger[member.id]);
+
+  const faces = (ids: readonly string[]) => (
+    <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+      {ids.map((playerId) => {
+        const player = players[playerId];
+        const full = player ? displayName(player.name) : "A player";
+        return (
+          <span key={playerId} className="inline-flex min-w-0 items-center gap-1.5" title={full}>
+            <PlayerPortrait personCode={player?.personCode} name={full} className="h-7 w-6" />
+            <span className="truncate font-semibold">
+              <span className="sr-only">{full}</span>
+              <span aria-hidden="true">{player ? surname(player.name) : full}</span>
+            </span>
+            {player?.position ? <PositionPatch position={player.position} /> : null}
+          </span>
+        );
+      })}
+    </span>
+  );
+
+  const moveLine = (side: DealSide) => (
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+      {side.outIds.length > 0 ? (
+        <span className="flex min-w-0 items-center gap-2 text-ink-faint">
+          <span className="sr-only">Out:</span>
+          {faces(side.outIds)}
+        </span>
+      ) : (
+        <span className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">Signed</span>
+      )}
+      <span className="flex min-w-0 items-center gap-2">
+        <Glyph name="swap" size={16} className="shrink-0 text-ink-faint" />
+        {side.inIds.length > 0 ? (
+          <span className="flex min-w-0 items-center gap-2 text-ink">
+            <span className="sr-only">In:</span>
+            {faces(side.inIds)}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">Released</span>
+        )}
+      </span>
+    </span>
+  );
 
   const verdict = (deal: LeagueDeal, side: DealSide) => {
     const winning = side.deltaTenths > 0;
     const losing = side.deltaTenths < 0;
     return (
-      <span className="flex items-center gap-3">
-        <span className={`stat text-sm font-bold ${winning ? "text-gain" : losing ? "text-loss" : "text-ink-soft"}`} data-testid="deal-delta">
-          {formatSignedTenths(side.deltaTenths)}
-        </span>
+      <span className="flex items-center justify-end gap-2">
         {winning || losing ? (
           <Moment
             kind="stamp"
             id={`stamp:${deal.id}:${side.memberId}:${winning ? "win" : "lose"}`}
             as="span"
-            className={`verdict-stamp text-xs ${winning ? "text-gain" : "text-loss"}`}
+            className={`verdict-stamp hidden text-xs sm:inline-grid ${winning ? "text-gain" : "text-loss"}`}
           >
             {winning ? "Winning" : "Losing"}
           </Moment>
         ) : null}
+        <span className={`stat w-14 text-right text-sm font-bold ${winning ? "text-gain" : losing ? "text-loss" : "text-ink-soft"}`} data-testid="deal-delta">
+          {formatSignedTenths(side.deltaTenths)}
+          <span className="sr-only">{winning ? " winning" : losing ? " losing" : " level"}</span>
+        </span>
       </span>
     );
   };
+
+  const filterWords = [team ? name(team) : null, round !== null ? `round ${round}` : null].filter(Boolean).join(" · ");
 
   return (
     <AppShell current="trades" league={navLeagueFrom(data)} measure="wide" testId="transactions">
       <PageHeader
         eyebrow={data.league.name}
         title="Trades"
-        lead="Every recorded move, and what it has been worth since."
+        lead="Every move, scored player against player since it happened."
         action={
           canManage && data.league.status === "season" ? (
             <span className="flex flex-wrap gap-2">
@@ -135,68 +169,84 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
         </Bank>
       ) : null}
 
-      {deals.length > 0 ? (
-        <nav aria-label="Filter by team" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-          <Link
-            href={`${base}/transactions`}
-            aria-current={team === null ? "page" : undefined}
-            className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-3.5 text-sm font-semibold ${team === null ? "border-ink bg-ink text-stock" : "border-rule text-ink-soft hover:text-ink"}`}
-          >
-            All teams
-          </Link>
-          {data.members
-            .filter((member) => ledger[member.id])
-            .map((member) => (
-              <Link
-                key={member.id}
-                href={`${base}/transactions?team=${member.id}`}
-                aria-current={team === member.id ? "page" : undefined}
-                className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-1 pr-3.5 pl-1.5 text-sm font-semibold ${team === member.id ? "border-ink bg-ink text-stock" : "border-rule text-ink-soft hover:text-ink"}`}
-              >
-                {crest(member.id, 22)}
-                {name(member.id)}
-              </Link>
-            ))}
-        </nav>
-      ) : null}
+      <Bank framed label="Moves" aside={filterWords ? `${filterWords} · ${shown.length}` : `${shown.length} recorded`}>
+        {deals.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <ChipNav
+              label="Filter by team"
+              testId="deal-teams"
+              wrap
+              chips={[
+                { key: "all", href: filterHref({ team: null, round }), current: team === null, children: "All" },
+                ...traders.map((member) => ({
+                  key: member.id,
+                  href: filterHref({ team: member.id, round }),
+                  current: team === member.id,
+                  label: name(member.id),
+                  square: true,
+                  children: crest(member.id, 30) ?? name(member.id).slice(0, 2),
+                })),
+              ]}
+            />
+            <ChipNav
+              label="Filter by round"
+              testId="deal-rounds"
+              chips={[
+                { key: "all", href: filterHref({ team, round: null }), current: round === null, children: "All rounds" },
+                ...rounds.map((n) => ({
+                  key: String(n),
+                  href: filterHref({ team, round: n }),
+                  current: round === n,
+                  label: `Round ${n}`,
+                  testId: `deal-round-${n}`,
+                  children: `R${n}`,
+                })),
+              ]}
+            />
+          </div>
+        ) : null}
 
-      <Bank framed label="Trade history" aside={`${shown.length} recorded`}>
-        {shown.length === 0 ? (
+        {deals.length === 0 ? (
           <EmptyNotice>
-            No trades yet. When two teams agree a deal, record it and this page
-            keeps score of who is winning it, round by round.
+            No moves yet. Every trade and signing lands here with what it has
+            been worth since, round by round.
+          </EmptyNotice>
+        ) : timeline.length === 0 ? (
+          <EmptyNotice>
+            No moves for {filterWords}.{" "}
+            <Link href={filterHref({ team: null, round: null })} className="font-semibold text-ink underline underline-offset-4">
+              Show every move
+            </Link>
           </EmptyNotice>
         ) : (
-          <ol className="flex flex-col gap-4" data-testid="deal-list">
-            {shown.map((deal) => (
-              <li key={deal.id} data-testid="deal" className="flex flex-col gap-4 rounded-xl border border-panel-border bg-stock p-4">
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
-                  <span className="rounded-full bg-stock-high px-2 py-0.5 font-bold text-ink">From round {deal.fromRound}</span>
-                  <span className="font-semibold">{KIND_WORD[deal.kind]}</span>
-                  {deal.note ? <span className="truncate">· {deal.note}</span> : null}
-                </p>
-                {deal.sides.map((side, index) => (
-                  <div key={side.memberId} className={`flex flex-col gap-3 ${index > 0 ? "border-t border-panel-border pt-4" : ""}`}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2 font-semibold">
-                        {crest(side.memberId, 28)}
-                        <span className="truncate">{name(side.memberId)}</span>
-                      </span>
-                      {verdict(deal, side)}
-                    </div>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
-                      <div className="flex min-w-0 flex-col gap-2">
-                        <p className="slot-label">Out</p>
-                        {faces(side.outIds)}
-                      </div>
-                      <Glyph name="swap" size={22} className="mt-7 text-ink-faint" />
-                      <div className="flex min-w-0 flex-col gap-2">
-                        <p className="slot-label">In</p>
-                        {faces(side.inIds)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <ol className="flex flex-col gap-5" data-testid="deal-list">
+            {timeline.map((group) => (
+              <li key={group.round} data-testid="deal-round" data-round={group.round}>
+                <h3 className="slot-label flex items-baseline gap-2 border-b border-rule pb-1.5">
+                  Round {group.round}
+                  <span className="font-normal normal-case tracking-normal text-ink-faint">
+                    {group.deals.length} move{group.deals.length === 1 ? "" : "s"}
+                  </span>
+                </h3>
+                <ol className="flex flex-col">
+                  {group.deals.map((deal) => (
+                    <li key={deal.id} data-testid="deal" data-kind={deal.kind} className="flex flex-col border-b border-panel-border py-1 last:border-b-0">
+                      {deal.sides.map((side) => (
+                        <div
+                          key={side.memberId}
+                          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-1.5 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto]"
+                        >
+                          <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                            {crest(side.memberId, 24)}
+                            <span className="truncate">{name(side.memberId)}</span>
+                          </span>
+                          <span className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">{moveLine(side)}</span>
+                          <span className="col-start-2 row-start-1 sm:col-start-3">{verdict(deal, side)}</span>
+                        </div>
+                      ))}
+                    </li>
+                  ))}
+                </ol>
               </li>
             ))}
           </ol>

@@ -93,6 +93,14 @@ league now scores a released player from the box-score feed, so a free-agent
 swap's Out side no longer reads zero; League Stats' free agents fill in for it
 too. One reader, `readLeaguePlayerRounds`, holds the per-ruleset difference.
 
+**Trades page is a round timeline.** Moves sit under the round they count
+from, one line per team: crest and name, the players out (faint) and in, and
+the verdict. The stored note sentence and the per-side cards are gone. Team
+chips are crests alone and wrap, so a full league fits a phone without
+sideways scroll; round chips sit under them, and both filters compose in the
+URL (`?team=…&round=…`). The recap's round chips and these share one
+`ChipNav`.
+
 EuroVafliai 26-27's round 4 was blocked on Cameron Payne, a new Efes signing
 missing from the pool. A production `rosters:sync` added him and Abdrahamane
 Kone on 8 October. See
@@ -103,6 +111,8 @@ Kone on 8 October. See
 - A free-agent swap's Out side shows the released player's points since the
   deal; a benched arrival counts in full.
 - `/l/<league>/stats` lists best free agents for a BasketNews league.
+- At 375px every team chip is on screen; `?team=<member>&round=<n>` narrows
+  the timeline and an empty combination says so with a way back.
 
 ## Player mapping, 5 October 2026
 
