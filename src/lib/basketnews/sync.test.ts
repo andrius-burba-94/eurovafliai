@@ -15,6 +15,7 @@ import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 import {
   BasketNewsSessionExpired,
   readBasketNewsLeague,
+  readBasketNewsLeagueLineups,
   readBasketNewsLineup,
   readBasketNewsScore,
   readBasketNewsTeamReference,
@@ -37,7 +38,7 @@ const playerPool = JSON.parse(readFileSync(new URL("../../../tests/fixtures/bask
 const OWN_TEAM = "6ab26d119050fb90221c5697";
 const LEAGUE = "basketnewsleague";
 
-type Overrides = { lineups?: Record<string, unknown>; scores?: Record<string, unknown> };
+type Overrides = { lineups?: Record<string, unknown>; scores?: Record<string, unknown>; league?: unknown[] };
 
 function capturedSource(expired = false, extra: Overrides = {}): BasketNewsSource {
   const doFetch = (async (_url: string | URL | Request, init?: RequestInit) => {
@@ -45,7 +46,10 @@ function capturedSource(expired = false, extra: Overrides = {}): BasketNewsSourc
     const { query, variables } = request;
     let key: string;
     let value: unknown;
-    if (query.includes("fantasyTeamRecordFromClient")) {
+    if (query.includes("draftLeagueFantasyTeamLineupsFromClient")) {
+      key = "draftLeagueFantasyTeamLineupsFromClient";
+      value = extra.league ?? [];
+    } else if (query.includes("fantasyTeamRecordFromClient")) {
       key = "fantasyTeamRecordFromClient";
       value = { id: OWN_TEAM, title: "Einikio Kabliai", leagueId: fixture.league.leagueId, fantasyLeagues: [{ fantasyLeagueId: fixture.league.id }] };
     } else if (query.includes("fantasyLeagueRecordFromClient")) {
@@ -71,6 +75,7 @@ function capturedSource(expired = false, extra: Overrides = {}): BasketNewsSourc
     teams: (id) => readBasketNewsTeams(id, doFetch),
     lineup: (team, round, competition, cookie) => readBasketNewsLineup(team, round, competition, cookie, doFetch),
     score: (team, round, competition) => readBasketNewsScore(team, round, competition, doFetch),
+    leagueLineups: (id, competition) => readBasketNewsLeagueLineups(id, competition, doFetch),
   };
 }
 
@@ -235,7 +240,7 @@ describe("BasketNews worker import", () => {
     expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
   });
-  it("mirrors an open round and its trades, then corrects that round once its games are played", async () => {
+  it("mirrors an open round and a trade from the league-wide lineups, then corrects that round once its games are played", async () => {
     const data = leagueDb();
     const games = (round: number, played: boolean) => ({ id: `game${round}`, season: "E2026", round, game_code: round, played });
     data.fixtures = [games(1, true), games(2, true), games(3, true), games(4, false), games(5, false)];
@@ -258,12 +263,15 @@ describe("BasketNews worker import", () => {
       partial[`${team.id}:3`] = { ...score, pointsGained: score.pointsGained - 5 };
       settled[`${team.id}:3`] = score;
     }
-    lineups[`${teamA!.id}:4`] = swapped(teamA!.id, fromA, fromB);
-    lineups[`${teamB!.id}:4`] = swapped(teamB!.id, fromB, fromA);
-    for (const team of fixture.teams.slice(2)) lineups[`${team.id}:4`] = { ...last(team.id), fantasyRound: 4 };
+    // Only our own team's round-5 lineup is readable per team, as on BasketNews.
+    lineups[`${OWN_TEAM}:4`] = { ...last(OWN_TEAM), fantasyRound: 4 };
+    const league = fixture.teams.map((team) => ({
+      ...(team.id === teamA!.id ? swapped(teamA!.id, fromA, fromB) : team.id === teamB!.id ? swapped(teamB!.id, fromB, fromA) : { ...last(team.id), fantasyRound: 4 }),
+      fantasyTeamId: team.id,
+    }));
 
     await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-08T12:00:00Z"));
-    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { lineups, scores: partial }));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { lineups, scores: partial, league }));
     expect(db.rows("fantasy_syncs")[0]).toMatchObject({ status: "applied", job_meta: { nextRound: 4 } });
     expect(db.rows("round_lineups")).toHaveLength(45);
     const resultOf = (round: number) => db.rows("round_lineups").filter((row) => row.round === round)
@@ -281,7 +289,7 @@ describe("BasketNews worker import", () => {
     expect(deals).toBeGreaterThan(0);
     db.rows("fixtures").find((row) => row.round === 4)!.played = true;
     await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-09T23:00:00Z"));
-    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { lineups, scores: settled }));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { lineups, scores: settled, league }));
     expect(db.rows("fantasy_syncs")[1]).toMatchObject({ status: "applied" });
     expect(resultOf(4).every((result) => result?.final === true)).toBe(true);
     const own = db.rows("round_lineups").find((row) => row.round === 4 && row.member === memberOf(teamA!.id))!;

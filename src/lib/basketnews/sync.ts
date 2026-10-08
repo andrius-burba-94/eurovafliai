@@ -7,7 +7,7 @@ import type { Position } from "@/lib/engine";
 
 import {
   BasketNewsSessionExpired,
-  readBasketNewsLeague, readBasketNewsLineup, readBasketNewsScore,
+  readBasketNewsLeague, readBasketNewsLeagueLineups, readBasketNewsLineup, readBasketNewsScore,
   readBasketNewsTeamReference, readBasketNewsTeams,
   type BasketNewsLeague, type BasketNewsLineup, type BasketNewsScore,
   type BasketNewsTeam,
@@ -50,6 +50,7 @@ export interface BasketNewsSource {
   teams: typeof readBasketNewsTeams;
   lineup: typeof readBasketNewsLineup;
   score: typeof readBasketNewsScore;
+  leagueLineups: typeof readBasketNewsLeagueLineups;
 }
 
 export const basketNewsSource: BasketNewsSource = {
@@ -58,6 +59,7 @@ export const basketNewsSource: BasketNewsSource = {
   teams: readBasketNewsTeams,
   lineup: readBasketNewsLineup,
   score: readBasketNewsScore,
+  leagueLineups: readBasketNewsLeagueLineups,
 };
 
 type SourcePlayer = BasketNewsLeague["draft"]["picks"][number]["player"];
@@ -139,8 +141,8 @@ export async function syncBasketNews(
   const gamesOf = (round: number) => local.fixtures.filter((game) => game.round === round);
   const isFinal = (round: number) => gamesOf(round).every((game) => game.played);
   const unplayed = local.fixtures.filter((game) => !game.played).map((game) => game.round);
-  // The next round's lineup is where a trade made during this one first shows.
-  const lastReadable = unplayed.length ? Math.min(...unplayed) + 1 : 0;
+  // The round being played (or about to be) is the last one read team by team.
+  const lastReadable = unplayed.length ? Math.min(...unplayed) : 0;
 
   const rounds: { round: number; final: boolean; lineups: BasketNewsLineup[]; scores: (BasketNewsScore | null)[] }[] = [];
   const first = Math.max(1, startRound ? Math.min(startRound, local.firstOpenRound) : local.firstOpenRound);
@@ -163,6 +165,18 @@ export async function syncBasketNews(
       break;
     }
     rounds.push({ round, final, scores, lineups });
+  }
+
+  // Other teams' lineups for a round that has not locked are private, so the
+  // league-wide read is how a transfer reaches us before its round tips off.
+  const current = await source.leagueLineups(official.id, official.leagueId);
+  const currentRound = current[0] ? current[0].fantasyRound + 1 : null;
+  if (currentRound !== null && currentRound > (rounds.at(-1)?.round ?? local.latestStoredRound - 1) && currentRound >= first) {
+    const byTeam = new Map(current.map((row) => [row.fantasyTeamId, row]));
+    if (current.some((row) => row.fantasyRound + 1 !== currentRound) || teams.some((team) => byTeam.get(team.id)?.players.length !== 13)) {
+      throw new Error("BasketNews league lineups disagree on the round or are incomplete; refusing a partial roster sync.");
+    }
+    rounds.push({ round: currentRound, final: false, scores: teams.map(() => null), lineups: teams.map((team) => byTeam.get(team.id)!) });
   }
 
   const picks = official.draft.picks;

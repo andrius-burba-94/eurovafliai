@@ -65,8 +65,10 @@ synced since.
   games read `basketnews_raw_pts`.
 - **Final results.** A round's BasketNews result is `final` only once its
   games are played. Until then, every pass re-reads it.
-- **Rosters and trades.** Each pass also reads the round in progress and the
-  next round's lineups, so a BasketNews trade lands within 15 minutes.
+- **Rosters and trades.** Each pass also reads BasketNews's public league-wide
+  lineups (`draftLeagueFantasyTeamLineupsFromClient`), so a processed transfer
+  lands within 15 minutes, before its round tips off. Other teams' lineups for
+  a round that has not locked are private, so the per-team read cannot do this.
 - **No roster replay.** A re-read below the newest stored round never replays
   rosters.
 
@@ -78,8 +80,8 @@ Lineup, roster and trade writes stay BasketNews-owned. See the log for details.
 - Open `/l/<league>/matchday`. Live is in the nav and shows provisional points.
 - Standings reads "So far" for the round being played. Recap marks it "in
   progress".
-- After the next worker pass, `/l/<league>/transactions` lists any BasketNews
-  trade from the next round.
+- After the next worker pass, `/l/<league>/transactions` lists any transfer
+  BasketNews has processed for the next round.
 
 ## Player mapping, 5 October 2026
 

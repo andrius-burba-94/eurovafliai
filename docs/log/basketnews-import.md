@@ -56,7 +56,7 @@ There is no ruleset field. Every difference came from one assumption in #166, ke
 **The fix:**
 - A stored result carries `final`. It is true only when the round's fixtures are all played and the BasketNews arithmetic adds up. A mismatch before then is stored, not thrown.
 - Each pass starts at the first round without a final result for every team. Results stored before `final` existed are therefore re-read once, which is safe.
-- A pass reads up to the round after the first unplayed one. That next-round lineup is where a trade made mid-round first appears.
+- The per-team read goes up to the first unplayed round. Rosters for the round after that come from the league-wide read; see the probe below.
 - An open round's missing lineup ends the pass, but an expired session still fails it.
 - Roster plans run only for rounds at or after the newest stored round. Re-reading an older round therefore cannot replay its roster over a later trade.
 - Live uses the same feed as the EuroLeague league:
@@ -74,4 +74,12 @@ There is no ruleset field. Every difference came from one assumption in #166, ke
 
 Removing either the finality rule or the roster guard fails it. `queries.test.ts` covers the BasketNews and EuroLeague live points side by side.
 
-**Not checked.** A live probe of BasketNews's open-round lineups could not be run with the production session. If BasketNews withholds other teams' next-round lineups, the pass stops at the round in progress and trades appear when that round locks.
+**BasketNews probe, 8 October.** This was a read-only run through the commissioner's logged-in browser, during round 4:
+- **`fantasyTeamLineupRecordFromClient` for round 5.** It returns our own team's lineup, but `null` for the other eight teams, so it cannot carry a trade before the round locks.
+- **`fantasyTeamScoreRecordFromClient` for round 4.** It returns live partial scores while the round is played. The weighted player points add up to them exactly.
+- **`draftLeagueFantasyTeamLineupsFromClient(fantasyLeagueId)`.** It returns all nine teams' current 13-player lineups with their `fantasyRound`, and needs no session. The sync now reads it on every pass. When it is ahead of the newest round read, its rosters are planned as that round.
+- **`draftTransfersFromClient(fantasyLeagueId, fantasyRound)`.** It lists each round's processed transfers: type (`free_agent`, …), time, and the offered and accepted players. Round 4's six free-agent swaps ran on 7 October at 15:49 UTC, before that round locked.
+  - The sync does not read it yet. `planSync` infers the same moves from roster differences, but it groups a team's several swaps in one round into one release-and-sign.
+  - Reading this endpoint would give the exact pairs, if that matters.
+
+**Production check.** Production's active rosters matched the league-wide lineups for all nine teams, player by player. So no transfer was missing at the time. The defect was the frozen round-4 score, and that a later transfer would only have arrived after its round's first scored game.
