@@ -101,9 +101,16 @@ sideways scroll; round chips sit under them, and both filters compose in the
 URL (`?team=…&round=…`). The recap's round chips and these share one
 `ChipNav`.
 
-EuroVafliai 26-27's round 4 was blocked on Cameron Payne, a new Efes signing
-missing from the pool. A production `rosters:sync` added him and Abdrahamane
-Kone on 8 October. See
+**Rosters sync by themselves.** EuroVafliai 26-27's round 4 was blocked on
+Cameron Payne, a new Efes signing missing from the pool (a production
+`rosters:sync` added him and Abdrahamane Kone on 8 October). The worker now
+syncs the 20 club rosters every six hours, and within the hour of a name
+nobody in the pool answers to — a box-score code, a news name, or a player
+question from either external sync (Fantasy Challenge or BasketNews). After a
+pass that adds a player or fills a code it re-imports the games his lines were
+refused from, attaches his news, and re-runs any blocked external sync. An
+unchanged roster stores no batch. Bios no longer count as changes when they
+are unchanged. See
 [log/trades-and-rosters-2026-10-08.md](log/trades-and-rosters-2026-10-08.md).
 
 **Try it on localhost:**
@@ -111,6 +118,9 @@ Kone on 8 October. See
 - A free-agent swap's Out side shows the released player's points since the
   deal; a benched arrival counts in full.
 - `/l/<league>/stats` lists best free agents for a BasketNews league.
+- `ROSTER_FETCH=on npm run worker:dev`: a few minutes after boot the log
+  shows a `rosters ·` line when the feed lists somebody the pool lacks, and
+  says nothing when it does not.
 - At 375px every team chip is on screen; `?team=<member>&round=<n>` narrows
   the timeline and an empty combination says so with a way back.
 
@@ -581,13 +591,16 @@ did not finish.
 | Injury news (60min) | ✔ via worker | ✔ via worker |
 | Last-season averages | ✔ **new**, on boot when absent | ✔ same worker |
 | Nightly backup | — | ✔ systemd timer |
-| **Roster ingestion** (`rosters:sync`) | ✖ by hand | ✖ by hand |
+| **Roster sync** (6h, or within the hour of a new unknown name) | ✔ via worker | ✔ via worker |
 
-PM2 is `enabled` for boot, so both processes survive a reboot. **Roster
-ingestion stays manual by design** — ADR/blueprint 2.1 makes the API and the
-hand-corrected CSV alternately authoritative, and a process that silently
-re-synced the pool could overwrite a commissioner's corrections the night
-before a draft.
+PM2 is `enabled` for boot, so both processes survive a reboot. **Roster sync
+runs by itself since 8 October 2026.** It used to stay manual so a silent
+re-sync could not overwrite a commissioner's corrections the night before a
+draft; D8's own safeguards cover that: only the authoritative source writes
+(the API is report-only while the CSV holds authority), `manual_lock` rows are
+never touched, suspected renames wait on `/players/mapping`, and a departure
+share that looks like a truncated feed writes nothing. `ROSTER_FETCH=off`
+stops it; `npm run rosters:sync` remains the manual door.
 
 ## Try it on localhost — four reports from a real draft night
 

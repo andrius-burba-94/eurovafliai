@@ -50,6 +50,13 @@ import { processBasketNewsJobs, queueBasketNewsLeagues } from "@/lib/basketnews/
 import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
+import {
+  readUnknownNames,
+  ROSTER_SYNC_EVERY_MS,
+  rosterSyncDue,
+  summariseRosterSync,
+  syncRostersFromFeed,
+} from "@/lib/rosters/auto-sync";
 import { fetchSeasonAverages } from "@/lib/stats/euroleague";
 import { ingestFinishedGames, summariseIngest } from "@/lib/stats/ingest";
 import { ensureSlugs } from "@/lib/slugs/store";
@@ -116,6 +123,13 @@ const LIVE_FIRST_AFTER_MS = 95_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
 const BASKETNEWS_QUEUE_EVERY_MS = 15 * 60_000;
+/**
+ * How often the roster scheduler asks whether a pass is due. The question is
+ * a few local reads; the pass itself is 21 feed requests, and `rosterSyncDue`
+ * holds it to every six hours or a new unknown name, never closer than an hour.
+ */
+const ROSTER_CHECK_EVERY_MS = 15 * 60_000;
+const ROSTER_FIRST_AFTER_MS = 180_000;
 const BASKETNEWS_POLL_EVERY_MS = 5_000;
 
 function log(message: string, level: "info" | "warn" | "error" = "info"): void {
@@ -559,10 +573,64 @@ function main(): void {
     slugsTimer = setInterval(runSlugs, 60 * 60_000);
   }, 5_000).unref?.();
 
+  /**
+   * The roster sync (8 October 2026): every six hours, and within the hour of
+   * a name the app is waiting on — a box-score code, a news name, or an
+   * external sync's player question. Names that stay unknown after a pass are
+   * remembered, so a player the feed does not list either cannot keep the
+   * feed busy.
+   */
+  let rostersInFlight: Promise<void> | null = null;
+  let rostersTimer: ReturnType<typeof setInterval> | null = null;
+  let rostersLastRunAt: number | null = null;
+  const rosterNamesSeen = new Set<string>();
+
+  async function rosterPass(): Promise<void> {
+    try {
+      await ensureAuth(pb, env);
+      const now = new Date();
+      const unknown = await readUnknownNames(pb, env.EUROLEAGUE_SEASON, now);
+      const decision = rosterSyncDue({ now: now.getTime(), lastRunAt: rostersLastRunAt, unknown, seen: rosterNamesSeen });
+      if (!decision.due) return;
+      rostersLastRunAt = now.getTime();
+      for (const key of unknown) rosterNamesSeen.add(key);
+      const report = await syncRostersFromFeed({
+        pb,
+        season: env.EUROLEAGUE_SEASON,
+        now,
+        ...(env.STATS_FETCH === "off" ? { reimport: false as const } : {}),
+        fantasyToken: env.FANTASY_CHALLENGE_TOKEN,
+      });
+      const line = summariseRosterSync(report);
+      if (line) log(`${line} · ${decision.reason}`, report.problems.length > 0 || report.skipped?.startsWith("refused") ? "warn" : "info");
+      if (line) for (const problem of report.problems.slice(0, 10)) log(`rosters · ${problem}`, "warn");
+    } catch (error) {
+      log(`roster pass failed: ${describeError(error)}`, "error");
+      pb.authStore.clear();
+    }
+  }
+
+  function scheduleRosters(): void {
+    if (env.ROSTER_FETCH === "off") {
+      log("roster sync is off (ROSTER_FETCH=off) — new signings wait for npm run rosters:sync");
+      return;
+    }
+    log(`roster sync on · every ${ROSTER_SYNC_EVERY_MS / 3_600_000}h, or within the hour of a new unknown name`);
+    const run = () => {
+      if (stopping || rostersInFlight) return;
+      rostersInFlight = rosterPass().finally(() => { rostersInFlight = null; });
+    };
+    setTimeout(() => {
+      run();
+      rostersTimer = setInterval(run, ROSTER_CHECK_EVERY_MS);
+    }, ROSTER_FIRST_AFTER_MS).unref?.();
+  }
+
   scheduleStats();
   scheduleNews();
   scheduleLive();
   scheduleFantasy();
+  scheduleRosters();
   let basketNewsInFlight: Promise<void> | null = null;
   let basketNewsLastQueued = 0;
   const basketNewsTimer = setInterval(() => {
@@ -632,6 +700,7 @@ function main(): void {
     if (newsTimer) clearInterval(newsTimer);
     if (liveTimer) clearInterval(liveTimer);
     if (fantasyTimer) clearInterval(fantasyTimer);
+    if (rostersTimer) clearInterval(rostersTimer);
     clearInterval(basketNewsTimer);
     if (slugsTimer) clearInterval(slugsTimer);
     log(`${signal} received, finishing the tick in flight`);

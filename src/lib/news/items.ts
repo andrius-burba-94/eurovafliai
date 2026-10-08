@@ -197,7 +197,7 @@ function resolve(
 }
 
 export function matchPlayer(
-  item: ScrapedItem,
+  item: Pick<ScrapedItem, "slug" | "name">,
   players: readonly NewsPlayerRow[],
   bySlug: ReadonlyMap<string, string>,
 ): NewsMatch {

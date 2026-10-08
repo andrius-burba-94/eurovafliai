@@ -87,3 +87,46 @@ team side is one line, which wraps the players under the team on a phone.
 `tests/e2e/trades-timeline.spec.ts` plants a trade and a free-agent swap and
 checks the grouping, the raw player-against-player figures, that the team row
 does not overflow, and both filters.
+
+## Slice 3 — rosters sync by themselves
+
+Nothing added a player unless somebody ran `npm run rosters:sync` or uploaded
+a CSV. A new signing's box-score lines were refused, his news went unattached,
+and in EuroVafliai 26-27 the Fantasy Challenge sync stopped on round 4 with a
+question no pool player could answer.
+
+**When it runs.** The worker asks every 15 minutes whether a pass is due
+(`rosterSyncDue`, pure): every six hours, or sooner — never within the hour of
+the last pass — when a name appears that the app is waiting on and has not
+seen since the last pass. The names are this season's unmatched box-score
+codes, news names from the last 30 days, and the player questions a blocked
+Fantasy Challenge or BasketNews sync stored in the last day. A name that is
+still unknown after a pass (George Papas, Lorenzo Brown: not in the feed
+either) is remembered and cannot keep pulling passes forward.
+
+**What it keeps from D8.** It runs `runRosterImport` with the API as source,
+so the authority switch, `manual_lock`, rename quarantine and stored batch all
+hold. Unattended, it adds two rules: a departure share above the guard writes
+nothing (the script needs `--allow-departures` for that), and a roster with
+nothing to write stores no batch, so four passes a day do not bury the ones
+that mattered.
+
+**What follows an added player or a filled code.**
+- The games his code was refused from are re-imported (`ingestFinishedGames`
+  with `onlyGames`, the path `attachStatCode` already used).
+- Unattached news names that now resolve to exactly one player are attached by
+  slug.
+- Every BasketNews league is queued; a Fantasy Challenge league whose latest
+  run is blocked is re-run, rosters and lineups, the way "Sync now" does.
+
+Each step is idempotent and the next pass retries what failed.
+
+**The bio noise.** `readCurrentPlayers` did not read the bio columns, so every
+bio the feed carried looked new and an import "changed" about 290 players to
+the values they already held. It reads them now, with PocketBase's empty `0`
+and `""` mapped back to unknown.
+
+**Tests.** The schedule and the new-name rule; a sync that adds a signing,
+re-imports his refused games and attaches his news; an unchanged roster;
+a truncated feed refused; CSV authority report-only; and the unknown-name
+reader across codes, news and both rulesets' questions.

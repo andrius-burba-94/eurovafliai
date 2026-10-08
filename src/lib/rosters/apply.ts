@@ -54,7 +54,16 @@ type PlayerRecord = {
   source: ExistingPlayer["source"];
   manual_lock: boolean;
   dorsal: string;
+  height?: number;
+  weight?: number;
+  birth_date?: string;
+  country_code?: string;
+  country_name?: string;
 };
+
+/** PocketBase stores an unset number as 0 and unset text as ""; the diff's "unknown" is absent. */
+const bio = <T extends string | number>(value: T | undefined): T | undefined =>
+  value === undefined || value === "" || value === 0 ? undefined : value;
 
 /**
  * Read the whole pool. 324 rows, so paging exists for correctness rather than
@@ -81,6 +90,13 @@ export async function readCurrentPlayers(
     source: record.source,
     manual_lock: Boolean(record.manual_lock),
     dorsal: record.dorsal ?? "",
+    // Read back so an unchanged bio is not a change. Without these, every sync
+    // that read the feed's bios "changed" ~290 players to the values they held.
+    height: bio(record.height),
+    weight: bio(record.weight),
+    birth_date: bio(record.birth_date),
+    country_code: bio(record.country_code),
+    country_name: bio(record.country_name),
   }));
 }
 
