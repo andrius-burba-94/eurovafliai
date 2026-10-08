@@ -108,15 +108,20 @@ dashed FA crest (`PoolCrest`) where a partner would be. A third chip row,
 All moves · Trades · Free agents (`?kind=trade|free`), composes with the
 other two. Trades between three or more teams keep one line per team.
 
-**Next: exact BasketNews transfers.** The sync diffs roster snapshots, so a
-player traded and then released before the next pass is recorded as a drop
-by the team that traded him. Round 4's Theis shows as Laurynas Birutis's
-release, and the Laurynas–Birka trade reads 2-for-1. The fix is to replay
-`draftTransfersFromClient` (log/basketnews-import.md), fall back to the diff
-with a commissioner flag when the log disagrees with the rosters, and repair
-stored rounds idempotently. Memberships are already right; only the
-transaction rows and their per-row verdicts are wrong. Fantasy Challenge has
-the same blind spot (`fantasy-trades`, research/fantasy-challenge-api.md).
+**Fantasy Challenge moves come from the official log.** The sync diffed
+roster snapshots, so a player traded and then released before the next pass
+was recorded as a release by the team that traded him. In round 4 Theis
+showed as Laurynas Birutis's release, and the Laurynas–Birka trade read
+2-for-1. When the rosters differ, the sync now reads the round's
+`fantasy-trades` log and replays it in id order (`planFromLog`). A
+pass-through player is in both teams' rows but gets no roster window. If the
+log can't be read, or doesn't end at the official rosters, the sync plans
+from the difference as before and the report says so. `npm run moves:repair
+-- --rounds=…` (dry run unless `--write`) re-records rounds already stored,
+touching only the sync's own `transactions` rows. **Not yet run on
+production**, so round 4 still shows the old rows until it is.
+Debt: the BasketNews sync has the same blind spot. Its public
+`draftTransfersFromClient` log is described in research/basketnews-api.md.
 
 **Rosters sync by themselves.** EuroVafliai 26-27's round 4 was blocked on
 Cameron Payne, a new Efes signing missing from the pool (a production
@@ -153,6 +158,9 @@ commissioner fold; an imported league's band says "Imported from BasketNews".
 - On `/l/<league>/transactions` a trade is one line with both teams at
   either end; a free-agent move has the dashed FA crest. Trades / Free agents
   chips narrow the list.
+- `npm run moves:repair -- --rounds=4` against a database with the
+  EuroVafliai 26-27 league prints the round's rows it would add and remove;
+  with `--write`, round 4's trade reads Hoard + Theis for Sorkin + Mantzoukas.
 
 ## Player mapping, 5 October 2026
 

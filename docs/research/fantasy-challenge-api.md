@@ -62,10 +62,28 @@ The game lists no matchdays, so the current one comes from
 with `fantasy_league.id` and `matchday { id, number }`) and other rounds are
 counted from it.
 
+## The move log (checked 9 October 2026)
+
+`GET /fantasy-leagues/{leagueId}/fantasy-trades?matchday={id}` →
+`{ data: Move[] }`, every team's moves for that matchday. The sync reads it
+whenever the rosters differ (`fetchLeagueMoves`, `planFromLog`).
+
+- `Move`: `id`, `player_1`, `player_2`, and nothing else: no time, no type.
+- `player_1` is the arrival, `player_2` the departure. Each carries the roster
+  `Player` fields (no `position` or `team`) plus `fantasy_team { id, name }`:
+  **the team that player went to**. So a trade names both teams, and a
+  free-agent swap has `player_2.fantasy_team` null. `player_2` may also
+  carry `credits`.
+- A two-for-two trade is two rows, one pair of players each.
+- Ids rise in the order moves were made. That is the only ordering there is.
+- The matchday is the round the move counts from: matchday 1531 (round 4) held
+  the round-4 moves, including Laurynas Birutis sending Theis to Birka Ne
+  Plugas (`1271182`) and Birka releasing him for Diarra (`1271190`).
+- A released player is on no roster, so his official id resolves only through
+  `players.fantasy_id`, which an earlier pass linked while he was rostered.
+
 ## Seen, not used
 
-- `GET /fantasy-leagues/{id}/fantasy-trades?matchday={id}`: moves per matchday,
-  `player_1` acquired and `player_2` released. A future backfill would read this.
 - `GET /tournaments/214586/standings?matchday={id}`: the official round table,
   used above to check the decoding by hand. The sync's report sets our round
   total beside each lineup's own `pts` instead.

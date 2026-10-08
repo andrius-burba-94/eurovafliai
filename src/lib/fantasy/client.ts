@@ -1,7 +1,7 @@
 import { sleep } from "@/lib/euroleague/http";
 
 import { parseCurrentMatchday, parseRoundLineup, type OfficialLineup } from "./lineup";
-import { parseLeagueRosters, type FantasyTeam } from "./parse";
+import { parseLeagueMoves, parseLeagueRosters, type FantasyMove, type FantasyTeam } from "./parse";
 
 /**
  * The reads the sync makes from the official game's backend.
@@ -68,6 +68,24 @@ export async function fetchLeagueRosters(
     failed: `league ${leagueId}`,
   });
   return parseLeagueRosters(raw);
+}
+
+/**
+ * Every move the league's teams made for one matchday, oldest first: the order
+ * the sync replays them in, so a player traded and then released inside one
+ * window is recorded with both teams that held him.
+ */
+export async function fetchLeagueMoves(
+  token: string,
+  leagueId: string,
+  matchdayId: number,
+  doFetch: typeof fetch = fetch,
+): Promise<FantasyMove[]> {
+  const raw = await getJson(`/fantasy-leagues/${encodeURIComponent(leagueId)}/fantasy-trades?matchday=${matchdayId}`, token, doFetch, {
+    forbidden: `The Fantasy Challenge token cannot see league ${leagueId}'s moves`,
+    failed: `league ${leagueId}'s moves for matchday ${matchdayId}`,
+  });
+  return parseLeagueMoves(raw).sort((a, b) => a.id - b.id);
 }
 
 /**

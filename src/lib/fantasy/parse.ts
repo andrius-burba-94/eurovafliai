@@ -82,3 +82,38 @@ export function parseLeagueRosters(raw: unknown): FantasyTeam[] {
     players: team.players.map(fantasyPlayerFrom),
   }));
 }
+
+/**
+ * One move from the official game's log, `player_1` arriving and `player_2`
+ * leaving. Each player's `fantasy_team` is where he went, so a trade names both
+ * teams and a free-agent swap leaves the departure's team empty. The log has no
+ * times; ids rise in the order the moves were made.
+ */
+export type FantasyMove = {
+  readonly id: number;
+  readonly arrival: { readonly playerId: string; readonly teamId: string };
+  readonly departure: { readonly playerId: string; readonly teamId: string | null };
+};
+
+const movesSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.number().int(),
+      player_1: z.object({ id, fantasy_team: z.object({ id }) }),
+      player_2: z.object({ id, fantasy_team: z.object({ id }).nullish() }),
+    }),
+  ),
+});
+
+export function parseLeagueMoves(raw: unknown): FantasyMove[] {
+  const parsed = movesSchema.safeParse(raw);
+  if (!parsed.success) {
+    const where = parsed.error.issues[0]?.path.join(".") || "(root)";
+    throw new Error(`The Fantasy Challenge move log changed shape at ${where}.`);
+  }
+  return parsed.data.data.map((move) => ({
+    id: move.id,
+    arrival: { playerId: move.player_1.id, teamId: move.player_1.fantasy_team.id },
+    departure: { playerId: move.player_2.id, teamId: move.player_2.fantasy_team?.id ?? null },
+  }));
+}

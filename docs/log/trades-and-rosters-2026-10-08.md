@@ -189,3 +189,46 @@ The report also surfaced a data problem, not a display one. Theis was traded
 Laurynas → Birka and then released by Birka within one sync window, and the
 snapshot diff recorded it as Laurynas's release. That fix is the next slice;
 see STATUS.md.
+
+## Slice 6: Fantasy Challenge moves replayed from the official log
+
+The plan first targeted BasketNews, whose transfer log the 8 October probe had
+found. The first implementation step, a live read, showed that the reported
+league (EuroVafliai 26-27, where Payne also sits) is the Fantasy Challenge
+one. Its `fantasy-trades` endpoint, noted earlier as "seen, not used",
+records the round exactly: Laurynas sent Theis and Hoard to Birka for Sorkin
+and Mantzoukas, and Birka then released Theis for Diarra. The BasketNews log's
+schema is recorded for later.
+
+- **Planning.** `planFromLog` replays the round's moves over the stored
+  rosters in id order.
+  - A move whose result already holds is skipped, so a re-run in the same
+    round is a no-op.
+  - Anything else that doesn't apply, or rosters that don't end at the
+    official ones, returns null. `runFantasySync` then keeps `planSync`'s
+    difference and adds a sentence to the report.
+  - The log is read only when the rosters differ, so a quiet pass makes no
+    extra calls.
+  - Steps keep their order (releases, trades, signings) and wording: both
+    planners share `tradeStep` and `freeAgencySteps`.
+- **Windows.** Rows and roster windows are separate in `applyTransaction`, so a
+  pass-through player is in the trade's and the release's rows while his old
+  window closes on the trade and nothing opens. Impact nets him to zero for
+  the team he passed through. The planner refuses a plan where a player's
+  open would precede his close.
+- **Repair.** `repairRoundMoves` / `npm run moves:repair`.
+  - It derives the round's before and after rosters from the windows (held
+    through R-1, held at R) and replays the log over them.
+  - It reconciles only rows whose note starts `Fantasy Challenge, round R:`.
+    The reconcile counts rows per move, so a duplicate is removed too.
+  - It adds first, then removes. A crash leaves both versions, and the next
+    run removes the stale ones.
+  - It never writes a window, never announces, and keeps the stored rows'
+    date.
+- **Verification.**
+  - `plan.test.ts` covers the round-4 log itself: windows, history
+    read-back, re-run, a disagreeing log, and sign-then-trade.
+  - `store.test.ts` covers the fetch routing and the fallback sentence. On
+    the repair side: dry run, write, the second run, crash-midway, and an
+    unexplained log.
+  - Not yet run against production.
