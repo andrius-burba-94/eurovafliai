@@ -79,10 +79,12 @@ export default async function LineupPage({
   const board = drafted
     ? await readLineupBoard({ leagueId: id, memberId, season, round, basketNews: Boolean(data.league.basketnews_team_id) })
     : null;
-  const [comparison, live] = board && !data.league.basketnews_team_id
+  const basketNews = Boolean(data.league.basketnews_team_id);
+  // Comparison figures are EuroLeague projections, which a BasketNews league does not score by.
+  const [comparison, live] = board
     ? await Promise.all([
-        readComparisonPlayers(board.players, season, session.token),
-        readLineupLive({ season, round, players: board.players, token: session.token }),
+        basketNews ? [] : readComparisonPlayers(board.players, season, session.token),
+        readLineupLive({ season, round, players: board.players, token: session.token, basketNews }),
       ])
     : [[], null];
   const firstTip = (panel.schedule?.round === round ? panel.schedule.games : [])

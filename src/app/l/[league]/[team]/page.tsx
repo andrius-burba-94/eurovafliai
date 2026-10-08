@@ -91,10 +91,10 @@ export default async function TeamPage({
   ]);
   const finishedSnapshots = statsPage?.snapshots ?? [];
   const progress =
-    season === currentSeason && data.league.status === "season" && !data.league.basketnews_team_id
+    season === currentSeason && data.league.status === "season"
       ? await readRoundProgress(season, session.token, finishedSnapshots.map((snap) => snap.round)).catch(() => null)
       : null;
-  const live = progress && !data.league.basketnews_team_id ? liveRound(progress) : null;
+  const live = progress ? liveRound(progress) : null;
   const matchday = live
     ? await readMatchdayData({
         leagueId: id,
@@ -102,6 +102,7 @@ export default async function TeamPage({
         season,
         requestedRound: live.round,
         token: session.token,
+        basketNews: Boolean(data.league.basketnews_team_id),
       }).catch(() => null)
     : null;
   const liveRow = matchday?.ranks.find((row) => row.memberId === memberId) ?? null;

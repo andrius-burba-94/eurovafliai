@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { getFeedJson, type FeedFetch } from "@/lib/euroleague/http";
-import { scoreGame, type BoxScore } from "@/lib/stats/scoring";
+import { scoreBasketNewsModern, scoreGame, type BoxScore } from "@/lib/stats/scoring";
 
 export type LivePlayer = {
   readonly personCode: string;
@@ -12,6 +12,8 @@ export type LivePlayer = {
   readonly pir: number;
   /** Provisional score in integer tenths, including the current leader's bonus. */
   readonly fantasyTenths: number;
+  /** The same box under BasketNews Modern, for a league that mirrors BasketNews. */
+  readonly basketNewsTenths?: number;
   readonly minutes: string;
   readonly playing: boolean;
 };
@@ -144,6 +146,7 @@ export function parseLiveBoxscore(raw: unknown, localClub: string, roadClub: str
       rebounds: box.totalRebounds,
       pir: base,
       fantasyTenths,
+      basketNewsTenths: Math.round(scoreBasketNewsModern(box, leaders[index] ?? false) * 10),
       minutes: player.Minutes?.trim() ?? "",
       playing: live && player.IsPlaying === 1 && player.Minutes?.trim() !== "DNP",
     }];

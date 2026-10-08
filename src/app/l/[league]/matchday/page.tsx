@@ -58,7 +58,6 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
   if (!data) notFound();
   const id = data.league.id;
   const base = leagueHref(data.league);
-  if (data.league.basketnews_team_id) redirect(`${base}/standings`);
   const you = data.members.find((member) => member.isYou);
   if (!you || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
   const season = serverConfig().EUROLEAGUE_SEASON;
@@ -68,12 +67,13 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
     season,
     requestedRound: requestedRound(query.round),
     token: session.token,
+    basketNews: Boolean(data.league.basketnews_team_id),
   });
   const asked = typeof query.member === "string" ? query.member : you.id;
   const watched = data.members.find((member) => member.id === asked) ?? you;
   const watchingYou = watched.id === you.id;
   const canManage = data.isCommissioner || you.canManage;
-  const board = await readLineupBoard({ leagueId: id, memberId: watched.id, season, round: matchday.round });
+  const board = await readLineupBoard({ leagueId: id, memberId: watched.id, season, round: matchday.round, basketNews: Boolean(data.league.basketnews_team_id) });
   const hrefFor = (next: { round?: number; member?: string }) => {
     const params = new URLSearchParams({ round: String(next.round ?? matchday.round) });
     const member = next.member ?? watched.id;

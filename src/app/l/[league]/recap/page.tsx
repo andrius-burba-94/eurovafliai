@@ -50,14 +50,9 @@ export default async function RecapPage({
 
   // With no round asked for, the last round that is over: a round still being
   // played is offered in the picker, marked, but is not the front page.
-  const sourceRounds = data.league.basketnews_team_id
-    ? (await readStandingsSnapshots(id, season)).map((snap) => snap.round)
-    : null;
   const progress =
     data.league.status === "season"
-      ? sourceRounds
-        ? { complete: sourceRounds, lastComplete: sourceRounds.at(-1) ?? null, current: null }
-        : await readRoundProgress(
+      ? await readRoundProgress(
           season,
           session.token,
           (await readStandingsSnapshots(id, season).catch(() => [])).map((snap) => snap.round),

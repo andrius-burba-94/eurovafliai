@@ -126,7 +126,7 @@ function leagueItems(league: NavLeague): NavItem[] {
         icon: "team",
       },
       { key: "lineup", href: `${base}/lineup`, label: "Lineup", icon: "lineup" },
-      ...(league.sourceOwned ? [] : [{ key: "matchday" as const, href: `${base}/matchday`, label: "Live", icon: "matchday" as const }]),
+      { key: "matchday", href: `${base}/matchday`, label: "Live", icon: "matchday" },
       {
         key: "standings",
         href: `${base}/standings`,
