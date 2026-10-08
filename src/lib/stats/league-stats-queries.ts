@@ -64,7 +64,7 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
         requestKey: null,
       })
     : [];
-  const progress = basketNews ? null : await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round));
+  const progress = await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round));
   const memberIds = [...new Set(windows.map((row) => row.member))];
   const lineups = resolveLineups({ recorded, rounds: [...new Set(lines.map((line) => line.round))], memberIds });
   const clubOf = new Map(pool.map((player) => [player.id, player.club_code]));

@@ -28,11 +28,13 @@ const lineupPlayer = z.object({
   playedAsCardIdentifier: z.string().nullish(), playedAsCaptain: z.boolean().nullish(),
 });
 const lineup = z.object({ id: ID, fantasyRound: z.number(), players: z.array(lineupPlayer) });
+const leagueLineup = lineup.extend({ fantasyTeamId: ID });
 const score = z.object({ pointsTotal: z.number(), pointsGained: z.number() });
 
 export type BasketNewsLeague = z.infer<typeof league>;
 export type BasketNewsTeam = z.infer<typeof team>;
 export type BasketNewsLineup = z.infer<typeof lineup>;
+export type BasketNewsLeagueLineup = z.infer<typeof leagueLineup>;
 export type BasketNewsScore = z.infer<typeof score>;
 
 export class BasketNewsSessionExpired extends Error {
@@ -67,6 +69,10 @@ const LEAGUE = `query($id:String!,$league:String!){fantasyLeagueRecordFromClient
 const TEAMS = `query($id:String!){allFantasyLeagueTeamsFromClient(fantasyLeagueId:$id){id title draftOrder}}`;
 const TEAM_REFERENCE = `query($id:String!){fantasyTeamRecordFromClient(fantasyTeamId:$id){id title leagueId fantasyLeagues{fantasyLeagueId}}}`;
 const LINEUP = `query($team:String!,$round:Int!,$league:String!){fantasyTeamLineupRecordFromClient(fantasyTeamId:$team,fantasyRound:$round,editMode:false){id fantasyRound players{playerId cardIdentifier captain playedAsCardIdentifier playedAsCaptain player{id firstName middleName lastName team(leagueId:$league,fantasyRound:$round){number positions team{id translation(locale:"en"){name}}} fantasy_pts(leagueId:$league,pointCalcSystem:"modern",fantasyRound:$round)}}}}`;
+// Every team's current lineup in one public read: the round's locked lineup, or
+// the next round's once BasketNews has processed that round's transfers.
+const LEAGUE_ROUND = `query($id:String!){draftLeagueFantasyTeamLineupsFromClient(fantasyLeagueId:$id){fantasyRound}}`;
+const LEAGUE_LINEUPS = `query($id:String!,$league:String!,$round:Int!){draftLeagueFantasyTeamLineupsFromClient(fantasyLeagueId:$id){id fantasyTeamId fantasyRound players{playerId cardIdentifier captain playedAsCardIdentifier playedAsCaptain player{id firstName middleName lastName team(leagueId:$league,fantasyRound:$round){number positions team{id translation(locale:"en"){name}}}}}}}`;
 const SCORE = `query($team:String!,$round:Int!,$league:String!){fantasyTeamScoreRecordFromClient(leagueId:$league,fantasyTeamId:$team,fantasyRound:$round){pointsTotal pointsGained}}`;
 
 export function basketNewsTeamId(url: string): string | null {
@@ -99,4 +105,13 @@ export async function readBasketNewsScore(
   teamId: string, roundIndex: number, sourceLeagueId: string, doFetch: typeof fetch = fetch,
 ): Promise<BasketNewsScore | null> {
   return query(SCORE, { team: teamId, round: roundIndex, league: sourceLeagueId }, score.nullable(), "fantasyTeamScoreRecordFromClient", undefined, doFetch);
+}
+
+export async function readBasketNewsLeagueLineups(
+  fantasyLeagueId: string, sourceLeagueId: string, doFetch: typeof fetch = fetch,
+): Promise<BasketNewsLeagueLineup[]> {
+  const rounds = await query(LEAGUE_ROUND, { id: fantasyLeagueId }, z.array(z.object({ fantasyRound: z.number() })), "draftLeagueFantasyTeamLineupsFromClient", undefined, doFetch);
+  const round = rounds[0]?.fantasyRound;
+  if (round === undefined) return [];
+  return query(LEAGUE_LINEUPS, { id: fantasyLeagueId, league: sourceLeagueId, round }, z.array(leagueLineup), "draftLeagueFantasyTeamLineupsFromClient", undefined, doFetch);
 }

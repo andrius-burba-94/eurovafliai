@@ -96,13 +96,17 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
   async load(leagueId: string) {
     const league = await this.pb.collection("leagues").getOne<LeagueRow>(leagueId, { requestKey: null });
     const season = `E${league.season.slice(0, 4)}`;
-    const [players, snapshots] = await Promise.all([
+    const [players, lineups, members, fixtures] = await Promise.all([
       this.pb.collection("players").getFullList<PlayerRow>({
         fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,basketnews_id,basketnews_position,status", requestKey: null,
       }),
-      this.pb.collection("standings_snapshots").getList<{ round: number }>(1, 1, {
+      this.pb.collection("round_lineups").getFullList<{ round: number; basketnews_result?: { final?: boolean } | null }>({
         filter: `league = '${leagueId}' && season = "${season}"`,
-        sort: "-round", fields: "round", requestKey: null,
+        fields: "round,basketnews_result", requestKey: null,
+      }),
+      this.pb.collection("league_members").getFullList<{ id: string }>({ filter: `league = '${leagueId}'`, fields: "id", requestKey: null }),
+      this.pb.collection("fixtures").getFullList<{ round: number; played: boolean }>({
+        filter: `season = "${season}"`, fields: "round,played", requestKey: null,
       }),
     ]);
     const pool = players.map((row) => ({
@@ -110,7 +114,19 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
       clubName: row.club_name, dorsal: row.dorsal ?? "", fantasyId: row.fantasy_id ?? "",
       status: row.status ?? "", basketnewsId: row.basketnews_id ?? "", basketnewsPosition: row.basketnews_position,
     }));
-    return { name: league.name, season, commissioner: league.commissioner, sourceTeamId: league.basketnews_team_id, latestRound: snapshots.items[0]?.round ?? 0, pool };
+    // A result stored before `final` existed is re-read once; replay is idempotent.
+    const finalCount = new Map<number, number>();
+    for (const row of lineups) {
+      finalCount.set(row.round, (finalCount.get(row.round) ?? 0) + (row.basketnews_result?.final === true ? 1 : 0));
+    }
+    const stored = [...finalCount.keys()].sort((a, b) => a - b);
+    const open = stored.find((round) => finalCount.get(round)! < members.length);
+    return {
+      name: league.name, season, commissioner: league.commissioner, sourceTeamId: league.basketnews_team_id,
+      firstOpenRound: open ?? (stored.at(-1) ?? 0) + 1,
+      latestStoredRound: stored.at(-1) ?? 0,
+      fixtures, pool,
+    };
   }
 
   async linkLeague(leagueId: string, sourceLeagueId: string): Promise<void> {

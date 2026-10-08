@@ -53,8 +53,8 @@ describe("parseLiveBoxscore", () => {
     expect(parsed?.problems).toEqual([]);
     expect(parsed?.game).toMatchObject({ live: true, localScore: 57, roadScore: 59 });
     expect(parsed?.game.players).toEqual([
-      { personCode: "011157", clubCode: "RED", points: 2, assists: 2, rebounds: 0, pir: -9, fantasyTenths: -90, minutes: "14:08", playing: false },
-      { personCode: "012720", clubCode: "ZAL", points: 10, assists: 0, rebounds: 2, pir: 8, fantasyTenths: 88, minutes: "16:19", playing: true },
+      { personCode: "011157", clubCode: "RED", points: 2, assists: 2, rebounds: 0, pir: -9, fantasyTenths: -90, basketNewsTenths: -75, minutes: "14:08", playing: false },
+      { personCode: "012720", clubCode: "ZAL", points: 10, assists: 0, rebounds: 2, pir: 8, fantasyTenths: 88, basketNewsTenths: 85, minutes: "16:19", playing: true },
     ]);
   });
 

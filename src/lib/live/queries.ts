@@ -46,25 +46,29 @@ function chooseRound(fixtures: readonly FixtureRecord[], requested: number | nul
 }
 
 /** A recorded box score replaces the live line for the same player and game. */
-async function readRoundScores(pb: Pick<PocketBase, "collection">, season: string, round: number): Promise<RoundScores> {
+async function readRoundScores(pb: Pick<PocketBase, "collection">, season: string, round: number, basketNews = false): Promise<RoundScores> {
   const [snapshots, finalRows, players] = await Promise.all([
     readLiveSnapshots(pb, season, round),
-    pb.collection("player_game_stats").getFullList<{ player: string; game_code: number; fantasy_pts: number }>({
+    pb.collection("player_game_stats").getFullList<{ player: string; game_code: number; fantasy_pts: number; basketnews_raw_pts?: number }>({
       filter: `season = '${season}' && round = ${round}`,
-      fields: "player,game_code,fantasy_pts",
+      fields: "player,game_code,fantasy_pts,basketnews_raw_pts",
       requestKey: null,
     }),
     pb.collection("players").getFullList<{ id: string; person_code: string; name: string }>({ fields: "id,person_code,name", requestKey: null }),
   ]);
   const byPerson = new Map(players.map((player) => [player.person_code?.trim(), player.id]));
-  const finalLines: ScoredGameLine[] = finalRows.map((row) => ({ playerId: row.player, gameCode: row.game_code, fantasyTenths: row.fantasy_pts }));
+  // BasketNews raw points are stored in hundredths; every other line is tenths.
+  const finalLines: ScoredGameLine[] = finalRows.map((row) => ({
+    playerId: row.player, gameCode: row.game_code,
+    fantasyTenths: basketNews ? Math.round((row.basketnews_raw_pts ?? 0) / 10) : row.fantasy_pts,
+  }));
   const finalKeys = new Set(finalLines.map((line) => `${line.playerId}|${line.gameCode}`));
   const statsByPlayer: Record<string, LivePlayer> = {};
   const liveLines: ScoredGameLine[] = snapshots.flatMap((game) => game.players.flatMap((player) => {
     const playerId = byPerson.get(personCodeOf(player.personCode));
     if (!playerId) return [];
     if (!finalKeys.has(`${playerId}|${game.game_code}`)) statsByPlayer[playerId] = player;
-    return [{ playerId, gameCode: game.game_code, fantasyTenths: player.fantasyTenths }];
+    return [{ playerId, gameCode: game.game_code, fantasyTenths: basketNews ? player.basketNewsTenths ?? 0 : player.fantasyTenths }];
   }));
   const scoresByPlayer: Record<string, number> = {};
   for (const line of [...finalLines, ...liveLines.filter((line) => !finalKeys.has(`${line.playerId}|${line.gameCode}`))]) {
@@ -80,13 +84,14 @@ export async function readMatchdayData(input: {
   season: string;
   requestedRound: number | null;
   token: string;
+  basketNews?: boolean;
 }): Promise<MatchdayData> {
   const pb = createUserClient(input.token);
   const allFixtures = await readStoredFixtures(pb, input.season);
   const round = chooseRound(allFixtures, input.requestedRound);
   const fixtures = allFixtures.filter((game) => game.round === round).sort((a, b) => (a.utc_date ?? "").localeCompare(b.utc_date ?? ""));
   const [scores, memberships, standings, weights] = await Promise.all([
-    readRoundScores(pb, input.season, round),
+    readRoundScores(pb, input.season, round, input.basketNews),
     pb.collection("roster_memberships").getFullList<{ member: string; player: string; from_round?: number | null; to_round?: number | null; to_date?: string | null }>({
       filter: `league = '${input.leagueId}'`,
       fields: "member,player,from_round,to_round,to_date",
@@ -147,11 +152,12 @@ export async function readLineupLive(input: {
   round: number;
   players: readonly { id: string; clubCode: string }[];
   token: string;
+  basketNews?: boolean;
 }): Promise<LineupLive> {
   const pb = createUserClient(input.token);
   const [allFixtures, scores] = await Promise.all([
     readStoredFixtures(pb, input.season),
-    readRoundScores(pb, input.season, input.round),
+    readRoundScores(pb, input.season, input.round, input.basketNews),
   ]);
   const fixtures = allFixtures.filter((game) => game.round === input.round);
   const now = Date.now();
