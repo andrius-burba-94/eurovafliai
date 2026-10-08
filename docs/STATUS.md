@@ -52,6 +52,35 @@ uses those positions in rosters, lineups, the draft, stats, player profiles and
 pool views; EuroVafliai 26-27 keeps the EuroLeague positions. The seven
 differences among the 130 captured BasketNews players are recorded in the log.
 
+**Parity with EuroVafliai 26-27 (8 October 2026).** The first import treated a
+BasketNews league as a mirror of finished rounds only. That hid Live and
+labelled every stored round finished. It also froze round 4 at its Tuesday-night
+partial scores, because the sync never re-read a round that had a score.
+Production showed every pass since then reading zero rounds, so no trade had
+synced since.
+- **Round state.** It now comes from fixtures (`readRoundProgress`) for every
+  league.
+- **Live.** Matchday and the live scorebug are back. They use the EuroLeague
+  live feed scored with BasketNews Modern (`basketNewsTenths`), and recorded
+  games read `basketnews_raw_pts`.
+- **Final results.** A round's BasketNews result is `final` only once its
+  games are played. Until then, every pass re-reads it.
+- **Rosters and trades.** Each pass also reads the round in progress and the
+  next round's lineups, so a BasketNews trade lands within 15 minutes.
+- **No roster replay.** A re-read below the newest stored round never replays
+  rosters.
+
+Lineup, roster and trade writes stay BasketNews-owned. See the log for details.
+
+**Try it on localhost:**
+- Run `npm run dev` during a round with a BasketNews league in the local
+  database.
+- Open `/l/<league>/matchday`. Live is in the nav and shows provisional points.
+- Standings reads "So far" for the round being played. Recap marks it "in
+  progress".
+- After the next worker pass, `/l/<league>/transactions` lists any BasketNews
+  trade from the next round.
+
 ## Player mapping, 5 October 2026
 
 The commissioner confirmed six news-to-player identities, A.J. Lawson, and

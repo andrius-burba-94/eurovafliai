@@ -32,3 +32,46 @@ The 4 October captured BasketNews draft and three rounds identify 130 distinct p
 Migration `1790600000_basketnews_positions.js` adds one optional `players.basketnews_position` select. The existing worker writes it from official picks and newly imported lineups on every pass, including for players whose BasketNews IDs were linked earlier. League readers use that field for BasketNews and leave `players.position` for EuroLeague. The same player IDs, picks and membership windows serve both leagues. A failure partway through updating player positions is repaired by the next scheduled or manual sync; unchanged source positions are skipped. The 13 players seen only in historical lineups matched their shared positions at this comparison and acquire a source position when a future imported lineup includes them.
 
 The captured-source worker test covers official positions through all nine draft and active rosters, rendered badges, repeat sync and preservation of the shared position. Lint, typecheck, 1,760 unit tests, dead-code lint and a production build passed. The targeted Chromium league-creation test passed against that build and an isolated PocketBase copy. An earlier local run reused Next and PocketBase processes started on 2 October, before the BasketNews migration; its stale schema rejected the queued-job filter, so it is not a valid result for this change. On a temporary PocketBase data copy, migration up → down → up changed the column count as expected. `EXPLAIN QUERY PLAN` confirmed the existing primary-key index for player-ID reads; the worker's small complete player-pool read scans 390 rows as before. No new query or index was added.
+
+## Parity with EuroVafliai 26-27 — 8 October 2026
+
+**Symptoms.** Three were reported:
+- the Hostinger league had no Live page;
+- its BasketNews trades did not appear;
+- the round in progress read as finished.
+
+There is no ruleset field. Every difference came from one assumption in #166, keyed on `basketnews_team_id`: a BasketNews league is a mirror of finished rounds.
+
+**Where that assumption lived:**
+- The nav dropped Live, and `/matchday` redirected to Standings.
+- The standings, recap, home, team and stats pages replaced fixture-based `readRoundProgress` with "every snapshot is complete".
+- The sync started after the newest snapshot. It advanced its cursor once every team had any score.
+
+**What production showed.** Read-only, on the VPS:
+- Round 4 had been imported on 7 October at 20:52, after 3 of its 10 games.
+- That import wrote a snapshot.
+- Every 15-minute pass since then started at round 5 and reported `Mirrored … 0 round(s)`.
+- So round 4's scores were frozen and no later trade was read.
+
+**The fix:**
+- A stored result carries `final`. It is true only when the round's fixtures are all played and the BasketNews arithmetic adds up. A mismatch before then is stored, not thrown.
+- Each pass starts at the first round without a final result for every team. Results stored before `final` existed are therefore re-read once, which is safe.
+- A pass reads up to the round after the first unplayed one. That next-round lineup is where a trade made mid-round first appears.
+- An open round's missing lineup ends the pass, but an expired session still fails it.
+- Roster plans run only for rounds at or after the newest stored round. Re-reading an older round therefore cannot replay its roster over a later trade.
+- Live uses the same feed as the EuroLeague league:
+  - `LivePlayer.basketNewsTenths` is `scoreBasketNewsModern` of the same box, with the leader's bonus;
+  - recorded games read `basketnews_raw_pts`, converted from hundredths to tenths;
+  - lineup weights already matched BasketNews.
+
+**Failure recovery.** Open rounds are rewritten on every pass, under the existing lineup, pick and snapshot unique indexes. A crash leaves provisional rows that the next pass replaces.
+
+**Test coverage.** The new sync test covers:
+- an open round with a mismatching partial score;
+- a next-round trade between two teams;
+- the round becoming final and corrected;
+- no extra transactions on re-read.
+
+Removing either the finality rule or the roster guard fails it. `queries.test.ts` covers the BasketNews and EuroLeague live points side by side.
+
+**Not checked.** A live probe of BasketNews's open-round lineups could not be run with the production session. If BasketNews withholds other teams' next-round lineups, the pass stops at the round in progress and trades appear when that round locks.
