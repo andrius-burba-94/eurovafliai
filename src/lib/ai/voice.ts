@@ -84,5 +84,3 @@ export const summaryAnswer = z
       .max(5),
   })
   .strict();
-
-export type SummaryAnswer = z.infer<typeof summaryAnswer>;

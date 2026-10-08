@@ -70,6 +70,8 @@ export const CAPTAIN_REGRET = 1000;
 export const ROLE_SWITCH = 3;
 /** How far back an injury report explains a missed game, in days. */
 export const NEWS_DAYS = 14;
+/** A table move worth its own label. */
+export const MOVED_PLACES = 2;
 const LIST = 3;
 
 export type FactsRuleset = "euroleague" | "basketnews";
@@ -460,6 +462,17 @@ export function buildRoundFacts(input: RoundFactsInput): RoundFactsResult {
     .sort((a, b) => Math.abs(b.side.round) - Math.abs(a.side.round) || byId(a.side.memberId, b.side.memberId))[0];
 
   // ---- next round ------------------------------------------------------------
+  // The flag is raised by the scraper and cleared only by a person, so an
+  // old one can outlive the injury: the report's date goes with it.
+  const availability = (playerId: string) => {
+    const status = playerById.get(playerId)?.status ?? "";
+    const latest = input.news
+      .filter((item) => item.player === playerId && item.status !== "" && /^\d{4}-\d{2}-\d{2}$/.test(item.published))
+      .map((item) => item.published)
+      .sort()
+      .at(-1);
+    return latest ? `${status}, reported ${latest}` : `${status}, no report on file`;
+  };
   const next = input.nextRound;
   const nextLines =
     next === null
@@ -613,9 +626,10 @@ export function buildRoundFacts(input: RoundFactsInput): RoundFactsResult {
         : `ROLE CHANGE · ${P(entry.playerId)} came off the bench after starting ${count} of his previous ${of} games`,
     );
   }
+  // Who passed whom is on every table line; a mover is a place change worth a sentence.
   for (const memberId of order) {
     const move = movements.get(memberId);
-    if (move && (Math.abs(move.moved) >= 2 || move.passed.length > 0)) {
+    if (move && Math.abs(move.moved) >= MOVED_PLACES) {
       lines.push(`MOVER · ${T(memberId)} · ${move.moved >= 0 ? "up" : "down"} ${Math.abs(move.moved)} to ${ordinal(move.rank)}`);
     }
   }
@@ -634,7 +648,7 @@ export function buildRoundFacts(input: RoundFactsInput): RoundFactsResult {
         [
           T(line.memberId),
           `${easy} easy, ${even} even, ${hard} hard${unknown > 0 ? `, ${unknown} not yet rated` : ""}${idle > 0 ? `, ${idle} without a game` : ""}`,
-          line.out.length > 0 ? `unavailable now ${line.out.map((playerId) => `${P(playerId)} (${playerById.get(playerId)?.status})`).join(", ")}` : null,
+          line.out.length > 0 ? `unavailable now ${line.out.map((playerId) => `${P(playerId)} (${availability(playerId)})`).join(", ")}` : null,
         ]
           .filter(Boolean)
           .join(" · "),

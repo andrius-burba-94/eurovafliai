@@ -276,8 +276,19 @@ describe("buildRoundFacts", () => {
 
   it("previews the next round with today's availability", () => {
     const sheet = facts();
-    expect(lineWith(sheet, "@T3 · ").at(-1)).toContain(`unavailable now ${tokenOf(sheet, "pHurt")} (injured)`);
+    // A flag only a person clears can outlive the injury, so its report date travels with it.
+    expect(lineWith(sheet, "@T3 · ").at(-1)).toContain(`unavailable now ${tokenOf(sheet, "pHurt")} (injured, reported 2026-10-02)`);
     expect(facts({ nextRound: null }).text).not.toContain("NEXT ROUND");
+  });
+
+  it("labels a mover only for a change of two places or more", () => {
+    // @T1 went from 2nd to 1st: a passing on its table line, not a mover.
+    expect(lineWith(facts(), "MOVER")).toEqual([]);
+    const climb = [
+      snapshot(3, [["m1", 60000, 20000], ["m2", 66000, 22000], ["m3", 64000, 19000]]),
+      snapshot(4, [["m1", 132000, 72000], ["m2", 92000, 26000], ["m3", 70000, 6000]]),
+    ];
+    expect(lineWith(facts({ snapshots: climb }), "MOVER")).toEqual(["MOVER · @T1 · up 2 to 1st"]);
   });
 
   it("writes no name and no id: only tokens, club codes and numbers", () => {
