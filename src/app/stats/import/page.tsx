@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 
-import { Bank, Slot, Slots } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { Bank } from "@/components/board";
+import { PageHeader } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
 import { canManageRosters } from "@/lib/rosters/actions";
 import { readStatsOverview } from "@/lib/stats/actions";
@@ -34,51 +35,43 @@ export default async function StatImportPage() {
         ? `Round ${overview.rounds[0]}`
         : `Rounds ${overview.rounds[0]}–${overview.rounds[overview.rounds.length - 1]}`;
 
+  const last = overview.batches[0];
+
   return (
     <AppShell current="import-stats" testId="stat-import">
-      <div className="flex max-w-xl flex-col gap-3">
-        <h1 className="display text-4xl sm:text-5xl">
-          Import box scores
-        </h1>
-        <p className="text-ink-soft">
-          Paste a round&apos;s player lines, read what it would store, then
-          apply it. Nothing is written until you say so, and importing the
-          same sheet twice stores it once.
-        </p>
-      </div>
+      <PageHeader
+        title="Import box scores"
+        lead="The worker imports every finished game within 15 minutes. Paste a round here only when the feed is down or a box score was amended; the same sheet twice stores once."
+      />
 
       <Bank label={`Stored for ${overview.season}`} aside={roundsSaid}>
-        <Slots testId="stats-stored">
-          <Slot state={overview.rows > 0 ? "filled" : "waiting"}>
-            <span className="slot-label">Game lines</span>
-            <span className="stat text-sm">{overview.rows}</span>
-          </Slot>
-          <Slot state={overview.rounds.length > 0 ? "filled" : "waiting"}>
-            <span className="slot-label">Rounds</span>
-            <span className="stat text-sm">
-              {overview.rounds.length}
+        <p className="text-sm" data-testid="stats-stored">
+          <span className="stat">{overview.rows}</span> game lines across{" "}
+          <span className="stat">{overview.rounds.length}</span> round{overview.rounds.length === 1 ? "" : "s"}.
+          {last ? (
+            <span className="text-ink-soft">
+              {" "}Last import {last.created.slice(0, 16).replace("T", " ")} UTC, {last.source}
+              {last.applied ? "" : " (not applied)"}: {last.createdRows} new, {last.updatedRows} corrected.
             </span>
-          </Slot>
-        </Slots>
-        {overview.batches.length > 0 ? (
-          <Slots testId="stats-batches">
-            {overview.batches.map((batch) => (
-              <Slot key={batch.id} state={batch.applied ? "filled" : "waiting"}>
-                <span className="slot-label">
-                  {batch.applied ? batch.source : `${batch.source}, not applied`}
-                </span>
-                <span className="stat text-sm">
-                  {batch.createdRows} new · {batch.updatedRows} corrected
-                </span>
-              </Slot>
-            ))}
-          </Slots>
-        ) : (
-          <p className="text-sm text-ink-soft">
-            Nothing has been imported yet. The 2026-27 season tips off on 24
-            September 2026.
-          </p>
-        )}
+          ) : (
+            <span className="text-ink-soft"> Nothing has been imported yet.</span>
+          )}
+        </p>
+        {overview.batches.length > 1 ? (
+          <details className="text-sm" data-testid="stats-batches">
+            <summary className="min-h-11 cursor-pointer content-center text-ink-soft">Earlier imports</summary>
+            <ul className="flex flex-col divide-y divide-panel-border">
+              {overview.batches.slice(1).map((batch) => (
+                <li key={batch.id} className="flex justify-between gap-4 py-1.5">
+                  <span className="text-ink-soft">
+                    {batch.created.slice(0, 16).replace("T", " ")} · {batch.applied ? batch.source : `${batch.source}, not applied`}
+                  </span>
+                  <span className="stat">{batch.createdRows} new · {batch.updatedRows} corrected</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </Bank>
 
       <StatImportForm season={overview.season} />

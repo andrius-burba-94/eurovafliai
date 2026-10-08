@@ -565,6 +565,9 @@ test("a candidate offers its alternatives, and the chosen one is what lands", as
     await page.goto(`/players/mapping?check=${batch}`);
     // A guess is asked, not asserted.
     await expect(page.getByTestId("mapping-candidates")).toBeVisible();
+    // A choice made before hydration is reset to the first alternative when
+    // React takes over the select; under a full parallel run that happened.
+    await expect(page.getByTestId("mapping-progress")).toHaveAttribute("data-ready", "true");
 
     await page
       .getByTestId(`rename-choice-${player.id}`)

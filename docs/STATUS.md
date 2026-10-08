@@ -113,6 +113,14 @@ unchanged roster stores no batch. Bios no longer count as changes when they
 are unchanged. See
 [log/trades-and-rosters-2026-10-08.md](log/trades-and-rosters-2026-10-08.md).
 
+**Commissioner pages, compacter.** `/players/mapping` leads with when the
+pool last moved and asks one question per line (current question in the live
+field, explanations behind info tips). `/stats/import` and `/players/import`
+say the feed does this by itself and put the paste box first; the roster
+authority switch is one line at the foot. A finished `/l/<league>/draft` is
+the board at full width with Download, no radar, no room chat and a plain
+commissioner fold; an imported league's band says "Imported from BasketNews".
+
 **Try it on localhost:**
 - `npm run dev`, then open `/l/<league>/transactions` for either league.
 - A free-agent swap's Out side shows the released player's points since the
@@ -121,6 +129,8 @@ are unchanged. See
 - `ROSTER_FETCH=on npm run worker:dev`: a few minutes after boot the log
   shows a `rosters ·` line when the feed lists somebody the pool lacks, and
   says nothing when it does not.
+- `/players/mapping`, `/stats/import`, `/players/import` and a finished
+  `/l/<league>/draft` each fit their main act on the first screen at 1280×900.
 - At 375px every team chip is on screen; `?team=<member>&round=<n>` narrows
   the timeline and an empty combination says so with a way back.
 

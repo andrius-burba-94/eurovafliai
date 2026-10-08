@@ -1,12 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
 import {
+  readLastRosterChange,
   readLatestCheck,
   readUnmatchedCodes,
   readUnmatchedNews,
 } from "@/lib/mapping/queries";
+import { displayName } from "@/lib/players/name";
 import { canManageRosters } from "@/lib/rosters/actions";
 
 import { MappingSurface } from "./mapping-surface";
@@ -14,28 +17,20 @@ import { MappingSurface } from "./mapping-surface";
 /**
  * Player mapping — slice 4.2.
  *
- * Two questions about identity, asked from opposite directions:
+ * Identity questions, asked from three directions: the feed has re-registered
+ * a stored player under a different name, a box score names a person code the
+ * pool has never heard of, or a publisher names a player the pool cannot
+ * resolve (9.4). Each is "are these two records one person", and none is
+ * answered without a person.
  *
- * - the feed has re-registered a stored player under a different name, so a
- *   sync would split one human into a departure and a duplicate;
- * - a box score names a person code the pool has never heard of, so those
- *   points have nowhere to land;
- * - **9.4:** a publisher names an injured player the pool cannot resolve, so
- *   an injury lands nowhere. Same question, third direction — and it is here
- *   rather than on the news board because answering it is the same act.
+ * Since 8 October 2026 the worker syncs rosters by itself, so a new signing
+ * usually answers his own codes and news before anybody opens this page; what
+ * is left here is what a sync could not decide.
  *
- * The blueprint calls this "a light verification pass", which it was expected
- * to be — 2.1 syncs `person_code` on day one, so joins are exact by id. What
- * made it more than that is what the clubs actually did: they registered their
- * codeless signings under **passport names**, so on 2026-09-08 a sync would
- * have planned 18 adds and 22 departures against the real pool, at least 15 of
- * those pairs being the same person.
- *
- * The page opens with **the last check**, not with a fresh one. Asking the feed
- * is 21 requests and a few seconds, so it happens when somebody presses the
- * button — and the answer is stored as a report-only `roster_imports` batch, so
- * coming back to finish the list does not cost another 21. Staleness is handled
- * where it must be anyway: every confirm re-validates against live player rows.
+ * The rename half opens with **the last check**, not a fresh one: asking the
+ * feed is 21 requests, so it happens when somebody presses the button, and the
+ * answer is stored as a report-only `roster_imports` batch. Every confirm
+ * re-validates against live player rows.
  */
 export default async function MappingPage({
   searchParams,
@@ -45,36 +40,27 @@ export default async function MappingPage({
   if (!(await canManageRosters())) notFound();
 
   // `?check=<batch id>` opens one particular stored check rather than the
-  // newest. A check is an audit record, so being able to return to a specific
-  // one by link is worth having on its own — and "the newest" is app-global,
-  // which is a property tests cannot work around.
+  // newest: a check is an audit record, and "the newest" is app-global, which
+  // tests cannot work around.
   const { check } = await searchParams;
-  const [unmatched, lastCheck, news] = await Promise.all([
+  const [unmatched, lastCheck, news, lastChange] = await Promise.all([
     readUnmatchedCodes(),
     readLatestCheck(typeof check === "string" ? check : undefined),
     readUnmatchedNews(),
+    readLastRosterChange(),
   ]);
 
-  return (
-    <AppShell current="mapping" testId="player-mapping">
-      <div className="flex max-w-xl flex-col gap-3">
-        <h1 className="display text-4xl sm:text-5xl">
-          Player mapping
-        </h1>
-        <p className="text-ink-soft">
-          Three things end up here: a player the feed now calls something
-          else, a person code from a box score that matches nobody, and a name
-          in the injury news the pool does not answer to. All three are
-          questions about whether two records are one person, and none is
-          answered without you.
-        </p>
-      </div>
+  const added = lastChange?.added ?? [];
+  const lead = lastChange
+    ? `Rosters sync from the official feed every six hours and when a new name appears. Last change ${lastChange.at.slice(0, 10)}${
+        added.length ? `: ${added.slice(0, 3).map(displayName).join(", ")}${added.length > 3 ? ` and ${added.length - 3} more` : ""} added.` : "."
+      }`
+    : "Rosters sync from the official feed every six hours and when a new name appears.";
 
-      <MappingSurface
-        unmatched={unmatched}
-        lastCheck={lastCheck}
-        news={news}
-      />
+  return (
+    <AppShell current="mapping" measure="wide" testId="player-mapping">
+      <PageHeader title="Player mapping" lead={lead} testId="mapping-header" />
+      <MappingSurface unmatched={unmatched} lastCheck={lastCheck} news={news} />
     </AppShell>
   );
 }

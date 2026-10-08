@@ -130,3 +130,34 @@ and `""` mapped back to unknown.
 re-imports his refused games and attaches his news; an unchanged roster;
 a truncated feed refused; CSV authority report-only; and the unknown-name
 reader across codes, news and both rulesets' questions.
+
+## Slice 4 — commissioner pages, critique then distill
+
+The user asked for `/players/mapping`, `/stats/import`, `/players/import` and
+the draft page to be clearer and compacter, without a mock-up round. The
+Impeccable critique is in
+`.impeccable/critique/2026-10-08T21-00-00Z__commissioner-pages.md`; the two P1s
+were the mapping page's four-screen rename list and the finished draft room,
+whose grid kept an empty pool column and squeezed the board into a third of
+the width.
+
+What changed, by page:
+
+- **Mapping.** The lead says rosters sync by themselves and when the pool last
+  moved (`readLastRosterChange`, the newest applied batch). Each question is
+  one line with its answers beside it; only the current one carries the live
+  field. Section explanations moved behind info tips. "Check the feed" stays
+  read-only: the worker applies, this re-asks.
+- **Box scores.** The lead says the worker imports every game and pasting is
+  for an outage or an amendment. The stored overview is one sentence with the
+  latest import; earlier imports fold.
+- **Roster upload.** Paste, then the plan, then the authority switch as one
+  line at the foot.
+- **Draft room, finished.** One column with the board and Download at full
+  width; no radar and no room chat once the draft is complete; the band no
+  longer sticks; commissioner tools are a plain fold, not a panel in a panel.
+  Live and paused rooms are unchanged.
+
+Every test id the specs use is kept. One mapping spec selected an alternative
+before hydration and, under a full parallel run, React reset the select; it
+now waits on `mapping-progress[data-ready]` like the keyboard specs do.
