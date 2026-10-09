@@ -56,24 +56,19 @@ sooner after a stat correction, keeps prose the fresh sheet still supports
 and rewrites what it no longer does. A model, prompt or voice change never
 rewrites history. Migration `1790800000_ai_writeups_rewrite.js`.
 
-**Production, after merge** (people's steps; nothing breaks without them):
-- Add `GEMINI_API_KEY` to the VPS `.env` without echoing it (command in
-  [log/ai-groundwork-2026-10-09.md](log/ai-groundwork-2026-10-09.md)),
-  then `pm2 reload` the worker. Without it the worker logs "write-ups off"
-  and every page renders as before.
-- `npm run stats:starters` once, if 7.0's step was not run.
-- The first passes backfill finished rounds two at a time.
+**Production:** `GEMINI_API_KEY` and `GEMINI_MODEL` are on the VPS (checked
+by line count, 9 October 2026). The deploy's worker reload picks them up; the
+first passes then backfill the finished rounds two at a time. Run
+`npm run stats:starters` once on the box if 7.0's step was not run.
 
-Debt:
-- **Biggest swing disagrees with its own note.** Recap's swing (5.4) treats
-  a synced drop and add as a lone drop (−38.5 for a released player); the
-  fact sheet groups them as one exchange the way the trades page does
-  (−34.5). Both now sit on one panel.
-- The guard checks numbers and names, not wording: the lite model has
-  written "15.8 points" for fantasy points.
-- The local database copy used for 7.1's live runs predates #180's moves
-  rework: one deal there says a player was released in round 1 while he
-  still counted in round 3, and the write-up repeated both.
+Closed in this slice, found by putting the write-up beside the numbers:
+- **Biggest swing** now groups a synced drop and add (or two teams' mirrored
+  ones) into one deal, as the trades page and the fact sheet do: its figure
+  and sentence match the analyst's note.
+- **The guard refuses a bare "points"**: "fantasy points" or "PIR" only.
+- The local deal that said a player was released in round 1 while he still
+  counted in round 3 was twelve hand-made `seed-moves` rows in a local
+  database, never a product path (see the log).
 
 **Next up: 7.2, the free-agent scout.**
 

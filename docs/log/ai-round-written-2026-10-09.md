@@ -46,8 +46,23 @@ On a copy of the local league, `gemini-3.5-flash-lite`:
   refusal being the mislabelled sections) and served a Rewrite within a
   minute of the request.
 
-## Left as it was
+## Closed before the PR
 
-The Recap's Biggest swing (5.4) and the sheet's swing disagree on a synced
-drop and add: the first calls it a lone drop, the second one exchange, as the
-trades page does. Both now sit on one panel; recorded as debt in STATUS.md.
+The maintainer asked for the "still open" list to be closed too:
+
+- **Biggest swing disagreed with its own note** (−38.5 "dropped Vezenkov"
+  beside −34.5 "released Vezenkov, signed PJ Dozier"). Recap's swing (5.4)
+  measured each transaction row alone; the trades page and the fact sheet
+  group a synced drop and add with `groupTransactionHistory`. The recap now
+  merges each group into one deal before measuring, and names an exchange
+  with `announceExchange`: the card reads −34.5, like the note.
+- **"15.8 points"** passed the guard because the guard checked numbers and
+  names only. A bare "points" is now refused, the prompt's own rule checked.
+- **The contradictory deal** was twelve transactions rows noted `seed-moves`,
+  dated 1 October, written by hand into the main checkout's local database
+  and never applied to roster windows. No script in the repo or its history
+  writes them. Deleted from the worktree's copy only; with them gone round 3
+  reads consistently (Vezenkov carried Vaflių Fabrikas; the biggest swing
+  was Blynų Brigada's +27.5 trade).
+- The key: `GEMINI_API_KEY` and `GEMINI_MODEL` present on the VPS, checked by
+  counting the lines, never printing them.
