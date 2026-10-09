@@ -4,7 +4,7 @@ import { isUniqueViolation } from "@/lib/drafts/unique";
 
 import type { GeminiUsage } from "./gemini";
 import type { TokenRef } from "./tokens";
-import type { Voice } from "./voice";
+import type { RoundWriteup, Voice } from "./voice";
 
 /**
  * `ai_writeups`: claim, finish, fail, read — slice 7.0.
@@ -43,7 +43,8 @@ export type WriteupRecord = {
   readonly model: string;
   readonly prompt_version: string;
   readonly input_hash: string;
-  readonly output?: { lines?: unknown } | null;
+  /** A `RoundWriteup` from 7.1; 7.0's preview rows hold `{ lines }` only. */
+  readonly output?: { headline?: unknown; lines?: unknown; sections?: unknown } | null;
   readonly refs?: Record<string, TokenRef> | null;
   readonly error?: string;
   readonly attempts?: number;
@@ -147,7 +148,7 @@ export async function completeWriteup(
   pb: PocketBase,
   id: string,
   result: {
-    readonly lines: readonly string[];
+    readonly writeup: RoundWriteup;
     readonly refs: Readonly<Record<string, TokenRef>>;
     readonly usage: GeminiUsage;
     readonly model: string;
@@ -158,7 +159,7 @@ export async function completeWriteup(
     id,
     {
       status: "ready",
-      output: { lines: result.lines },
+      output: result.writeup,
       refs: result.refs,
       model: result.model,
       tokens_in: result.usage.inputTokens,

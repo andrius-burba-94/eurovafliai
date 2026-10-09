@@ -8,6 +8,7 @@ const NOW = Date.parse("2026-10-09T12:00:00Z");
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 const KEY: WriteupKey = { leagueId: "L1", season: "E2026", round: 4, kind: "round_summary", memberId: "" };
+const WRITEUP = { headline: "@T1 takes the round", lines: ["@T1 won."], sections: {} };
 const USAGE = { inputTokens: 100, outputTokens: 20, thinkingTokens: 0 };
 
 const claim = (pb: ReturnType<typeof fakePb>, over: Partial<Parameters<typeof claimWriteup>[2]> = {}, key = KEY) =>
@@ -25,7 +26,7 @@ describe("claimWriteup", () => {
   it("leaves a ready write-up for the same input alone", async () => {
     const pb = fresh();
     const { id } = await claim(pb);
-    await completeWriteup(pb.client, id, { lines: ["@T1 won."], refs: {}, usage: USAGE, model: "m", now: NOW });
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
     await expect(claim(pb)).resolves.toEqual({ outcome: "unchanged", id });
     expect(pb.writes.filter((write) => write.startsWith("update"))).toHaveLength(1);
   });
@@ -33,9 +34,9 @@ describe("claimWriteup", () => {
   it("rewrites when the facts change, and keeps the old prose until the new lands", async () => {
     const pb = fresh();
     const { id } = await claim(pb);
-    await completeWriteup(pb.client, id, { lines: ["@T1 won."], refs: {}, usage: USAGE, model: "m", now: NOW });
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
     await expect(claim(pb, { inputHash: HASH_B, now: NOW + 1000 })).resolves.toEqual({ outcome: "claimed", id });
-    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "pending", input_hash: HASH_B, attempts: 1, output: { lines: ["@T1 won."] } });
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "pending", input_hash: HASH_B, attempts: 1, output: WRITEUP });
   });
 
   it("calls a fresh pending row busy, and takes over a stale one", async () => {
@@ -60,11 +61,11 @@ describe("claimWriteup", () => {
   it("keeps the previous prose when a rewrite fails", async () => {
     const pb = fresh();
     const { id } = await claim(pb);
-    await completeWriteup(pb.client, id, { lines: ["@T1 won."], refs: {}, usage: USAGE, model: "m", now: NOW });
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
     await claim(pb, { inputHash: HASH_B });
     await failWriteup(pb.client, id, "x".repeat(900));
     const row = await readWriteup(pb.client, KEY);
-    expect(row).toMatchObject({ status: "failed", output: { lines: ["@T1 won."] } });
+    expect(row).toMatchObject({ status: "failed", output: WRITEUP });
     expect(row?.error).toHaveLength(500);
   });
 

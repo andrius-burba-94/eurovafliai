@@ -28,7 +28,7 @@ import { readRoundFactsInput } from "../src/lib/ai/round-facts-store";
 import { claimWriteup, completeWriteup, failWriteup } from "../src/lib/ai/store";
 import { writeRoundSummary } from "../src/lib/ai/summary";
 import { renderPlain } from "../src/lib/ai/tokens";
-import { PROMPT_VERSION, VOICES, type Voice } from "../src/lib/ai/voice";
+import { PROMPT_VERSION, VOICES, type Voice, writeupEntries } from "../src/lib/ai/voice";
 import { parseServerEnv } from "../src/lib/config/schema";
 
 const arg = (name: string) => process.argv.find((value) => value.startsWith(`--${name}=`))?.split("=")[1];
@@ -128,18 +128,20 @@ if (!result.ok) {
   process.exit(1);
 }
 
+const entries = writeupEntries(result.writeup!);
+const width = Math.max(...entries.map((entry) => entry.label.length));
+const labelled = (texts: readonly string[]) => texts.map((text, index) => `  ${entries[index]!.label.padEnd(width)}  ${text}`);
 console.log("\nAs stored (tokens):");
-for (const line of result.lines) console.log(`  ${line}`);
+for (const line of labelled(entries.map((entry) => entry.text))) console.log(line);
 console.log("\nAs a member would read it:");
-for (const line of renderPlain(result.lines, facts.refs, { members: read.teamNames, players: read.playerNames })) {
-  console.log(`  ${line}`);
-}
+const names = { members: read.teamNames, players: read.playerNames };
+for (const line of labelled(renderPlain(entries.map((entry) => entry.text), facts.refs, names))) console.log(line);
 if (result.warnings.length > 0) {
   console.log("\nGuard warnings (not refusals yet):");
   for (const warning of result.warnings) console.log(`  ! ${warning}`);
 }
 
 if (claimed) {
-  await completeWriteup(pb, claimed, { lines: result.lines, refs: facts.refs, usage, model: result.model, now: Date.now() });
+  await completeWriteup(pb, claimed, { writeup: result.writeup!, refs: facts.refs, usage, model: result.model, now: Date.now() });
   console.log(`\nSaved to ai_writeups ${claimed}.`);
 }

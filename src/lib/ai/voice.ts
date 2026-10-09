@@ -9,7 +9,7 @@ import { z } from "zod";
  * part of a write-up's input hash, so changing a word here regenerates.
  */
 
-export const PROMPT_VERSION = "round-summary-1";
+export const PROMPT_VERSION = "round-summary-2";
 
 export const VOICES = ["analyst", "pundit"] as const;
 export type Voice = (typeof VOICES)[number];
@@ -39,20 +39,79 @@ export function systemRules(voice: Voice): string {
   return `${RULES}\n\n${VOICE[voice]}`;
 }
 
-const SUMMARY_TASK = `Task: write 3 to 5 lines summing up this round for the league.
-- Line 1: who won the night, by how much, and the player or players who carried it.
-- Then the biggest move in the table.
-- Then one or two things that stood out: a surprise, a flop, a player who did not play, or a deal.
-- Each line is one or two short sentences, 20 to 200 characters, with no line breaks.
-Answer as JSON: {"lines": ["...", "..."]}`;
+/**
+ * The analyst's sections — 7.1. Which ones a round gets is decided here, from
+ * the labels the sheet carries, not by the model: a section with nothing
+ * behind it is one the model would have to invent.
+ */
+export const SECTION_KEYS = ["stars", "over", "under", "surprises", "table", "swing"] as const;
+export type SectionKey = (typeof SECTION_KEYS)[number];
+
+const SECTION_SOURCES: Readonly<Record<SectionKey, RegExp>> = {
+  stars: /^STARS\b/m,
+  over: /^OVERPERFORMER\b/m,
+  under: /^UNDERPERFORMER\b/m,
+  surprises: /^(SURPRISE|CAPTAIN FLOP|CAPTAIN HIT|DID NOT PLAY|ROLE CHANGE)\b/m,
+  table: /^(TABLE SUMMARY|MOVER)\b/m,
+  swing: /^BIGGEST SWING\b|biggest swing of the round/m,
+};
+
+const SECTION_BRIEF: Readonly<Record<SectionKey, string>> = {
+  stars: "stars: the STARS line, the best nights of the round",
+  over: "over: the OVERPERFORMER lines",
+  under: "under: the UNDERPERFORMER lines",
+  surprises: "surprises: SURPRISE, CAPTAIN FLOP, CAPTAIN HIT, DID NOT PLAY and ROLE CHANGE lines",
+  table: "table: TABLE SUMMARY and MOVER lines, how the season table moved",
+  swing: "swing: the deal marked as the biggest swing of the round",
+};
+
+export function sectionsIn(factsText: string): SectionKey[] {
+  return SECTION_KEYS.filter((key) => SECTION_SOURCES[key].test(factsText));
+}
+
+export type RoundWriteup = {
+  readonly headline: string;
+  readonly lines: readonly string[];
+  readonly sections: Readonly<Partial<Record<SectionKey, string>>>;
+};
+
+export type WriteupEntry = { readonly label: string; readonly text: string };
+
+/** Every piece of prose, labelled as the guard reports it and in reading order. */
+export function writeupEntries(writeup: RoundWriteup): WriteupEntry[] {
+  return [
+    { label: "headline", text: writeup.headline },
+    ...writeup.lines.map((text, index) => ({ label: `line ${index + 1}`, text })),
+    ...SECTION_KEYS.flatMap((key) => {
+      const text = writeup.sections[key];
+      return text === undefined ? [] : [{ label: key, text }];
+    }),
+  ];
+}
+
+function summaryTask(sections: readonly SectionKey[]): string {
+  const asked =
+    sections.length === 0
+      ? `- Leave "sections" empty: {}.`
+      : `- Then write exactly these sections: ${sections.join(", ")}. Each is one or two short sentences, 20 to 300 characters, about what its lines say:\n${sections.map((key) => `  - ${SECTION_BRIEF[key]}`).join("\n")}`;
+  return `Task: write up this round for the league.
+- A headline of 20 to 90 characters: who won the night, or the round's story.
+- Then 3 to 5 lines summing up the round:
+  - Line 1: who won the night, by how much, and the player or players who carried it.
+  - Then the biggest move in the table.
+  - Then one or two things that stood out: a surprise, a flop, a player who did not play, or a deal.
+  - Each line is one or two short sentences, 20 to 200 characters, with no line breaks.
+${asked}
+Answer as JSON: {"headline": "...", "lines": ["...", "..."], "sections": {"stars": "...", ...}}`;
+}
 
 /** The task with the facts, and on a retry, what the first answer got wrong. */
-export function summaryPrompt(factsText: string, refused: readonly string[] = []): string {
+export function summaryPrompt(factsText: string, sections: readonly SectionKey[], refused: readonly string[] = []): string {
   const retry =
     refused.length === 0
       ? ""
       : `\n\nYour previous answer was refused for these reasons. Write it again without them:\n${refused.map((reason) => `- ${reason}`).join("\n")}`;
-  return `${factsText}\n\n${SUMMARY_TASK}${retry}`;
+  return `${factsText}\n\n${summaryTask(sections)}${retry}`;
 }
 
 /**
@@ -63,24 +122,30 @@ export function summaryPrompt(factsText: string, refused: readonly string[] = []
 export const SUMMARY_SCHEMA = {
   type: "object",
   properties: {
+    headline: { type: "string" },
     lines: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+    sections: {
+      type: "object",
+      properties: Object.fromEntries(SECTION_KEYS.map((key) => [key, { type: "string" }])) as Record<SectionKey, { type: "string" }>,
+      additionalProperties: false,
+    },
   },
-  required: ["lines"],
+  required: ["headline", "lines", "sections"],
   additionalProperties: false,
 } as const;
 
+const prose = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(min)
+    .max(max)
+    .refine((text) => !/[\r\n]/.test(text), "one line per entry");
+
 export const summaryAnswer = z
   .object({
-    lines: z
-      .array(
-        z
-          .string()
-          .trim()
-          .min(20)
-          .max(200)
-          .refine((line) => !/[\r\n]/.test(line), "one line per entry"),
-      )
-      .min(3)
-      .max(5),
+    headline: prose(20, 90),
+    lines: z.array(prose(20, 200)).min(3).max(5),
+    sections: z.object(Object.fromEntries(SECTION_KEYS.map((key) => [key, prose(20, 300).optional()])) as Record<SectionKey, z.ZodOptional<ReturnType<typeof prose>>>).strict(),
   })
   .strict();

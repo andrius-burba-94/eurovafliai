@@ -45,12 +45,13 @@ const MARKDOWN = /\*\*|__|`|\[[^\]]*\]\(|^\s*([-*•]|#{1,6})\s/;
 const LINK = /https?:\/\/|www\./i;
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/u;
 
-export function checkWriteup(lines: readonly string[], context: GuardContext): GuardResult {
+/** `labels` name each entry in a violation ("headline", "stars"); "line N" by default. */
+export function checkWriteup(lines: readonly string[], context: GuardContext, labels?: readonly string[]): GuardResult {
   const violations: string[] = [];
   const warnings: string[] = [];
 
   lines.forEach((line, index) => {
-    const at = `line ${index + 1}`;
+    const at = labels?.[index] ?? `line ${index + 1}`;
     if (/[\r\n]/.test(line)) violations.push(`${at}: one line per entry, no line breaks`);
 
     for (const match of line.matchAll(TOKENISH)) {
