@@ -24,6 +24,7 @@ const PATHS: Record<NavIconName, string> = {
   sheet: "M4 2.5h6l2 2v9H4zM6 6.5h4M6 9h4M6 11.5h2.5",
   export: "M8 9.5v-7M5 5l3-3 3 3M3 9v4.5h10V9",
   stats: "M8 2.5a5.5 5.5 0 1 0 5.5 5.5H8V2.5ZM10 1.8a5.5 5.5 0 0 1 4.2 4.2H10V1.8Z",
+  settings: "M2.5 4.5h11M2.5 11.5h11M5.5 3v3M10.5 10v3",
   more: "M3.5 8h.01M8 8h.01M12.5 8h.01",
 };
 

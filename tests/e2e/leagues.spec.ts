@@ -296,7 +296,11 @@ test("the commissioner deletes the league, board and all", async ({
   const { commissioner, league } = await leagueWithABoard("Doomed League");
   await signIn(context, commissioner);
 
-  await page.goto(`/l/${league.id}`);
+  // Deleting lives on League settings (7.1), last on the page.
+  await page.goto(`/l/${league.id}/settings`);
+  const toggle = await page.getByTestId("delete-league-toggle").boundingBox();
+  expect(toggle!.width).toBeGreaterThanOrEqual(44);
+  expect(toggle!.height).toBeGreaterThanOrEqual(44);
   await page.getByTestId("delete-league-toggle").click();
 
   // The wrong name is not a confirmation.
@@ -305,7 +309,7 @@ test("the commissioner deletes the league, board and all", async ({
   await expect(page.getByTestId("delete-league-error")).toContainText(
     "Doomed League",
   );
-  await expect(page.getByTestId("lobby")).toBeVisible();
+  await expect(page.getByTestId("league-settings")).toBeVisible();
 
   // React 19 empties the field across the transition (AGENTS.md).
   await page.getByTestId("delete-league-confirm").fill("doomed league  ");
@@ -343,7 +347,7 @@ test("a league whose rosters were materialized still deletes", async ({
   );
 
   await signIn(context, commissioner);
-  await page.goto(`/l/${league.id}`);
+  await page.goto(`/l/${league.id}/settings`);
   await page.getByTestId("delete-league-toggle").click();
   await page.getByTestId("delete-league-confirm").fill("Held League");
   await page.getByTestId("delete-league").click();
@@ -361,10 +365,11 @@ test("a deputy is trusted to help run the league, not to end it", async ({
   await grantManage(league.id, other);
   await signIn(context, other);
 
-  await page.goto(`/l/${league.id}`);
-  await expect(page.getByTestId("lobby")).toBeVisible();
+  await page.goto(`/l/${league.id}/settings`);
+  await expect(page.getByTestId("league-settings")).toBeVisible();
   // They can manage members; they cannot end the league. `deleteLeague`
   // refuses a deputy regardless of what is on screen.
+  await expect(page.getByTestId("settings-member").first()).toBeVisible();
   await expect(page.getByTestId("delete-league-toggle")).toHaveCount(0);
 });
 
@@ -383,7 +388,7 @@ test("a lobby open elsewhere does not sit there empty after a delete", async ({
   const owner = await context.browser()!.newContext();
   await signIn(owner, commissioner);
   const ownerPage = await owner.newPage();
-  await ownerPage.goto(`/l/${league.id}`);
+  await ownerPage.goto(`/l/${league.id}/settings`);
   await ownerPage.getByTestId("delete-league-toggle").click();
   await ownerPage.getByTestId("delete-league-confirm").fill("Watched League");
   await ownerPage.getByTestId("delete-league").click();

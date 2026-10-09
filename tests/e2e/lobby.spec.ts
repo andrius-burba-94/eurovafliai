@@ -131,7 +131,7 @@ test("a member marks themselves ready, and can take it back", async ({
 
   const order = await page
     .locator(
-      "h1, [data-testid='invite-code'], [data-testid='team-name-input'], [data-testid='member-list'], [data-testid='chat-toggle'], [data-testid='delete-league-toggle']",
+      "h1, [data-testid='invite-code'], [data-testid='team-name-input'], [data-testid='member-list'], [data-testid='chat-toggle']",
     )
     .evaluateAll((nodes) =>
       nodes.map((node) =>
@@ -146,8 +146,9 @@ test("a member marks themselves ready, and can take it back", async ({
     "team-name-input",
     "member-list",
     "chat-toggle",
-    "delete-league-toggle",
   ]);
+  // Deleting moved to League settings (7.1); leagues.spec measures it there.
+  await expect(page.getByTestId("delete-league-toggle")).toHaveCount(0);
   for (const name of ["Invite code", "Members", "League chat"]) {
     await expect(
       page.getByRole("region", { name, exact: true }),
@@ -156,10 +157,6 @@ test("a member marks themselves ready, and can take it back", async ({
   await expect(
     page.locator('[data-framed="true"] [data-framed="true"]'),
   ).toHaveCount(0);
-  const deleteBox = await page.getByTestId("delete-league-toggle").boundingBox();
-  expect(deleteBox).not.toBeNull();
-  expect(deleteBox!.width).toBeGreaterThanOrEqual(44);
-  expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 
   await page.getByTestId("toggle-ready").click();
   await expect(page.getByTestId("member-tally")).toContainText("1 of 1 ready");

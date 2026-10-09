@@ -8,8 +8,33 @@ import {
   canAcceptMember,
   lineupFitsRoster,
   parseLeagueSettings,
+  readWriteupSettings,
   rosterSize,
 } from "./settings";
+
+describe("write-up settings", () => {
+  it("are on, in the analyst's voice, for a league that never set them", () => {
+    expect(parseLeagueSettings({}).ai).toEqual({ enabled: true, voice: "analyst" });
+  });
+
+  it("keep what a league chose", () => {
+    expect(parseLeagueSettings({ ai: { enabled: false, voice: "pundit" } }).ai).toEqual({ enabled: false, voice: "pundit" });
+  });
+
+  it("fall back alone when malformed, without costing the league its other settings", () => {
+    const settings = parseLeagueSettings({ format: "linear", ai: { enabled: "yes", voice: "loud" } });
+    expect(settings.ai).toEqual({ enabled: true, voice: "analyst" });
+    expect(settings.format).toBe("linear");
+  });
+
+  it("read a form's two fields and refuse anything else", () => {
+    expect(readWriteupSettings({ enabled: "on", voice: "pundit" })).toEqual({ ok: true, value: { enabled: true, voice: "pundit" } });
+    expect(readWriteupSettings({ enabled: "off", voice: "analyst" })).toEqual({ ok: true, value: { enabled: false, voice: "analyst" } });
+    expect(readWriteupSettings({ enabled: "maybe", voice: "analyst" }).ok).toBe(false);
+    expect(readWriteupSettings({ enabled: "on", voice: "loud" }).ok).toBe(false);
+    expect(readWriteupSettings({ enabled: null, voice: null }).ok).toBe(false);
+  });
+});
 
 describe("parseLeagueSettings", () => {
   it("fills in defaults for a league created before a field existed", () => {

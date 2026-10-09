@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { VOICES, type Voice } from "@/lib/ai/voice";
 import {
   DEFAULT_LINEUP_TEMPLATE,
   lineupSize,
@@ -74,6 +75,18 @@ export const DRAFT_FORMATS = ["linear", "snake", "snake3rr"] as const;
  */
 export const ORDER_MODES = ["roll", "manual", "reverse_standings"] as const;
 
+/**
+ * Round write-ups (7.1): on, in the analyst's voice, unless the commissioner
+ * says otherwise. A malformed value falls back on its own rather than failing
+ * the whole parse, which would reset every other setting with it.
+ */
+export const DEFAULT_WRITEUP_SETTINGS = { enabled: true, voice: "analyst" } as const satisfies { enabled: boolean; voice: Voice };
+
+const writeupSettingsSchema = z
+  .object({ enabled: z.boolean(), voice: z.enum(VOICES) })
+  .default(DEFAULT_WRITEUP_SETTINGS)
+  .catch(DEFAULT_WRITEUP_SETTINGS);
+
 export const leagueSettingsSchema = z.object({
   roster_template: rosterTemplateSchema.default(DEFAULT_ROSTER_TEMPLATE),
   max_members: z
@@ -116,7 +129,20 @@ export const leagueSettingsSchema = z.object({
    */
   rolled_at: z.string().default(""),
   lineup_template: lineupTemplateSchema.default(DEFAULT_LINEUP_TEMPLATE),
+  ai: writeupSettingsSchema,
 });
+
+export type WriteupSettings = { readonly enabled: boolean; readonly voice: Voice };
+
+/** The settings form's two fields; anything but the offered values is refused. */
+export function readWriteupSettings(fields: {
+  enabled: unknown;
+  voice: unknown;
+}): { ok: true; value: WriteupSettings } | { ok: false } {
+  const enabled = fields.enabled === "on" ? true : fields.enabled === "off" ? false : null;
+  const voice = VOICES.find((candidate) => candidate === fields.voice);
+  return enabled === null || !voice ? { ok: false } : { ok: true, value: { enabled, voice } };
+}
 
 export type RosterTemplate = z.infer<typeof rosterTemplateSchema>;
 export type LeagueSettings = z.infer<typeof leagueSettingsSchema>;

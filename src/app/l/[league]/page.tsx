@@ -35,7 +35,6 @@ import { liveRound } from "@/lib/season/dashboard";
 import { liveRecap } from "@/lib/season/story";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
-import { DeleteLeague } from "./delete-league";
 import { LiveLobby } from "./live-lobby";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
 
@@ -317,7 +316,8 @@ export default async function LobbyPage({
       )}
 
       {/* Setup apparatus stays together. From chat onward the order is
-          conversation, private sheet, then the folded way out. */}
+          conversation, then the private sheet. Deleting the league lives on
+          League settings (7.1). */}
       {league.status === "setup" ? (
         <div className="hidden sm:block">
           <BoardPlan
@@ -378,16 +378,6 @@ export default async function LobbyPage({
         </Slots>
       ) : null}
 
-      {/* Last on the page, and folded: the way out of a league should be
-          findable and never in the way. */}
-      {isCommissioner ? (
-        <DeleteLeague
-          leagueId={league.id}
-          leagueName={league.name}
-          memberCount={members.length}
-          hasDrafted={league.status !== "setup"}
-        />
-      ) : null}
     </AppShell>
   );
 }

@@ -189,6 +189,33 @@ function NavLink({
   );
 }
 
+/** A group header's one link, as an icon with its words for assistive tech: 44px, no row of its own. */
+function HeaderAction({
+  item,
+  current,
+  prefix,
+  className,
+}: {
+  item: NavItem;
+  current: NavKey | undefined;
+  prefix: string;
+  className: string;
+}) {
+  const active = item.key === current;
+  return (
+    <Link
+      href={item.href}
+      data-testid={`${prefix}-${item.key}`}
+      aria-label={item.label}
+      title={item.label}
+      aria-current={active ? "page" : undefined}
+      className={`flex h-11 w-11 items-center justify-center rounded-md transition-colors hover:bg-stock-panel hover:text-ink ${active ? "text-ink" : "text-ink-soft"} ${focusRing} ${className}`}
+    >
+      <NavIcon name={item.icon} />
+    </Link>
+  );
+}
+
 function SidebarNavGroups({
   groups,
   current,
@@ -199,27 +226,33 @@ function SidebarNavGroups({
   return (
     <>
       {groups.map((group, index) => (
-        <details
-          key={group.id}
-          name="sidebar-nav"
-          open={group.items.some((item) => item.key === current) || (!current && index === 0)}
-          className="group border-t border-panel-border first:border-0"
-        >
-          <summary
-            data-testid={`nav-group-${group.id}`}
-            className={`slot-label flex min-h-9 list-none items-center justify-between rounded-md px-3 text-ink-soft transition-colors hover:bg-stock-panel hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
+        // The header's link sits beside the summary, not inside it: a link
+        // inside a summary is a control inside a control.
+        <div key={group.id} className="relative border-t border-panel-border first:border-0">
+          <details
+            name="sidebar-nav"
+            open={group.items.some((item) => item.key === current) || group.action?.key === current || (!current && index === 0)}
+            className="group"
           >
-            <span id={`nav-group-label-${group.id}`} className="truncate">{group.label}</span>
-            <span aria-hidden="true" className="text-base transition-transform group-open:rotate-90">›</span>
-          </summary>
-          <ul role="list" aria-labelledby={`nav-group-label-${group.id}`}>
-            {group.items.map((item) => (
-              <li key={item.key}>
-                <NavLink item={item} current={current} prefix="nav" />
-              </li>
-            ))}
-          </ul>
-        </details>
+            <summary
+              data-testid={`nav-group-${group.id}`}
+              className={`slot-label flex min-h-9 list-none items-center justify-between rounded-md px-3 text-ink-soft transition-colors hover:bg-stock-panel hover:text-ink group-open:text-ink [&::-webkit-details-marker]:hidden ${focusRing}`}
+            >
+              <span id={`nav-group-label-${group.id}`} className="truncate">{group.label}</span>
+              <span aria-hidden="true" className="text-base transition-transform group-open:rotate-90">›</span>
+            </summary>
+            <ul role="list" aria-labelledby={`nav-group-label-${group.id}`}>
+              {group.items.map((item) => (
+                <li key={item.key}>
+                  <NavLink item={item} current={current} prefix="nav" />
+                </li>
+              ))}
+            </ul>
+          </details>
+          {group.action ? (
+            <HeaderAction item={group.action} current={current} prefix="nav" className="absolute top-[-4px] right-6" />
+          ) : null}
+        </div>
       ))}
     </>
   );
@@ -246,9 +279,12 @@ function NavGroups({
     <>
       {groups.map((group) => (
         <div key={group.id} className="flex flex-col gap-1 border-t border-panel-border pt-3 first:border-0 first:pt-0">
-          <p id={`${prefix}-group-${group.id}`} className="slot-label truncate px-3 text-ink-soft">
-            {group.label}
-          </p>
+          <div className="flex items-center justify-between">
+            <p id={`${prefix}-group-${group.id}`} className="slot-label truncate px-3 text-ink-soft">
+              {group.label}
+            </p>
+            {group.action ? <HeaderAction item={group.action} current={current} prefix={prefix} className="-my-3" /> : null}
+          </div>
           <ul
             role="list"
             aria-labelledby={`${prefix}-group-${group.id}`}

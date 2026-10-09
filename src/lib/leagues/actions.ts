@@ -27,6 +27,8 @@ import {
   canAcceptMember,
   parseLeagueSettings,
   leagueSettingsSchema,
+  readWriteupSettings,
+  type WriteupSettings,
 } from "./settings";
 import type { LeagueRecord, MemberRecord } from "./types";
 import { revalidateLeague } from "@/lib/nav/revalidate";
@@ -590,4 +592,53 @@ export async function deleteLeague(
 function typedTheName(typed: FormDataEntryValue | null, name: string): boolean {
   const fold = (value: string) => normalizeTeamName(value).toLowerCase();
   return fold(String(typed ?? "")) === fold(name) && name.trim() !== "";
+}
+
+export type WriteupSettingsResult = {
+  error: string | null;
+  /** What was saved, so the form reads it back rather than trusting its own fields. */
+  saved?: WriteupSettings;
+};
+
+/**
+ * Round write-ups on or off, and their voice (7.1). The commissioner's call
+ * alone — a deputy sees the setting and cannot change it.
+ *
+ * One write of the whole settings object, read fresh just before it: in
+ * season nothing else writes `leagues.settings`, and the draft's own keys are
+ * carried over untouched. Off stops the worker writing and hides every
+ * write-up; the rows stay, so On brings them back without a model call.
+ */
+export async function setWriteupSettings(
+  _previous: WriteupSettingsResult,
+  formData: FormData,
+): Promise<WriteupSettingsResult> {
+  const session = await requireSession();
+  const leagueId = String(formData.get("leagueId") ?? "");
+  if (!leagueId) return NOT_YOURS;
+
+  const read = readWriteupSettings({ enabled: formData.get("enabled"), voice: formData.get("voice") });
+  if (!read.ok) return { error: "Choose on or off, and a voice." };
+
+  const pb = await getSuperuserClient();
+  let league: LeagueRecord;
+  try {
+    league = await pb.collection("leagues").getOne<LeagueRecord>(leagueId, { requestKey: null });
+  } catch {
+    return NOT_YOURS;
+  }
+  if (league.commissioner !== session.user.id) {
+    return { error: "Only the commissioner can change the write-ups." };
+  }
+
+  try {
+    await pb
+      .collection("leagues")
+      .update(leagueId, { settings: { ...parseLeagueSettings(league.settings), ai: read.value } }, { requestKey: null });
+  } catch {
+    return { error: "Could not save that. Try again." };
+  }
+
+  revalidateLeague();
+  return { error: null, saved: read.value };
 }
