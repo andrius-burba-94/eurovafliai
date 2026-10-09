@@ -28,11 +28,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = resolve(HERE, "..");
 const ENTRY = join(HERE, "index.ts");
 /**
- * Modules the worker will run that it does not import yet. 7.0's write-up
- * pass is driven by a script until 7.1 wires it into the worker, and a
- * framework import added before then would pass every other check.
+ * Modules the worker will run that it does not import yet, so a framework
+ * import added before they are wired in still fails here. Empty since 7.1
+ * wired in the write-up pass.
  */
-const PENDING = ["lib/ai/summary.ts", "lib/ai/store.ts", "lib/ai/round-facts-store.ts"].map((file) => join(SRC, file));
+const PENDING: string[] = [];
 
 const BANNED = [
   { pattern: /^next(\/|$)/, why: "Next.js is not available in the worker process" },

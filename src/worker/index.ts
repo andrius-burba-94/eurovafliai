@@ -63,6 +63,10 @@ import { ensureSlugs } from "@/lib/slugs/store";
 import { previousSeasonOf } from "@/lib/stats/seasons";
 import { applyPreviousSeason } from "@/lib/stats/store";
 
+import { readCompleteRounds, readRoundFactsInput } from "@/lib/ai/round-facts-store";
+import { buildRoundFacts } from "@/lib/ai/round-facts";
+import { runRoundPass, writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
+
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
 /**
@@ -117,6 +121,10 @@ const STATS_FIRST_AFTER_MS = 60_000;
  * sets a lineup".
  */
 const NEWS_EVERY_MS = 60 * 60_000;
+/** 7.1's write-ups: a pass a quarter-hour after the stats one, a minute's look for Rewrite. */
+const AI_EVERY_MS = 15 * 60_000;
+const AI_FIRST_AFTER_MS = 150_000;
+const AI_REQUESTS_EVERY_MS = 60_000;
 const NEWS_FIRST_AFTER_MS = 90_000;
 const LIVE_EVERY_MS = 60_000;
 const LIVE_FIRST_AFTER_MS = 95_000;
@@ -627,7 +635,69 @@ function main(): void {
   }
 
   scheduleStats();
+  /**
+   * 7.1, round write-ups (ADR-0012, ADR-0013). Its own in-flight guard,
+   * shared by the fifteen-minute pass and the one-minute Rewrite check, so the
+   * two never write the same row at once — and neither waits on, or delays,
+   * a pick deadline. Nothing here is fairness-critical: a dead pass means no
+   * prose, and every page renders as it did without it.
+   */
+  let aiInFlight: Promise<void> | null = null;
+  let aiTimer: ReturnType<typeof setInterval> | null = null;
+  let aiRequestsTimer: ReturnType<typeof setInterval> | null = null;
+  const aiDeps = (): RoundPassDeps => ({
+    pb,
+    season: env.EUROLEAGUE_SEASON,
+    apiKey: env.GEMINI_API_KEY ?? "",
+    model: env.GEMINI_MODEL,
+    now: () => Date.now(),
+    readComplete: (leagueId) => readCompleteRounds(pb, { leagueId, season: env.EUROLEAGUE_SEASON, now: Date.now() }),
+    readFacts: async (leagueId, round) => {
+      const read = await readRoundFactsInput(pb, { leagueId, season: env.EUROLEAGUE_SEASON, round, now: Date.now() });
+      if (!read.ok) return null;
+      const built = buildRoundFacts(read.input);
+      return built.ok ? built.facts : null;
+    },
+  });
+  const aiSummary = (label: string, report: PassReport) => {
+    const parts = [
+      report.written ? `${report.written} written` : "",
+      report.rewritten ? `${report.rewritten} rewritten` : "",
+      report.refused ? `${report.refused} refused by the guard` : "",
+      report.guarded ? `${report.guarded} re-guarded` : "",
+    ].filter(Boolean);
+    if (parts.length > 0) log(`write-ups · ${label} · ${parts.join(", ")}`);
+    if (report.stopped) log(`write-ups · ${label} stopped early: ${report.stopped}`, "warn");
+  };
+  function aiRun(label: string, run: (deps: RoundPassDeps) => Promise<PassReport>): void {
+    if (stopping || aiInFlight) return;
+    aiInFlight = (async () => {
+      try {
+        await ensureAuth(pb, env);
+        aiSummary(label, await run(aiDeps()));
+      } catch (error) {
+        log(`write-ups · ${label} failed: ${describeError(error)}`, "error");
+        pb.authStore.clear();
+      }
+    })().finally(() => {
+      aiInFlight = null;
+    });
+  }
+  function scheduleWriteups(): void {
+    if (!env.GEMINI_API_KEY) {
+      log("write-ups off · GEMINI_API_KEY is not set");
+      return;
+    }
+    log(`write-ups on · ${env.GEMINI_MODEL} · every ${AI_EVERY_MS / 60_000}min, Rewrite checked every minute`);
+    setTimeout(() => {
+      aiRun("pass", runRoundPass);
+      aiTimer = setInterval(() => aiRun("pass", runRoundPass), AI_EVERY_MS);
+      aiRequestsTimer = setInterval(() => aiRun("rewrite", writeRequestedRounds), AI_REQUESTS_EVERY_MS);
+    }, AI_FIRST_AFTER_MS).unref?.();
+  }
+
   scheduleNews();
+  scheduleWriteups();
   scheduleLive();
   scheduleFantasy();
   scheduleRosters();
@@ -703,6 +773,8 @@ function main(): void {
     if (rostersTimer) clearInterval(rostersTimer);
     clearInterval(basketNewsTimer);
     if (slugsTimer) clearInterval(slugsTimer);
+    if (aiTimer) clearInterval(aiTimer);
+    if (aiRequestsTimer) clearInterval(aiRequestsTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

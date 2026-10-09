@@ -15,7 +15,12 @@ import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { stylesById } from "@/lib/teams/identity";
 
+import { readRoundWriteup } from "@/lib/ai/queries";
+import { formatTipOff } from "@/lib/time/local";
+
 import { RecapBody } from "./recap-body";
+import { WriteupNote, WriteupSummary, type WriteupLinks } from "./writeup";
+import { WriteupStrip } from "./writeup-strip";
 import { RoundPicker } from "./round-picker";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
 
@@ -73,6 +78,18 @@ export default async function RecapPage({
       member.teamName.trim() ? member.teamName : member.name,
     ]),
   );
+
+  // 7.1: the round's write-up, when write-ups are on and the round is over.
+  // Read-only and never the model: the worker wrote it (ADR-0012).
+  const writeup =
+    page && !open && data.settings.ai.enabled
+      ? await readRoundWriteup({ token: session.token, leagueId: id, season, round: page.recap.round, teamNames: names }).catch(
+          () => null,
+        )
+      : null;
+  const viewerManages = data.isCommissioner || data.members.some((member) => member.isYou && member.canManage);
+  const paths = leaguePaths(data.league, data.members);
+  const links: WriteupLinks | null = writeup ? { paths, league: data.league, players: writeup.players } : null;
 
   const emptyDraft = data.league.status !== "season";
   const emptyScores = !emptyDraft && page === null;
@@ -144,9 +161,42 @@ export default async function RecapPage({
             styles={stylesById(data.members)}
             playerNames={page.playerNames}
             playerCodes={page.playerCodes}
-            leagueId={id} paths={leaguePaths(data.league, data.members)}
+            leagueId={id} paths={paths}
             season={season}
             open={open}
+            summary={
+              writeup && links ? (
+                <WriteupSummary
+                  read={writeup}
+                  links={links}
+                  strip={
+                    viewerManages ? (
+                      <WriteupStrip
+                        leagueId={id}
+                        season={season}
+                        round={page.recap.round}
+                        state={writeup.state}
+                        failure={writeup.failure}
+                        writtenAt={formatTipOff(writeup.writtenAt?.replace(" ", "T"))}
+                        voice={writeup.voice}
+                        canRewrite={data.isCommissioner && season === currentSeason}
+                        settingsHref={`${base}/settings`}
+                        authToken={session.token}
+                      />
+                    ) : null
+                  }
+                />
+              ) : null
+            }
+            notes={
+              links
+                ? {
+                    table: <WriteupNote read={writeup} section="table" links={links} />,
+                    stars: <WriteupNote read={writeup} section="stars" links={links} />,
+                    swing: <WriteupNote read={writeup} section="swing" links={links} />,
+                  }
+                : undefined
+            }
           />
         </>
       ) : null}

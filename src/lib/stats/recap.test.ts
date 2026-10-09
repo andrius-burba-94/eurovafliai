@@ -179,6 +179,34 @@ describe("recapForRound", () => {
     });
   });
 
+  it("measures a synced drop and add as one exchange, players in minus players out", () => {
+    // The trades page and the round write-up both read these two rows as one
+    // move; the swing measured the drop alone and the page disagreed with itself.
+    const drop: ImpactTransaction = { id: "tx-drop", type: "drop", fromRound: 2, playersIn: {}, playersOut: { "m-a": ["p-out"] } };
+    const add: ImpactTransaction = { id: "tx-add", type: "add", fromRound: 2, playersIn: { "m-a": ["p-in"] }, playersOut: {} };
+    const recap = recapForRound(2, [], [], lines, [drop, add], undefined, [{ ids: ["tx-drop", "tx-add"], kind: "exchange" }]);
+    expect(recap.biggestSwing).toMatchObject({
+      transactionId: "tx-drop",
+      exchange: true,
+      memberId: "m-a",
+      deltaTenths: 7 - 50,
+      inIds: ["p-in"],
+      outIds: ["p-out"],
+    });
+  });
+
+  it("reads two teams' synced drops and adds as the trade they were", () => {
+    const aDrop: ImpactTransaction = { id: "a-drop", type: "drop", fromRound: 2, playersIn: {}, playersOut: { "m-a": ["p-out"] } };
+    const bAdd: ImpactTransaction = { id: "b-add", type: "add", fromRound: 2, playersIn: { "m-b": ["p-out"] }, playersOut: {} };
+    const bDrop: ImpactTransaction = { id: "b-drop", type: "drop", fromRound: 2, playersIn: {}, playersOut: { "m-b": ["p-in"] } };
+    const aAdd: ImpactTransaction = { id: "a-add", type: "add", fromRound: 2, playersIn: { "m-a": ["p-in"] }, playersOut: {} };
+    const recap = recapForRound(2, [], [], lines, [aDrop, bAdd, bDrop, aAdd], undefined, [
+      { ids: ["a-drop", "b-add", "b-drop", "a-add"], kind: "swap" },
+    ]);
+    // The same answer as the recorded 1-for-1 above: m-b gained 50 - 7.
+    expect(recap.biggestSwing).toMatchObject({ type: "trade", exchange: false, memberId: "m-b", counterpartId: "m-a", deltaTenths: 43 });
+  });
+
   it("picks the larger absolute swing when two deals cover the round", () => {
     const drop: ImpactTransaction = {
       id: "tx-drop",

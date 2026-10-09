@@ -60,6 +60,15 @@ seriously while still letting a model write.
 - **`store: false`** on every Interactions call; no temperature for Gemini 3;
   the key in the `x-goog-api-key` header only, scrubbed from every message.
 - **No `maxLength` in Gemini's schema subset** — enforce lengths in zod.
+- **Ask for exactly the sheet's sections.** Offered every key, the lite
+  model wrote `under` for an OVERPERFORMER line. `summarySchema(sectionsIn(sheet))`
+  names only the sections the sheet has, all required (7.1).
+- **A changed hash is not a reason to rewrite.** The latest round's sheet
+  carries today's injury flags, and the hash covers model and prompt. Re-guard
+  the stored prose against a fresh sheet; rewrite only when it fails (ADR-0013).
+- **No lineup means no role.** A rule that needs a starting role must treat a
+  team that records no lineup as everyone in full, or it never fires there
+  (underperformers did not, until 7.1).
 - **Framework-free.** Worker-run AI modules are walked by
   `src/worker/framework-free.test.ts`; add new ones to its `PENDING` list
   until the worker imports them.

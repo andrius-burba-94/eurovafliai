@@ -30,7 +30,8 @@ export type NavKey =
   | "trades"
   | "stats"
   | "sheet"
-  | "export";
+  | "export"
+  | "settings";
 
 export type NavIconName =
   | "home"
@@ -50,6 +51,7 @@ export type NavIconName =
   | "stats"
   | "sheet"
   | "export"
+  | "settings"
   | "more";
 
 export type NavItem = {
@@ -65,6 +67,12 @@ export type NavGroup = {
   readonly id: "league" | "drafts" | "global";
   readonly label: string;
   readonly items: readonly NavItem[];
+  /**
+   * A link on the group's own header rather than a row in it — League
+   * settings (7.1), because one more row pushed a manager's season sidebar
+   * past a 690px-tall screen.
+   */
+  readonly action?: NavItem;
 };
 
 export type NavLeague = {
@@ -198,7 +206,14 @@ const MANAGE_ITEMS: readonly NavItem[] = [
 export function navFor({ league, isRosterManager, mappingWaiting = 0 }: NavInput): NavGroup[] {
   const groups: NavGroup[] = [];
   if (league) {
-    groups.push({ id: "league", label: "League", items: leagueItems(league) });
+    groups.push({
+      id: "league",
+      label: "League",
+      items: leagueItems(league),
+      ...(league.canManage
+        ? { action: { key: "settings", href: `${leagueHref(league)}/settings`, label: "League settings", icon: "settings" } as const }
+        : {}),
+    });
     const drafts = draftItems(league);
     if (drafts.length > 0) groups.push({ id: "drafts", label: "Drafts", items: drafts });
   }

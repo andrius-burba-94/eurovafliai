@@ -128,6 +128,17 @@ describe("navFor", () => {
     ).toContain("trades");
   });
 
+  it("puts League settings on the League header for managers only, in every status, never as a row", () => {
+    const header = (input: Parameters<typeof navFor>[0]) => navFor(input).find((group) => group.id === "league")!;
+    for (const status of ["setup", "drafting", "season", "complete"] as const) {
+      const managed = header({ league: league({ status, canManage: true }), isRosterManager: false });
+      expect(managed.action).toMatchObject({ key: "settings", label: "League settings" });
+      expect(managed.action!.href).toMatch(/\/settings$/);
+      expect(managed.items.map((item) => item.key)).not.toContain("settings");
+      expect(header({ league: league({ status }), isRosterManager: false }).action).toBeUndefined();
+    }
+  });
+
   it("a commissioner without a membership sees no member-only surface", () => {
     const keys = keysOf(
       {

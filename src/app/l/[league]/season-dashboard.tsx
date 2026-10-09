@@ -50,6 +50,7 @@ export function SeasonDashboard({
   youMemberId,
   schedule,
   activity,
+  writtenHeadline = null,
 }: {
   leagueId: string;
   paths: LeaguePaths;
@@ -68,6 +69,8 @@ export function SeasonDashboard({
   schedule: PanelData["schedule"];
   /** Chat, trades and EuroLeague updates share this space. */
   activity: ReactNode;
+  /** 7.1: the last finished round's written headline, when it has one. */
+  writtenHeadline?: string | null;
 }) {
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.at(-2) ?? null;
@@ -382,6 +385,18 @@ export function SeasonDashboard({
             </EmptyNotice>
           ) : story ? (
             <div className="flex flex-col gap-3" data-testid="dashboard-night">
+              {writtenHeadline ? (
+                <Link
+                  href={`${paths.base}/recap?round=${story.round}`}
+                  data-testid="dashboard-writeup"
+                  className="group flex flex-col gap-1.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live"
+                >
+                  <span className="display text-xl text-balance text-ink sm:text-2xl">{writtenHeadline}</span>
+                  <span className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline decoration-ink/40 underline-offset-[3px] transition-colors group-hover:decoration-ink">
+                    Read the round
+                  </span>
+                </Link>
+              ) : null}
               <Moment kind="sweep" id={`crown:${leagueId}:${story.round}`} testId="dashboard-winner" className="rounded-xl border border-gold/40 bg-gold/8 p-3">
                 <p className="slot-label flex items-center gap-1.5 text-gold">
                   <Glyph name="crown" size={14} /> Round winner

@@ -305,7 +305,9 @@ export function buildRoundFacts(input: RoundFactsInput): RoundFactsResult {
   const under = rostered
     .filter((entry) => {
       if (!entry.basis || entry.change === null || !entry.played) return false;
-      if (!entry.role || !STARTING_ROLES.includes(entry.role)) return false;
+      // No lineup means everyone counted in full, so only a role that sat him
+      // (bench, inactive) disqualifies; the basis below keeps it to regulars.
+      if (entry.role && !STARTING_ROLES.includes(entry.role)) return false;
       return entry.basis.tenths >= UNDER_BASIS && entry.change <= UNDER_BY && entry.raw <= entry.basis.tenths * 10 * UNDER_RATIO;
     })
     .sort((a, b) => a.change! - b.change! || byId(a.playerId, b.playerId))

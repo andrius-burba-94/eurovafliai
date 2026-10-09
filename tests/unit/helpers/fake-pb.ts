@@ -347,14 +347,15 @@ function matches(record: FakeRecord, filter?: string): boolean {
   // bracketed OR once it has been split down to one branch.
   const inner = /^\(([\s\S]*)\)$/.exec(text);
   if (inner) return matches(record, inner[1]);
-  // Three literal forms, because the app writes all three: single-quoted
-  // (the drafts pipeline), double-quoted (the stats store) and a bare number
-  // (`game_code = 1`, which PocketBase compares numerically).
+  // Four literal forms, because the app writes all four: single-quoted
+  // (the drafts pipeline), double-quoted (the stats store), a bare number
+  // (`game_code = 1`, which PocketBase compares numerically) and a bare
+  // boolean (`applied = true`, 7.1's correction check).
   const parsed =
-    /^(\w+)\s*(!=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+))$/.exec(text);
+    /^(\w+)\s*(!=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+)|(true|false))$/.exec(text);
   if (!parsed) throw new Error(`fake-pb cannot parse filter: ${text}`);
   const [, field, operator] = parsed;
-  const value = parsed[3] ?? parsed[4] ?? parsed[5] ?? "";
+  const value = parsed[3] ?? parsed[4] ?? parsed[5] ?? parsed[6] ?? "";
   // PocketBase compares an unset field as empty, not as undefined.
   const actual =
     record[field] === undefined || record[field] === null

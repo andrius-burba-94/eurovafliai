@@ -27,6 +27,7 @@ import { readRecentTransactions } from "@/lib/memberships/queries";
 import { serverConfig } from "@/lib/config/server";
 import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
+import { readRoundWriteup } from "@/lib/ai/queries";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readMatchdayData } from "@/lib/live/queries";
@@ -35,7 +36,6 @@ import { liveRound } from "@/lib/season/dashboard";
 import { liveRecap } from "@/lib/season/story";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
-import { DeleteLeague } from "./delete-league";
 import { LiveLobby } from "./live-lobby";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
 
@@ -135,6 +135,15 @@ export default async function LobbyPage({
     ? await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round))
     : null;
   const live = progress ? liveRound(progress) : null;
+  // 7.1: the last finished round's written headline, for the story's teaser.
+  const writtenHeadline =
+    progress && progress.lastComplete !== null && settings.ai.enabled
+      ? ((
+          await readRoundWriteup({ token: session.token, leagueId: id, season, round: progress.lastComplete, teamNames }).catch(
+            () => null,
+          )
+        )?.view?.headline ?? null)
+      : null;
   const [recap, matchday] = progress
     ? await Promise.all([
         progress.lastComplete === null
@@ -222,6 +231,7 @@ export default async function LobbyPage({
               : null
           }
           recap={recap?.recap ?? null}
+          writtenHeadline={writtenHeadline}
           playerNames={recap?.playerNames ?? {}}
           playerCodes={recap?.playerCodes ?? {}}
           teamNames={teamNames}
@@ -317,7 +327,8 @@ export default async function LobbyPage({
       )}
 
       {/* Setup apparatus stays together. From chat onward the order is
-          conversation, private sheet, then the folded way out. */}
+          conversation, then the private sheet. Deleting the league lives on
+          League settings (7.1). */}
       {league.status === "setup" ? (
         <div className="hidden sm:block">
           <BoardPlan
@@ -378,16 +389,6 @@ export default async function LobbyPage({
         </Slots>
       ) : null}
 
-      {/* Last on the page, and folded: the way out of a league should be
-          findable and never in the way. */}
-      {isCommissioner ? (
-        <DeleteLeague
-          leagueId={league.id}
-          leagueName={league.name}
-          memberCount={members.length}
-          hasDrafted={league.status !== "setup"}
-        />
-      ) : null}
     </AppShell>
   );
 }

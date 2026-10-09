@@ -15,7 +15,8 @@ import { type Phase, PHASES } from "./csv";
 import type { ImpactLine, ImpactTransaction } from "./impact";
 import { readLeaguePlayerRounds } from "./player-rounds";
 import { last5SeriesOf } from "./project";
-import { recapForRound, type Recap } from "./recap";
+import { groupTransactionHistory, type HistoryRow } from "@/lib/memberships/history";
+import { recapForRound, type Recap, type RecapGroup } from "./recap";
 import { type RoundSnapshot, snapshotRowsFrom } from "./standings";
 
 /**
@@ -90,6 +91,18 @@ function asTransactions(
   });
 }
 
+/**
+ * The moves the trades page reads as one (a team's synced drop and add, two
+ * teams' mirrored ones), so the recap's swing measures the same deal. Rows go
+ * in newest first, the order `groupTransactionHistory` expects.
+ */
+function swingGroups(rows: readonly HistoryRow[]): RecapGroup[] {
+  const newestFirst = [...rows].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || b.id.localeCompare(a.id));
+  return groupTransactionHistory(newestFirst).flatMap((event): RecapGroup[] =>
+    event.exchange || event.swap ? [{ ids: event.rows.map((row) => row.id), kind: event.exchange ? "exchange" : "swap" }] : [],
+  );
+}
+
 export type RecapPageData = {
   readonly recap: Recap;
   readonly countedRounds: readonly number[];
@@ -137,13 +150,7 @@ export async function readLeagueRecap(
       fields: "member,player,from_round,to_round,to_date",
       requestKey: null,
     }),
-    pb.collection("transactions").getFullList<{
-      id: string;
-      type: string;
-      from_round: number;
-      players_in: unknown;
-      players_out: unknown;
-    }>({
+    pb.collection("transactions").getFullList<HistoryRow>({
       filter: `league = '${leagueId}'`,
       requestKey: null,
     }),
@@ -176,6 +183,7 @@ export async function readLeagueRecap(
     lines,
     asTransactions(txRows),
     weights,
+    swingGroups(txRows),
   );
 
   const nameIds = [

@@ -186,6 +186,15 @@ describe("buildRoundFacts", () => {
     ]);
   });
 
+  it("finds an underperformer on a team with no lineup, where everyone counts in full", () => {
+    // The local league records no lineups; with no role at all, the starting-role
+    // test refused every player and no round ever had an underperformer.
+    const sheet = facts({ lineups: LINEUPS.filter((lineup) => lineup.memberId !== "m2") });
+    expect(lineWith(sheet, "UNDERPERFORMER")).toEqual([
+      `UNDERPERFORMER · ${tokenOf(sheet, "pSlump")} · -16.0 on his average of 20.0 · in full (no lineup)`,
+    ]);
+  });
+
   it("lets nothing from a later round in", () => {
     const sheet = facts();
     expect(sheet.text).not.toContain("99");

@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
+
 import { Bank } from "@/components/board";
 import { ScoreFigure, StatusBadge, TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
 import { RoundLadder } from "@/components/round-ladder";
-import { announceAdd, announceDrop, announceTrade } from "@/lib/chat/messages";
+import { announceAdd, announceDrop, announceExchange, announceTrade } from "@/lib/chat/messages";
 import { roundStory } from "@/lib/season/story";
 import type { Recap } from "@/lib/stats/recap";
 import { formatHundredths, formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
@@ -27,6 +29,8 @@ export function RecapBody({
   paths,
   season,
   open,
+  summary,
+  notes,
 }: {
   recap: Recap;
   names: Readonly<Record<string, string>>;
@@ -38,6 +42,10 @@ export function RecapBody({
   season: string;
   /** Set while the round has a game left; its counts when it is the current round. */
   open: { played: number | null; total: number | null } | null;
+  /** 7.1: the round's write-up, above The night; null when there is none to show. */
+  summary?: ReactNode;
+  /** 7.1: the analyst's line on the panel it explains. */
+  notes?: { readonly table?: ReactNode; readonly stars?: ReactNode; readonly swing?: ReactNode };
 }) {
   const team = (id: string) => names[id] ?? id;
   const player = (id: string) => playerNames[id] ?? id;
@@ -47,7 +55,14 @@ export function RecapBody({
   const night = recap.bestNight;
   const swing = recap.biggestSwing;
   const swingSentence = swing
-    ? swing.type === "trade"
+    ? swing.exchange
+      ? announceExchange({
+          teamName: team(swing.memberId),
+          released: swing.outIds.map(player),
+          acquired: swing.inIds.map(player),
+          fromRound: swing.fromRound,
+        })
+      : swing.type === "trade"
       ? announceTrade({
           teamA: team(swing.memberId),
           teamB: team(swing.counterpartId),
@@ -137,23 +152,27 @@ export function RecapBody({
       ) : null}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,1fr)]">
-        <Bank framed label="The night" aside={`Round ${recap.round}`}>
-          {recap.rows.length === 0 ? (
-            <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="recap-table-empty">
-              No teams scored this round. The ladder appears once a counted box score lands for a roster.
-            </p>
-          ) : (
-            <RoundLadder
-              rows={recap.rows}
-              names={names}
-              styles={styles}
-              hrefOf={(memberId) => `${paths.teams[memberId] ?? paths.base}?season=${encodeURIComponent(season)}`}
-              marks={!open}
-              testId="recap"
-              label="Teams by this round"
-            />
-          )}
-        </Bank>
+        <div className="flex min-w-0 flex-col gap-6">
+          {summary}
+          <Bank framed label="The night" aside={`Round ${recap.round}`}>
+            {recap.rows.length === 0 ? (
+              <p className="min-w-0 text-sm break-words text-ink-soft" data-testid="recap-table-empty">
+                No teams scored this round. The ladder appears once a counted box score lands for a roster.
+              </p>
+            ) : (
+              <RoundLadder
+                rows={recap.rows}
+                names={names}
+                styles={styles}
+                hrefOf={(memberId) => `${paths.teams[memberId] ?? paths.base}?season=${encodeURIComponent(season)}`}
+                marks={!open}
+                testId="recap"
+                label="Teams by this round"
+              />
+            )}
+            {notes?.table}
+          </Bank>
+        </div>
 
         <div className="flex flex-col gap-6">
           <Bank framed label="Best night">
@@ -176,6 +195,7 @@ export function RecapBody({
                 No player night counted this round.
               </p>
             )}
+            {notes?.stars}
           </Bank>
 
           {story?.spoon && open ? (
@@ -227,6 +247,7 @@ export function RecapBody({
                 No recorded deal moved the table this round.
               </p>
             )}
+            {notes?.swing}
           </Bank>
         </div>
       </div>

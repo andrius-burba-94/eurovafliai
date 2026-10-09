@@ -43,14 +43,17 @@ const BARE_TOKEN = /(?<![@#\p{L}\p{N}_])[TP]\d+(?![\p{L}\p{N}_])/u;
 const ARTICLE_BEFORE_TOKEN = /\b(a|an)\s+[@#][TP]\d+/i;
 const MARKDOWN = /\*\*|__|`|\[[^\]]*\]\(|^\s*([-*•]|#{1,6})\s/;
 const LINK = /https?:\/\/|www\./i;
+/** The voice rule the prompt states, checked: a bare "points" is ambiguous with PIR. */
+const BARE_POINTS = /(?<!fantasy\s)\bpoints?\b/i;
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/u;
 
-export function checkWriteup(lines: readonly string[], context: GuardContext): GuardResult {
+/** `labels` name each entry in a violation ("headline", "stars"); "line N" by default. */
+export function checkWriteup(lines: readonly string[], context: GuardContext, labels?: readonly string[]): GuardResult {
   const violations: string[] = [];
   const warnings: string[] = [];
 
   lines.forEach((line, index) => {
-    const at = `line ${index + 1}`;
+    const at = labels?.[index] ?? `line ${index + 1}`;
     if (/[\r\n]/.test(line)) violations.push(`${at}: one line per entry, no line breaks`);
 
     for (const match of line.matchAll(TOKENISH)) {
@@ -63,6 +66,7 @@ export function checkWriteup(lines: readonly string[], context: GuardContext): G
     if (MARKDOWN.test(line)) violations.push(`${at}: plain text only, no markdown`);
     if (LINK.test(line) || EMAIL.test(line)) violations.push(`${at}: no links or addresses`);
     if (SPELLED_TOO_BIG.test(line)) violations.push(`${at}: write numbers as digits`);
+    if (BARE_POINTS.test(line)) violations.push(`${at}: say "fantasy points" or "PIR", never "points" on its own`);
 
     for (const value of numbersIn(line)) {
       if (!context.allowed.has(value) && !ALWAYS_ALLOWED.has(value)) {
