@@ -92,6 +92,10 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **token** | How a team (`@T3`) or a player (`#P12`) appears to the model. Names never leave the box; they are put back when a write-up is read. | `assignTokens()`, `renderSegments()` |
 | **guard** | The check every write-up passes before it is stored: known tokens only, numbers from the sheet only, no names, no markdown. | `checkWriteup()` |
 | **voice** | How a league's write-ups sound, a commissioner's setting: *analyst* (straight) or *pundit* (banter about the fantasy teams, never about players as people). | `Voice` in `src/lib/ai/voice.ts` |
+| **round write-up** | One round's headline, 3–5 summary lines and the analyst's sections (stars, over- and underperformers, surprises, table moves, the biggest swing), from one model call. Shown on Recap; League Home shows the headline. | kind `round_summary` |
+| **re-guard** | Running the guard on a stored write-up against a freshly built sheet. Passing means the prose is still true, whatever the hash says; failing means it is rewritten (ADR-0013). | — |
+| **rewrite** | A new write-up for a round already written: because a re-guard failed, or because the commissioner asked. Never because the model, the prompt or the voice changed. | — |
+| **league settings** | The commissioner's page for a league in season: write-ups on/off and voice, member management, deleting the league. | `/l/<league>/settings` |
 
 ## Words we do not use
 

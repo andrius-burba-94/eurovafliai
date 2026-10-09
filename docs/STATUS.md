@@ -41,8 +41,28 @@ write-ups are stored once in `ai_writeups`. What landed:
   left to a person; see the log). Nothing in production reads it until 7.1.
   After this merges, run `npm run stats:starters` once on the box.
 
-**Next up: 7.1, the round written** — the worker job, the recap page's
-analyst bank, the chat post and the commissioner's voice setting.
+**Next up: 7.1, the round written** — scope settled by grilling on
+9 October 2026 (rewrite policy in [ADR-0013](adr/ADR-0013-rewriting-a-written-round.md)):
+- **One call, one row.** The summary answer grows to a headline, 3–5 lines
+  and the analyst's sections (stars, over/under, surprises, table moves,
+  swing; each omitted when the sheet has nothing). `PROMPT_VERSION` bumps.
+- **Worker `aiPass`**, own guard, every 15 minutes: writes final rounds that
+  have no write-up, at most 2 model calls a pass, a quota error ends the pass.
+  Backfills rounds 1–3 on first run. Re-guards written rounds daily and after
+  a `/stats/import` batch; a 60-second check picks up queued rewrites.
+- **Recap:** the summary panel above the round's table, the sections below
+  it, names as links. League Home's last-round card gets the headline and a
+  link. Members see nothing new on failure; managers see one quiet line in a
+  collapsed controls strip, which also holds the commissioner's Rewrite.
+- **League settings page** (`/l/<league>/settings`, managers' nav): write-ups
+  on/off and voice (commissioner only; default **on, analyst**; off hides
+  every write-up and stops calls), plus Delete league and in-season member
+  management moved off League Home and the lobby. Same PR.
+- **Deviation from blueprint 7.1:** no chat post. Write-ups stay on Recap.
+- **Before the Recap UI is built:** at least three HTML previews of the
+  summary in the page (phone first) via `/impeccable`, with real round-3
+  prose; the maintainer picks.
+- `GEMINI_API_KEY` still has to be added on the VPS by a person.
 
 **Try it on localhost:**
 - `.env`: `GEMINI_API_KEY=…` and `GEMINI_MODEL=gemini-3.5-flash-lite`.
