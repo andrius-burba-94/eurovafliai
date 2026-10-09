@@ -27,6 +27,7 @@ import { readRecentTransactions } from "@/lib/memberships/queries";
 import { serverConfig } from "@/lib/config/server";
 import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
+import { readRoundWriteup } from "@/lib/ai/queries";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readMatchdayData } from "@/lib/live/queries";
@@ -134,6 +135,15 @@ export default async function LobbyPage({
     ? await readRoundProgress(season, session.token, snapshots.map((snapshot) => snapshot.round))
     : null;
   const live = progress ? liveRound(progress) : null;
+  // 7.1: the last finished round's written headline, for the story's teaser.
+  const writtenHeadline =
+    progress && progress.lastComplete !== null && settings.ai.enabled
+      ? ((
+          await readRoundWriteup({ token: session.token, leagueId: id, season, round: progress.lastComplete, teamNames }).catch(
+            () => null,
+          )
+        )?.view?.headline ?? null)
+      : null;
   const [recap, matchday] = progress
     ? await Promise.all([
         progress.lastComplete === null
@@ -221,6 +231,7 @@ export default async function LobbyPage({
               : null
           }
           recap={recap?.recap ?? null}
+          writtenHeadline={writtenHeadline}
           playerNames={recap?.playerNames ?? {}}
           playerCodes={recap?.playerCodes ?? {}}
           teamNames={teamNames}

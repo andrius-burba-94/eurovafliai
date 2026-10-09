@@ -25,8 +25,14 @@ export async function requestRoundRewrite(_previous: RewriteResult, formData: Fo
   const session = await requireSession();
   const leagueId = String(formData.get("leagueId") ?? "");
   const round = Number(formData.get("round"));
-  if (!/^[A-Za-z0-9]+$/.test(leagueId) || !Number.isInteger(round) || round < 1) {
+  // The round's own season, from the page: Recap reads past seasons too, but
+  // the worker only writes the current one, so only its rounds are rewritten.
+  const season = String(formData.get("season") ?? "");
+  if (!/^[A-Za-z0-9]+$/.test(leagueId) || !/^E\d{4}$/.test(season) || !Number.isInteger(round) || round < 1) {
     return { error: "That is not yours to change." };
+  }
+  if (season !== serverConfig().EUROLEAGUE_SEASON) {
+    return { error: "Only this season's rounds can be rewritten." };
   }
 
   const pb = await getSuperuserClient();
@@ -41,7 +47,7 @@ export async function requestRoundRewrite(_previous: RewriteResult, formData: Fo
     return { error: "Write-ups are off for this league." };
   }
 
-  const key = { leagueId, season: serverConfig().EUROLEAGUE_SEASON, round, kind: "round_summary" as const, memberId: "" };
+  const key = { leagueId, season, round, kind: "round_summary" as const, memberId: "" };
   const row = await readWriteup(pb, key);
   if (!row || row.status === "pending") {
     return { error: row ? "This round is being written now." : "This round has not been written yet." };
