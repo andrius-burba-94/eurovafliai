@@ -62,13 +62,19 @@ query($leagueId: String!) {
 - `team.status` was `active` for all 331 players.
 - `health` takes the values `ready` 247, `out` 43, `uncertain` 36,
   `game-time` 4, `expected` 1.
+- The Fantasy Challenge's equivalent is `is_injured` with
+  `probability_of_playing`. Which `health` values count as "injured or out" for
+  the scout is the advisor's decision. Only `out` is unambiguous.
 
 **`fantasyRound`.** Leaving it out reads the current round.
 
-- `fantasyRound` 0, 3, 4, 5 and 37 all returned the same 331 players with the
-  same positions.
-- At round 0, six later signings answer `team: null`: Dunston, Sy, Begarin,
-  Santos, Payne and Papas. A positions read leaves `fantasyRound` out.
+- `fantasyRound` 0, 3, 4, 5 and 37 all returned the same 331 players.
+- From round 3 on, every player had a team, with the same club and position as
+  the current read.
+- At round 0, six later signings answer `team: null`, so they have no
+  position: Dunston, Sy, Begarin, Santos, Payne and Papas. A positions read
+  therefore leaves `fantasyRound` out.
+- Begarin is listed here but not by the Fantasy Challenge, on any matchday.
 - A player BasketNews does not list has no row at all.
 
 **The league's own free agents** come from a separate query,
@@ -81,7 +87,7 @@ query($leagueId: String!) {
 - So "pool minus rosters" and BasketNews's own list agree. The scout can derive
   free agents from the pool and the synced rosters.
 
-Fixture: `tests/fixtures/basketnews-player-pool.json`, which holds the query,
+Fixture: `tests/fixtures/basketnews-player-pool-api.json`, which holds the query,
 its variables and the raw 331-player response. No session was used.
 
 ## Modern scoring has a win term: +1.5 a win, -1.5 a loss (checked 9 October 2026)
@@ -115,8 +121,14 @@ not `× (1 + 0.1 × win chance)`.
 
 ## The scout's threshold in Modern points (measured 9 October 2026)
 
-The scout suggests a move when it gains **+3.0 fantasy points per game**. In a
+PRD #190 sets the scout's bar at a gain of **+3.0 fantasy points per game**. In a
 BasketNews league the same bar is **+3.4 Modern points per game**.
+
+**Which players.** The players are the Hostinger league's own pool: every player
+its game lists. These are the players its rosters and free agents are drawn
+from, and BasketNews scores them all the same way. Restricting the sample to
+the 117 rostered players would leave out the free agents, which are the very
+players a gain is measured against.
 
 **Method.** A gain is a difference between two players' per-game outlooks. The
 two units are therefore scaled by the spread of per-player averages: the ratio
@@ -139,9 +151,11 @@ of their standard deviations across the league's player pool.
   season.
 
 **Not used: the ratio of means** (1.32, which would give 3.98). Modern's mean
-sits higher because of terms most players collect: fouls drawn, and offensive
-rebounds at 1.5. A gain is a difference, and those constants cancel in a
-difference.
+sits higher because of terms most players collect: fouls drawn, offensive
+rebounds at 1.5, and the ±1.5 win term. Those terms raise every player's
+average. They widen the gap between two players far less, and the standard
+deviations already include whatever spread they do add. A gain is a gap, so
+the ratio of spreads is the right scale.
 
 **Chosen: 340 hundredths (+3.4)**. That is the live league's measurement,
 3.36, rounded to one decimal. The full last season gives 3.32, so the choice

@@ -120,7 +120,11 @@ needs the Bearer token (401 without it):
   - `team { id, name, abbreviation, position: home | away }` and
     `opponent { id, name, abbreviation }`: his club's game in this matchday;
   - `round { id, number }`: that game's game day within the matchday, 1 to
-    `num_rounds`;
+    `num_rounds`. Ids run on across matchdays: 2523 and 2525 in 1528,
+    2530–2532 in 1531, 2533–2534 in 1532. The lineup preview's `round`
+    has the same shape, and "Round lineups" above reads it as the EuroLeague
+    round. The two readings have not been reconciled; nothing reads either
+    field;
   - `is_injured` (bool), `probability_of_playing` (0, 0.5 or 1);
   - `quotation`, `avg_pts`, `popularity`, `is_on_fire`,
     `started_from_bench`, `label`, `face_path`;
@@ -146,6 +150,7 @@ inactive flag.
 - A matchday lists a club's players only once that club's game is placed on one
   of its game days. The next matchday (1532) listed only 14 of the 20 clubs
   (252 rows).
+- Begarin (ASVEL) is in BasketNews's pool but in neither matchday here.
 
 So a positions read uses **`current_matchday`**, never a future one. If a club
 were ever missing from the current matchday, absence alone would not prove
@@ -155,7 +160,7 @@ that its players are unlisted.
 336 players with BasketNews's pool. 23 differ, Omoruyi included (F here, C
 there). See `basketnews-api.md`.
 
-Fixture: `src/lib/fantasy/fixtures/player-pool.json`, the raw 356-row
+Fixture: `src/lib/fantasy/fixtures/player-pool-api.json`, the raw 356-row
 response for matchday 1531 with `fantasy_league` set. It contains no token.
 
 Also seen, not needed:
