@@ -300,6 +300,45 @@ describe("fetchGameBoxScore", () => {
     // Nothing to self-check that row against, so it does not count as checked.
     expect(result.checkedAgainstPir).toBe(23);
   });
+
+  /** The golden fixture predates the field, so the starting five is laid on top. */
+  const withStarters = (startersPerSide: { local: number; road: number }) => (entry: GoldenGame) => {
+    const body = boxBody(entry) as {
+      local: { players: { stats: Record<string, unknown> }[] };
+      road: { players: { stats: Record<string, unknown> }[] };
+    };
+    body.local.players.forEach((player, index) => (player.stats.startFive = index < startersPerSide.local));
+    body.road.players.forEach((player, index) => (player.stats.startFive = index < startersPerSide.road));
+    return body;
+  };
+
+  it("records who started, five a side", async () => {
+    const game = games[0]!;
+    const { doFetch } = feed({ box: withStarters({ local: 5, road: 5 }) });
+    const result = await fetchGameBoxScore({ season: "E2026", game: scheduled(game), doFetch });
+
+    const local = result.rows.filter((row) => row.clubCode === game.localClub);
+    expect(local.filter((row) => row.started === true)).toHaveLength(5);
+    expect(local.filter((row) => row.started === false)).toHaveLength(local.length - 5);
+    expect(result.rows.filter((row) => row.started === true)).toHaveLength(10);
+  });
+
+  it("stores a side's starts as unknown when it does not list exactly five", async () => {
+    const game = games[0]!;
+    const { doFetch } = feed({ box: withStarters({ local: 4, road: 5 }) });
+    const result = await fetchGameBoxScore({ season: "E2026", game: scheduled(game), doFetch });
+
+    const local = result.rows.filter((row) => row.clubCode === game.localClub);
+    const road = result.rows.filter((row) => row.clubCode === game.roadClub);
+    expect(local.every((row) => row.started === undefined)).toBe(true);
+    expect(road.filter((row) => row.started === true)).toHaveLength(5);
+  });
+
+  it("leaves starts unknown for a feed without the field", async () => {
+    const { doFetch } = feed();
+    const result = await fetchGameBoxScore({ season: "E2025", game: scheduled(games[0]!), doFetch });
+    expect(result.rows.every((row) => row.started === undefined)).toBe(true);
+  });
 });
 
 describe("fetchGameBoxScores", () => {

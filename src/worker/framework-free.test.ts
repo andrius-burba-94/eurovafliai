@@ -27,6 +27,12 @@ import { describe, expect, it } from "vitest";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = resolve(HERE, "..");
 const ENTRY = join(HERE, "index.ts");
+/**
+ * Modules the worker will run that it does not import yet. 7.0's write-up
+ * pass is driven by a script until 7.1 wires it into the worker, and a
+ * framework import added before then would pass every other check.
+ */
+const PENDING = ["lib/ai/summary.ts", "lib/ai/store.ts", "lib/ai/round-facts-store.ts"].map((file) => join(SRC, file));
 
 const BANNED = [
   { pattern: /^next(\/|$)/, why: "Next.js is not available in the worker process" },
@@ -66,11 +72,11 @@ function resolveLocal(fromFile: string, specifier: string): string | null {
   throw new Error(`cannot resolve "${specifier}" from ${relative(SRC, fromFile)}`);
 }
 
-/** Every file the worker pulls in, transitively. */
+/** Every file the worker pulls in, transitively, or will once it runs the pending modules. */
 function closure(): { files: string[]; packages: Map<string, string> } {
   const files: string[] = [];
   const packages = new Map<string, string>();
-  const queue = [ENTRY];
+  const queue = [ENTRY, ...PENDING];
 
   while (queue.length > 0) {
     const file = queue.pop()!;
@@ -97,6 +103,7 @@ describe("the worker is framework-free", () => {
     expect(files.map((file) => relative(SRC, file))).toContain(
       "lib/drafts/pipeline.ts",
     );
+    expect(files.map((file) => relative(SRC, file))).toContain("lib/ai/gemini.ts");
     expect(packages.size).toBeGreaterThan(0);
   });
 

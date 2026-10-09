@@ -17,6 +17,7 @@ alternatives.
 | [0009](ADR-0009-arena-redesign.md) | The arena interface: slate shell, court-first lineup and provisional matchday | visual rules superseded by 0011 |
 | [0010](ADR-0010-official-media.md) | Official player portraits and club marks | accepted |
 | [0011](ADR-0011-matchnight.md) | Matchnight: the broadcast interface — two grounds, team identity, moments | accepted |
+| [0012](ADR-0012-ai-commentary.md) | AI commentary over a computed fact sheet: tokens, a guard, written once | accepted |
 
 Locked product decisions (scoring formula, stats source, formats in and out of
 scope, participant count) are not ADRs — they live in the decision log,

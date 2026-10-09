@@ -36,6 +36,8 @@
     "stats:sync": "tsx --env-file=.env scripts/sync-stats.mts",
     "stats:project": "tsx --env-file=.env scripts/project-stats.mts",
     "stats:prev": "tsx --env-file=.env scripts/prev-season.mts",
+    "stats:starters": "tsx --env-file=.env scripts/backfill-starters.mts",
+    "ai:preview": "tsx --env-file=.env scripts/ai-preview.mts",
     "news:sync": "tsx --env-file=.env scripts/sync-news.mts",
     "standings:recompute": "tsx --env-file=.env scripts/standings-recompute.mts",
     "lineups:sync": "tsx --env-file=.env scripts/sync-lineups.mts",

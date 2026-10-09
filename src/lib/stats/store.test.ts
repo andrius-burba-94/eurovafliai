@@ -55,6 +55,7 @@ function row(over: Partial<StatRowFields> = {}): StatRowFields {
     pir: 12,
     fantasy_pts: 14,
     basketnews_raw_pts: 140,
+    started: "",
     ...over,
   };
 }

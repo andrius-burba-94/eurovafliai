@@ -1,0 +1,28 @@
+{
+  "status": "completed",
+  "usage": {
+    "total_tokens": 97,
+    "total_input_tokens": 49,
+    "total_cached_tokens": 0,
+    "total_output_tokens": 48,
+    "total_tool_use_tokens": 0,
+    "total_thought_tokens": 0
+  },
+  "created": "2026-10-08T21:49:00Z",
+  "updated": "2026-10-08T21:49:00Z",
+  "service_tier": "standard",
+  "steps": [
+    { "signature": "EmAK…", "type": "thought" },
+    {
+      "content": [
+        {
+          "text": "{\n  \"lines\": [\n    \"@T1 won round 4 with 214.6 fantasy points.\",\n    \"@T2 finished second with 206.5 points.\"\n  ]\n}",
+          "type": "text"
+        }
+      ],
+      "type": "model_output"
+    }
+  ],
+  "object": "interaction",
+  "model": "gemini-3.5-flash-lite"
+}

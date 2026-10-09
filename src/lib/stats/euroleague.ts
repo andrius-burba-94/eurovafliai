@@ -99,6 +99,7 @@ const statsSchema = z.object({
   foulsCommited: number0,
   foulsReceived: number0,
   plusMinus: number0,
+  startFive: z.boolean().nullish(),
 });
 
 const boxSideSchema = z.object({
@@ -272,6 +273,10 @@ export async function fetchGameBoxScore({
   }
 
   for (const { side, club, own, other } of sides) {
+    // A starting five that is not five is a feed we cannot read, not a fact:
+    // that side's rows are stored with the start unknown.
+    const fiveListed =
+      (side.players ?? []).filter((entry) => entry.stats.startFive === true).length === 5;
     for (const entry of side.players ?? []) {
       const personCode = entry.player.person.code ?? "";
       const who =
@@ -334,6 +339,7 @@ export async function fetchGameBoxScore({
         opponentScore: other,
         won,
         box,
+        ...(fiveListed ? { started: entry.stats.startFive === true } : {}),
         line: game.gameCode,
       });
     }

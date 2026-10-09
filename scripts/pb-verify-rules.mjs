@@ -54,6 +54,7 @@ const created = {
   fixtures: [],
   live_game_snapshots: [],
   fantasy_syncs: [],
+  ai_writeups: [],
 };
 
 const su = new PocketBase(url);
@@ -1615,7 +1616,70 @@ try {
   );
   await su.collection("players").update(playerOne.id, { slug: "" }, { requestKey: null });
 
+  // --- 7.0 AI write-ups -------------------------------------------------------
+  check(!!byName.ai_writeups, "ai_writeups collection exists");
+  check(
+    byName.ai_writeups.createRule === null &&
+      byName.ai_writeups.updateRule === null &&
+      byName.ai_writeups.deleteRule === null,
+    "write-ups are worker-write-only",
+  );
+  check(
+    byName.ai_writeups.indexes.some((i) =>
+      /UNIQUE.*`ai_writeups`.*\(`league`,\s*`season`,\s*`round`,\s*`kind`,\s*`member`\)/.test(i),
+    ),
+    "unique index on ai_writeups(league, season, round, kind, member)",
+  );
+  check(
+    byName.ai_writeups.fields.find((field) => field.name === "facts")?.hidden === true,
+    "the facts a model read are hidden from every API reader",
+  );
+  const writeup = (member) => ({
+    league: league.id,
+    season: "E1999",
+    round: 4,
+    kind: "round_summary",
+    member,
+    status: "ready",
+    voice: "analyst",
+    input_hash: "a".repeat(64),
+    facts: { text: "@T1 won" },
+    output: { lines: ["@T1 won."] },
+  });
+  const leagueWide = await su.collection("ai_writeups").create(writeup(""), { requestKey: null });
+  const alicesOwn = await su.collection("ai_writeups").create(writeup(aliceMember.id), { requestKey: null });
+  created.ai_writeups.push(leagueWide.id, alicesOwn.id);
+  check((await listCount(aliceClient, "ai_writeups")) === 2, "a member reads the league's write-up and her own");
+  check((await listCount(bobClient, "ai_writeups")) === 1, "a co-member reads the league's write-up but not hers");
+  check(
+    await rejects(() => bobClient.collection("ai_writeups").getOne(alicesOwn.id, { requestKey: null })),
+    "a co-member cannot open her private write-up by id",
+  );
+  check((await listCount(carolClient, "ai_writeups")) === 0, "a member of another league reads none");
+  const seen = await aliceClient.collection("ai_writeups").getOne(leagueWide.id, { requestKey: null });
+  check(seen.facts === undefined && Array.isArray(seen.output?.lines), "a reader gets the prose without the facts");
+  check(
+    await rejects(() => su.collection("ai_writeups").create(writeup(""), { requestKey: null })),
+    "a second league-wide write-up for the same round and kind is refused",
+  );
+  check(
+    await rejects(() => su.collection("ai_writeups").create(writeup(aliceMember.id), { requestKey: null })),
+    "a second private write-up for the same member is refused",
+  );
+  const bobsOwn = await su.collection("ai_writeups").create(writeup(bobMember.id), { requestKey: null });
+  created.ai_writeups.push(bobsOwn.id);
+  check(
+    (await listCount(bobClient, "ai_writeups")) === 2,
+    "another member may have his own write-up for the same round, and reads it",
+  );
+  check(
+    await rejects(() => aliceClient.collection("ai_writeups").create(writeup(""), { requestKey: null })),
+    "a member cannot write a write-up with her own token",
+  );
+
 } finally {
+  for (const id of created.ai_writeups)
+    await su.collection("ai_writeups").delete(id, { requestKey: null }).catch(() => {});
   for (const id of created.fantasy_syncs)
     await su.collection("fantasy_syncs").delete(id, { requestKey: null }).catch(() => {});
   // Leave the database as we found it, in reverse dependency order.

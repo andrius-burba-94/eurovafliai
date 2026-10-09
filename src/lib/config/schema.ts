@@ -91,6 +91,24 @@ export const serverEnvSchema = z.object({
   ),
   /** Read-only browser session for the BasketNews worker. Never sent to a page. */
   BASKETNEWS_COOKIE: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  /**
+   * Gemini API key for written commentary (Phase 7). Unset turns every AI
+   * write-up off and leaves each page exactly as it renders without one.
+   */
+  GEMINI_API_KEY: z.preprocess(blankAsUnset, z.string().min(1).optional()),
+  /**
+   * Which Gemini model writes. A variable because Google retires models on its
+   * own schedule (2.5 Flash went limited-access within a year), and because a
+   * dev machine should draw on a cheaper model's separate free quota. The
+   * pattern keeps the name to a plain model id.
+   */
+  GEMINI_MODEL: z.preprocess(
+    blankAsUnset,
+    z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9.-]*$/, "must be a plain model id like gemini-3.8-flash")
+      .default("gemini-3.8-flash"),
+  ),
 });
 
 function blankAsUnset(value: unknown): unknown {

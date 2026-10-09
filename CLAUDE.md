@@ -109,6 +109,8 @@ Domain:
   vhost, backups, never-patch-in-production.
 - **`nextjs-writes`** — server actions, RSC vs client, env inlining, React 19
   forms.
+- **`ai-commentary`** — Phase 7 write-ups: fact sheet first, tokens not names,
+  the guard, stored once, one stateless Gemini client.
 
 UI:
 - **`component-reuse`** — search `src/components/` and the draft-room files

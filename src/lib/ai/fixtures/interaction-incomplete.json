@@ -1,0 +1,10 @@
+{
+  "status": "incomplete",
+  "usage": { "total_input_tokens": 49, "total_output_tokens": 8, "total_thought_tokens": 0 },
+  "steps": [
+    { "signature": "EmAK…", "type": "thought" },
+    { "content": [{ "text": "Here is the JSON requested:\n```", "type": "text" }], "type": "model_output" }
+  ],
+  "object": "interaction",
+  "model": "gemini-3.5-flash-lite"
+}

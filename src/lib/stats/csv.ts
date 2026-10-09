@@ -68,6 +68,11 @@ export type ParsedStatRow = {
   /** Derived from the two scores. Never read from the sheet. */
   readonly won: boolean;
   readonly box: BoxScore;
+  /**
+   * In his club's starting five that game. Only the feed knows; a sheet has
+   * no such column, so a CSV line leaves it unknown rather than "bench".
+   */
+  readonly started?: boolean;
   /** The line number this came from, so a later refusal can name it. */
   readonly line: number;
 };
