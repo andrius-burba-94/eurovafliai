@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { GeminiKeyRefused } from "./gemini";
 import type { RoundFacts } from "./round-facts";
 import { writeRoundSummary } from "./summary";
-import { sectionsIn, summaryAnswer, SUMMARY_SCHEMA, summaryPrompt, systemRules, writeupEntries } from "./voice";
+import { sectionsIn, summaryAnswer, summaryPrompt, summarySchema, systemRules, writeupEntries } from "./voice";
 
 const facts: RoundFacts = {
   version: 1,
@@ -129,9 +129,14 @@ describe("voice", () => {
   });
 
   it("asks for the same shape the zod accepts", () => {
-    expect(SUMMARY_SCHEMA.properties.lines.minItems).toBe(3);
-    expect(SUMMARY_SCHEMA.properties.lines.maxItems).toBe(5);
-    expect(Object.keys(SUMMARY_SCHEMA.properties.sections.properties)).toEqual(["stars", "over", "under", "surprises", "table", "swing"]);
+    const schema = summarySchema(["stars", "table"]);
+    expect(schema.properties.lines).toMatchObject({ minItems: 3, maxItems: 5 });
+    // The sheet decides the sections, so the schema names exactly those and requires them all:
+    // the lite model was seen writing "under" for an OVERPERFORMER line when offered all six.
+    expect(schema.properties.sections).toMatchObject({ properties: { stars: { type: "string" }, table: { type: "string" } }, required: ["stars", "table"] });
+    expect(Object.keys(schema.properties.sections!.properties)).toEqual(["stars", "table"]);
+    expect(summarySchema([]).properties.sections).toBeUndefined();
+    expect(summaryAnswer.parse({ headline: HEADLINE, lines: GOOD }).sections).toEqual({});
     const ok = (value: unknown) => summaryAnswer.safeParse(value).success;
     expect(ok(answer())).toBe(true);
     expect(ok(answer({ sections: {} }))).toBe(true);
@@ -163,6 +168,8 @@ describe("voice", () => {
     expect(sectionsIn("NEW DEAL · @T1 in #P5 · biggest swing of the round")).toEqual(["swing"]);
     expect(sectionsIn("DID NOT PLAY · #P7")).toEqual(["surprises"]);
     expect(summaryPrompt(facts.text, ["stars", "table"])).toMatch(/sections: stars, table\b/);
+    expect(summaryPrompt(facts.text, ["stars", "table"])).toContain('"sections": {"stars": "...", "table": "..."}');
+    expect(summaryPrompt(facts.text, [])).not.toContain('"sections"');
   });
 
   it("lays a write-up out as labelled entries in reading order", () => {

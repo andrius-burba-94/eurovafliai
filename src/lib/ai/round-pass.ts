@@ -146,7 +146,12 @@ async function latestCorrection(pb: PocketBase): Promise<number> {
   return batches.reduce((latest, batch) => ((batch.updated_rows ?? 0) > 0 ? Math.max(latest, instant(batch.updated)) : latest), 0);
 }
 
-const isShowable = (row: WriteupRecord) => row.status === "ready" && storedWriteup(row.output) !== null;
+/**
+ * A round is written while it holds prose a page can show, whatever its
+ * status: a failed rewrite keeps the last good write-up (the store's rule),
+ * and asking again on every pass would only spend the quota on it.
+ */
+const isShowable = (row: WriteupRecord) => storedWriteup(row.output) !== null;
 
 /** The fifteen-minute pass: write what is missing, then re-guard what is written. */
 export async function runRoundPass(deps: RoundPassDeps): Promise<PassReport> {
@@ -185,7 +190,7 @@ export async function runRoundPass(deps: RoundPassDeps): Promise<PassReport> {
     const now = deps.now();
     for (const league of leagues) {
       for (const row of rowsByLeague.get(league.id)!) {
-        const stored = row.status === "ready" ? storedWriteup(row.output) : null;
+        const stored = row.status === "pending" ? null : storedWriteup(row.output);
         if (!stored) continue;
         const checked = instant(row.last_guarded_at) || instant(row.generated_at) || 0;
         if (now - checked < DAILY_MS && corrected <= checked) continue;

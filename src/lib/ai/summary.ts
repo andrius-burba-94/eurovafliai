@@ -7,8 +7,8 @@ import {
   sectionsIn,
   SECTION_KEYS,
   summaryAnswer,
-  SUMMARY_SCHEMA,
   summaryPrompt,
+  summarySchema,
   systemRules,
   type Voice,
   writeupEntries,
@@ -84,7 +84,7 @@ export async function writeRoundSummary({
     let writeup: RoundWriteup;
     try {
       const answer = await generateJson(
-        { model, system: systemRules(voice), prompt: summaryPrompt(facts.text, asked, refused), schema: SUMMARY_SCHEMA },
+        { model, system: systemRules(voice), prompt: summaryPrompt(facts.text, asked, refused), schema: summarySchema(asked) },
         { apiKey, ...(doFetch ? { doFetch } : {}), ...(wait ? { wait } : {}) },
       );
       usage.inputTokens += answer.usage.inputTokens;

@@ -92,7 +92,7 @@ export function writeupEntries(writeup: RoundWriteup): WriteupEntry[] {
 function summaryTask(sections: readonly SectionKey[]): string {
   const asked =
     sections.length === 0
-      ? `- Leave "sections" empty: {}.`
+      ? `- No sections this round.`
       : `- Then write exactly these sections: ${sections.join(", ")}. Each is one or two short sentences, 20 to 300 characters, about what its lines say:\n${sections.map((key) => `  - ${SECTION_BRIEF[key]}`).join("\n")}`;
   return `Task: write up this round for the league.
 - A headline of 20 to 90 characters: who won the night, or the round's story.
@@ -102,7 +102,9 @@ function summaryTask(sections: readonly SectionKey[]): string {
   - Then one or two things that stood out: a surprise, a flop, a player who did not play, or a deal.
   - Each line is one or two short sentences, 20 to 200 characters, with no line breaks.
 ${asked}
-Answer as JSON: {"headline": "...", "lines": ["...", "..."], "sections": {"stars": "...", ...}}`;
+Answer as JSON: {"headline": "...", "lines": ["...", "..."]${
+    sections.length === 0 ? "" : `, "sections": {${sections.map((key) => `"${key}": "..."`).join(", ")}}`
+  }}`;
 }
 
 /** The task with the facts, and on a retry, what the first answer got wrong. */
@@ -114,25 +116,53 @@ export function summaryPrompt(factsText: string, sections: readonly SectionKey[]
   return `${factsText}\n\n${summaryTask(sections)}${retry}`;
 }
 
+export type SummarySchema = {
+  readonly type: "object";
+  readonly properties: {
+    readonly headline: { readonly type: "string" };
+    readonly lines: { readonly type: "array"; readonly items: { readonly type: "string" }; readonly minItems: 3; readonly maxItems: 5 };
+    readonly sections?: {
+      readonly type: "object";
+      readonly properties: Readonly<Partial<Record<SectionKey, { readonly type: "string" }>>>;
+      readonly required: readonly SectionKey[];
+      readonly additionalProperties: false;
+    };
+  };
+  readonly required: readonly string[];
+  readonly additionalProperties: false;
+};
+
 /**
+ * The answer's shape for one sheet: `sections` names exactly the sections
+ * that sheet has, all required. Offered all six, the lite model wrote
+ * "under" for an OVERPERFORMER line and dropped the swing; a schema that only
+ * has the right keys cannot be answered with the wrong ones.
+ *
  * Hand-written rather than generated from the zod below: Gemini reads a
  * subset of JSON Schema with no `maxLength`, and a generated schema carries
  * keywords it would reject. Lengths are the zod's job.
  */
-export const SUMMARY_SCHEMA = {
-  type: "object",
-  properties: {
-    headline: { type: "string" },
-    lines: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
-    sections: {
-      type: "object",
-      properties: Object.fromEntries(SECTION_KEYS.map((key) => [key, { type: "string" }])) as Record<SectionKey, { type: "string" }>,
-      additionalProperties: false,
+export function summarySchema(sections: readonly SectionKey[]): SummarySchema {
+  return {
+    type: "object",
+    properties: {
+      headline: { type: "string" },
+      lines: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+      ...(sections.length > 0
+        ? {
+            sections: {
+              type: "object",
+              properties: Object.fromEntries(sections.map((key) => [key, { type: "string" }])),
+              required: sections,
+              additionalProperties: false,
+            },
+          }
+        : {}),
     },
-  },
-  required: ["headline", "lines", "sections"],
-  additionalProperties: false,
-} as const;
+    required: sections.length > 0 ? ["headline", "lines", "sections"] : ["headline", "lines"],
+    additionalProperties: false,
+  };
+}
 
 const prose = (min: number, max: number) =>
   z
@@ -146,7 +176,10 @@ export const summaryAnswer = z
   .object({
     headline: prose(20, 90),
     lines: z.array(prose(20, 200)).min(3).max(5),
-    sections: z.object(Object.fromEntries(SECTION_KEYS.map((key) => [key, prose(20, 300).optional()])) as Record<SectionKey, z.ZodOptional<ReturnType<typeof prose>>>).strict(),
+    sections: z
+      .object(Object.fromEntries(SECTION_KEYS.map((key) => [key, prose(20, 300).optional()])) as Record<SectionKey, z.ZodOptional<ReturnType<typeof prose>>>)
+      .strict()
+      .default({}),
   })
   .strict();
 

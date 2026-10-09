@@ -142,6 +142,15 @@ describe("runRoundPass — writing", () => {
     expect(calls.map((call) => call.round)).toEqual([3]);
   });
 
+  it("counts a round as written while it holds good prose, even after a failed rewrite", async () => {
+    const { deps, calls } = harness(
+      { leagues: [league("L1")], ai_writeups: [readyRow("L1", 1, { status: "failed", attempts: 1, error: "swing: missing" })] },
+      { complete: { L1: [1] } },
+    );
+    await runRoundPass(deps);
+    expect(calls).toEqual([]);
+  });
+
   it("stores a guard refusal as failed and stops asking after three", async () => {
     const refusal: SummaryResult = {
       ok: false, writeup: null, violations: ["line 1: 9.9 is not in the facts"], warnings: [], attempts: 2, usage: USAGE, model: "m", latencyMs: 1,
