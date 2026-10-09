@@ -74,6 +74,32 @@ type PlayerRow = {
 
 const asPhase = (raw: unknown): Phase => (PHASES.includes(raw as Phase) ? (raw as Phase) : "RS");
 
+/**
+ * The rounds a league's write-ups may cover: finished by the fixtures and
+ * snapshotted. `readRoundFactsInput` still has the last word on each (a
+ * BasketNews round also needs its source's final), so this only narrows.
+ */
+export async function readCompleteRounds(
+  pb: PocketBase,
+  { leagueId, season, now }: { leagueId: string; season: string; now: number },
+): Promise<number[]> {
+  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const [snapshotRows, fixtureRows] = await Promise.all([
+    pb.collection("standings_snapshots").getFullList<{ round: number }>({
+      filter: `league = '${leagueId}' && season = "${code}"`,
+      fields: "round",
+      requestKey: null,
+    }),
+    readStoredFixtures(pb, code),
+  ]);
+  const progress = roundProgress({
+    fixtures: scheduleRowsFrom(fixtureRows),
+    snapshotRounds: snapshotRows.map((row) => row.round),
+    now,
+  });
+  return [...progress.complete].sort((a, b) => a - b);
+}
+
 export async function readRoundFactsInput(
   pb: PocketBase,
   { leagueId, season, round, now }: { leagueId: string; season: string; round?: number; now: number },

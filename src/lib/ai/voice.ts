@@ -149,3 +149,9 @@ export const summaryAnswer = z
     sections: z.object(Object.fromEntries(SECTION_KEYS.map((key) => [key, prose(20, 300).optional()])) as Record<SectionKey, z.ZodOptional<ReturnType<typeof prose>>>).strict(),
   })
   .strict();
+
+/** A stored `output` as a write-up, or null for one this version cannot show (7.0's lines-only rows). */
+export function storedWriteup(output: unknown): RoundWriteup | null {
+  const parsed = summaryAnswer.safeParse(output);
+  return parsed.success ? parsed.data : null;
+}

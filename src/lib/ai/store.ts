@@ -50,6 +50,10 @@ export type WriteupRecord = {
   readonly attempts?: number;
   readonly claimed_at?: string;
   readonly generated_at?: string;
+  /** 7.1: the commissioner asked for a rewrite; cleared by the claim that starts it. */
+  readonly rewrite_requested_at?: string;
+  /** 7.1: when the stored prose last passed a re-guard (ADR-0013). */
+  readonly last_guarded_at?: string;
 };
 
 export type Claim =
@@ -70,6 +74,9 @@ function filterFor(key: WriteupKey): string {
 }
 
 const stamp = (now: number) => new Date(now).toISOString().replace("T", " ");
+
+/** A PocketBase date back to epoch ms; NaN when unset. */
+export const instant = (value: string | undefined) => Date.parse((value ?? "").replace(" ", "T"));
 
 export async function readWriteup(pb: PocketBase, key: WriteupKey): Promise<WriteupRecord | null> {
   const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord>({ filter: filterFor(key), requestKey: null });
@@ -98,6 +105,8 @@ export async function claimWriteup(
     facts: input.facts,
     claimed_at: stamp(input.now),
     error: "",
+    // The claim is the rewrite starting, so it answers any request standing.
+    rewrite_requested_at: "",
   };
 
   let existing = await readWriteup(pb, key);
@@ -127,7 +136,7 @@ export async function claimWriteup(
   const sameInput = existing.input_hash === input.inputHash;
   if (!input.force) {
     if (existing.status === "ready" && sameInput) return { outcome: "unchanged", id: existing.id };
-    const claimedAt = Date.parse((existing.claimed_at ?? "").replace(" ", "T"));
+    const claimedAt = instant(existing.claimed_at);
     if (existing.status === "pending" && Number.isFinite(claimedAt) && input.now - claimedAt < STALE_AFTER_MS) {
       return { outcome: "busy", id: existing.id };
     }
@@ -142,6 +151,37 @@ export async function claimWriteup(
     { requestKey: null },
   );
   return { outcome: "claimed", id: existing.id };
+}
+
+/** Every league-wide write-up of one kind for a league's season. */
+export async function readLeagueWriteups(
+  pb: PocketBase,
+  leagueId: string,
+  season: string,
+  kind: WriteupKind,
+): Promise<(WriteupRecord & { readonly round: number })[]> {
+  if (!ID.test(leagueId) || !/^E\d{4}$/.test(season)) throw new Error("ai_writeups: refusing a malformed key");
+  const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord & { round: number; member: string }>({
+    filter: `league = '${leagueId}' && season = "${season}" && kind = '${kind}'`,
+    requestKey: null,
+  });
+  return rows.filter((row) => !row.member);
+}
+
+/** Rows a commissioner has asked to rewrite. */
+export async function readRewriteRequests(
+  pb: PocketBase,
+): Promise<(WriteupRecord & { league: string; season: string; round: number; kind: WriteupKind; member: string })[]> {
+  return pb.collection("ai_writeups").getFullList({ filter: `rewrite_requested_at != ''`, requestKey: null });
+}
+
+export async function requestRewrite(pb: PocketBase, id: string, now: number): Promise<void> {
+  await pb.collection("ai_writeups").update(id, { rewrite_requested_at: stamp(now) }, { requestKey: null });
+}
+
+/** The stored prose still holds against a fresh sheet: note when, and nothing else. */
+export async function markGuarded(pb: PocketBase, id: string, now: number): Promise<void> {
+  await pb.collection("ai_writeups").update(id, { last_guarded_at: stamp(now) }, { requestKey: null });
 }
 
 export async function completeWriteup(

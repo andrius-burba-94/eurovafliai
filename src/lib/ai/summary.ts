@@ -1,6 +1,6 @@
 import { numbersIn } from "./facts";
 import { generateJson, GeminiNoAnswer, type GeminiUsage } from "./gemini";
-import { checkWriteup } from "./guard";
+import { checkWriteup, type GuardContext, type GuardResult } from "./guard";
 import type { RoundFacts } from "./round-facts";
 import {
   type RoundWriteup,
@@ -38,6 +38,27 @@ export type SummaryResult = {
   readonly latencyMs: number;
 };
 
+/** What the guard checks a write-up against: everything this sheet holds, and nothing else. */
+export function guardContextFor(facts: RoundFacts): GuardContext {
+  return {
+    allowed: new Set(numbersIn(facts.text)),
+    tokens: new Set(Object.keys(facts.refs)),
+    privateNames: facts.privateNames,
+    numbersByToken: facts.numbersByToken,
+    sharedNumbers: facts.sharedNumbers,
+  };
+}
+
+/** The guard over a whole write-up, each piece under its own label. */
+export function guardWriteup(writeup: RoundWriteup, facts: RoundFacts): GuardResult {
+  const entries = writeupEntries(writeup);
+  return checkWriteup(
+    entries.map((entry) => entry.text),
+    guardContextFor(facts),
+    entries.map((entry) => entry.label),
+  );
+}
+
 export async function writeRoundSummary({
   facts,
   voice,
@@ -53,13 +74,6 @@ export async function writeRoundSummary({
   doFetch?: typeof fetch;
   wait?: (ms: number) => Promise<void>;
 }): Promise<SummaryResult> {
-  const context = {
-    allowed: new Set(numbersIn(facts.text)),
-    tokens: new Set(Object.keys(facts.refs)),
-    privateNames: facts.privateNames,
-    numbersByToken: facts.numbersByToken,
-    sharedNumbers: facts.sharedNumbers,
-  };
   const usage = { inputTokens: 0, outputTokens: 0, thinkingTokens: 0 };
   let refused: readonly string[] = [];
   let latencyMs = 0;
@@ -90,12 +104,7 @@ export async function writeRoundSummary({
       continue;
     }
 
-    const entries = writeupEntries(writeup);
-    const verdict = checkWriteup(
-      entries.map((entry) => entry.text),
-      context,
-      entries.map((entry) => entry.label),
-    );
+    const verdict = guardWriteup(writeup, facts);
     const violations = [...sectionFaults(writeup, asked), ...verdict.violations];
     if (violations.length === 0) {
       return { ok: true, writeup, violations: [], warnings: verdict.warnings, attempts: attempt, usage, model: answeredBy, latencyMs };
