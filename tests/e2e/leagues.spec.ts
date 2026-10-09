@@ -298,10 +298,14 @@ test("the commissioner deletes the league, board and all", async ({
 
   // Deleting lives on League settings (7.1), last on the page.
   await page.goto(`/l/${league.id}/settings`);
-  const toggle = await page.getByTestId("delete-league-toggle").boundingBox();
-  expect(toggle!.width).toBeGreaterThanOrEqual(44);
-  expect(toggle!.height).toBeGreaterThanOrEqual(44);
-  await page.getByTestId("delete-league-toggle").click();
+  // The page streams behind loading.tsx and React reveals it a beat after
+  // `load`; boundingBox() does not wait, so it read the still-hidden button.
+  const toggle = page.getByTestId("delete-league-toggle");
+  await expect(toggle).toBeVisible();
+  const box = await toggle.boundingBox();
+  expect(box!.width).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  await toggle.click();
 
   // The wrong name is not a confirmation.
   await page.getByTestId("delete-league-confirm").fill("Doomed");
