@@ -21,57 +21,78 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
-## AI commentary — 7.0 groundwork, 9 October 2026
+## AI commentary — 7.1 the round, written, 9 October 2026
 
-**Phase 7 is rescoped to the season (blueprint D28, ADR-0012) and its
-groundwork is in; nothing a member sees has changed.** The model narrates a
-fact sheet that tested code computes; teams and players reach it as tokens,
-never names; a guard refuses prose citing anything the sheet does not hold;
-write-ups are stored once in `ai_writeups`. What landed:
-- `src/lib/ai/`: one stateless Gemini client (Interactions API, `store:
-  false`, model from `GEMINI_MODEL`, default `gemini-3.8-flash`), the round
-  fact sheet and its framework-free reader, tokens, the guard, two voices,
-  the guarded summary pass and the write-up claim store.
-- `player_game_stats.started` (who started each game, from the feed's
-  `startFive`) and `npm run stats:starters` for games stored before it.
-- `npm run ai:preview`. Live runs on the local league passed the guard first
-  time on `gemini-3.5-flash-lite` and `gemini-3.8-flash`; figures in
-  [research/gemini-api.md](research/gemini-api.md).
-- **Production:** `GEMINI_API_KEY` is **not yet on the VPS** (adding it was
-  left to a person; see the log). Nothing in production reads it until 7.1.
-  After this merges, run `npm run stats:starters` once on the box.
+**Every finished round is written up, once, and read the same by everyone**
+(blueprint D28, [ADR-0012](adr/ADR-0012-ai-commentary.md), rewrite policy
+[ADR-0013](adr/ADR-0013-rewriting-a-written-round.md); spec #182). The
+model narrates a fact sheet tested code computes; a guard checks every
+number and name before anything is stored. What a league sees:
+- **Recap** (option C of #186, as the maintainer revised it): a summary
+  panel above The night with the written headline, 3–5 lines and the
+  over-, under-performers and surprises; the analyst's other lines sit as
+  notes on the panels they explain (the table on The night, stars on Best
+  night, the swing on Biggest swing). Names are links, put back at read time.
+- **League Home:** the round story opens with the written headline and
+  "Read the round".
+- **No chat post** — a deviation from blueprint 7.1, decided in the grill.
+- Nothing new for a member when a round has no write-up, write-ups are off
+  or the model failed: Recap reads as before.
 
-**Next up: 7.1, the round written** — scope settled by grilling on
-9 October 2026 (rewrite policy in [ADR-0013](adr/ADR-0013-rewriting-a-written-round.md)):
-- **One call, one row.** The summary answer grows to a headline, 3–5 lines
-  and the analyst's sections (stars, over/under, surprises, table moves,
-  swing; each omitted when the sheet has nothing). `PROMPT_VERSION` bumps.
-- **Worker `aiPass`**, own guard, every 15 minutes: writes final rounds that
-  have no write-up, at most 2 model calls a pass, a quota error ends the pass.
-  Backfills rounds 1–3 on first run. Re-guards written rounds daily and after
-  a `/stats/import` batch; a 60-second check picks up queued rewrites.
-- **Recap:** the summary panel above the round's table, the sections below
-  it, names as links. League Home's last-round card gets the headline and a
-  link. Members see nothing new on failure; managers see one quiet line in a
-  collapsed controls strip, which also holds the commissioner's Rewrite.
-- **League settings page** (`/l/<league>/settings`, managers' nav): write-ups
-  on/off and voice (commissioner only; default **on, analyst**; off hides
-  every write-up and stops calls), plus Delete league and in-season member
-  management moved off League Home and the lobby. Same PR.
-- **Deviation from blueprint 7.1:** no chat post. Write-ups stay on Recap.
-- **Before the Recap UI is built:** at least three HTML previews of the
-  summary in the page (phone first) via `/impeccable`, with real round-3
-  prose; the maintainer picks.
-- `GEMINI_API_KEY` still has to be added on the VPS by a person.
+For managers:
+- **League settings** (`/l/<league>/settings`, a gear on the sidebar's
+  League header — a row pushed the season sidebar past a 690px screen):
+  write-ups on/off and voice (commissioner only; default on, analyst; Off
+  hides every write-up and stops calls), member rename and manage rights,
+  and Delete league, moved off League Home. Removal stays setup-only.
+- **Recap strip** under the summary: written / rewriting / couldn't write,
+  folded while all is well, and the commissioner's **Rewrite this round**
+  (this season's rounds only). It queues; the worker writes within a minute.
+
+The worker (`runRoundPass`, every 15 minutes; `writeRequestedRounds`, every
+minute; `src/lib/ai/round-pass.ts`): finished rounds without a write-up,
+oldest first, two model calls a pass across leagues; a daily re-guard,
+sooner after a stat correction, keeps prose the fresh sheet still supports
+and rewrites what it no longer does. A model, prompt or voice change never
+rewrites history. Migration `1790800000_ai_writeups_rewrite.js`.
+
+**Production, after merge** (people's steps; nothing breaks without them):
+- Add `GEMINI_API_KEY` to the VPS `.env` without echoing it (command in
+  [log/ai-groundwork-2026-10-09.md](log/ai-groundwork-2026-10-09.md)),
+  then `pm2 reload` the worker. Without it the worker logs "write-ups off"
+  and every page renders as before.
+- `npm run stats:starters` once, if 7.0's step was not run.
+- The first passes backfill finished rounds two at a time.
+
+Debt:
+- **Biggest swing disagrees with its own note.** Recap's swing (5.4) treats
+  a synced drop and add as a lone drop (−38.5 for a released player); the
+  fact sheet groups them as one exchange the way the trades page does
+  (−34.5). Both now sit on one panel.
+- The guard checks numbers and names, not wording: the lite model has
+  written "15.8 points" for fantasy points.
+- The local database copy used for 7.1's live runs predates #180's moves
+  rework: one deal there says a player was released in round 1 while he
+  still counted in round 3, and the write-up repeated both.
+
+**Next up: 7.2, the free-agent scout.**
 
 **Try it on localhost:**
-- `.env`: `GEMINI_API_KEY=…` and `GEMINI_MODEL=gemini-3.5-flash-lite`.
-- `npm run dev`, then `npm run stats:starters` once.
-- `npm run ai:preview -- --league=<slug> --facts-only` prints what the model
+- `.env`: `GEMINI_API_KEY=…`, `GEMINI_MODEL=gemini-3.5-flash-lite`.
+- `npm run dev`, then `npm run worker:dev`: about 2½ minutes in, the log
+  says `write-ups · pass · 2 written`.
+- Open `/l/<league>/recap`: the summary panel above The night, notes on the
+  other panels. As commissioner, open the strip and press Rewrite; within a
+  minute the page refreshes with the new write-up.
+- `/l/<league>/settings` (the gear by "League"): switch write-ups Off and
+  Recap and League Home go back to how they were.
+
+**Try it on localhost — 7.0, the fact sheet:**
+- `npm run stats:starters` once, then
+  `npm run ai:preview -- --league=<slug> --facts-only` prints what the model
   would read: tokens only, no team or player names.
-- `npm run ai:preview -- --league=<slug> --voice=pundit` writes 3–5 lines and
-  prints them as a member would read them; add `--save` twice and the second
-  run says `unchanged`.
+- `npm run ai:preview -- --league=<slug> --round=3 --voice=pundit` writes a
+  round and prints it as stored and as a member reads it; `--save` stores it.
 
 ## Custom domain cutover
 
