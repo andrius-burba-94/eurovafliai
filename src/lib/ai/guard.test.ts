@@ -24,6 +24,15 @@ describe("checkWriteup", () => {
     expect(violations("@T2 is 2 places back after three rounds of first-place finishes.")).toEqual([]);
   });
 
+  it("refuses points on their own: the league reads fantasy points or PIR", () => {
+    expect(violations("#P1 fell 31 points below his average.")).toEqual([
+      'line 1: say "fantasy points" or "PIR", never "points" on its own',
+    ]);
+    expect(violations("@T1 won by a point.")).toEqual(['line 1: say "fantasy points" or "PIR", never "points" on its own']);
+    expect(violations("#P1 put up 31 PIR and 68.2 fantasy points for @T1.")).toEqual([]);
+    expect(violations("@T1 won on Fantasy Points alone.")).toEqual([]);
+  });
+
   it("refuses a number the facts do not contain", () => {
     expect(violations("@T1 won by 9.1.")).toEqual(["line 1: 9.1 is not in the facts"]);
   });
