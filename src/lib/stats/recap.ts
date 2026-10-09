@@ -48,7 +48,17 @@ export type RecapSwing = {
   readonly deltaTenths: number;
   readonly inIds: readonly string[];
   readonly outIds: readonly string[];
+  /** One team's released players for signed ones: no counterpart, its own sentence. */
+  readonly exchange: boolean;
 };
+
+/**
+ * Rows the trades page reads as one move (`groupTransactionHistory`): one
+ * team's synced drop and add (`exchange`), or two teams each dropping what
+ * the other added (`swap`). Measured as one deal, so the swing and every
+ * other page agree on what happened.
+ */
+export type RecapGroup = { readonly ids: readonly string[]; readonly kind: "exchange" | "swap" };
 
 export type Recap = {
   readonly round: number;
@@ -145,16 +155,42 @@ function membersOf(tx: ImpactTransaction): string[] {
   ].sort();
 }
 
+/** Each group's rows as one trade, its id the first row's; the other rows as they were. */
+function mergeGroups(
+  transactions: readonly ImpactTransaction[],
+  groups: readonly RecapGroup[],
+): { tx: ImpactTransaction; exchange: boolean }[] {
+  const byId = new Map(transactions.map((tx) => [tx.id, tx]));
+  const grouped = new Set<string>();
+  const merged: { tx: ImpactTransaction; exchange: boolean }[] = [];
+  for (const group of groups) {
+    const rows = group.ids.flatMap((id) => byId.get(id) ?? []);
+    if (rows.length < 2) continue;
+    const join = (side: "playersIn" | "playersOut") => {
+      const out: Record<string, string[]> = {};
+      for (const row of rows) for (const [member, ids] of Object.entries(row[side])) out[member] = [...(out[member] ?? []), ...ids];
+      return out;
+    };
+    for (const row of rows) grouped.add(row.id);
+    merged.push({
+      tx: { id: rows[0]!.id, type: "trade", fromRound: Math.min(...rows.map((row) => row.fromRound)), playersIn: join("playersIn"), playersOut: join("playersOut") },
+      exchange: group.kind === "exchange",
+    });
+  }
+  return [...merged, ...transactions.filter((tx) => !grouped.has(tx.id)).map((tx) => ({ tx, exchange: false }))];
+}
+
 function biggestSwing(
   transactions: readonly ImpactTransaction[],
   lines: readonly ImpactLine[],
   round: number,
+  groups: readonly RecapGroup[],
 ): RecapSwing | null {
-  const covering = transactions.filter((tx) => tx.fromRound <= round);
+  const covering = mergeGroups(transactions, groups).filter(({ tx }) => tx.fromRound <= round);
   if (covering.length === 0) return null;
 
   const candidates: RecapSwing[] = [];
-  for (const tx of covering) {
+  for (const { tx, exchange } of covering) {
     const memberIds = membersOf(tx);
     let winner: RecapSwing | null = null;
     for (const memberId of memberIds) {
@@ -168,10 +204,11 @@ function biggestSwing(
         type: deal.type,
         fromRound: deal.fromRound,
         memberId,
-        counterpartId,
+        counterpartId: exchange ? "" : counterpartId,
         deltaTenths,
         inIds: deal.inIds,
         outIds: deal.outIds,
+        exchange,
       };
       if (
         !winner ||
@@ -210,11 +247,12 @@ export function recapForRound(
   lines: readonly ImpactLine[],
   transactions: readonly ImpactTransaction[],
   weights: LineupWeights = FULL_WEIGHTS,
+  groups: readonly RecapGroup[] = [],
 ): Recap {
   return {
     round,
     rows: rankRound(table),
     bestNight: bestNight(windows, lines, round, weights),
-    biggestSwing: biggestSwing(transactions, lines, round),
+    biggestSwing: biggestSwing(transactions, lines, round, groups),
   };
 }

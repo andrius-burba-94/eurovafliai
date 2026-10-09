@@ -6,7 +6,7 @@ import { Glyph } from "@/components/glyphs";
 import { Moment } from "@/components/moment";
 import { PlayerPortrait } from "@/components/official-media";
 import { RoundLadder } from "@/components/round-ladder";
-import { announceAdd, announceDrop, announceTrade } from "@/lib/chat/messages";
+import { announceAdd, announceDrop, announceExchange, announceTrade } from "@/lib/chat/messages";
 import { roundStory } from "@/lib/season/story";
 import type { Recap } from "@/lib/stats/recap";
 import { formatHundredths, formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
@@ -55,7 +55,14 @@ export function RecapBody({
   const night = recap.bestNight;
   const swing = recap.biggestSwing;
   const swingSentence = swing
-    ? swing.type === "trade"
+    ? swing.exchange
+      ? announceExchange({
+          teamName: team(swing.memberId),
+          released: swing.outIds.map(player),
+          acquired: swing.inIds.map(player),
+          fromRound: swing.fromRound,
+        })
+      : swing.type === "trade"
       ? announceTrade({
           teamA: team(swing.memberId),
           teamB: team(swing.counterpartId),
