@@ -4,7 +4,7 @@ import type { ScoutMove } from "@/lib/advisor/scout";
 import type { WireRow } from "@/lib/advisor/wire";
 
 import { buildScoutFacts } from "./scout-facts";
-import { reasonsPrompt, writeScoutReasons, type Ask } from "./scout-reasons";
+import { reasonsPrompt, reasonsStillHold, writeScoutReasons, type Ask } from "./scout-reasons";
 
 function player(id: string, name: string, five: number): WireRow {
   return {
@@ -114,5 +114,25 @@ describe("writeScoutReasons", () => {
     const prompt = reasonsPrompt(facts, facts.moves, {});
     expect(prompt).toContain("MOVE M1");
     expect(prompt).not.toContain("Francisco");
+  });
+});
+
+describe("reasonsStillHold", () => {
+  it("reads stored tokens through the row's own refs, so a renumbered sheet checks the right player", () => {
+    const text = good.M1;
+    const storedRefs = { [t("fra")]: { kind: "player" as const, id: "fra" }, [t("obst")]: { kind: "player" as const, id: "obst" } };
+    // A new member's moves arrive and every player token shifts.
+    const renumbered = buildScoutFacts({
+      ruleset: "euroleague",
+      members: [
+        { memberId: "m0", moves: [move(player("aaa", "Aaa, A", 500), player("aab", "Aab, B", 1500), 1000)] },
+        { memberId: "m1", moves: [move(player("obst", "Obst, Andreas", 960), player("fra", "Francisco, Sylvain", 1380), 420)] },
+      ],
+      privateNames: [],
+    });
+    expect(renumbered.tokens.get("fra")).not.toBe(t("fra"));
+    expect(reasonsStillHold({ "obst|fra": text }, storedRefs, renumbered, "m1")).toBe(true);
+    // Read with today's tokens instead, the same words would cite somebody else.
+    expect(reasonsStillHold({ "obst|fra": text }, {}, renumbered, "m1")).toBe(false);
   });
 });

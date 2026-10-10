@@ -6,6 +6,7 @@ import { numbersIn } from "./facts";
 import { generateJson, GeminiNoAnswer, type GeminiAnswer, type GeminiRequest, type GeminiUsage } from "./gemini";
 import { checkWriteup } from "./guard";
 import type { ScoutFacts, ScoutFactsMove } from "./scout-facts";
+import { TOKEN_PATTERN, type TokenRef } from "./tokens";
 import { systemRules } from "./voice";
 
 /**
@@ -172,12 +173,34 @@ export function storedReasons(output: unknown): ScoutReasons | null {
   return parsed.success ? parsed.data.reasons : null;
 }
 
-/** Re-guard: do stored reasons still hold against today's blocks for the same pairs? */
-export function reasonsStillHold(reasons: ScoutReasons, facts: ScoutFacts, memberId: string): boolean {
+/**
+ * Re-guard: do stored reasons still hold against today's blocks for the same
+ * pairs? Tokens are numbered across the league, so another member's moves can
+ * renumber this member's players; each stored token is read through the
+ * row's own refs and rewritten as today's before the guard sees it. A token
+ * the row cannot account for fails, rather than being checked as somebody else.
+ */
+export function reasonsStillHold(
+  reasons: ScoutReasons,
+  storedRefs: Readonly<Record<string, TokenRef>>,
+  facts: ScoutFacts,
+  memberId: string,
+): boolean {
+  const today = (token: string) => {
+    const ref = storedRefs[token];
+    return ref ? facts.tokens.get(ref.id) : undefined;
+  };
   return facts.moves
     .filter((move) => move.memberId === memberId)
     .every((move) => {
       const text = reasons[pairKey(move.dropId, move.addId)];
-      return text === undefined || faultsOf(move, text, facts).length === 0;
+      if (text === undefined) return true;
+      let unknown = false;
+      const translated = text.replace(TOKEN_PATTERN, (token) => {
+        const current = today(token);
+        if (!current) unknown = true;
+        return current ?? token;
+      });
+      return !unknown && faultsOf(move, translated, facts).length === 0;
     });
 }

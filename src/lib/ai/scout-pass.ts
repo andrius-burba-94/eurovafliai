@@ -104,7 +104,7 @@ export async function runScoutPass(deps: ScoutPassDeps): Promise<ScoutPassReport
       const checked = instant(row.last_guarded_at) || instant(row.generated_at) || 0;
       if (now - checked < DAILY_MS) continue;
       const reasons = storedReasons(row.output);
-      if (reasons && reasonsStillHold(reasons, facts, memberId)) {
+      if (reasons && reasonsStillHold(reasons, (row.refs ?? {}) as Record<string, TokenRef>, facts, memberId)) {
         await markGuarded(deps.pb, row.id, now);
         report.guarded += 1;
         continue;
