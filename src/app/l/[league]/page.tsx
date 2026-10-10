@@ -28,7 +28,7 @@ import { serverConfig } from "@/lib/config/server";
 import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { readRoundWriteup } from "@/lib/ai/queries";
-import { readScout } from "@/lib/advisor/queries";
+import { readScout } from "@/lib/advisor/read";
 import { formatOutlook } from "@/lib/advisor/wire";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
@@ -150,7 +150,7 @@ export default async function LobbyPage({
   // 7.2 F: the viewer's own moves, worked out from stored outlooks; a failed
   // read hides the line rather than the page.
   const scoutRead = isSeasonDashboard && youMemberId
-    ? await readScout(id, { source: leagueSource(league), season, memberId: youMemberId, template }).catch(() => null)
+    ? await readScout(createUserClient(session.token), { leagueId: id, source: leagueSource(league), season, memberId: youMemberId, template }).catch(() => null)
     : null;
   const bestMove = scoutRead?.advice.moves[0];
   const scoutLine = scoutRead && bestMove

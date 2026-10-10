@@ -16,7 +16,6 @@ const MORE = 20;
 const RUN_WORD: Record<Run, string> = { easy: "Easy run", even: "Even run", hard: "Hard run" };
 export const CONFIDENCE_WORD: Record<Confidence, string> = { high: "High", medium: "Medium", low: "Low" };
 
-const points = formatOutlook;
 
 export function roleNote(row: WireRow, rated = true): string | null {
   const outlook = row.outlook;
@@ -51,10 +50,10 @@ export function Triplet({ next, emphasise = true }: { next: readonly (number | n
       {next.map((value, index) => (
         <span
           key={index}
-          aria-label={`${["Next 5", "Next 10", "Next 15"][index]}: ${value === null ? "no games" : points(value)}`}
+          aria-label={`${["Next 5", "Next 10", "Next 15"][index]}: ${value === null ? "no games" : formatOutlook(value)}`}
           className={`stat ${index === 0 && emphasise ? "text-base font-semibold text-ink" : "text-sm text-ink-soft"}`}
         >
-          {value === null ? "—" : points(value)}
+          {value === null ? "—" : formatOutlook(value)}
         </span>
       ))}
     </span>

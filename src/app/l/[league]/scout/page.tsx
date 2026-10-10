@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { Correction } from "@/components/board";
 import { PageHeader } from "@/components/broadcast";
 import { MOVE_THRESHOLD } from "@/lib/advisor/moves";
-import { readScout, type ScoutPage as ScoutData } from "@/lib/advisor/queries";
+import { readScout, type ScoutRead } from "@/lib/advisor/read";
 import { pairKey } from "@/lib/advisor/scout";
 import { formatOutlook } from "@/lib/advisor/wire";
 import { readScoutReasons } from "@/lib/ai/queries";
@@ -13,6 +13,7 @@ import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
+import { createUserClient } from "@/lib/pb/server";
 import { GAME_NAMES, leagueSource, positionSentence } from "@/lib/positions";
 
 import { ScoutDesk } from "./scout-desk";
@@ -36,9 +37,10 @@ export default async function ScoutPage({ params }: PageProps<"/l/[league]/scout
 
   const source = leagueSource(data.league);
   const template = data.settings.roster_template;
-  let scout: ScoutData | null = null;
+  let scout: ScoutRead | null = null;
   try {
-    scout = await readScout(data.league.id, {
+    scout = await readScout(createUserClient(session.token), {
+      leagueId: data.league.id,
       source,
       season: serverConfig().EUROLEAGUE_SEASON,
       memberId: you.id,

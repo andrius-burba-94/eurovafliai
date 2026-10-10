@@ -39,7 +39,7 @@ export type ScoutRead = ScoutView & {
   readonly rated: number;
 };
 
-export async function readScoutWith(
+export async function readScout(
   pb: PocketBase,
   {
     leagueId,

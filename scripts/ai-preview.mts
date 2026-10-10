@@ -61,18 +61,24 @@ if (flag("ping")) {
 const ref = arg("league");
 if (!ref || !/^[a-z0-9-]{1,80}$/i.test(ref)) refuse("Pass --league=<slug or id>.");
 
+const roundArg = arg("round");
+const round = roundArg === undefined ? undefined : Number(roundArg);
+if (round !== undefined && (!Number.isInteger(round) || round < 1)) refuse("--round must be a round number.");
+
+const pb = new PocketBase(env.PB_INTERNAL_URL);
+await pb.collection("_superusers").authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+
+const league = await pb
+  .collection("leagues")
+  .getFirstListItem<{ id: string; name: string }>(pb.filter("slug = {:ref} || id = {:ref}", { ref }), { requestKey: null })
+  .catch(() => null);
+if (!league) refuse(`No league answers to ${ref}.`);
+
 if (flag("scout")) {
-  const pbScout = new PocketBase(env.PB_INTERNAL_URL);
-  await pbScout.collection("_superusers").authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
-  const found = await pbScout
-    .collection("leagues")
-    .getFirstListItem<{ id: string; name: string }>(pbScout.filter("slug = {:ref} || id = {:ref}", { ref }), { requestKey: null })
-    .catch(() => null);
-  if (!found) refuse(`No league answers to ${ref}.`);
-  const input = await readScoutFactsInput(pbScout, { leagueId: found.id, season: env.EUROLEAGUE_SEASON });
+  const input = await readScoutFactsInput(pb, { leagueId: league.id, season: env.EUROLEAGUE_SEASON });
   if (!input || input.members.length === 0) refuse("Nobody in this league has a move worth making right now.", 0);
   const sheet = buildScoutFacts(input);
-  console.log(`PocketBase ${env.PB_INTERNAL_URL} · ${found.name} · ${input.ruleset} · ${sheet.moves.length} move(s) for ${input.members.length} member(s)`);
+  console.log(`PocketBase ${env.PB_INTERNAL_URL} · ${league.name} · ${input.ruleset} · ${sheet.moves.length} move(s) for ${input.members.length} member(s)`);
   console.log(`Fact sheet: ${sheet.text.length} characters, about ${Math.round(sheet.text.length / 4)} tokens`);
   console.log(`\n${sheet.text}\n`);
   if (flag("facts-only")) process.exit(0);
@@ -80,8 +86,8 @@ if (flag("scout")) {
   console.log(`Asking ${model} in the analyst voice…`);
   const written = await writeScoutReasons({ facts: sheet, model, apiKey });
   console.log(`${written.model} · ${written.calls} call(s) · tokens in ${written.usage.inputTokens}, out ${written.usage.outputTokens}`);
-  const teams = await pbScout.collection("league_members").getFullList<{ id: string; team_name?: string }>({
-    filter: `league = '${found.id}'`,
+  const teams = await pb.collection("league_members").getFullList<{ id: string; team_name?: string }>({
+    filter: `league = '${league.id}'`,
     fields: "id,team_name",
     requestKey: null,
   });
@@ -104,18 +110,6 @@ if (flag("scout")) {
   }
   process.exit(refusedAny ? 1 : 0);
 }
-const roundArg = arg("round");
-const round = roundArg === undefined ? undefined : Number(roundArg);
-if (round !== undefined && (!Number.isInteger(round) || round < 1)) refuse("--round must be a round number.");
-
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb.collection("_superusers").authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
-
-const league = await pb
-  .collection("leagues")
-  .getFirstListItem<{ id: string; name: string }>(pb.filter("slug = {:ref} || id = {:ref}", { ref }), { requestKey: null })
-  .catch(() => null);
-if (!league) refuse(`No league answers to ${ref}.`);
 
 const read = await readRoundFactsInput(pb, {
   leagueId: league.id,

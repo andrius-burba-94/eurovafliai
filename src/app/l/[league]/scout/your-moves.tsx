@@ -3,7 +3,7 @@
 import { Bank, CardBlock, CardBlocks, EmptyNotice } from "@/components/board";
 import type { Confidence } from "@/lib/advisor/outlook";
 import { pairKey, type ScoutMove } from "@/lib/advisor/scout";
-import { formatOutlook as points } from "@/lib/advisor/wire";
+import { formatOutlook } from "@/lib/advisor/wire";
 
 import { CONFIDENCE_WORD, PlayerCell, RunWord, Triplet, TripletHead } from "./waiver-wire";
 
@@ -26,7 +26,7 @@ function MoveCard({ move, unit, reason, promiseReasons }: { move: ScoutMove; uni
       {/* On a phone the gain leads and the names get the card's width. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <span className="flex items-baseline gap-2 leading-none sm:order-last sm:shrink-0 sm:flex-col sm:items-end sm:gap-0">
-          <span className="display-figure text-5xl text-gain" data-testid="scout-move-gain">+{points(move.gain)}</span>
+          <span className="display-figure text-5xl text-gain" data-testid="scout-move-gain">+{formatOutlook(move.gain)}</span>
           <span className="slot-label sm:mt-1 sm:text-right">{unit} a game · next 5</span>
         </span>
         <div className="flex min-w-0 flex-col gap-3">

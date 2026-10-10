@@ -25,7 +25,7 @@ import {
   recordTransaction,
   type TransactionResult,
 } from "@/lib/memberships/actions";
-import type { BoardSeat, FreeAgent } from "@/lib/memberships/queries";
+import type { BoardSeat, FreeAgent } from "@/lib/memberships/board";
 import {
   NO_FILTERS,
   poolIndex,

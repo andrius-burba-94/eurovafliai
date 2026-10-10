@@ -63,7 +63,7 @@ export type WireRow = WireAgent & {
 };
 
 const RUNS = new Set(["easy", "even", "hard"]);
-const runOf = (value: string | undefined): Run | null => (value && RUNS.has(value) ? (value as Run) : null);
+const asRun = (value: string | undefined): Run | null => (value && RUNS.has(value) ? (value as Run) : null);
 
 function asOutlook(row: StoredOutlook): WireOutlook {
   const ahead = (row.games_ahead ?? 0) > 0;
@@ -72,7 +72,7 @@ function asOutlook(row: StoredOutlook): WireOutlook {
   const gamesInRole = row.games_in_role ?? 0;
   return {
     next: ahead ? [row.outlook_5 ?? 0, row.outlook_10 ?? 0, row.outlook_15 ?? 0] : [null, null, null],
-    runs: ahead ? [runOf(row.run_5), runOf(row.run_10), runOf(row.run_15)] : [null, null, null],
+    runs: ahead ? [asRun(row.run_5), asRun(row.run_10), asRun(row.run_15)] : [null, null, null],
     role,
     gamesInRole,
     baseSource,

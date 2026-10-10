@@ -84,7 +84,9 @@ details and the counts to expect are in
 1. `npm run stats:sync -- --season=E2025 --all`, about half an hour. Then
    `npm run stats:starters -- --season=E2025`. Re-running either writes
    nothing.
-2. `npm run scout:outlooks` once, or wait 15 minutes for the worker.
+2. Nothing for the outlooks: the worker computes them two minutes after the
+   deploy restarts it, and every 15 minutes after. Look for its `outlooks ·`
+   log line.
 3. Each linked league's first positions read happens on the worker's first
    pass after boot. Check its `positions ·` log line.
 4. Do not run plain `npm run stats:prev` now that last season's lines are
@@ -93,8 +95,8 @@ details and the counts to expect are in
 **Next up: 7.3, your round.**
 
 **Try it on localhost:**
-- `npm run dev`, then `npm run scout:outlooks`. The worker does this on its own
-  two minutes after boot.
+- `npm run dev` (it starts the worker, which computes the outlooks two
+  minutes after boot: look for `outlooks ·` in its log).
 - Open `/l/<league>/scout`: your moves beside the waiver wire on a laptop,
   and two tabs on a phone width. Filter the wire to C.
 - `npm run ai:preview -- --league=<slug|id> --scout --facts-only` prints the

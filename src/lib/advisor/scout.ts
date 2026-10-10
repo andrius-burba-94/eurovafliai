@@ -1,4 +1,5 @@
 import type { Position } from "@/lib/engine";
+import type { BoardSeat } from "@/lib/memberships/board";
 
 import { MOVE_THRESHOLD, movesWorthMaking } from "./moves";
 import type { Confidence, Ruleset } from "./outlook";
@@ -32,14 +33,7 @@ export type ScoutView = {
   };
 };
 
-export type ScoutSeat = {
-  readonly member: string;
-  readonly player: string;
-  readonly position: Position;
-  readonly name: string;
-  readonly clubCode: string;
-  readonly status: string;
-};
+type ScoutSeat = Pick<BoardSeat, "member" | "player" | "position" | "name" | "clubCode" | "status">;
 
 export function scoutFor({
   seats,

@@ -61,8 +61,8 @@ const stopping = (error: unknown) =>
 
 /** Only the tokens in one member's section: their team and the players of their own moves. */
 function refsFor(facts: ScoutFacts, memberId: string): Record<string, TokenRef> {
-  const section = facts.sectionFor(memberId);
-  return Object.fromEntries(Object.entries(facts.refs).filter(([token]) => new RegExp(`${token}(?!\\d)`).test(section)));
+  const own = new Set(facts.moves.filter((move) => move.memberId === memberId).flatMap((move) => [...move.tokens]));
+  return Object.fromEntries(Object.entries(facts.refs).filter(([token]) => own.has(token)));
 }
 
 function hashFor(facts: ScoutFacts, memberId: string, model: string): string {

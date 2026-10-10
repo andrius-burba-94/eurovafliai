@@ -199,9 +199,8 @@ minutes now come from his recent games, and a test holds it.
 
 **The outlook pass has its own guard, not the AI lock.** It needs no key and
 calls no model, so a league without write-ups still gets its wire. It runs
-every 15 minutes, two minutes after boot. `npm run scout:outlooks` runs the
-same function by hand. On the local copy it computed 255 outlooks in 1.6
-seconds, and a second run wrote nothing. The figures track each player's
+every 15 minutes, two minutes after boot. On the local copy a pass computed
+255 outlooks in 1.6 seconds, and a second pass wrote nothing. The figures track each player's
 last-5 fantasy average within about a point; on the local copy the leaders
 were Kabengele at 26.7 and Vezenkov at 26.2.
 

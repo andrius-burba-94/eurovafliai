@@ -24,8 +24,6 @@ import { rosterFigures } from "./roster-figures";
 import { readBoard, type BoardSeat, type FreeAgent } from "./board";
 import { listActiveMemberships } from "./store";
 
-export type { BoardSeat, FreeAgent } from "./board";
-
 type ExpandedPlayer = {
   id: string;
   name: string;
