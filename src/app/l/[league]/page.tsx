@@ -100,7 +100,7 @@ export default async function LobbyPage({
   // satisfies — so this gate cannot dangle a door that would 404, and it costs
   // no extra query to decide. Everyone else pays nothing for the read.
   const mappingQueue = viewerIsManager
-    ? await countMappingQueue().catch(() => EMPTY_QUEUE)
+    ? await countMappingQueue(session.user.id).catch(() => EMPTY_QUEUE)
     : EMPTY_QUEUE;
   const mappingSentence = queueSentence(mappingQueue);
 

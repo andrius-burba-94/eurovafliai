@@ -4,7 +4,7 @@ import type { Position } from "@/lib/engine";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { fakePb, type FakeRecord } from "../../../tests/unit/helpers/fake-pb";
 
-import { readDuePositions, type PoolReaders } from "./store";
+import { answerQuestion, readDuePositions, type PoolReaders } from "./store";
 
 const NOW = new Date("2026-10-10T12:00:00Z");
 const HOUR = 60 * 60_000;
@@ -193,5 +193,61 @@ describe("readDuePositions: a roster that does not count 5/5/3 in the league's g
     await readDuePositions({ pb: fake.client, now: NOW, readers });
     expect(openQuestions(fake.rows("position_questions"))).toEqual([]);
     expect(fake.rows("position_questions")[0]).toMatchObject({ status: "resolved" });
+  });
+});
+
+describe("answerQuestion", () => {
+  const question = (overrides: Partial<FakeRecord> = {}): FakeRecord => ({
+    id: "q1", league: "lg", source: "basketnews", kind: "player", player: "omoruyi",
+    stored_position: "F", read_position: "C", status: "open", open_key: "player:lg:omoruyi", ...overrides,
+  });
+
+  function answering(questions: FakeRecord[], members: FakeRecord[] = [{ id: "m1", league: "lg", user: "u1" }, { id: "m2", league: "lg", user: "u2" }]) {
+    const { fake } = setup({ link: "basketnews", withRoster: true, questions });
+    fake.db.league_members = members;
+    return fake;
+  }
+
+  it("lets the commissioner answer: the game's position is written and confirmed, the question closed", async () => {
+    const fake = answering([question(), question({ id: "q2", league: "other", open_key: "player:other:omoruyi" })]);
+    const result = await answerQuestion(fake.client, { questionId: "q1", position: "C", userId: "u1", now: NOW });
+
+    expect(result).toEqual({ ok: true, playerId: "omoruyi", source: "basketnews", position: "C" });
+    expect(fake.rows("players").find((row) => row.id === "omoruyi")).toMatchObject({ basketnews_position: "C", basketnews_position_confirmed: true });
+    expect(fake.rows("position_questions")).toEqual([
+      expect.objectContaining({ id: "q1", status: "answered", answer: "C", answered_by: "u1", open_key: "" }),
+      expect.objectContaining({ id: "q2", status: "answered", answer: "C", open_key: "" }),
+    ]);
+  });
+
+  it("lets a deputy answer, and refuses a plain member", async () => {
+    const deputy = answering([question()], [{ id: "m2", league: "lg", user: "u2", can_manage: true }]);
+    expect(await answerQuestion(deputy.client, { questionId: "q1", position: "C", userId: "u2", now: NOW })).toMatchObject({ ok: true });
+
+    const member = answering([question()], [{ id: "m3", league: "lg", user: "u3", can_manage: false }]);
+    expect(await answerQuestion(member.client, { questionId: "q1", position: "C", userId: "u3", now: NOW })).toEqual({
+      ok: false, error: "Only the league's commissioner or a deputy can answer this.",
+    });
+    expect(member.rows("players").find((row) => row.id === "omoruyi")!.basketnews_position_confirmed).toBeUndefined();
+  });
+
+  it("answers a roster question for one of that roster's players, and closes it once the roster counts", async () => {
+    const roster = ROSTER.map((player) => ({ player: player.id, position: player.fantasy }));
+    const fake = answering([question({ kind: "roster", source: "fantasy", player: "", member: "m1", roster, open_key: "roster:lg:m1" })]);
+    fake.db.leagues![0] = { ...fake.db.leagues![0]!, fantasy_league_id: "147", basketnews_team_id: "" };
+
+    expect(await answerQuestion(fake.client, { questionId: "q1", playerId: "nobody", position: "C", userId: "u1", now: NOW })).toEqual({
+      ok: false, error: "That player is not on this roster.",
+    });
+    await answerQuestion(fake.client, { questionId: "q1", playerId: "omoruyi", position: "C", userId: "u1", now: NOW });
+    expect(fake.rows("players").find((row) => row.id === "omoruyi")).toMatchObject({ fantasy_position: "C", fantasy_position_confirmed: true });
+    expect(fake.rows("position_questions")[0]).toMatchObject({ status: "answered", open_key: "" });
+  });
+
+  it("refuses a question already answered", async () => {
+    const fake = answering([question({ status: "answered", open_key: "" })]);
+    expect(await answerQuestion(fake.client, { questionId: "q1", position: "C", userId: "u1", now: NOW })).toEqual({
+      ok: false, error: "This question has already been answered.",
+    });
   });
 });

@@ -55,6 +55,7 @@ const created = {
   live_game_snapshots: [],
   fantasy_syncs: [],
   ai_writeups: [],
+  position_questions: [],
 };
 
 const su = new PocketBase(url);
@@ -1589,6 +1590,69 @@ try {
     "a member cannot invent a sync run",
   );
 
+  // --- 7.2 D each game's positions, and position questions -------------------
+  check(!!byName.position_questions, "position_questions collection exists");
+  check(
+    byName.position_questions.createRule === null &&
+      byName.position_questions.updateRule === null &&
+      byName.position_questions.deleteRule === null,
+    "position questions are written only by the worker and the answer action",
+  );
+  check(
+    byName.position_questions.indexes.some((i) => /UNIQUE.*`open_key`.*WHERE.*`open_key` != ''/.test(i)),
+    "one open question per key, held by a partial unique index",
+  );
+  for (const name of ["basketnews_position_confirmed", "fantasy_position_confirmed", "basketnews_listed", "fantasy_listed"]) {
+    const field = byName.players.fields.find((f) => f.name === name);
+    check(field?.type === "bool" && !field.required, `players.${name} is an optional bool`);
+  }
+  check(byName.players.fields.some((f) => f.name === "fantasy_position"), "players carry the Fantasy Challenge's position");
+  check(byName.leagues.fields.some((f) => f.name === "positions_read_at"), "leagues record when their game was last read");
+
+  const openQuestion = await su.collection("position_questions").create(
+    {
+      league: league.id, source: "fantasy", kind: "player", player: playerOne.id,
+      stored_position: "C", read_position: "F", status: "open", open_key: `player:${league.id}:${playerOne.id}`,
+    },
+    { requestKey: null },
+  );
+  created.position_questions.push(openQuestion.id);
+  check((await listCount(aliceClient, "position_questions")) === 1, "the commissioner reads her league's position questions");
+  check((await listCount(bobClient, "position_questions")) === 0, "a plain member does not see them");
+  check((await listCount(carolClient, "position_questions")) === 0, "another league's commissioner does not see them");
+  const bobMembership = await su
+    .collection("league_members")
+    .getFirstListItem(`league = '${league.id}' && user = '${bob.id}'`, { requestKey: null });
+  await su.collection("league_members").update(bobMembership.id, { can_manage: true }, { requestKey: null });
+  check((await listCount(bobClient, "position_questions")) === 1, "a deputy the commissioner trusts sees them");
+  await su.collection("league_members").update(bobMembership.id, { can_manage: false }, { requestKey: null });
+  check(
+    await rejects(() =>
+      su.collection("position_questions").create(
+        { league: league.id, source: "fantasy", kind: "player", player: playerOne.id, status: "open", open_key: `player:${league.id}:${playerOne.id}` },
+        { requestKey: null },
+      ),
+    ),
+    "a second open question about the same player in the same league is refused",
+  );
+  for (let answered = 0; answered < 2; answered += 1) {
+    const closed = await su.collection("position_questions").create(
+      { league: league.id, source: "fantasy", kind: "player", player: playerOne.id, status: "answered", open_key: "" },
+      { requestKey: null },
+    );
+    created.position_questions.push(closed.id);
+  }
+  check(true, "answered questions about one player do not collide");
+  check(
+    await rejects(() =>
+      aliceClient.collection("position_questions").create(
+        { league: league.id, source: "fantasy", kind: "player", status: "open", open_key: `x${stamp}` },
+        { requestKey: null },
+      ),
+    ),
+    "a manager cannot invent a question",
+  );
+
   // --- S28 readable addresses -------------------------------------------------
   const slug = `verify-${stamp}`;
   await su.collection("players").update(playerOne.id, { slug }, { requestKey: null });
@@ -1678,6 +1742,8 @@ try {
   );
 
 } finally {
+  for (const id of created.position_questions)
+    await su.collection("position_questions").delete(id, { requestKey: null }).catch(() => {});
   for (const id of created.ai_writeups)
     await su.collection("ai_writeups").delete(id, { requestKey: null }).catch(() => {});
   for (const id of created.fantasy_syncs)

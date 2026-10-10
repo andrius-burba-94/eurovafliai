@@ -18,8 +18,12 @@ import type {
   UnmatchedCode,
   UnmatchedNews,
 } from "@/lib/mapping/queries";
+import type { Position } from "@/lib/engine";
 import { useHydrated } from "@/lib/hydrated";
 import { attachNewsName, type NewsResult } from "@/lib/news/actions";
+import { POSITION_WORD, positionSentence } from "@/lib/positions";
+import { answerPositionQuestion } from "@/lib/source-positions/actions";
+import type { PositionQuestionView } from "@/lib/source-positions/queries";
 
 /**
  * The mapping surface — slice 4.2.
@@ -56,10 +60,12 @@ export function MappingSurface({
   unmatched,
   lastCheck,
   news,
+  positions,
 }: {
   unmatched: UnmatchedCode[];
   lastCheck: StoredCheck | null;
   news: UnmatchedNews[];
+  positions: PositionQuestionView[];
 }) {
   const [check, checkAction] = useActionState(
     async () => checkTheFeed(),
@@ -69,12 +75,13 @@ export function MappingSurface({
   const [rejectResult, rejectAction] = useActionState(rejectRename, START);
   const [attachResult, attachAction] = useActionState(attachStatCode, START);
   const [newsResult, newsAction] = useActionState(attachNewsName, NEWS_START);
+  const [positionResult, positionAction] = useActionState(answerPositionQuestion, START);
 
-  const errors = [renameResult, rejectResult, attachResult, newsResult, check]
+  const errors = [renameResult, rejectResult, attachResult, newsResult, positionResult, check]
     .map((result) => result.error)
     .filter((message): message is string => Boolean(message));
 
-  const dones = [renameResult, rejectResult, attachResult, newsResult]
+  const dones = [renameResult, rejectResult, attachResult, newsResult, positionResult]
     .map((result) => (result.error ? null : result.done))
     .filter((message): message is string => Boolean(message));
 
@@ -96,6 +103,7 @@ export function MappingSurface({
     ...asking.map((rename) => `rename-${rename.existingId}`),
     ...unmatched.map((entry) => `code-${entry.personCode}`),
     ...news.map((entry) => `news-name-${entry.slug}`),
+    ...positions.map((question) => `position-${question.id}`),
   ];
   const [cursor, setCursor] = useState(0);
   // Keys pressed before hydration go nowhere; specs wait on this, as the pool's `pool-ready`.
@@ -175,7 +183,7 @@ export function MappingSurface({
       ) : (
         <p className="slot-filled px-3 py-3 text-sm" data-testid="mapping-clear">
           Nothing to map. Every name the feed, the box scores and the news use
-          belongs to one player.
+          belongs to one player, and every position your leagues&apos; games list is settled.
         </p>
       )}
 
@@ -285,7 +293,138 @@ export function MappingSurface({
           </Slots>
         )}
       </Bank>
+
+      <Bank
+        label="Positions in your leagues' games"
+        info="A linked league counts its rosters in its own game's positions. A daily read stores the position the game lists for any player who has none. A stored position the game now reports differently, or a roster that does not count the league's template, waits here. Your answer is stored for that game, and no later read changes it."
+        aside={`${positions.length} to answer`}
+      >
+        {positions.length === 0 ? (
+          <p className="text-sm text-ink-soft" data-testid="mapping-no-positions">
+            Every position your leagues&apos; games list agrees with what is stored.
+          </p>
+        ) : (
+          <Slots testId="mapping-positions">
+            {positions.map((question) => (
+              <PositionRow
+                key={question.id}
+                question={question}
+                action={positionAction}
+                current={currentKey === `position-${question.id}`}
+              />
+            ))}
+          </Slots>
+        )}
+      </Bank>
     </>
+  );
+}
+
+const GAME: Record<PositionQuestionView["source"], string> = { basketnews: "BasketNews", fantasy: "the Fantasy Challenge" };
+const word = (position: Position) => POSITION_WORD[position][0];
+
+function PositionRow({
+  question,
+  action,
+  current,
+}: {
+  question: PositionQuestionView;
+  action: (formData: FormData) => void;
+  current: boolean;
+}) {
+  const roster = question.roster ?? [];
+  const [playerId, setPlayerId] = useState(roster[0]?.player ?? "");
+  const [position, setPosition] = useState<Position>("C");
+
+  if (question.kind === "player" && question.player && question.stored && question.read) {
+    const { player, stored, read } = question;
+    return (
+      <Slot state={current ? "live" : "waiting"} current={current} testId={`position-${question.id}`}>
+        <span className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+          <span className="flex min-w-0 flex-col gap-0.5 text-sm">
+            <span>
+              <strong>{player.name}</strong> <span className="text-ink-soft">{player.clubCode} · {question.leagueName}</span>
+            </span>
+            <span className="text-xs text-ink-faint">
+              {GAME[question.source]} now lists him as a {word(read)}; a {word(stored)} is stored.
+            </span>
+          </span>
+          <span className={ANSWER}>
+            <form action={action} data-answer="yes">
+              <input type="hidden" name="question" value={question.id} />
+              <input type="hidden" name="position" value={read} />
+              <SubmitButton testId={`position-use-${question.id}`} tone="liveOnField" compact pendingLabel="Saving…" ariaLabel={`${player.name} is a ${word(read)}`}>
+                {`${read}, as the game says`}
+              </SubmitButton>
+            </form>
+            <form action={action} data-answer="no">
+              <input type="hidden" name="question" value={question.id} />
+              <input type="hidden" name="position" value={stored} />
+              <SubmitButton testId={`position-keep-${question.id}`} compact pendingLabel="Saving…" ariaLabel={`${player.name} stays a ${word(stored)}`}>
+                {`Keep ${stored}`}
+              </SubmitButton>
+            </form>
+          </span>
+        </span>
+      </Slot>
+    );
+  }
+
+  const counts: Record<Position, number> = { G: 0, F: 0, C: 0 };
+  for (const seat of roster) counts[seat.position] += 1;
+  return (
+    <Slot state={current ? "live" : "waiting"} current={current} testId={`position-${question.id}`}>
+      <span className="flex w-full flex-col gap-2">
+        <span className="flex min-w-0 flex-col gap-0.5 text-sm">
+          <span>
+            <strong>{question.teamName}</strong> <span className="text-ink-soft">{question.leagueName}</span>
+          </span>
+          <span className="text-xs text-ink-faint">
+            Counts {positionSentence(counts, "nobody", { keepZeros: true })} in {GAME[question.source]}&apos;s positions.
+            One of these players is filed under the wrong position for this game.
+          </span>
+          <span className="text-xs text-ink-soft" data-testid={`position-roster-${question.id}`}>
+            {roster.map((seat) => `${seat.name} ${seat.position}`).join(" · ")}
+          </span>
+        </span>
+        <span className={ANSWER}>
+          <select
+            aria-label="Which player"
+            value={playerId}
+            onChange={(event) => setPlayerId(event.target.value)}
+            data-testid={`position-player-${question.id}`}
+            className={CHOICE}
+          >
+            {roster.map((seat) => (
+              <option key={seat.player} value={seat.player}>
+                {seat.name} ({seat.position})
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Is a"
+            value={position}
+            onChange={(event) => setPosition(event.target.value as Position)}
+            data-testid={`position-choice-${question.id}`}
+            className="min-h-11 rounded-md border border-rule bg-transparent px-2 text-sm"
+          >
+            {(["G", "F", "C"] as const).map((option) => (
+              <option key={option} value={option}>
+                {word(option)}
+              </option>
+            ))}
+          </select>
+          <form action={action} data-answer="yes">
+            <input type="hidden" name="question" value={question.id} />
+            <input type="hidden" name="player" value={playerId} />
+            <input type="hidden" name="position" value={position} />
+            <SubmitButton testId={`position-set-${question.id}`} tone="liveOnField" compact pendingLabel="Saving…">
+              Set position
+            </SubmitButton>
+          </form>
+        </span>
+      </span>
+    </Slot>
   );
 }
 

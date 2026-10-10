@@ -73,8 +73,8 @@ export async function AppShell({
     getSession(),
     readShellLeagues(),
   ]);
-  const mappingWaiting = manager
-    ? queueTotal(await countMappingQueue().catch(() => EMPTY_QUEUE))
+  const mappingWaiting = manager && session
+    ? queueTotal(await countMappingQueue(session.user.id).catch(() => EMPTY_QUEUE))
     : 0;
   const groups = navFor({ league, isRosterManager: manager, mappingWaiting });
   const tabs = tabsFor(groups);

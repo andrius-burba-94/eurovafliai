@@ -2,6 +2,7 @@ import "server-only";
 
 import { serverConfig } from "@/lib/config/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
+import { countPositionQuestions } from "@/lib/source-positions/queries";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { rankCandidates } from "@/lib/rosters/rename";
 import {
@@ -200,11 +201,11 @@ export async function readUnmatchedNews(): Promise<UnmatchedNews[]> {
  * else fall back to `EMPTY_QUEUE`, the way the lobby already does with chat: a
  * doorbell is not worth a surface.
  */
-export async function countMappingQueue(limit = 20): Promise<MappingQueue> {
+export async function countMappingQueue(userId: string, limit = 20): Promise<MappingQueue> {
   const pb = await getSuperuserClient();
   const season = serverConfig().EUROLEAGUE_SEASON;
 
-  const [checkBatches, codeBatches, players, news] = await Promise.all([
+  const [checkBatches, codeBatches, players, news, positions] = await Promise.all([
     readCheckBatches(pb),
     readCodeBatches(pb, limit),
     pb.collection("players").getFullList<PoolPlayerRow>({ requestKey: null }),
@@ -212,12 +213,14 @@ export async function countMappingQueue(limit = 20): Promise<MappingQueue> {
       fields: "id,slug,name,club_name,headline,published,player,url",
       requestKey: null,
     }),
+    countPositionQuestions(userId),
   ]);
 
   return {
     renames: pendingRenames(newestCheckBatch(checkBatches), players).length,
     codes: codesWorthChasing(pendingCodes(codeBatches, players), season).length,
     news: newsWorthChasing(pendingNewsNames(news), new Date()).length,
+    positions,
   };
 }
 

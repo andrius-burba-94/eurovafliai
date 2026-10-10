@@ -11,6 +11,7 @@ import {
 } from "@/lib/mapping/queries";
 import { displayName } from "@/lib/players/name";
 import { canManageRosters } from "@/lib/rosters/actions";
+import { readPositionQuestions } from "@/lib/source-positions/queries";
 
 import { MappingSurface } from "./mapping-surface";
 
@@ -43,11 +44,12 @@ export default async function MappingPage({
   // newest: a check is an audit record, and "the newest" is app-global, which
   // tests cannot work around.
   const { check } = await searchParams;
-  const [unmatched, lastCheck, news, lastChange] = await Promise.all([
+  const [unmatched, lastCheck, news, lastChange, positions] = await Promise.all([
     readUnmatchedCodes(),
     readLatestCheck(typeof check === "string" ? check : undefined),
     readUnmatchedNews(),
     readLastRosterChange(),
+    readPositionQuestions(),
   ]);
 
   const added = lastChange?.added ?? [];
@@ -60,7 +62,7 @@ export default async function MappingPage({
   return (
     <AppShell current="mapping" measure="wide" testId="player-mapping">
       <PageHeader title="Player mapping" lead={lead} testId="mapping-header" />
-      <MappingSurface unmatched={unmatched} lastCheck={lastCheck} news={news} />
+      <MappingSurface unmatched={unmatched} lastCheck={lastCheck} news={news} positions={positions} />
     </AppShell>
   );
 }

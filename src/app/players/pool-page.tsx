@@ -8,6 +8,7 @@ import {
   Slots,
 } from "@/components/board";
 import { AppShell } from "@/components/app-shell";
+import { getSession } from "@/lib/auth/session";
 import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
 import { canManageRosters } from "@/lib/rosters/actions";
@@ -41,8 +42,9 @@ export async function PoolPage({ league }: { league: NavLeague | null }) {
   const canImport = await canManageRosters();
   // The same count the lobby rings, from the same filter, so the page that owns
   // the link and the page that chases it cannot quote different numbers.
-  const mappingWaiting = canImport
-    ? queueTotal(await countMappingQueue().catch(() => EMPTY_QUEUE))
+  const session = canImport ? await getSession() : null;
+  const mappingWaiting = session
+    ? queueTotal(await countMappingQueue(session.user.id).catch(() => EMPTY_QUEUE))
     : 0;
 
   return (

@@ -246,3 +246,62 @@ export async function checkRosters(pb: PocketBase, league: LeagueRow, source: Po
   }
   return standing;
 }
+
+export type AnswerResult =
+  | { readonly ok: true; readonly playerId: string; readonly source: PositionSource; readonly position: Position }
+  | { readonly ok: false; readonly error: string };
+
+type AnswerRow = QuestionRow & { league: string; source: PositionSource };
+
+const POSITION_VALUES: readonly string[] = ["G", "F", "C"];
+
+/**
+ * A manager's answer: the player's position in that game, written and
+ * confirmed so no later read touches it.
+ *
+ * Validate, write the player, then close every open question about him in
+ * that game, then re-count the league's rosters. A crash after the player is
+ * written leaves a question open about a confirmed position; the next read
+ * resolves it, and answering it again writes the same values.
+ */
+export async function answerQuestion(
+  pb: PocketBase,
+  input: { questionId: string; playerId?: string; position: string; userId: string; now: Date },
+): Promise<AnswerResult> {
+  if (!POSITION_VALUES.includes(input.position)) return { ok: false, error: "Choose G, F or C." };
+  const position = input.position as Position;
+  const question = await pb.collection("position_questions").getOne<AnswerRow>(input.questionId, { requestKey: null }).catch(() => null);
+  if (!question) return { ok: false, error: "That question no longer exists." };
+  if (question.status !== "open") return { ok: false, error: "This question has already been answered." };
+
+  const league = await pb.collection("leagues").getOne<LeagueRow & { commissioner: string }>(question.league, { requestKey: null });
+  if (league.commissioner !== input.userId) {
+    const deputies = await pb.collection("league_members").getFullList({
+      filter: `league = '${league.id}' && user = '${input.userId}' && can_manage = true`,
+      fields: "id",
+      requestKey: null,
+    });
+    if (deputies.length === 0) return { ok: false, error: "Only the league's commissioner or a deputy can answer this." };
+  }
+
+  const playerId = question.kind === "player" ? question.player : input.playerId;
+  const roster = Array.isArray(question.roster) ? (question.roster as { player: string }[]) : [];
+  if (!playerId || (question.kind === "roster" && !roster.some((seat) => seat.player === playerId))) {
+    return { ok: false, error: "That player is not on this roster." };
+  }
+
+  const fields = SOURCE_FIELDS[question.source];
+  await pb.collection("players").update(playerId, { [fields.position]: position, [fields.confirmed]: true }, { requestKey: null });
+
+  const answered = { status: "answered", answer: position, answered_at: asPbDate(input.now), answered_by: input.userId, open_key: "" };
+  const sameAnswer = await pb.collection("position_questions").getFullList<{ id: string }>({
+    filter: `player = '${playerId}' && source = '${question.source}' && kind = 'player' && status = 'open'`,
+    fields: "id",
+    requestKey: null,
+  });
+  for (const id of new Set([question.id, ...sameAnswer.map((row) => row.id)])) {
+    await pb.collection("position_questions").update(id, answered, { requestKey: null });
+  }
+  await checkRosters(pb, league, question.source);
+  return { ok: true, playerId, source: question.source, position };
+}
