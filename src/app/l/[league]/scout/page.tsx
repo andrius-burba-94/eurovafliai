@@ -3,19 +3,24 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Correction } from "@/components/board";
 import { PageHeader } from "@/components/broadcast";
-import { readWaiverWire, type WaiverWirePage } from "@/lib/advisor/queries";
+import { MOVE_THRESHOLD } from "@/lib/advisor/moves";
+import { readScout, type ScoutPage as ScoutData } from "@/lib/advisor/queries";
+import { formatOutlook } from "@/lib/advisor/wire";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
-import { leagueSource } from "@/lib/positions";
+import { GAME_NAMES, leagueSource, positionSentence } from "@/lib/positions";
 
+import { ScoutDesk } from "./scout-desk";
 import { WaiverWire } from "./waiver-wire";
+import { YourMoves } from "./your-moves";
 
 /**
- * Scout (7.2, design A "the desk", #193): the league's waiver wire, ranked by
- * stored outlooks. Read with the member's token; the page never computes an
- * outlook and never calls a model. A member's moves worth making join it in 7.2 F.
+ * Scout (7.2, design A "the desk", #193): the viewer's own moves worth making
+ * beside the league's waiver wire. Read with the member's token; the page
+ * reads stored outlooks, works the moves out at read time, and never calls a
+ * model.
  */
 export default async function ScoutPage({ params }: PageProps<"/l/[league]/scout">) {
   const session = await getSession();
@@ -27,26 +32,46 @@ export default async function ScoutPage({ params }: PageProps<"/l/[league]/scout
   if (!you || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
 
   const source = leagueSource(data.league);
-  let wire: WaiverWirePage | null = null;
-  let failed = false;
+  const template = data.settings.roster_template;
+  let scout: ScoutData | null = null;
   try {
-    wire = await readWaiverWire(data.league.id, { source, season: serverConfig().EUROLEAGUE_SEASON });
+    scout = await readScout(data.league.id, {
+      source,
+      season: serverConfig().EUROLEAGUE_SEASON,
+      memberId: you.id,
+      template,
+    });
   } catch {
-    failed = true;
+    scout = null;
   }
   const unit = source === "basketnews" ? "Modern points" : "fantasy points";
+  const gameName = source === "euroleague" ? "your league" : GAME_NAMES[source];
 
   return (
-    <AppShell current="scout" league={navLeagueFrom(data)} measure="column" testId="scout">
+    <AppShell current="scout" league={navLeagueFrom(data)} measure="wide" testId="scout">
       <div className="flex flex-col gap-8">
         <PageHeader
           title="Scout"
-          lead={`Free agents ranked by the ${unit} they should score a game over their club's next five.`}
+          lead={`Free agents ranked by the ${unit} they should score a game over their club's next five, and the swaps worth making for your roster.`}
         />
-        {failed || !wire ? (
-          <Correction testId="scout-error">The waiver wire could not be read just now. Reload the page in a minute.</Correction>
+        {!scout ? (
+          <Correction testId="scout-error">The scout could not be read just now. Reload the page in a minute.</Correction>
         ) : (
-          <WaiverWire rows={wire.rows} rated={wire.rated} unit={unit} />
+          <ScoutDesk
+            movesCount={scout.advice.moves.length}
+            wireCount={scout.wire.length}
+            moves={
+              <YourMoves
+                moves={scout.advice.moves}
+                countsTemplate={scout.advice.countsTemplate}
+                templateWords={positionSentence(template, "nothing", { keepZeros: true })}
+                gameName={gameName}
+                unit={unit}
+                threshold={`+${formatOutlook(MOVE_THRESHOLD[scout.ruleset])}`}
+              />
+            }
+            wire={<WaiverWire rows={scout.wire} rated={scout.rated} unit={unit} />}
+          />
         )}
       </div>
     </AppShell>

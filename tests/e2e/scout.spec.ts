@@ -70,6 +70,8 @@ test("the waiver wire ranks free agents by outlook, filters by position, and lis
     await page.goto(`/l/${league.id}/scout`);
   }
 
+  // On a phone the desk opens on Your moves; the wire is its other tab.
+  if (await page.getByTestId("scout-tab-wire").isVisible()) await page.getByTestId("scout-tab-wire").click();
   await expect(page.getByTestId("waiver-wire")).toBeVisible();
   const rows = page.getByTestId("wire-row");
   const names = await rows.allInnerTexts();
@@ -104,7 +106,79 @@ test("in a linked league, a player the game does not list is not on the wire", a
   await signIn(context, owner);
 
   await page.goto(`/l/${league.id}/scout`);
+  if (await page.getByTestId("scout-tab-wire").isVisible()) await page.getByTestId("scout-tab-wire").click();
   const rows = page.getByTestId("wire-row");
   await expect(rows.filter({ hasText: shown(listed.name).toUpperCase() })).toHaveCount(1);
   await expect(rows.filter({ hasText: shown(unlisted.name).toUpperCase() })).toHaveCount(0);
+});
+
+async function hold(leagueId: string, memberId: string, playerId: string) {
+  const pb = await superuser();
+  await pb.collection("roster_memberships").create(
+    {
+      league: leagueId,
+      member: memberId,
+      player: playerId,
+      from_date: "2026-09-08 12:00:00.000Z",
+      to_date: "",
+      from_round: 1,
+      to_round: 0,
+      acquired_via: "draft",
+    },
+    { requestKey: null },
+  );
+}
+
+test("your moves are yours: the swap, its gain, the League Home line, and nobody else's advice", async ({ page, context }, testInfo) => {
+  // Outlooks and the pool are app-wide: the mobile project running this at the
+  // same moment would plant a second best free agent into chromium's league.
+  test.skip(testInfo.project.name !== "chromium", "one project, so one planted best add");
+  // A one-forward template keeps the roster small (legality is the advisor's
+  // tests), and forwards because no other spec here plants a rated forward in
+  // the shared pool, which would outrank this one as the best add.
+  const { owner, league } = await seasonLeague("scout-moves", { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12 } });
+  const rival = await createTestUser("scout-rival");
+  const { addMemberTo } = await import("./helpers/session");
+  const rivalMember = await addMemberTo(league.id, rival, "Rival FC");
+  const pb = await superuser();
+  const mine = await pb.collection("league_members").getFirstListItem<{ id: string }>(`league = '${league.id}' && user = '${owner.id}'`, { requestKey: null });
+
+  const myGuard = await createPlayer("MyForward", { position: "F" });
+  const rivalGuard = await createPlayer("RivalForward", { position: "F" });
+  const freeAgent = await createPlayer("TopFreeAgent", { position: "F" });
+  await hold(league.id, mine.id, myGuard.id);
+  await hold(league.id, rivalMember, rivalGuard.id);
+  await plantOutlook(myGuard.id, 500);
+  await plantOutlook(rivalGuard.id, 400);
+  // Above every real player, so it is everyone's best add.
+  await plantOutlook(freeAgent.id, 9600, { games_in_role: 3 });
+  await signIn(context, owner);
+
+  await page.goto(`/l/${league.id}/scout`);
+  const moves = page.getByTestId("scout-move");
+  await expect(moves).toHaveCount(1);
+  await expect(moves).toContainText(shown(myGuard.name));
+  await expect(moves).toContainText(shown(freeAgent.name));
+  await expect(page.getByTestId("scout-move-gain")).toHaveText("+91.0");
+  await expect(page.getByTestId("scout-move-confidence")).toContainText("Medium");
+  // The rival's roster and its advice never reach this page.
+  await expect(page.getByTestId("your-moves")).not.toContainText(shown(rivalGuard.name));
+
+  await page.goto(`/l/${league.id}`);
+  await expect(page.getByTestId("enter-scout")).toContainText("Scout: 1 move worth making");
+
+  // The rival signs the free agent: on the next read no move adds him.
+  await hold(league.id, rivalMember, freeAgent.id);
+  await page.goto(`/l/${league.id}/scout`);
+  await expect(page.getByTestId("your-moves")).toBeVisible();
+  await expect(page.getByTestId("your-moves")).not.toContainText(shown(freeAgent.name));
+
+  // Nobody beats a forward rated above every real player: the empty state, and no League Home line.
+  const stored = await pb.collection("player_outlooks").getFirstListItem<{ id: string }>(`player = '${myGuard.id}'`, { requestKey: null });
+  await pb.collection("player_outlooks").update(stored.id, { outlook_5: 9990 }, { requestKey: null });
+  await page.goto(`/l/${league.id}/scout`);
+  await expect(page.getByTestId("your-moves-empty")).toContainText("No move worth making this round.");
+  await page.goto(`/l/${league.id}`);
+  await expect(page.getByTestId("enter-recap")).toBeVisible();
+  await expect(page.getByTestId("enter-scout")).toHaveCount(0);
 });

@@ -6,21 +6,17 @@ import { Bank, CardName, EmptyNotice, FilterToggle, PositionPatch, Slot, Slots }
 import { availabilityBadge, StatusBadge } from "@/components/broadcast";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import type { Confidence, Run } from "@/lib/advisor/outlook";
-import type { WireRow } from "@/lib/advisor/wire";
+import { formatOutlook, type WireRow } from "@/lib/advisor/wire";
 import type { Position } from "@/lib/engine";
 import { displayName } from "@/lib/players/name";
-import { formatTenths } from "@/lib/stats/scoring";
 
 const SHOWN = 30;
 const MORE = 20;
 
 const RUN_WORD: Record<Run, string> = { easy: "Easy run", even: "Even run", hard: "Hard run" };
-const CONFIDENCE_WORD: Record<Confidence, string> = { high: "High", medium: "Medium", low: "Low" };
+export const CONFIDENCE_WORD: Record<Confidence, string> = { high: "High", medium: "Medium", low: "Low" };
 
-/** Hundredths of a point, printed to the tenth the rest of the app prints. */
-export function points(hundredths: number): string {
-  return formatTenths(Math.round(hundredths / 10));
-}
+const points = formatOutlook;
 
 export function roleNote(row: WireRow): string | null {
   const outlook = row.outlook;
@@ -65,16 +61,19 @@ export function Triplet({ next, emphasise = true }: { next: readonly (number | n
   );
 }
 
-function PlayerCell({ row }: { row: WireRow }) {
+export function PlayerCell({ row, verb }: { row: WireRow; verb?: "Drop" | "Add" }) {
   const badge = availabilityBadge(row.status);
   const note = roleNote(row);
   return (
     <span className="flex min-w-0 items-center gap-2.5">
       <PositionPatch position={row.position} />
       <span className="flex min-w-0 flex-col gap-0.5">
-        <PlayerStatsLink id={row.id} name={row.name} className="min-w-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live">
-          <CardName scale="slot">{displayName(row.name)}</CardName>
-        </PlayerStatsLink>
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          {verb ? <span className={`slot-label ${verb === "Add" ? "text-gain" : "text-loss"}`}>{verb}</span> : null}
+          <PlayerStatsLink id={row.id} name={row.name} className={`min-w-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live ${verb === "Drop" ? "text-ink-soft" : ""}`}>
+            <CardName scale="slot">{displayName(row.name)}</CardName>
+          </PlayerStatsLink>
+        </span>
         <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-ink-soft">
           {row.clubCode}
           {note ? ` · ${note}` : ""}

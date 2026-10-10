@@ -154,6 +154,8 @@ export async function readMemberRoster(
 export type BoardSeat = Seat & {
   readonly name: string;
   readonly clubName: string;
+  readonly clubCode: string;
+  readonly status: string;
 };
 
 export type FreeAgent = {
@@ -217,6 +219,8 @@ export async function readTransactionBoard(leagueId: string): Promise<{
         position: leaguePosition(player, source),
         name: player.name,
         clubName: player.club_name,
+        clubCode: player.club_code,
+        status: player.status ?? "active",
       },
     ];
   });

@@ -1,16 +1,17 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
+import type { Position } from "@/lib/engine";
 import { readTransactionBoard } from "@/lib/memberships/queries";
 import { createUserClient } from "@/lib/pb/server";
 import type { LeagueSource } from "@/lib/positions";
 
 import type { Ruleset } from "./outlook";
-import { waiverWire, type StoredOutlook, type WireRow } from "./wire";
+import { scoutFor, type ScoutView } from "./scout";
+import type { StoredOutlook } from "./wire";
 
-export type WaiverWirePage = {
+export type ScoutPage = ScoutView & {
   readonly ruleset: Ruleset;
-  readonly rows: WireRow[];
   /** Outlooks stored for this ruleset at all: zero before the worker's first pass. */
   readonly rated: number;
 };
@@ -20,14 +21,21 @@ export function rulesetOf(source: LeagueSource): Ruleset {
 }
 
 /**
- * The league's waiver wire, read with the member's token (7.2 E). Free agents
- * come from the transaction board, so a linked league lists only the players
- * its game lists; outlooks are the stored ones, never computed here.
+ * The league's waiver wire and the viewer's own moves worth making, read with
+ * the member's token (7.2 E, F). Free agents come from the transaction board,
+ * so a linked league lists only the players its game lists, and a player
+ * signed since the last read is gone from both. Outlooks are the stored ones,
+ * never computed here; the moves are worked out from them at read time.
  */
-export async function readWaiverWire(
+export async function readScout(
   leagueId: string,
-  { source, season }: { source: LeagueSource; season: string },
-): Promise<WaiverWirePage | null> {
+  {
+    source,
+    season,
+    memberId,
+    template,
+  }: { source: LeagueSource; season: string; memberId: string | null; template: Readonly<Record<Position, number>> },
+): Promise<ScoutPage | null> {
   const session = await getSession();
   if (!session) return null;
   const ruleset = rulesetOf(source);
@@ -41,5 +49,9 @@ export async function readWaiverWire(
     }),
   ]);
   if (!board) return null;
-  return { ruleset, rows: waiverWire({ freeAgents: board.freeAgents, outlooks }), rated: outlooks.length };
+  return {
+    ruleset,
+    rated: outlooks.length,
+    ...scoutFor({ seats: board.seats, freeAgents: board.freeAgents, outlooks, template, memberId, ruleset }),
+  };
 }

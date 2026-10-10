@@ -1,4 +1,5 @@
 import type { Position } from "@/lib/engine";
+import { formatTenths } from "@/lib/stats/scoring";
 
 import { confidenceOf, type BaseSource, type Confidence, type Role, type Run } from "./outlook";
 
@@ -77,4 +78,9 @@ export function waiverWire({
   });
   const rank = (row: WireRow) => row.outlook?.next[0] ?? Number.NEGATIVE_INFINITY;
   return rows.sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name));
+}
+
+/** Hundredths of a point, printed to the tenth the rest of the app prints. */
+export function formatOutlook(hundredths: number): string {
+  return formatTenths(Math.round(hundredths / 10));
 }
