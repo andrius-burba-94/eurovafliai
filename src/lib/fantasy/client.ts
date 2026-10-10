@@ -1,7 +1,15 @@
 import { sleep } from "@/lib/euroleague/http";
 
 import { parseCurrentMatchday, parseRoundLineup, type OfficialLineup } from "./lineup";
-import { parseLeagueMoves, parseLeagueRosters, type FantasyMove, type FantasyTeam } from "./parse";
+import {
+  parseGameConfig,
+  parseLeagueMoves,
+  parseLeagueRosters,
+  parsePlayerPoolPage,
+  type FantasyMove,
+  type FantasyPlayer,
+  type FantasyTeam,
+} from "./parse";
 
 /**
  * The reads the sync makes from the official game's backend.
@@ -129,4 +137,34 @@ export async function fetchCurrentMatchday(
     { forbidden: "The Fantasy Challenge will not list the token owner's teams", failed: "the token owner's teams" },
   );
   return parseCurrentMatchday(raw, fantasyLeagueId);
+}
+
+/** Big enough that the whole pool (356 rows on 9 October 2026) is one page. */
+const POOL_PAGE = 500;
+
+/**
+ * Every player the game lists today, with its position: the current
+ * matchday's list, every page. Coaches are dropped.
+ */
+export async function fetchPlayerPool(token: string, doFetch: typeof fetch = fetch): Promise<FantasyPlayer[]> {
+  const config = parseGameConfig(
+    await getJson(`/leagues/${GAME_LEAGUE}/config`, token, doFetch, {
+      forbidden: "The Fantasy Challenge will not show its game config",
+      failed: "the game config",
+    }),
+  );
+  const players: FantasyPlayer[] = [];
+  for (let page = 1, last = 1; page <= last; page += 1) {
+    const read = parsePlayerPoolPage(
+      await getJson(
+        `/players-lists/${config.playersListId}/matchdays/${config.matchdayId}/players?per_page=${POOL_PAGE}&page=${page}`,
+        token,
+        doFetch,
+        { forbidden: "The Fantasy Challenge will not list its player pool", failed: `the player pool, page ${page}` },
+      ),
+    );
+    players.push(...read.players);
+    last = read.lastPage;
+  }
+  return players;
 }

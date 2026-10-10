@@ -117,3 +117,38 @@ export function parseLeagueMoves(raw: unknown): FantasyMove[] {
     departure: { playerId: move.player_2.id, teamId: move.player_2.fantasy_team?.id ?? null },
   }));
 }
+
+/** The list holds every club's coach as a player row; positions read only players. */
+const COACH = "Head Coach";
+
+const poolPageSchema = z.object({
+  data: z.array(playerSchema),
+  meta: z.object({ last_page: z.number().int() }),
+});
+
+/** One page of the whole pool the game lists for a matchday (7.2 A research). */
+export function parsePlayerPoolPage(raw: unknown): { players: FantasyPlayer[]; lastPage: number } {
+  const parsed = poolPageSchema.safeParse(raw);
+  if (!parsed.success) {
+    const where = parsed.error.issues[0]?.path.join(".") || "(root)";
+    throw new Error(`The Fantasy Challenge player pool changed shape at ${where}; no position was read.`);
+  }
+  return {
+    players: parsed.data.data.filter((player) => player.position.name.trim() !== COACH).map(fantasyPlayerFrom),
+    lastPage: parsed.data.meta.last_page,
+  };
+}
+
+const configSchema = z.object({
+  data: z.object({
+    current_players_list_id: z.number().int(),
+    current_matchday: z.object({ id: z.number().int() }),
+  }),
+});
+
+/** Which list and matchday hold the pool today. A future matchday omits clubs not yet scheduled. */
+export function parseGameConfig(raw: unknown): { playersListId: number; matchdayId: number } {
+  const parsed = configSchema.safeParse(raw);
+  if (!parsed.success) throw new Error("The Fantasy Challenge config changed shape; no position was read.");
+  return { playersListId: parsed.data.data.current_players_list_id, matchdayId: parsed.data.data.current_matchday.id };
+}

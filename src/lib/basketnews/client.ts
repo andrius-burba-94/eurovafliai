@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import type { Position } from "@/lib/engine";
+import type { FantasyPlayer } from "@/lib/fantasy/parse";
+
 /** BasketNews uses GraphQL, not the Fantaking REST API in `fantasy/client.ts`. */
 const ENDPOINT = "https://fantasy.basketnews.com/backend/graphql";
 const ID = z.string().regex(/^[a-f0-9]{24}$/);
@@ -32,6 +35,7 @@ const leagueLineup = lineup.extend({ fantasyTeamId: ID });
 const score = z.object({ pointsTotal: z.number(), pointsGained: z.number() });
 
 export type BasketNewsLeague = z.infer<typeof league>;
+export type BasketNewsSourcePlayer = z.infer<typeof sourcePlayer>;
 export type BasketNewsTeam = z.infer<typeof team>;
 export type BasketNewsLineup = z.infer<typeof lineup>;
 export type BasketNewsLeagueLineup = z.infer<typeof leagueLineup>;
@@ -73,6 +77,9 @@ const LINEUP = `query($team:String!,$round:Int!,$league:String!){fantasyTeamLine
 // the next round's once BasketNews has processed that round's transfers.
 const LEAGUE_ROUND = `query($id:String!){draftLeagueFantasyTeamLineupsFromClient(fantasyLeagueId:$id){fantasyRound}}`;
 const LEAGUE_LINEUPS = `query($id:String!,$league:String!,$round:Int!){draftLeagueFantasyTeamLineupsFromClient(fantasyLeagueId:$id){id fantasyTeamId fantasyRound players{playerId cardIdentifier captain playedAsCardIdentifier playedAsCaptain player{id firstName middleName lastName team(leagueId:$league,fantasyRound:$round){number positions team{id translation(locale:"en"){name}}}}}}}`;
+// The whole pool the game lists, public and unpaged (7.2 A). No `fantasyRound`: an
+// early round answers `team: null` for a later signing.
+const POOL = `query($league:String!){playersSearchRecordsFromClient(leagueId:$league){records{id firstName middleName lastName team(leagueId:$league){number positions team{id translation(locale:"en"){name}}}}}}`;
 const SCORE = `query($team:String!,$round:Int!,$league:String!){fantasyTeamScoreRecordFromClient(leagueId:$league,fantasyTeamId:$team,fantasyRound:$round){pointsTotal pointsGained}}`;
 
 export function basketNewsTeamId(url: string): string | null {
@@ -114,4 +121,26 @@ export async function readBasketNewsLeagueLineups(
   const round = rounds[0]?.fantasyRound;
   if (round === undefined) return [];
   return query(LEAGUE_LINEUPS, { id: fantasyLeagueId, league: sourceLeagueId, round }, z.array(leagueLineup), "draftLeagueFantasyTeamLineupsFromClient", undefined, doFetch);
+}
+
+const POSITIONS: Record<string, Position> = { guard: "G", forward: "F", center: "C" };
+
+/** A BasketNews player in the shape the shared matcher reads. */
+export function basketNewsPlayer(player: BasketNewsSourcePlayer): FantasyPlayer {
+  const position = POSITIONS[player.team?.positions[0] ?? ""];
+  if (!position) throw new Error(`BasketNews has no known position for ${player.firstName} ${player.lastName}.`);
+  return {
+    id: player.id,
+    firstName: [player.firstName, player.middleName].filter(Boolean).join(" "),
+    lastName: player.lastName,
+    jersey: player.team?.number == null ? "" : String(player.team.number),
+    position,
+    club: { id: player.team?.team.id ?? "", name: player.team?.team.translation.name ?? "" },
+  };
+}
+
+/** Every player BasketNews lists for the source league, with its position. A row without a club is skipped. */
+export async function readBasketNewsPlayerPool(sourceLeagueId: string, doFetch: typeof fetch = fetch): Promise<FantasyPlayer[]> {
+  const pool = await query(POOL, { league: sourceLeagueId }, z.object({ records: z.array(sourcePlayer) }), "playersSearchRecordsFromClient", undefined, doFetch);
+  return pool.records.filter((player) => player.team).map(basketNewsPlayer);
 }
