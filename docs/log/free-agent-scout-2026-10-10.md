@@ -3,6 +3,29 @@
 Spec #190. Slices land as tickets on one branch; each appends its section
 here.
 
+## 7.2 A Research (#191)
+
+Recorded in `docs/research/fantasy-challenge-api.md` and
+`docs/research/basketnews-api.md`, with captured fixtures and no token:
+- The Fantasy Challenge's whole pool is
+  `GET /players-lists/49/matchdays/{current}/players`. It needs a token, is
+  paged, and includes Head Coach rows.
+- BasketNews's pool, `playersSearchRecordsFromClient`, is public and unpaged.
+- **Modern scoring adds a flat ±1.5 for a win or a loss.** It reproduced
+  605 of 607 official player-games.
+- **+3.0 fantasy points a game is +3.4 Modern points**, by the ratio of the
+  spreads of player averages, not of their means.
+
+## 7.2 D Each game's positions (#194)
+
+Each linked league is read for its game's whole pool on its first worker
+pass, then daily. A pure planner (`source-positions/plan.ts`) only adds
+positions; a disagreement becomes a question on Player mapping for that
+league's managers, and an answer is stored as confirmed so no later read
+changes it. A full synced roster that does not count its template in the
+game's positions is also a question. In a linked league, a player the game
+does not list cannot be signed there and is not a free agent on the wire.
+
 ## 7.2 B Last season's games in place (#192)
 
 The scout's early-season figures (role minutes, opponent strength, win chance)
@@ -217,3 +240,54 @@ roster now says it has a hole. The same review fixed three outlook gaps:
   PIR conceded.
 - A postponed game still counted as upcoming.
 - Stale rows were never removed.
+
+
+## 7.2 G Reasons for the moves, and the close-out (#197)
+
+**Privacy is structural, not a filter.** A reason is guarded against its own
+move's block: the drop, the add and their figures. A sentence that names a
+player or quotes a number from another member's move fails the guard as "not
+in the facts". It never reaches a page, even if the model was handed the
+whole league's sheet. The retry carries only the members whose moves were
+refused. The `ai_writeups` read rule already confined a member's row to that
+member, and `pb:verify` now proves it for `scout_moves`.
+
+**One call per league, one row per member.** The first round's reasons for
+the whole league are one model call. Its answer is split into a private row
+per member, with only that member's tokens in its refs. The scout goes
+before the round write-up and spends from the same two calls a pass, so a
+short window between rounds gets advice first. A scout pass that throws now
+leaves the round write-ups their turn.
+
+**Things found on the way:**
+- The guard refused "Modern points", because it allowed only "fantasy points"
+  or "PIR". BasketNews advice could never have passed. It now allows both
+  units.
+- Tokens are numbered across the league, so another member's moves can
+  renumber this member's players. The daily re-guard now reads stored prose
+  through the row's own refs before checking it, so it cannot validate a
+  sentence against somebody else's figures.
+- Review caught three more:
+  - A failed row was never retried within its round.
+  - The page fell back to an older round's unguarded reasons.
+  - "The reason is written when the round finishes" was promised on a box
+    with no key.
+
+**What the sheet carries.** Each player's line has:
+- the 5/10/15 outlooks;
+- his rate a minute and his minutes in role;
+- how many of his last five he started;
+- the run ahead;
+- his club as favourite (≥60% average win chance over the next five), even
+  or underdog (≤40%);
+- his availability.
+
+The advisor stores those inputs beside each outlook, so the sheet prints only
+figures tested code computed.
+
+**Not run here: a live model call.** The worktree's `.env` has no
+`GEMINI_API_KEY`. The sheet was checked against the local league with
+`ai:preview --scout --facts-only`: 9 moves for 3 members, 4,361 characters,
+tokens only. Every model path is covered by injected answers. The first live
+reasons should be checked with `npm run ai:preview -- --league=<slug> --scout`
+on a machine with the key, before or just after the deploy.
