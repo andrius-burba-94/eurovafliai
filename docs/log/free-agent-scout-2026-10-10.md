@@ -139,3 +139,51 @@ stay as they are. Then check:
   lines stored, a write would give every matched player a last-season
   fantasy average on his pool row, which is a visible change. `--check`
   compares the official table with the new lines and writes nothing.
+
+## 7.2 C Three previews of the Scout page (#193)
+
+Three structures were built as throwaway routes from the app's own
+components, at 390px and 1280px, each with every state in the ticket: A, the
+desk (moves and the wire as two places: tabs on a phone, side by side on a
+laptop); B, the fixture ticker (every player's next opponents as shaded
+cells); C, the ledger (one ranked table with your moves pinned on top). The
+maintainer picked **A** with no revisions, recorded on #193. The routes were
+deleted once the choice was made, because the corner-scale test caught B and
+C. The screenshots stay in `.impeccable/mocks/decision/`, which is
+gitignored.
+
+## 7.2 E Outlooks and the waiver wire (#195)
+
+**Last season is a fallback, not a blend.** The spec had opponent strength
+"leaning on last season's regular season early". The B measurement showed
+that stored E2025 lines miss 26% of the league, the players who left. That
+moves a club's "PIR allowed" by up to ±8% (ASV +8%, OLY −7% against points
+allowed), which is as large as the effect being measured. The maintainer
+ruled that last season should not count for much. So the outlook uses last
+season only where there is nothing else:
+- a player's PIR a minute and his role minutes, when he has no game this
+  season;
+- a club's margin, while it has played fewer than three games.
+
+Opponent strength is this season's alone, shrunk toward neutral by
+`OPPONENT_PRIOR_GAMES` (5). Recorded as a deviation from the spec and in
+CONTEXT.md.
+
+**No known start is not a reserve.** The first local run defaulted every
+player whose starts were unknown to "reserve". That read his minutes from
+last season's bench average and underrated starters. With no start known,
+minutes now come from his recent games, and a test holds it.
+
+**The outlook pass has its own guard, not the AI lock.** It needs no key and
+calls no model, so a league without write-ups still gets its wire. It runs
+every 15 minutes, two minutes after boot. `npm run scout:outlooks` runs the
+same function by hand. On the local copy it computed 255 outlooks in 1.6
+seconds, and a second run wrote nothing. The figures track each player's
+last-5 fantasy average within about a point; on the local copy the leaders
+were Kabengele at 26.7 and Vezenkov at 26.2.
+
+**The pool left the League group.** Scout made the season League group ten
+44px rows, one more than a 690px screen holds (`shell.spec`). Inside a league
+the Player Pool now sits in the EuroLeague group, at the maintainer's choice.
+It is still the league's own pool page. Only the open group takes height, so
+on the pool page the League group is folded, a tap away.
