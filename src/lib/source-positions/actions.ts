@@ -3,12 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
-import { POSITION_WORD } from "@/lib/positions";
+import { GAME_NAMES, POSITION_WORD } from "@/lib/positions";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { getSafeActionError } from "@/lib/safe-error";
 import type { MappingResult } from "@/lib/mapping/actions";
 
-import { SOURCE_NAMES } from "./queries";
 import { answerQuestion } from "./store";
 
 /**
@@ -32,7 +31,7 @@ export async function answerPositionQuestion(_previous: MappingResult, formData:
     revalidatePath("/l/[league]", "layout");
     return {
       error: null,
-      done: `Stored as a ${POSITION_WORD[result.position][0]} in ${SOURCE_NAMES[result.source]} leagues. No read will change it.`,
+      done: `Stored as a ${POSITION_WORD[result.position][0]} for ${GAME_NAMES[result.source]}. No read will change it.`,
       playerId: result.playerId,
     };
   } catch (error) {

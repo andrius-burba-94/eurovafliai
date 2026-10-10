@@ -15,7 +15,7 @@ import type { FantasyPlayer } from "@/lib/fantasy/parse";
  */
 
 /** A game that classifies players its own way. */
-export type PositionSource = "basketnews" | "fantasy";
+export type PositionSource = Exclude<LeagueSource, "euroleague">;
 
 /** A stored player, with what is stored about him for one game. */
 export type StoredPlayer = PoolPlayer & {
@@ -34,6 +34,8 @@ export type PositionPlan = {
   readonly questions: readonly PositionQuestion[];
   /** Only the players whose listed flag changes. */
   readonly listed: readonly { playerId: string; listed: boolean }[];
+  /** Every player this read placed, agreeing or not: only about them does the read say anything. */
+  readonly placed: readonly string[];
   /** Listed by the game, placed on nobody: no position is written for them. */
   readonly unmatched: readonly FantasyPlayer[];
 };
@@ -86,7 +88,7 @@ export function planPositionRead(read: readonly FantasyPlayer[], stored: readonl
     }
   }
 
-  return { links, additions, questions, listed, unmatched };
+  return { links, additions, questions, listed, placed: [...listedNow], unmatched };
 }
 
 /** Whether a roster counts exactly the template, position by position. */

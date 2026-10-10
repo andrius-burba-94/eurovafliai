@@ -8,19 +8,14 @@ import { displayName } from "@/lib/players/name";
 
 import type { PositionSource } from "./plan";
 
-/** Each game's name as a commissioner reads it. */
-export const SOURCE_NAMES: Record<PositionSource, string> = { basketnews: "BasketNews", fantasy: "Fantasy Challenge" };
-
 export type PositionQuestionView = {
   readonly id: string;
   readonly kind: "player" | "roster";
   readonly source: PositionSource;
   readonly leagueName: string;
-  /** Player questions. */
   readonly player?: { readonly id: string; readonly name: string; readonly clubCode: string };
   readonly stored?: Position;
   readonly read?: Position;
-  /** Roster questions. */
   readonly teamName?: string;
   readonly roster?: readonly { readonly player: string; readonly name: string; readonly position: Position }[];
 };

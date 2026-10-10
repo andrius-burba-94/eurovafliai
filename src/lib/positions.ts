@@ -26,6 +26,12 @@ export const POSITION_WORD: Record<Position, [string, string]> = {
  */
 export type LeagueSource = "euroleague" | "basketnews" | "fantasy";
 
+/** Each linked game's name as a manager reads it. */
+export const GAME_NAMES: Record<Exclude<LeagueSource, "euroleague">, string> = {
+  basketnews: "BasketNews",
+  fantasy: "the Fantasy Challenge",
+};
+
 export function leagueSource(league: {
   basketnews_team_id?: string | null;
   fantasy_league_id?: string | null;

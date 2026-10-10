@@ -21,7 +21,7 @@ import type {
 import type { Position } from "@/lib/engine";
 import { useHydrated } from "@/lib/hydrated";
 import { attachNewsName, type NewsResult } from "@/lib/news/actions";
-import { POSITION_WORD, positionSentence } from "@/lib/positions";
+import { GAME_NAMES, POSITION_WORD, positionSentence } from "@/lib/positions";
 import { answerPositionQuestion } from "@/lib/source-positions/actions";
 import type { PositionQuestionView } from "@/lib/source-positions/queries";
 
@@ -320,8 +320,8 @@ export function MappingSurface({
   );
 }
 
-const GAME: Record<PositionQuestionView["source"], string> = { basketnews: "BasketNews", fantasy: "the Fantasy Challenge" };
 const word = (position: Position) => POSITION_WORD[position][0];
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 function PositionRow({
   question,
@@ -336,7 +336,8 @@ function PositionRow({
   const [playerId, setPlayerId] = useState(roster[0]?.player ?? "");
   const [position, setPosition] = useState<Position>("C");
 
-  if (question.kind === "player" && question.player && question.stored && question.read) {
+  if (question.kind === "player") {
+    if (!question.player || !question.stored || !question.read) return null;
     const { player, stored, read } = question;
     return (
       <Slot state={current ? "live" : "waiting"} current={current} testId={`position-${question.id}`}>
@@ -346,7 +347,7 @@ function PositionRow({
               <strong>{player.name}</strong> <span className="text-ink-soft">{player.clubCode} · {question.leagueName}</span>
             </span>
             <span className="text-xs text-ink-faint">
-              {GAME[question.source]} now lists him as a {word(read)}; a {word(stored)} is stored.
+              {capitalized(GAME_NAMES[question.source])} now lists him as a {word(read)}; a {word(stored)} is stored.
             </span>
           </span>
           <span className={ANSWER}>
@@ -380,7 +381,7 @@ function PositionRow({
             <strong>{question.teamName}</strong> <span className="text-ink-soft">{question.leagueName}</span>
           </span>
           <span className="text-xs text-ink-faint">
-            Counts {positionSentence(counts, "nobody", { keepZeros: true })} in {GAME[question.source]}&apos;s positions.
+            Counts {positionSentence(counts, "nobody", { keepZeros: true })} in {GAME_NAMES[question.source]}&apos;s positions.
             One of these players is filed under the wrong position for this game.
           </span>
           <span className="text-xs text-ink-soft" data-testid={`position-roster-${question.id}`}>
@@ -406,7 +407,7 @@ function PositionRow({
             value={position}
             onChange={(event) => setPosition(event.target.value as Position)}
             data-testid={`position-choice-${question.id}`}
-            className="min-h-11 rounded-md border border-rule bg-transparent px-2 text-sm"
+            className={POSITION_CHOICE}
           >
             {(["G", "F", "C"] as const).map((option) => (
               <option key={option} value={option}>
@@ -431,6 +432,7 @@ function PositionRow({
 /** A question's answer controls: a choice when there is one, then the act, on one line where it fits. */
 const ANSWER = "flex flex-wrap items-center gap-2";
 const CHOICE = "min-h-11 w-full rounded-md border border-rule bg-transparent px-2 text-sm sm:w-64";
+const POSITION_CHOICE = "min-h-11 rounded-md border border-rule bg-transparent px-2 text-sm";
 
 function NewsRow({
   entry,

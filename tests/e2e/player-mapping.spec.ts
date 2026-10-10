@@ -746,7 +746,7 @@ test("a position question is answered by its league's commissioner, and seen by 
   await expect(row).toContainText("now lists him as a forward; a center is stored");
 
   await page.getByTestId(`position-use-${question.id}`).click();
-  await expect(page.getByTestId("mapping-done")).toContainText("Stored as a forward in Fantasy Challenge leagues");
+  await expect(page.getByTestId("mapping-done")).toContainText("Stored as a forward for the Fantasy Challenge");
   await expect(row).toHaveCount(0);
 
   const stored = await pb.collection("players").getOne(player.id, { requestKey: null });

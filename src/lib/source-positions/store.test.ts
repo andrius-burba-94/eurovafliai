@@ -251,3 +251,59 @@ describe("answerQuestion", () => {
     });
   });
 });
+
+describe("review fixes (7.2 D)", () => {
+  const openQuestion = { id: "q1", league: "lg", source: "basketnews", kind: "player", player: "omoruyi", status: "open", open_key: "player:lg:omoruyi" };
+
+  it("keeps a question open when the read left the player's club out", async () => {
+    const { fake, readers } = setup({ link: "basketnews", questions: [openQuestion] });
+    const withoutParis = { ...readers, basketnews: async () => [] };
+    await readDuePositions({ pb: fake.client, now: NOW, readers: withoutParis });
+    expect(fake.rows("position_questions")[0]).toMatchObject({ status: "open" });
+  });
+
+  it("reports a league whose read failed while applying, and still reads the next league", async () => {
+    const { fake, readers } = setup({ link: "basketnews" });
+    fake.db.leagues!.push({ id: "lg2", commissioner: "u1", settings: {}, positions_read_at: "", fantasy_league_id: "", basketnews_team_id: "other" });
+    let first = true;
+    const flaky = {
+      ...readers,
+      basketnews: async (teamId: string) => {
+        if (first) {
+          first = false;
+          return [{ id: "x", firstName: "", lastName: "Nobody", jersey: "", position: "G" as const, club: { id: "", name: "" } }, null as never];
+        }
+        return readers.basketnews(teamId);
+      },
+    };
+    const reports = await readDuePositions({ pb: fake.client, now: NOW, readers: flaky });
+    expect(reports).toHaveLength(2);
+    expect(reports[0]!.error).toBeTruthy();
+    expect(reports[1]).toMatchObject({ leagueId: "lg2", additions: 13 });
+  });
+
+  it("asks nothing about a roster that is merely short, and closes a question it no longer fits", async () => {
+    const { fake, readers } = setup({
+      link: "fantasy",
+      withRoster: true,
+      questions: [{ id: "q9", league: "lg", source: "fantasy", kind: "roster", member: "m1", roster: [], status: "open", open_key: "roster:lg:m1" }],
+    });
+    fake.db.roster_memberships = fake.db.roster_memberships!.slice(1);
+    await readDuePositions({ pb: fake.client, now: NOW, readers });
+    expect(fake.rows("position_questions")).toEqual([expect.objectContaining({ id: "q9", status: "resolved" })]);
+  });
+
+  it("does not read a finished league", async () => {
+    const { fake, calls, readers } = setup({ link: "basketnews" });
+    fake.db.leagues![0]!.status = "complete";
+    await readDuePositions({ pb: fake.client, now: NOW, readers });
+    expect(calls.basketnews).toBe(0);
+  });
+
+  it("answers a player question only with the stored or the read position", async () => {
+    const { fake } = setup({ link: "basketnews", questions: [{ ...openQuestion, stored_position: "F", read_position: "C" }] });
+    expect(await answerQuestion(fake.client, { questionId: "q1", position: "G", userId: "u1", now: NOW })).toEqual({
+      ok: false, error: "Choose the stored position or the game's.",
+    });
+  });
+});

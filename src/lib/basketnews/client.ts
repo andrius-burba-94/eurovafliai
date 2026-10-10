@@ -139,8 +139,12 @@ export function basketNewsPlayer(player: BasketNewsSourcePlayer): FantasyPlayer 
   };
 }
 
-/** Every player BasketNews lists for the source league, with its position. A row without a club is skipped. */
+/**
+ * Every player BasketNews lists for the source league, with its position. A
+ * row without a club or a known position is skipped rather than failing the
+ * read of the other three hundred.
+ */
 export async function readBasketNewsPlayerPool(sourceLeagueId: string, doFetch: typeof fetch = fetch): Promise<FantasyPlayer[]> {
   const pool = await query(POOL, { league: sourceLeagueId }, z.object({ records: z.array(sourcePlayer) }), "playersSearchRecordsFromClient", undefined, doFetch);
-  return pool.records.filter((player) => player.team).map(basketNewsPlayer);
+  return pool.records.filter((player) => player.team && POSITIONS[player.team.positions[0] ?? ""]).map(basketNewsPlayer);
 }

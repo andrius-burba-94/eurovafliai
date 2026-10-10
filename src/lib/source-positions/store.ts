@@ -5,6 +5,7 @@ import type { Position, RosterTemplate } from "@/lib/engine";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { asPbDate, listActiveMemberships } from "@/lib/memberships/store";
+import { leagueSource } from "@/lib/positions";
 
 import { countsTemplate, planPositionRead, type PositionSource, type StoredPlayer } from "./plan";
 
@@ -53,17 +54,10 @@ type LeagueRow = {
 
 type QuestionRow = { id: string; kind: string; player?: string; member?: string; roster?: unknown; status: string };
 
-/** Each game's fields on `players`. */
 export const SOURCE_FIELDS = {
   fantasy: { id: "fantasy_id", position: "fantasy_position", confirmed: "fantasy_position_confirmed", listed: "fantasy_listed" },
   basketnews: { id: "basketnews_id", position: "basketnews_position", confirmed: "basketnews_position_confirmed", listed: "basketnews_listed" },
 } as const satisfies Record<PositionSource, Record<string, string>>;
-
-export function linkedSource(league: { fantasy_league_id?: string; basketnews_team_id?: string }): PositionSource | null {
-  if (league.basketnews_team_id) return "basketnews";
-  if (league.fantasy_league_id) return "fantasy";
-  return null;
-}
 
 function instant(value: string | undefined): number {
   return value ? new Date(value.replace(" ", "T")).getTime() || 0 : 0;
@@ -76,15 +70,15 @@ export async function readDuePositions(deps: {
 }): Promise<PositionsReport[]> {
   const { pb, now, readers } = deps;
   const leagues = await pb.collection("leagues").getFullList<LeagueRow>({
-    filter: "basketnews_team_id != '' || fantasy_league_id != ''",
+    filter: "(basketnews_team_id != '' || fantasy_league_id != '') && status != 'complete'",
     fields: "id,settings,positions_read_at,fantasy_league_id,basketnews_team_id",
     requestKey: null,
   });
 
   const reports: PositionsReport[] = [];
   for (const league of leagues) {
-    const source = linkedSource(league);
-    if (!source || now.getTime() - instant(league.positions_read_at) < POSITIONS_READ_EVERY_MS) continue;
+    const source = leagueSource(league);
+    if (source === "euroleague" || now.getTime() - instant(league.positions_read_at) < POSITIONS_READ_EVERY_MS) continue;
     if (source === "fantasy" && !readers.fantasy) continue;
     let read: readonly FantasyPlayer[];
     try {
@@ -93,7 +87,12 @@ export async function readDuePositions(deps: {
       reports.push({ ...emptyReport(league.id, source), error: (error as Error).message });
       continue;
     }
-    reports.push(await applyRead(pb, league, source, read, now));
+    try {
+      reports.push(await applyRead(pb, league, source, read, now));
+    } catch (error) {
+      // Unstamped, so the league is read again next pass; the others are not held up.
+      reports.push({ ...emptyReport(league.id, source), error: (error as Error).message });
+    }
   }
   return reports;
 }
@@ -122,13 +121,17 @@ async function applyRead(
     try {
       await pb.collection("players").update(playerId, values, { requestKey: null });
     } catch (error) {
-      // Another row already holds this game's id: the link waits for a person.
       if (!isUniqueViolation(error)) throw error;
+      // Another row already holds this game's id: the link waits for a person,
+      // the rest of what the read says about him does not.
+      const { [fields.id]: _link, ...rest } = values;
+      if (Object.keys(rest).length > 0) await pb.collection("players").update(playerId, rest, { requestKey: null });
     }
   }
 
   const open = await readOpenQuestions(pb, league.id);
   const asked = new Set(plan.questions.map((question) => question.playerId));
+  const placed = new Set(plan.placed);
   let opened = 0;
   for (const question of plan.questions) {
     const created = await createQuestion(pb, {
@@ -142,8 +145,12 @@ async function applyRead(
     });
     if (created) opened += 1;
   }
+  // Settled only by a read that placed him and no longer disagrees: a read
+  // that left his club out says nothing about him.
   for (const question of open) {
-    if (question.kind === "player" && question.player && !asked.has(question.player)) await resolve(pb, question.id);
+    if (question.kind === "player" && question.player && placed.has(question.player) && !asked.has(question.player)) {
+      await resolve(pb, question.id);
+    }
   }
 
   const rosterQuestions = await checkRosters(pb, league, source);
@@ -230,8 +237,15 @@ export async function checkRosters(pb: PocketBase, league: LeagueRow, source: Po
   }
 
   const open = (await readOpenQuestions(pb, league.id)).filter((question) => question.kind === "roster");
+  const full = template.G + template.F + template.C;
+  for (const question of open) {
+    const roster = rosters.get(question.member ?? "");
+    // A short roster is a missing player, not a misfiled one.
+    if (!roster || roster.length !== full) await resolve(pb, question.id);
+  }
   let standing = 0;
   for (const [member, roster] of rosters) {
+    if (roster.length !== full) continue;
     const question = open.find((row) => row.member === member);
     if (countsTemplate(roster.map((seat) => seat.position), template)) {
       if (question) await resolve(pb, question.id);
@@ -251,7 +265,7 @@ export type AnswerResult =
   | { readonly ok: true; readonly playerId: string; readonly source: PositionSource; readonly position: Position }
   | { readonly ok: false; readonly error: string };
 
-type AnswerRow = QuestionRow & { league: string; source: PositionSource };
+type AnswerRow = QuestionRow & { league: string; source: PositionSource; stored_position?: string; read_position?: string };
 
 const POSITION_VALUES: readonly string[] = ["G", "F", "C"];
 
@@ -284,6 +298,9 @@ export async function answerQuestion(
     if (deputies.length === 0) return { ok: false, error: "Only the league's commissioner or a deputy can answer this." };
   }
 
+  if (question.kind === "player" && position !== question.stored_position && position !== question.read_position) {
+    return { ok: false, error: "Choose the stored position or the game's." };
+  }
   const playerId = question.kind === "player" ? question.player : input.playerId;
   const roster = Array.isArray(question.roster) ? (question.roster as { player: string }[]) : [];
   if (!playerId || (question.kind === "roster" && !roster.some((seat) => seat.player === playerId))) {

@@ -118,9 +118,6 @@ export function parseLeagueMoves(raw: unknown): FantasyMove[] {
   }));
 }
 
-/** The list holds every club's coach as a player row; positions read only players. */
-const COACH = "Head Coach";
-
 const poolPageSchema = z.object({
   data: z.array(playerSchema),
   meta: z.object({ last_page: z.number().int() }),
@@ -134,7 +131,8 @@ export function parsePlayerPoolPage(raw: unknown): { players: FantasyPlayer[]; l
     throw new Error(`The Fantasy Challenge player pool changed shape at ${where}; no position was read.`);
   }
   return {
-    players: parsed.data.data.filter((player) => player.position.name.trim() !== COACH).map(fantasyPlayerFrom),
+    // Coaches, and anything else that is not G, F or C, are not positions to read.
+    players: parsed.data.data.filter((player) => player.position.name.trim() in POSITIONS).map(fantasyPlayerFrom),
     lastPage: parsed.data.meta.last_page,
   };
 }
