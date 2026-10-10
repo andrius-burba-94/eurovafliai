@@ -47,7 +47,10 @@ import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
 import { processBasketNewsJobs, queueBasketNewsLeagues } from "@/lib/basketnews/jobs";
+import { readBasketNewsPlayerPool, readBasketNewsTeamReference } from "@/lib/basketnews/client";
+import { fetchPlayerPool } from "@/lib/fantasy/client";
 import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
+import { readDuePositions, type PositionsReport } from "@/lib/source-positions/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import {
@@ -131,6 +134,9 @@ const LIVE_FIRST_AFTER_MS = 95_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
 const BASKETNEWS_QUEUE_EVERY_MS = 15 * 60_000;
+/** 7.2 D: how often to ask which linked league's game is due a positions read (each is read daily). */
+const POSITIONS_EVERY_MS = 15 * 60_000;
+const POSITIONS_FIRST_AFTER_MS = 180_000;
 /**
  * How often the roster scheduler asks whether a pass is due. The question is
  * a few local reads; the pass itself is 21 feed requests, and `rosterSyncDue`
@@ -696,7 +702,50 @@ function main(): void {
     }, AI_FIRST_AFTER_MS).unref?.();
   }
 
+  /**
+   * 7.2 D: each linked league's game, read for its whole pool's positions on
+   * the first pass after the league is created or linked, then daily. Without
+   * a Fantasy Challenge token only BasketNews leagues are read; theirs is public.
+   */
+  let positionsInFlight: Promise<void> | null = null;
+  let positionsTimer: ReturnType<typeof setInterval> | null = null;
+  const positionsLine = (report: PositionsReport): string =>
+    report.error
+      ? `positions · league ${report.leagueId} · ${report.source} · read failed: ${report.error}`
+      : `positions · league ${report.leagueId} · ${report.source} · ${report.additions} added, ${report.links} linked, ${report.questions} new question(s), ${report.unlisted} unlisted, ${report.unmatched} unplaced, ${report.rosterQuestions} roster question(s) open`;
+  function schedulePositions(): void {
+    const token = env.FANTASY_CHALLENGE_TOKEN;
+    log(`positions reads on · daily per linked league${token ? "" : " · BasketNews only (no FANTASY_CHALLENGE_TOKEN)"}`);
+    const run = () => {
+      if (stopping || positionsInFlight) return;
+      positionsInFlight = (async () => {
+        try {
+          await ensureAuth(pb, env);
+          const reports = await readDuePositions({
+            pb,
+            now: new Date(),
+            readers: {
+              fantasy: token ? () => fetchPlayerPool(token) : null,
+              basketnews: async (teamId) => readBasketNewsPlayerPool((await readBasketNewsTeamReference(teamId)).leagueId),
+            },
+          });
+          for (const report of reports) log(positionsLine(report), report.error ? "warn" : "info");
+        } catch (error) {
+          log(`positions pass failed: ${describeError(error)}`, "error");
+          pb.authStore.clear();
+        }
+      })().finally(() => {
+        positionsInFlight = null;
+      });
+    };
+    setTimeout(() => {
+      run();
+      positionsTimer = setInterval(run, POSITIONS_EVERY_MS);
+    }, POSITIONS_FIRST_AFTER_MS).unref?.();
+  }
+
   scheduleNews();
+  schedulePositions();
   scheduleWriteups();
   scheduleLive();
   scheduleFantasy();
@@ -775,6 +824,7 @@ function main(): void {
     if (slugsTimer) clearInterval(slugsTimer);
     if (aiTimer) clearInterval(aiTimer);
     if (aiRequestsTimer) clearInterval(aiRequestsTimer);
+    if (positionsTimer) clearInterval(positionsTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

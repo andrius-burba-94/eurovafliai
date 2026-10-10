@@ -186,9 +186,12 @@ export async function syncBasketNews(
     const match = existing ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool);
     if (match) {
       mapped.set(sourceId, match.id);
-      if (!existing || existing.basketnewsPosition !== player.position) links.push({
+      // Positions are only ever added here: a stored one the game now reports
+      // differently is a question the daily positions read asks (7.2 D).
+      const storedPosition = (existing ?? local.pool.find((row) => row.id === match.id))?.basketnewsPosition;
+      if (!existing || !storedPosition) links.push({
         playerId: match.id, sourceId, position: player.position,
-        updateId: !existing, updatePosition: existing?.basketnewsPosition !== player.position,
+        updateId: !existing, updatePosition: !storedPosition,
       });
       continue;
     }

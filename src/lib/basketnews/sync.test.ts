@@ -302,3 +302,20 @@ describe("BasketNews worker import", () => {
       .toBe(Math.round(fixture.scores[`${teamA!.id}:2`]!.pointsGained * 100));
   });
 });
+
+describe("BasketNews sync and stored positions (7.2 D)", () => {
+  it("adds a position where none is stored and never changes a stored one", async () => {
+    const data = leagueDb();
+    const valanciunas = playerPool.find((row) => normalizeName(row.name).includes("valanciunas"))!.id;
+    const vezenkov = playerPool.find((row) => normalizeName(row.name).includes("vezenkov"))!.id;
+    data.players = data.players!.map((row) => (row.id === valanciunas ? { ...row, basketnews_position: "F" } : row));
+    const db = fakePb({ data, uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+
+    const rows = new Map(db.rows("players").map((row) => [row.id, row]));
+    expect(rows.get(valanciunas)).toMatchObject({ basketnews_position: "F", basketnews_id: expect.stringMatching(/^[a-f0-9]{24}$/) });
+    expect(rows.get(vezenkov)!.basketnews_position).toBe("F");
+    expect(db.rows("players").filter((row) => row.basketnews_position === "C").length).toBeGreaterThan(20);
+  });
+});
