@@ -14,6 +14,7 @@ import { isManager } from "@/lib/leagues/lobby";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import type { LeagueRecord, MemberRecord } from "@/lib/leagues/types";
 import { getSuperuserClient } from "@/lib/pb/superuser";
+import { isPastSeason } from "@/lib/stats/seasons";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import { planTransaction, type Proposal, type Seat } from "./plan";
@@ -57,6 +58,41 @@ function teamLabel(member: MemberRecord): string {
   const named = member.team_name.trim();
   if (named) return named;
   return member.expand?.user?.name || "Unknown";
+}
+
+/**
+ * The seasons a recorded deal re-scores: this one, and any later one the
+ * league's players have lines in (the E2E sandbox). Never an earlier one — a
+ * deal's windows are round numbers with no season, so replaying them over last
+ * season's backfilled lines would score a 2025 table for a league drafted in
+ * 2026 (7.2 B).
+ */
+async function seasonsForLeague(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  leagueId: string,
+): Promise<string[]> {
+  const current = serverConfig().EUROLEAGUE_SEASON;
+  const memberships = await pb.collection("roster_memberships").getFullList<{
+    player: string;
+  }>({
+    filter: `league = '${leagueId}'`,
+    fields: "player",
+    requestKey: null,
+  });
+  const seasons = new Set<string>([current]);
+  const ids = [...new Set(memberships.map((row) => row.player))];
+  if (ids.length === 0) return [...seasons];
+  const lines = await pb.collection("player_game_stats").getFullList<{
+    season: string;
+  }>({
+    filter: `(${ids.map((id) => `player = '${id}'`).join(" || ")}) && season != "${current.replace(/[^A-Za-z0-9]/g, "")}"`,
+    fields: "season",
+    requestKey: null,
+  });
+  for (const line of lines) {
+    if (!isPastSeason(line.season, current)) seasons.add(line.season);
+  }
+  return [...seasons];
 }
 
 export async function recordTransaction(
@@ -249,10 +285,9 @@ export async function recordTransaction(
     note,
   );
 
-  // This season only: a deal's windows are round numbers with no season, so
-  // replaying them over last season's backfilled lines would score a 2025
-  // table for a league drafted in 2026 (7.2 B).
-  await recomputeStandings(pb, serverConfig().EUROLEAGUE_SEASON);
+  for (const season of await seasonsForLeague(pb, leagueId)) {
+    await recomputeStandings(pb, season);
+  }
 
   revalidateLeague();
   redirect(await leaguePathOf(pb, leagueId));

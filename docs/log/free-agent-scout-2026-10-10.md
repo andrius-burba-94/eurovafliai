@@ -44,13 +44,16 @@ still lists every season on purpose.
 
 Review turned up three more ways to rebuild a past season. Recording a
 trade recomputed standings for every season its players had lines in, so
-after the backfill it rebuilt E2025 as well. It now recomputes this season
-only, since a deal's windows are round numbers with no season attached.
-`stats:project` and `standings:recompute` now refuse a season other than
-`EUROLEAGUE_SEASON`, where they used to overwrite this season's caches.
-Attaching a code first seen last season now re-imports games from that
-season. Game codes restart every season, so last season's games had been
-looked up under this season's numbers.
+after the backfill it rebuilt E2025 as well. `stats:project` and
+`standings:recompute` would overwrite this season's caches when given
+`--season=E2025`. Attaching a code first seen last season re-imported its
+games under this season's numbers, but game codes restart every season, so
+those were the wrong games. The rule is now stated once, in
+`isPastSeason`: no path rebuilds a season *before* `EUROLEAGUE_SEASON`.
+The first fix said "only the current season". That broke the trades E2E
+spec in CI, which scores a sandbox `E2099` beside the real season and
+expects a recorded trade to re-score it. A later season is not history, so
+it may still be rebuilt.
 
 Standings and recaps already had a season filter on every read. The tests
 now cover that too: `src/lib/stats/last-season.test.ts` runs the same league

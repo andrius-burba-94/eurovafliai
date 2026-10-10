@@ -19,6 +19,7 @@ import {
   recordStatBatch,
   recomputeProjections,
 } from "./store";
+import { isPastSeason } from "./seasons";
 import { recomputeStandings } from "./standings-store";
 
 /**
@@ -64,8 +65,8 @@ import { recomputeStandings } from "./standings-store";
  */
 
 /**
- * Rebuild the pool averages and standings after a write — for the season being
- * played only.
+ * Rebuild the pool averages and standings after a write — never for a season
+ * before the one being played.
  *
  * Both are caches of *this* season: `players` holds one set of averages per
  * person and every season league's table is this season's. Last season's lines
@@ -79,7 +80,7 @@ export async function refreshSeasonCaches(
   season: string,
   currentSeason: string,
 ): Promise<void> {
-  if (season !== currentSeason) return;
+  if (isPastSeason(season, currentSeason)) return;
   await recomputeProjections(pb, season);
   await recomputeStandings(pb, season);
 }
@@ -151,7 +152,7 @@ export async function ingestFinishedGames({
 }: {
   pb: PocketBase;
   season: string;
-  /** The season being played. Only its pass rebuilds averages and standings. */
+  /** The season being played. A pass for an earlier one rebuilds no averages or standings. */
   currentSeason?: string;
   doFetch?: FeedFetch;
   log?: (message: string) => void;

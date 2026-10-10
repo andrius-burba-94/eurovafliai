@@ -15,6 +15,7 @@
 import PocketBase from "pocketbase";
 
 import { parseServerEnv } from "../src/lib/config/schema";
+import { isPastSeason } from "../src/lib/stats/seasons";
 import { recomputeStandings } from "../src/lib/stats/standings-store";
 
 const env = parseServerEnv(process.env);
@@ -24,9 +25,9 @@ const season =
 
 // A cache of the season being played. Last season's lines are loaded mid-season
 // for the scout (7.2 B); rebuilding from them would overwrite this season's.
-if (season !== env.EUROLEAGUE_SEASON) {
+if (isPastSeason(season, env.EUROLEAGUE_SEASON)) {
   console.error(
-    `Refusing ${season}: standings describe EUROLEAGUE_SEASON (${env.EUROLEAGUE_SEASON}). Set EUROLEAGUE_SEASON to rebuild another season on a rehearsal database.`,
+    `Refusing ${season}: standings describe EUROLEAGUE_SEASON (${env.EUROLEAGUE_SEASON}), and ${season} is before it. Set EUROLEAGUE_SEASON to rebuild a past season on a rehearsal database.`,
   );
   process.exit(1);
 }
