@@ -82,7 +82,7 @@ const stopping = (error: unknown) =>
   error instanceof GeminiUnavailable ||
   error instanceof GeminiRequestRefused;
 
-async function enabledLeagues(pb: PocketBase): Promise<League[]> {
+export async function enabledLeagues(pb: PocketBase): Promise<League[]> {
   const rows = await pb
     .collection("leagues")
     .getFullList<{ id: string; settings?: unknown }>({ filter: `status = 'season'`, fields: "id,settings", requestKey: null });
@@ -154,10 +154,14 @@ async function latestCorrection(pb: PocketBase): Promise<number> {
 const isShowable = (row: WriteupRecord) => storedWriteup(row.output) !== null;
 
 /** The fifteen-minute pass: write what is missing, then re-guard what is written. */
-export async function runRoundPass(deps: RoundPassDeps): Promise<PassReport> {
+export async function runRoundPass(
+  deps: RoundPassDeps,
+  /** What is left of the pass's calls once the scout's reasons (7.2 G) have gone first. */
+  { budget: allowed = CALLS_PER_PASS }: { budget?: number } = {},
+): Promise<PassReport> {
   const report: PassReport = { written: 0, refused: 0, guarded: 0, rewritten: 0, stopped: null };
   if (!deps.apiKey) return { ...report, stopped: "no GEMINI_API_KEY" };
-  let budget = CALLS_PER_PASS;
+  let budget = allowed;
 
   const tally = (outcome: "written" | "refused" | "skipped", rewrite: boolean) => {
     if (outcome === "skipped") return;

@@ -21,6 +21,11 @@ export type StoredOutlook = {
   readonly run_5?: string;
   readonly run_10?: string;
   readonly run_15?: string;
+  readonly rate_per_minute?: number;
+  readonly minutes?: number;
+  readonly starts_recent?: number;
+  readonly games_recent?: number;
+  readonly win_chance_5?: number;
 };
 
 export type WireAgent = {
@@ -39,6 +44,17 @@ export type WireOutlook = {
   readonly gamesInRole: number;
   readonly baseSource: BaseSource;
   readonly confidence: Confidence;
+  /** The inputs behind the figure, as the reasons' sheet prints them. */
+  readonly inputs: {
+    /** Hundredths of a point a minute. */
+    readonly ratePerMinute: number;
+    /** Tenths of a minute. */
+    readonly minutes: number;
+    readonly startsRecent: number;
+    readonly gamesRecent: number;
+    /** Percent, or null with no game ahead. */
+    readonly winChance: number | null;
+  };
 };
 
 export type WireRow = WireAgent & {
@@ -61,6 +77,13 @@ function asOutlook(row: StoredOutlook): WireOutlook {
     gamesInRole,
     baseSource,
     confidence: confidenceOf({ gamesInRole, baseSource }),
+    inputs: {
+      ratePerMinute: row.rate_per_minute ?? 0,
+      minutes: row.minutes ?? 0,
+      startsRecent: row.starts_recent ?? 0,
+      gamesRecent: row.games_recent ?? 0,
+      winChance: ahead ? (row.win_chance_5 ?? 0) : null,
+    },
   };
 }
 

@@ -30,6 +30,8 @@ describe("checkWriteup", () => {
     ]);
     expect(violations("@T1 won by a point.")).toEqual(['line 1: say "fantasy points" or "PIR", never "points" on its own']);
     expect(violations("#P1 put up 31 PIR and 68.2 fantasy points for @T1.")).toEqual([]);
+    // BasketNews scores in Modern points (7.2 G), which say their unit too.
+    expect(violations("#P1 put up 31 PIR and 68.2 Modern points for @T1.")).toEqual([]);
     expect(violations("@T1 won on Fantasy Points alone.")).toEqual([]);
   });
 

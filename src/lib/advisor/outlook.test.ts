@@ -104,6 +104,8 @@ describe("outlooksFor", () => {
     expect(outlook).toMatchObject({ role: "starter", gamesInRole: 2, baseSource: "current" });
     // 0.5 × 30 minutes = 15 PIR, × 1.05 for an even game's half a win bonus.
     expect(outlook!.next[0]).toBe(1575);
+    // What a reason may cite: the rate, the minutes, the starts and an even club's half.
+    expect(outlook).toMatchObject({ ratePerMinute: 0.5, minutes: 30, startsRecent: 2, gamesRecent: 5, winChance: 0.5 });
   });
 
   it("reads minutes from his recent games when no start of his is known", () => {

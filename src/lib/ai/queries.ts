@@ -3,6 +3,7 @@ import "server-only";
 import type { Ref } from "@/lib/nav/urls";
 import { createUserClient } from "@/lib/pb/server";
 
+import { storedReasons } from "./scout-reasons";
 import type { WriteupRecord } from "./store";
 import type { TokenRef } from "./tokens";
 import { failureKind, writeupView, type WriteupView } from "./view";
@@ -75,4 +76,33 @@ export async function readRoundWriteup({
     voice: row.voice,
     players: Object.fromEntries(players.map((player) => [player.id, { id: player.id, slug: player.slug }])),
   };
+}
+
+/**
+ * The viewer's own scout reasons from their latest written round — 7.2 G.
+ * Read with their token: `ai_writeups`' rule confines a member's row to that
+ * member, so nobody else's advice can come back. Null when there is none.
+ */
+export async function readScoutReasons({
+  token,
+  leagueId,
+  season,
+  memberId,
+}: {
+  token: string;
+  leagueId: string;
+  season: string;
+  memberId: string;
+}): Promise<{ readonly reasons: Readonly<Record<string, string>>; readonly refs: Readonly<Record<string, TokenRef>> } | null> {
+  if (![leagueId, memberId].every((id) => /^[A-Za-z0-9]+$/.test(id)) || !/^E\d{4}$/.test(season)) return null;
+  const rows = await createUserClient(token)
+    .collection("ai_writeups")
+    .getList<WriteupRecord>(1, 1, {
+      filter: `league = '${leagueId}' && season = "${season}" && kind = 'scout_moves' && member = '${memberId}' && status = 'ready'`,
+      sort: "-round",
+      requestKey: null,
+    });
+  const row = rows.items[0];
+  const reasons = row ? storedReasons(row.output) : null;
+  return row && reasons ? { reasons, refs: (row.refs ?? {}) as Record<string, TokenRef> } : null;
 }

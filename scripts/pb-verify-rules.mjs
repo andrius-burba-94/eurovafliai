@@ -1741,6 +1741,64 @@ try {
     "a member cannot write a write-up with her own token",
   );
 
+  // 7.2 G: a member's scout reasons are a private row of their own kind.
+  const alicesReasons = await su.collection("ai_writeups").create(
+    { ...writeup(aliceMember.id), kind: "scout_moves", output: { reasons: { "a|b": "#P1 starts." } } },
+    { requestKey: null },
+  );
+  created.ai_writeups.push(alicesReasons.id);
+  check(
+    await rejects(() => bobClient.collection("ai_writeups").getOne(alicesReasons.id, { requestKey: null })),
+    "a co-member cannot open her scout reasons",
+  );
+  check(
+    (await aliceClient.collection("ai_writeups").getOne(alicesReasons.id, { requestKey: null })).output?.reasons?.["a|b"] === "#P1 starts.",
+    "a member reads her own scout reasons",
+  );
+
+  // 7.2 E: outlooks are the same for everyone and written by the worker only.
+  check(!!byName.player_outlooks, "player_outlooks collection exists");
+  check(
+    byName.player_outlooks.createRule === null &&
+      byName.player_outlooks.updateRule === null &&
+      byName.player_outlooks.deleteRule === null,
+    "player_outlooks is superuser-write only",
+  );
+  check(
+    byName.player_outlooks.indexes.some((i) => /UNIQUE.*`player_outlooks`.*\(`season`,\s*`ruleset`,\s*`player`\)/.test(i)),
+    "unique index on player_outlooks(season, ruleset, player)",
+  );
+  const outlookPlayer = await su
+    .collection("players")
+    .create(
+      { name: `Verify Outlook ${stamp}`, name_normalized: `verify outlook ${stamp}`, club_code: "VRF", club_name: "Verify", position: "G", status: "active", source: "api" },
+      { requestKey: null },
+    );
+  created.players.push(outlookPlayer.id);
+  const outlook = {
+    season: "E1999",
+    ruleset: "euroleague",
+    player: outlookPlayer.id,
+    outlook_5: 1234,
+    games_ahead: 5,
+    role: "starter",
+    base_source: "current",
+    computed_at: new Date().toISOString(),
+  };
+  const outlookRow = await su.collection("player_outlooks").create(outlook, { requestKey: null });
+  check(
+    (await carolClient.collection("player_outlooks").getOne(outlookRow.id, { requestKey: null })).outlook_5 === 1234,
+    "any signed-in user reads an outlook",
+  );
+  check(
+    await rejects(() => aliceClient.collection("player_outlooks").create({ ...outlook, ruleset: "basketnews" }, { requestKey: null })),
+    "a member cannot write an outlook",
+  );
+  check(
+    await rejects(() => su.collection("player_outlooks").create(outlook, { requestKey: null })),
+    "a second outlook for the same season, ruleset and player is refused",
+  );
+
 } finally {
   for (const id of created.position_questions)
     await su.collection("position_questions").delete(id, { requestKey: null }).catch(() => {});

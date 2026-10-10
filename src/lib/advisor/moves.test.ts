@@ -12,6 +12,7 @@ const outlook = (five: number, over: Partial<WireOutlook> = {}): WireOutlook => 
   gamesInRole: 5,
   baseSource: "current",
   confidence: "high",
+  inputs: { ratePerMinute: 50, minutes: 200, startsRecent: 5, gamesRecent: 5, winChance: 50 },
   ...over,
 });
 

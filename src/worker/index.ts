@@ -69,7 +69,9 @@ import { applyPreviousSeason } from "@/lib/stats/store";
 
 import { readCompleteRounds, readRoundFactsInput } from "@/lib/ai/round-facts-store";
 import { buildRoundFacts } from "@/lib/ai/round-facts";
-import { runRoundPass, writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
+import { writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
+import { readScoutFactsInput } from "@/lib/ai/scout-facts-store";
+import { runWriteupPass } from "@/lib/ai/writeup-pass";
 
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
@@ -679,6 +681,20 @@ function main(): void {
     if (parts.length > 0) log(`write-ups · ${label} · ${parts.join(", ")}`);
     if (report.stopped) log(`write-ups · ${label} stopped early: ${report.stopped}`, "warn");
   };
+  const scoutThenRounds = (deps: RoundPassDeps): Promise<PassReport> =>
+    runWriteupPass({
+      ...deps,
+      readScoutInput: (leagueId) => readScoutFactsInput(pb, { leagueId, season: deps.season }),
+      onScout: (scout) => {
+        const parts = [
+          scout.written ? `${scout.written} written` : "",
+          scout.rewritten ? `${scout.rewritten} rewritten` : "",
+          scout.refused ? `${scout.refused} refused by the guard` : "",
+          scout.guarded ? `${scout.guarded} re-guarded` : "",
+        ].filter(Boolean);
+        if (parts.length > 0) log(`scout reasons · ${parts.join(", ")}`);
+      },
+    });
   function aiRun(label: string, run: (deps: RoundPassDeps) => Promise<PassReport>): void {
     if (stopping || aiInFlight) return;
     aiInFlight = (async () => {
@@ -700,8 +716,8 @@ function main(): void {
     }
     log(`write-ups on · ${env.GEMINI_MODEL} · every ${AI_EVERY_MS / 60_000}min, Rewrite checked every minute`);
     setTimeout(() => {
-      aiRun("pass", runRoundPass);
-      aiTimer = setInterval(() => aiRun("pass", runRoundPass), AI_EVERY_MS);
+      aiRun("pass", scoutThenRounds);
+      aiTimer = setInterval(() => aiRun("pass", scoutThenRounds), AI_EVERY_MS);
       aiRequestsTimer = setInterval(() => aiRun("rewrite", writeRequestedRounds), AI_REQUESTS_EVERY_MS);
     }, AI_FIRST_AFTER_MS).unref?.();
   }

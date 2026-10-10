@@ -50,6 +50,14 @@ export type PlayerOutlook = {
   readonly next: readonly [number | null, number | null, number | null];
   /** The club's games left, up to 15: zero means every window is absent. */
   readonly gamesAhead: number;
+  /** What a reason may cite beside the figure: the inputs the advisor used. */
+  readonly ratePerMinute: number;
+  readonly minutes: number;
+  /** Of his last (up to 5) games in the base season, how many he started. */
+  readonly startsRecent: number;
+  readonly gamesRecent: number;
+  /** His club's average chance of winning its next 5, or null with no game ahead. */
+  readonly winChance: number | null;
   readonly role: Role;
   /** This season's games in the current role, counted back to the last change of role. */
   readonly gamesInRole: number;
@@ -148,7 +156,15 @@ function winChance(game: ScheduleRow, club: string, current: SeasonInput, last: 
   return 1 / (1 + Math.exp(-expected / WIN_SCALE));
 }
 
-type Base = { rate: number; minutes: number; role: Role; gamesInRole: number; source: BaseSource };
+type Base = {
+  rate: number;
+  minutes: number;
+  role: Role;
+  gamesInRole: number;
+  source: BaseSource;
+  startsRecent: number;
+  gamesRecent: number;
+};
 
 function averageMinutes(lines: readonly AdvisorLine[]): number {
   return lines.reduce((sum, line) => sum + line.seconds, 0) / lines.length / 60;
@@ -187,7 +203,15 @@ function baseFor(current: readonly AdvisorLine[], last: readonly AdvisorLine[], 
     : lastRole.length > 0
       ? averageMinutes(lastRole)
       : averageMinutes(recent);
-  return { rate, minutes, role, gamesInRole: source === "current" ? streak : 0, source };
+  return {
+    rate,
+    minutes,
+    role,
+    gamesInRole: source === "current" ? streak : 0,
+    source,
+    startsRecent: recent.filter((line) => line.started === true).length,
+    gamesRecent: recent.length,
+  };
 }
 
 export function outlooksFor({
@@ -239,7 +263,7 @@ export function outlooksFor({
       const value = ruleset === "euroleague"
         ? expected * (1 + FANTASY_WIN_BONUS * p)
         : expected + MODERN_RESULT_POINTS * (2 * p - 1);
-      return { value, strength };
+      return { value, strength, p };
     });
     const windowOf = (size: number) => {
       const slice = perGame.slice(0, size);
@@ -253,6 +277,14 @@ export function outlooksFor({
       player: player.id,
       next: [five.next, ten.next, fifteen.next],
       gamesAhead: games.length,
+      ratePerMinute: base.rate,
+      minutes: base.minutes,
+      startsRecent: base.startsRecent,
+      gamesRecent: base.gamesRecent,
+      winChance:
+        perGame.length === 0
+          ? null
+          : perGame.slice(0, WINDOWS[0]).reduce((sum, entry) => sum + entry.p, 0) / Math.min(perGame.length, WINDOWS[0]),
       role: base.role,
       gamesInRole: base.gamesInRole,
       baseSource: base.source,

@@ -42,6 +42,11 @@ type OutlookRow = {
   run_5?: string;
   run_10?: string;
   run_15?: string;
+  rate_per_minute?: number;
+  minutes?: number;
+  starts_recent?: number;
+  games_recent?: number;
+  win_chance_5?: number;
 };
 
 export type OutlookRefresh = {
@@ -103,6 +108,13 @@ function fieldsOf(outlook: PlayerOutlook) {
     run_5: run5 ?? "",
     run_10: run10 ?? "",
     run_15: run15 ?? "",
+    // Stored as the integers the reasons' sheet prints: hundredths a minute,
+    // tenths of a minute, a percent.
+    rate_per_minute: Math.max(0, Math.round(outlook.ratePerMinute * 100)),
+    minutes: Math.round(outlook.minutes * 10),
+    starts_recent: outlook.startsRecent,
+    games_recent: outlook.gamesRecent,
+    win_chance_5: outlook.winChance === null ? 0 : Math.round(outlook.winChance * 100),
   };
 }
 

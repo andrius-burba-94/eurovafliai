@@ -12,6 +12,9 @@ import { waiverWire, type StoredOutlook, type WireAgent, type WireRow } from "./
  * a player another member signs has left both on the next read.
  */
 
+/** How a move is keyed wherever it is stored or looked up: its reason, chiefly. */
+export const pairKey = (dropId: string, addId: string) => `${dropId}|${addId}`;
+
 export type ScoutMove = {
   readonly drop: WireRow;
   readonly add: WireRow;

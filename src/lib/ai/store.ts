@@ -25,7 +25,7 @@ import type { RoundWriteup, Voice } from "./voice";
  * to burn on a sheet the model cannot write.
  */
 
-export type WriteupKind = "round_summary";
+export type WriteupKind = "round_summary" | "scout_moves";
 
 export type WriteupKey = {
   readonly leagueId: string;
@@ -153,6 +153,19 @@ export async function claimWriteup(
   return { outcome: "claimed", id: existing.id };
 }
 
+/** Every member's row of one kind for one round: the scout's private reasons (7.2 G). */
+export async function readMemberWriteups(
+  pb: PocketBase,
+  { leagueId, season, round, kind }: { leagueId: string; season: string; round: number; kind: WriteupKind },
+): Promise<(WriteupRecord & { readonly member: string })[]> {
+  if (!ID.test(leagueId) || !/^E\d{4}$/.test(season) || !Number.isInteger(round)) throw new Error("ai_writeups: refusing a malformed key");
+  const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord & { member: string }>({
+    filter: `league = '${leagueId}' && season = "${season}" && round = ${round} && kind = '${kind}'`,
+    requestKey: null,
+  });
+  return rows.filter((row) => row.member);
+}
+
 /** Every league-wide write-up of one kind for a league's season. */
 export async function readLeagueWriteups(
   pb: PocketBase,
@@ -188,7 +201,8 @@ export async function completeWriteup(
   pb: PocketBase,
   id: string,
   result: {
-    readonly writeup: RoundWriteup;
+    /** A round's write-up, or a member's scout reasons (7.2 G). */
+    readonly writeup: RoundWriteup | { readonly reasons: Readonly<Record<string, string>> };
     readonly refs: Readonly<Record<string, TokenRef>>;
     readonly usage: GeminiUsage;
     readonly model: string;

@@ -2,7 +2,7 @@
 
 import { Bank, CardBlock, CardBlocks, EmptyNotice } from "@/components/board";
 import type { Confidence } from "@/lib/advisor/outlook";
-import type { ScoutMove } from "@/lib/advisor/scout";
+import { pairKey, type ScoutMove } from "@/lib/advisor/scout";
 import { formatOutlook as points } from "@/lib/advisor/wire";
 
 import { CONFIDENCE_WORD, PlayerCell, RunWord, Triplet, TripletHead } from "./waiver-wire";
@@ -18,7 +18,7 @@ function ConfidenceBars({ value }: { value: Confidence }) {
   );
 }
 
-function MoveCard({ move, unit }: { move: ScoutMove; unit: string }) {
+function MoveCard({ move, unit, reason, writeupsOn }: { move: ScoutMove; unit: string; reason: string | undefined; writeupsOn: boolean }) {
   const tone = move.confidence === "high" ? "text-ink" : move.confidence === "medium" ? "text-ink-soft" : "text-gold";
   const run = move.add.outlook?.runs[0] ?? null;
   return (
@@ -56,6 +56,15 @@ function MoveCard({ move, unit }: { move: ScoutMove; unit: string }) {
           </span>
         ) : null}
       </div>
+      {reason ? (
+        <p className="max-w-[65ch] text-sm text-ink" data-testid="scout-move-reason">
+          {reason}
+        </p>
+      ) : writeupsOn ? (
+        <p className="text-sm text-ink-faint" data-testid="scout-move-numbers-only">
+          Numbers only for now. The reason is written when the round finishes.
+        </p>
+      ) : null}
     </CardBlock>
   );
 }
@@ -65,6 +74,8 @@ export function YourMoves({
   countsTemplate,
   rosterSize,
   rosterFull,
+  reasons,
+  writeupsOn,
   templateWords,
   gameName,
   unit,
@@ -74,6 +85,9 @@ export function YourMoves({
   countsTemplate: boolean;
   rosterSize: number;
   rosterFull: number;
+  /** `drop|add` → the reason in plain text, names put back. */
+  reasons: Readonly<Record<string, string>>;
+  writeupsOn: boolean;
   templateWords: string;
   gameName: string;
   unit: string;
@@ -105,7 +119,13 @@ export function YourMoves({
       ) : (
         <CardBlocks label="Your moves">
           {moves.map((move) => (
-            <MoveCard key={`${move.drop.id}-${move.add.id}`} move={move} unit={unit} />
+            <MoveCard
+              key={`${move.drop.id}-${move.add.id}`}
+              move={move}
+              unit={unit}
+              reason={reasons[pairKey(move.drop.id, move.add.id)]}
+              writeupsOn={writeupsOn}
+            />
           ))}
         </CardBlocks>
       )}

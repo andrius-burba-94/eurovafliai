@@ -129,61 +129,119 @@ async function hold(leagueId: string, memberId: string, playerId: string) {
   );
 }
 
-test("your moves are yours: the swap, its gain, the League Home line, and nobody else's advice", async ({ page, context }, testInfo) => {
-  // Outlooks and the pool are app-wide: the mobile project running this at the
-  // same moment would plant a second best free agent into chromium's league.
-  test.skip(testInfo.project.name !== "chromium", "one project, so one planted best add");
-  // A one-forward template keeps the roster small (legality is the advisor's
-  // tests), and forwards because no other spec here plants a rated forward in
-  // the shared pool, which would outrank this one as the best add.
-  const { owner, league } = await seasonLeague("scout-moves", { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12 } });
-  const rival = await createTestUser("scout-rival");
-  const rivalMember = await addMemberTo(league.id, rival, "Rival FC");
+// Both plant "the best free agent in the pool", which the pool is app-wide
+// for: run in one worker, one after the other, so neither sees the other's.
+test.describe.serial("advice planted in the shared pool", () => {
+  test("your moves are yours: the swap, its gain, the League Home line, and nobody else's advice", async ({ page, context }, testInfo) => {
+    // Outlooks and the pool are app-wide: the mobile project running this at the
+    // same moment would plant a second best free agent into chromium's league.
+    test.skip(testInfo.project.name !== "chromium", "one project, so one planted best add");
+    // A one-forward template keeps the roster small (legality is the advisor's
+    // tests), and forwards because no other spec here plants a rated forward in
+    // the shared pool, which would outrank this one as the best add.
+    const { owner, league } = await seasonLeague("scout-moves", { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12 } });
+    const rival = await createTestUser("scout-rival");
+    const rivalMember = await addMemberTo(league.id, rival, "Rival FC");
+    const pb = await superuser();
+    const mine = await pb.collection("league_members").getFirstListItem<{ id: string }>(`league = '${league.id}' && user = '${owner.id}'`, { requestKey: null });
+
+    const myGuard = await createPlayer("MyForward", { position: "F" });
+    const rivalGuard = await createPlayer("RivalForward", { position: "F" });
+    const freeAgent = await createPlayer("TopFreeAgent", { position: "F" });
+    await hold(league.id, mine.id, myGuard.id);
+    await hold(league.id, rivalMember, rivalGuard.id);
+    await plantOutlook(myGuard.id, 500);
+    await plantOutlook(rivalGuard.id, 400);
+    // Above every real player, so it is everyone's best add.
+    await plantOutlook(freeAgent.id, 9600, { games_in_role: 3 });
+    await signIn(context, owner);
+
+    await page.goto(`/l/${league.id}/scout`);
+    const moves = page.getByTestId("scout-move");
+    await expect(moves).toHaveCount(1);
+    await expect(moves).toContainText(shown(myGuard.name));
+    await expect(moves).toContainText(shown(freeAgent.name));
+    await expect(page.getByTestId("scout-move-gain")).toHaveText("+91.0");
+    await expect(page.getByTestId("scout-move-confidence")).toContainText("Medium");
+    // The rival's roster and its advice never reach this page.
+    await expect(page.getByTestId("your-moves")).not.toContainText(shown(rivalGuard.name));
+
+    await page.goto(`/l/${league.id}`);
+    await expect(page.getByTestId("enter-scout")).toContainText("Scout: 1 move worth making");
+
+    // The rival signs the free agent: on the next read no move adds him.
+    await hold(league.id, rivalMember, freeAgent.id);
+    await page.goto(`/l/${league.id}/scout`);
+    await expect(page.getByTestId("your-moves")).toBeVisible();
+    await expect(page.getByTestId("your-moves")).not.toContainText(shown(freeAgent.name));
+
+    // Nobody beats a forward rated above every real player: the empty state, and no League Home line.
+    const stored = await pb.collection("player_outlooks").getFirstListItem<{ id: string }>(`player = '${myGuard.id}'`, { requestKey: null });
+    await pb.collection("player_outlooks").update(stored.id, { outlook_5: 9990 }, { requestKey: null });
+    await page.goto(`/l/${league.id}/scout`);
+    await expect(page.getByTestId("your-moves-empty")).toContainText("No move worth making this round.");
+    await page.goto(`/l/${league.id}`);
+    await expect(page.getByTestId("enter-recap")).toBeVisible();
+    await expect(page.getByTestId("enter-scout")).toHaveCount(0);
+
+    // Released and not replaced: a hole, not a misfiled position.
+    const seat = await pb.collection("roster_memberships").getFirstListItem<{ id: string }>(`member = '${mine.id}'`, { requestKey: null });
+    await pb.collection("roster_memberships").update(seat.id, { to_date: "2026-10-01 12:00:00.000Z", to_round: 3 }, { requestKey: null });
+    await page.goto(`/l/${league.id}/scout`);
+    await expect(page.getByTestId("your-moves-short")).toContainText("Your roster has 0 of 1 players.");
+  });
+
+  test("a move shows its reason, names put back, until write-ups are switched off", async ({ page, context }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium", "one project, so one planted best add");
+    const { owner, league } = await seasonLeague("scout-reasons", { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12 } });
+    const pb = await superuser();
+    const mine = await pb.collection("league_members").getFirstListItem<{ id: string }>(`league = '${league.id}' && user = '${owner.id}'`, { requestKey: null });
+    const held = await createPlayer("HeldForward", { position: "F" });
+    const target = await createPlayer("ReasonedAdd", { position: "F" });
+    await hold(league.id, mine.id, held.id);
+    await plantOutlook(held.id, 500);
+    // Above every other planted free agent, so the move adds this one.
+    await plantOutlook(target.id, 9980);
+    await pb.collection("ai_writeups").create(
+      {
+        league: league.id,
+        season: SEASON,
+        round: 1,
+        kind: "scout_moves",
+        member: mine.id,
+        status: "ready",
+        voice: "analyst",
+        model: "e2e",
+        prompt_version: "scout-moves-1",
+        input_hash: "e".repeat(64),
+        output: { reasons: { [`${held.id}|${target.id}`]: "#P1 has started his last 5 and rates 99.8 a game. The run ahead is easy for #P1." } },
+        refs: { "#P1": { kind: "player", id: target.id } },
+        generated_at: new Date().toISOString(),
+      },
+      { requestKey: null },
+    );
+    await signIn(context, owner);
+
+    await page.goto(`/l/${league.id}/scout`);
+    await expect(page.getByTestId("scout-move-reason")).toContainText(`${shown(target.name)} has started his last 5`);
+    await expect(page.getByTestId("scout-move-reason")).not.toContainText("#P1");
+
+    await pb.collection("leagues").update(league.id, { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12, ai: { enabled: false, voice: "analyst" } } }, { requestKey: null });
+    await page.goto(`/l/${league.id}/scout`);
+    await expect(page.getByTestId("scout-move")).toHaveCount(1);
+    await expect(page.getByTestId("scout-move-reason")).toHaveCount(0);
+    await expect(page.getByTestId("scout-move-numbers-only")).toHaveCount(0);
+  });
+});
+
+test("a roster that does not count its template in the game's positions waits for its question", async ({ page, context }) => {
+  // One guard where the template wants a forward: a misfiled position, not a hole.
+  const { owner, league } = await seasonLeague("scout-misfiled", { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12 } });
   const pb = await superuser();
   const mine = await pb.collection("league_members").getFirstListItem<{ id: string }>(`league = '${league.id}' && user = '${owner.id}'`, { requestKey: null });
-
-  const myGuard = await createPlayer("MyForward", { position: "F" });
-  const rivalGuard = await createPlayer("RivalForward", { position: "F" });
-  const freeAgent = await createPlayer("TopFreeAgent", { position: "F" });
-  await hold(league.id, mine.id, myGuard.id);
-  await hold(league.id, rivalMember, rivalGuard.id);
-  await plantOutlook(myGuard.id, 500);
-  await plantOutlook(rivalGuard.id, 400);
-  // Above every real player, so it is everyone's best add.
-  await plantOutlook(freeAgent.id, 9600, { games_in_role: 3 });
+  const misfiled = await createPlayer("MisfiledGuard", { position: "G" });
+  await hold(league.id, mine.id, misfiled.id);
   await signIn(context, owner);
-
   await page.goto(`/l/${league.id}/scout`);
-  const moves = page.getByTestId("scout-move");
-  await expect(moves).toHaveCount(1);
-  await expect(moves).toContainText(shown(myGuard.name));
-  await expect(moves).toContainText(shown(freeAgent.name));
-  await expect(page.getByTestId("scout-move-gain")).toHaveText("+91.0");
-  await expect(page.getByTestId("scout-move-confidence")).toContainText("Medium");
-  // The rival's roster and its advice never reach this page.
-  await expect(page.getByTestId("your-moves")).not.toContainText(shown(rivalGuard.name));
-
-  await page.goto(`/l/${league.id}`);
-  await expect(page.getByTestId("enter-scout")).toContainText("Scout: 1 move worth making");
-
-  // The rival signs the free agent: on the next read no move adds him.
-  await hold(league.id, rivalMember, freeAgent.id);
-  await page.goto(`/l/${league.id}/scout`);
-  await expect(page.getByTestId("your-moves")).toBeVisible();
-  await expect(page.getByTestId("your-moves")).not.toContainText(shown(freeAgent.name));
-
-  // Nobody beats a forward rated above every real player: the empty state, and no League Home line.
-  const stored = await pb.collection("player_outlooks").getFirstListItem<{ id: string }>(`player = '${myGuard.id}'`, { requestKey: null });
-  await pb.collection("player_outlooks").update(stored.id, { outlook_5: 9990 }, { requestKey: null });
-  await page.goto(`/l/${league.id}/scout`);
-  await expect(page.getByTestId("your-moves-empty")).toContainText("No move worth making this round.");
-  await page.goto(`/l/${league.id}`);
-  await expect(page.getByTestId("enter-recap")).toBeVisible();
-  await expect(page.getByTestId("enter-scout")).toHaveCount(0);
-
-  // Released and not replaced: a hole, not a misfiled position.
-  const seat = await pb.collection("roster_memberships").getFirstListItem<{ id: string }>(`member = '${mine.id}'`, { requestKey: null });
-  await pb.collection("roster_memberships").update(seat.id, { to_date: "2026-10-01 12:00:00.000Z", to_round: 3 }, { requestKey: null });
-  await page.goto(`/l/${league.id}/scout`);
-  await expect(page.getByTestId("your-moves-short")).toContainText("Your roster has 0 of 1 players.");
+  await expect(page.getByTestId("your-moves-template")).toContainText("position question");
 });
