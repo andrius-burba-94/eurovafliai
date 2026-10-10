@@ -51,6 +51,7 @@ import { readBasketNewsPlayerPool, readBasketNewsTeamReference } from "@/lib/bas
 import { fetchPlayerPool } from "@/lib/fantasy/client";
 import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
 import { readDuePositions, type PositionsReport } from "@/lib/source-positions/store";
+import { refreshOutlooks } from "@/lib/advisor/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import {
@@ -137,6 +138,9 @@ const BASKETNEWS_QUEUE_EVERY_MS = 15 * 60_000;
 /** 7.2 D: how often to ask which linked league's game is due a positions read (each is read daily). */
 const POSITIONS_EVERY_MS = 15 * 60_000;
 const POSITIONS_FIRST_AFTER_MS = 180_000;
+/** 7.2 E: outlooks, two minutes after the first stats pass and every quarter-hour after. */
+const SCOUT_EVERY_MS = 15 * 60_000;
+const SCOUT_FIRST_AFTER_MS = 120_000;
 /**
  * How often the roster scheduler asks whether a pass is due. The question is
  * a few local reads; the pass itself is 21 feed requests, and `rosterSyncDue`
@@ -744,7 +748,40 @@ function main(): void {
     }, POSITIONS_FIRST_AFTER_MS).unref?.();
   }
 
+  /**
+   * 7.2 E: every player's outlook, per ruleset a league in season plays. Its
+   * own guard, not the AI lock: it needs no key and calls no model, so a
+   * league without write-ups still gets its waiver wire. Local reads and
+   * changed-row writes only.
+   */
+  let scoutInFlight: Promise<void> | null = null;
+  let scoutTimer: ReturnType<typeof setInterval> | null = null;
+  function scheduleScout(): void {
+    const run = () => {
+      if (stopping || scoutInFlight) return;
+      scoutInFlight = (async () => {
+        try {
+          await ensureAuth(pb, env);
+          const report = await refreshOutlooks(pb, { season: env.EUROLEAGUE_SEASON, now: new Date() });
+          if (report.written > 0) {
+            log(`outlooks · ${report.rulesets.join(", ")} · ${report.written} written, ${report.unchanged} unchanged`);
+          }
+        } catch (error) {
+          log(`outlooks pass failed: ${describeError(error)}`, "error");
+          pb.authStore.clear();
+        }
+      })().finally(() => {
+        scoutInFlight = null;
+      });
+    };
+    setTimeout(() => {
+      run();
+      scoutTimer = setInterval(run, SCOUT_EVERY_MS);
+    }, SCOUT_FIRST_AFTER_MS).unref?.();
+  }
+
   scheduleNews();
+  scheduleScout();
   schedulePositions();
   scheduleWriteups();
   scheduleLive();
@@ -825,6 +862,7 @@ function main(): void {
     if (aiTimer) clearInterval(aiTimer);
     if (aiRequestsTimer) clearInterval(aiRequestsTimer);
     if (positionsTimer) clearInterval(positionsTimer);
+    if (scoutTimer) clearInterval(scoutTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and
