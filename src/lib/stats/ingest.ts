@@ -63,6 +63,27 @@ import { recomputeStandings } from "./standings-store";
  * row; if that write dies, `npm run stats:project` is the repair.
  */
 
+/**
+ * Rebuild the pool averages and standings after a write — for the season being
+ * played only.
+ *
+ * Both are caches of *this* season: `players` holds one set of averages per
+ * person and every season league's table is this season's. Last season's lines
+ * are loaded mid-season for the scout (7.2 B), and recomputing from them would
+ * put May's form on every pool row until the next round landed, and write a
+ * 2025 table for a league drafted in 2026. They are stored, and nothing else
+ * moves.
+ */
+export async function refreshSeasonCaches(
+  pb: PocketBase,
+  season: string,
+  currentSeason: string,
+): Promise<void> {
+  if (season !== currentSeason) return;
+  await recomputeProjections(pb, season);
+  await recomputeStandings(pb, season);
+}
+
 export type IngestReport = {
   readonly season: string;
   /** Games the schedule says are played. */
@@ -126,9 +147,12 @@ export async function ingestFinishedGames({
   log,
   maxGames = 12,
   onlyGames,
+  currentSeason = season,
 }: {
   pb: PocketBase;
   season: string;
+  /** The season being played. Only its pass rebuilds averages and standings. */
+  currentSeason?: string;
   doFetch?: FeedFetch;
   log?: (message: string) => void;
   maxGames?: number;
@@ -250,8 +274,7 @@ export async function ingestFinishedGames({
   const applied = await applyStatPlan(pb, plan, batch.id);
 
   if (applied.created + applied.updated > 0) {
-    await recomputeProjections(pb, season);
-    await recomputeStandings(pb, season);
+    await refreshSeasonCaches(pb, season, currentSeason);
   }
 
   await markStatBatchApplied(
