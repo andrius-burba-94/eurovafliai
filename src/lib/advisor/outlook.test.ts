@@ -175,6 +175,35 @@ describe("outlooksFor", () => {
     expect(outlook!.next[0]).toBe(Math.round(16 * strength * 100));
   });
 
+  it("leaves out a played game whose box score is not stored yet", () => {
+    // The ingest marks fixtures played before it fetches their box scores.
+    const schedule = evenSeason(3, 5);
+    const lines = everyone(schedule, "AAA", () => ({ minutes: 20, pir: 10, started: true }));
+    schedule.push(game(4, "CCC", "DDD", true));
+    const [outlook] = outlooksFor({
+      ruleset: "basketnews",
+      players: [{ id: "p", club: "AAA" }],
+      current: { lines, schedule },
+      last: { lines: [], schedule: [] },
+    });
+    expect(outlook!.next[0]).toBe(1000);
+  });
+
+  it("does not count a postponed game, still unplayed after the club's later rounds", () => {
+    const schedule = evenSeason(3, 0);
+    // Round 2's other game never happened; AAA has played round 3 since.
+    schedule.push(game(2, "AAA", "DDD", false));
+    for (const round of [4, 5]) schedule.push(game(round, "AAA", "BBB", false));
+    const lines = everyone(schedule, "AAA", () => ({ minutes: 20, pir: 10, started: true }));
+    const [outlook] = outlooksFor({
+      ruleset: "basketnews",
+      players: [{ id: "p", club: "AAA" }],
+      current: { lines, schedule },
+      last: { lines: [], schedule: [] },
+    });
+    expect(outlook!.gamesAhead).toBe(2);
+  });
+
   it("counts a club's next games, so a round it sits out adds no zero", () => {
     const schedule = evenSeason(3, 0);
     // AAA plays rounds 4, 6, 7, 8, 9 — nothing in round 5.

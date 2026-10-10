@@ -64,6 +64,8 @@ export default async function ScoutPage({ params }: PageProps<"/l/[league]/scout
               <YourMoves
                 moves={scout.advice.moves}
                 countsTemplate={scout.advice.countsTemplate}
+                rosterSize={scout.advice.rosterSize}
+                rosterFull={template.G + template.F + template.C}
                 templateWords={positionSentence(template, "nothing", { keepZeros: true })}
                 gameName={gameName}
                 unit={unit}

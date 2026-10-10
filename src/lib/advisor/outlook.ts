@@ -107,12 +107,15 @@ function pointsOf(line: AdvisorLine, ruleset: Ruleset): number {
 
 /** What each club gives up relative to the league, this season, shrunk toward 1. */
 export function opponentStrengths(season: SeasonInput): Map<string, number> {
-  const played = season.schedule.filter((row) => row.played);
   const pirByGameClub = new Map<string, number>();
   for (const line of season.lines) {
     const key = `${line.gameCode}|${line.club}`;
     pirByGameClub.set(key, (pirByGameClub.get(key) ?? 0) + line.pir);
   }
+  // The ingest marks a fixture played before it fetches the box score; until
+  // the lines land, the game would read as both clubs conceding nothing.
+  const scored = new Set(season.lines.map((line) => line.gameCode));
+  const played = season.schedule.filter((row) => row.played && scored.has(row.gameCode));
   const conceded = new Map<string, { pir: number; games: number }>();
   let total = 0;
   for (const row of played) {
@@ -211,13 +214,22 @@ export function outlooksFor({
   const upcoming = current.schedule
     .filter((row) => !row.played)
     .sort((a, b) => a.round - b.round || a.gameCode - b.gameCode);
+  const latestPlayed = new Map<string, number>();
+  for (const row of current.schedule.filter((game) => game.played)) {
+    for (const club of [row.localClub, row.roadClub]) {
+      latestPlayed.set(club, Math.max(latestPlayed.get(club) ?? 0, row.round));
+    }
+  }
 
   const outlooks: PlayerOutlook[] = [];
   for (const player of players) {
     const base = baseFor(thisSeason.get(player.id) ?? [], lastSeason.get(player.id) ?? [], ruleset);
     if (!base) continue;
+    const latest = latestPlayed.get(player.club) ?? 0;
+    // An unplayed game from before the club's latest one was postponed: it is
+    // not next, whatever its round number says.
     const games = upcoming
-      .filter((row) => row.localClub === player.club || row.roadClub === player.club)
+      .filter((row) => (row.localClub === player.club || row.roadClub === player.club) && row.round > latest)
       .slice(0, WINDOWS[WINDOWS.length - 1]);
     const perGame = games.map((game) => {
       const opponent = game.localClub === player.club ? game.roadClub : game.localClub;

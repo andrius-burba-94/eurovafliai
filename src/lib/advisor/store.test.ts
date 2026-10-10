@@ -68,7 +68,7 @@ describe("refreshOutlooks", () => {
 
     const report = await refreshOutlooks(client, { season: "E2026", now: NOW });
 
-    expect(report).toEqual({ rulesets: ["euroleague", "basketnews"], written: 4, unchanged: 0 });
+    expect(report).toEqual({ rulesets: ["euroleague", "basketnews"], written: 4, unchanged: 0, removed: 0 });
     const rows = data.player_outlooks!;
     expect(rows.map((row) => `${row.ruleset}:${row.player}`).sort()).toEqual([
       "basketnews:a",
@@ -127,12 +127,23 @@ describe("refreshOutlooks", () => {
     });
   });
 
+  it("removes the row of a player who no longer has a figure", async () => {
+    const { client, db: data } = fakePb({ data: db(), uniqueIndexes });
+    await refreshOutlooks(client, { season: "E2026", now: NOW });
+    data.player_game_stats = data.player_game_stats!.filter((row) => row.player !== "b");
+
+    const report = await refreshOutlooks(client, { season: "E2026", now: NOW });
+
+    expect(report.removed).toBe(2);
+    expect(data.player_outlooks!.map((row) => row.player).sort()).toEqual(["a", "a"]);
+  });
+
   it("does nothing when no league is in season", async () => {
     const { client, writes } = fakePb({
       data: db({ leagues: [{ id: "old", status: "setup", basketnews_team_id: "" }] }),
       uniqueIndexes,
     });
-    expect(await refreshOutlooks(client, { season: "E2026", now: NOW })).toEqual({ rulesets: [], written: 0, unchanged: 0 });
+    expect(await refreshOutlooks(client, { season: "E2026", now: NOW })).toEqual({ rulesets: [], written: 0, unchanged: 0, removed: 0 });
     expect(writes).toEqual([]);
   });
 });

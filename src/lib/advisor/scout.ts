@@ -21,7 +21,12 @@ export type ScoutMove = {
 
 export type ScoutView = {
   readonly wire: WireRow[];
-  readonly advice: { readonly countsTemplate: boolean; readonly moves: ScoutMove[] };
+  readonly advice: {
+    readonly countsTemplate: boolean;
+    /** The viewer's own players: under the template's total is a hole, not a misfiled position. */
+    readonly rosterSize: number;
+    readonly moves: ScoutMove[];
+  };
 };
 
 export type ScoutSeat = {
@@ -49,7 +54,7 @@ export function scoutFor({
   ruleset: Ruleset;
 }): ScoutView {
   const wire = waiverWire({ freeAgents, outlooks });
-  if (!memberId) return { wire, advice: { countsTemplate: true, moves: [] } };
+  if (!memberId) return { wire, advice: { countsTemplate: true, rosterSize: 0, moves: [] } };
 
   const mine = waiverWire({
     freeAgents: seats
@@ -69,6 +74,7 @@ export function scoutFor({
     wire,
     advice: {
       countsTemplate: advice.countsTemplate,
+      rosterSize: mine.length,
       moves: advice.moves.map((move) => ({ ...move, drop: rows.get(move.drop)!, add: rows.get(move.add)! })),
     },
   };

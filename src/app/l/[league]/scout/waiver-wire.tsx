@@ -18,9 +18,9 @@ export const CONFIDENCE_WORD: Record<Confidence, string> = { high: "High", mediu
 
 const points = formatOutlook;
 
-export function roleNote(row: WireRow): string | null {
+export function roleNote(row: WireRow, rated = true): string | null {
   const outlook = row.outlook;
-  if (!outlook) return "no games yet";
+  if (!outlook) return rated ? "no games yet" : null;
   if (outlook.baseSource === "last") return "last season's line";
   const n = outlook.gamesInRole;
   if (n === 0) return null;
@@ -61,9 +61,9 @@ export function Triplet({ next, emphasise = true }: { next: readonly (number | n
   );
 }
 
-export function PlayerCell({ row, verb }: { row: WireRow; verb?: "Drop" | "Add" }) {
+export function PlayerCell({ row, verb, rated = true }: { row: WireRow; verb?: "Drop" | "Add"; rated?: boolean }) {
   const badge = availabilityBadge(row.status);
-  const note = roleNote(row);
+  const note = roleNote(row, rated);
   return (
     <span className="flex min-w-0 items-center gap-2.5">
       <PositionPatch position={row.position} />
@@ -138,7 +138,7 @@ export function WaiverWire({ rows, rated, unit }: { rows: readonly WireRow[]; ra
             {shown.map((row) => (
               <Slot key={row.id} nowrap testId="wire-row">
                 <span className="flex min-w-0 flex-col gap-1">
-                  <PlayerCell row={row} />
+                  <PlayerCell row={row} rated={rated > 0} />
                   {row.outlook ? (
                     <span className="flex flex-wrap gap-x-3 pl-[1.6875rem]">
                       {row.outlook.runs[0] ? <RunWord run={row.outlook.runs[0]} /> : null}
@@ -150,7 +150,7 @@ export function WaiverWire({ rows, rated, unit }: { rows: readonly WireRow[]; ra
                   {row.outlook ? (
                     <Triplet next={row.outlook.next} />
                   ) : (
-                    <span className="block text-right text-sm text-ink-faint">No games yet</span>
+                    <span className="block text-right text-sm text-ink-faint">{rated === 0 ? "Not rated yet" : "No games yet"}</span>
                   )}
                 </span>
               </Slot>

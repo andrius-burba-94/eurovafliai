@@ -763,8 +763,8 @@ function main(): void {
         try {
           await ensureAuth(pb, env);
           const report = await refreshOutlooks(pb, { season: env.EUROLEAGUE_SEASON, now: new Date() });
-          if (report.written > 0) {
-            log(`outlooks · ${report.rulesets.join(", ")} · ${report.written} written, ${report.unchanged} unchanged`);
+          if (report.written + report.removed > 0) {
+            log(`outlooks · ${report.rulesets.join(", ")} · ${report.written} written, ${report.removed} removed, ${report.unchanged} unchanged`);
           }
         } catch (error) {
           log(`outlooks pass failed: ${describeError(error)}`, "error");

@@ -63,6 +63,8 @@ function MoveCard({ move, unit }: { move: ScoutMove; unit: string }) {
 export function YourMoves({
   moves,
   countsTemplate,
+  rosterSize,
+  rosterFull,
   templateWords,
   gameName,
   unit,
@@ -70,6 +72,8 @@ export function YourMoves({
 }: {
   moves: readonly ScoutMove[];
   countsTemplate: boolean;
+  rosterSize: number;
+  rosterFull: number;
   templateWords: string;
   gameName: string;
   unit: string;
@@ -82,7 +86,11 @@ export function YourMoves({
       aside="Only you see these"
       info={`At most three swaps that gain ${threshold} ${unit} a game or more over the next five, each keeping ${templateWords}. Make them in ${gameName}.`}
     >
-      {!countsTemplate ? (
+      {!countsTemplate && rosterSize < rosterFull ? (
+        <EmptyNotice testId="your-moves-short">
+          Your roster has {rosterSize} of {rosterFull} players. Moves are suggested once it is full again.
+        </EmptyNotice>
+      ) : !countsTemplate ? (
         <EmptyNotice testId="your-moves-template">
           Your roster does not count {templateWords} in {gameName}&apos;s positions, so nothing is suggested until the
           commissioner answers its position question on Player mapping.

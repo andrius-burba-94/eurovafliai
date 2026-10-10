@@ -62,7 +62,7 @@ describe("scoutFor", () => {
 
   it("gives a viewer without a roster the wire and no advice", () => {
     const view = scoutFor({ seats: [seat("them", "theirs")], freeAgents: [agent("fa")], outlooks, template: TEMPLATE, memberId: null, ruleset: "euroleague" });
-    expect(view.advice).toEqual({ countsTemplate: true, moves: [] });
+    expect(view.advice).toEqual({ countsTemplate: true, rosterSize: 0, moves: [] });
     expect(view.wire).toHaveLength(1);
   });
 });

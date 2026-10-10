@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { cleanupTestData, createLeagueFor, createPlayer, createTestUser, shown, signIn, superuser } from "./helpers/session";
+import { addMemberTo, cleanupTestData, createLeagueFor, createPlayer, createTestUser, shown, signIn, superuser } from "./helpers/session";
 
 /**
  * The Scout page's waiver wire — slice 7.2 E.
@@ -138,7 +138,6 @@ test("your moves are yours: the swap, its gain, the League Home line, and nobody
   // the shared pool, which would outrank this one as the best add.
   const { owner, league } = await seasonLeague("scout-moves", { settings: { roster_template: { G: 0, F: 1, C: 0 }, max_members: 12 } });
   const rival = await createTestUser("scout-rival");
-  const { addMemberTo } = await import("./helpers/session");
   const rivalMember = await addMemberTo(league.id, rival, "Rival FC");
   const pb = await superuser();
   const mine = await pb.collection("league_members").getFirstListItem<{ id: string }>(`league = '${league.id}' && user = '${owner.id}'`, { requestKey: null });
@@ -181,4 +180,10 @@ test("your moves are yours: the swap, its gain, the League Home line, and nobody
   await page.goto(`/l/${league.id}`);
   await expect(page.getByTestId("enter-recap")).toBeVisible();
   await expect(page.getByTestId("enter-scout")).toHaveCount(0);
+
+  // Released and not replaced: a hole, not a misfiled position.
+  const seat = await pb.collection("roster_memberships").getFirstListItem<{ id: string }>(`member = '${mine.id}'`, { requestKey: null });
+  await pb.collection("roster_memberships").update(seat.id, { to_date: "2026-10-01 12:00:00.000Z", to_round: 3 }, { requestKey: null });
+  await page.goto(`/l/${league.id}/scout`);
+  await expect(page.getByTestId("your-moves-short")).toContainText("Your roster has 0 of 1 players.");
 });

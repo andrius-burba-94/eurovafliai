@@ -21,5 +21,5 @@ await pb.collection("_superusers").authWithPassword(env.PB_SUPERUSER_EMAIL, env.
 
 const report = await refreshOutlooks(pb, { season: env.EUROLEAGUE_SEASON, now: new Date() });
 console.log(
-  `outlooks · ${env.EUROLEAGUE_SEASON} · ${report.rulesets.join(", ") || "no league in season"} · ${report.written} written · ${report.unchanged} unchanged`,
+  `outlooks · ${env.EUROLEAGUE_SEASON} · ${report.rulesets.join(", ") || "no league in season"} · ${report.written} written · ${report.removed} removed · ${report.unchanged} unchanged`,
 );

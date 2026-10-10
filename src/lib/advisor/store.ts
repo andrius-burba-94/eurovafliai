@@ -48,6 +48,8 @@ export type OutlookRefresh = {
   readonly rulesets: Ruleset[];
   readonly written: number;
   readonly unchanged: number;
+  /** Rows of players who no longer have a figure: derived, so deleting is safe. */
+  readonly removed: number;
 };
 
 const code = (season: string) => season.replace(/[^A-Za-z0-9]/g, "");
@@ -115,7 +117,7 @@ export async function refreshOutlooks(
   { season, now }: { season: string; now: Date },
 ): Promise<OutlookRefresh> {
   const rulesets = await rulesetsInUse(pb);
-  if (rulesets.length === 0) return { rulesets, written: 0, unchanged: 0 };
+  if (rulesets.length === 0) return { rulesets, written: 0, unchanged: 0, removed: 0 };
 
   const previous = previousSeasonOf(season);
   const [players, current, last] = await Promise.all([
@@ -127,13 +129,21 @@ export async function refreshOutlooks(
 
   let written = 0;
   let unchanged = 0;
+  let removed = 0;
   for (const ruleset of rulesets) {
     const stored = await pb.collection("player_outlooks").getFullList<OutlookRow>({
       filter: `season = "${code(season)}" && ruleset = "${ruleset}"`,
       requestKey: null,
     });
     const byPlayer = new Map(stored.map((row) => [row.player, row]));
-    for (const outlook of outlooksFor({ ruleset, players: clubbed, current, last })) {
+    const fresh = outlooksFor({ ruleset, players: clubbed, current, last });
+    const kept = new Set(fresh.map((outlook) => outlook.player));
+    for (const row of stored) {
+      if (kept.has(row.player)) continue;
+      await pb.collection("player_outlooks").delete(row.id, { requestKey: null });
+      removed += 1;
+    }
+    for (const outlook of fresh) {
       const fields = fieldsOf(outlook);
       const existing = byPlayer.get(outlook.player);
       if (existing && same(existing, fields)) {
@@ -151,5 +161,5 @@ export async function refreshOutlooks(
       written += 1;
     }
   }
-  return { rulesets, written, unchanged };
+  return { rulesets, written, unchanged, removed };
 }
