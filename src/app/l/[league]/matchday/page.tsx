@@ -30,6 +30,7 @@ import { formatHundredths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
 import { formatClock } from "@/lib/time/local";
 import { leagueHref } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 /** The regular season's rounds; the stepper walks them. */
 const REGULAR_SEASON_ROUNDS = 38;
@@ -73,7 +74,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
   const watched = data.members.find((member) => member.id === asked) ?? you;
   const watchingYou = watched.id === you.id;
   const canManage = data.isCommissioner || you.canManage;
-  const board = await readLineupBoard({ leagueId: id, memberId: watched.id, season, round: matchday.round, basketNews: Boolean(data.league.basketnews_team_id) });
+  const board = await readLineupBoard({ leagueId: id, memberId: watched.id, season, round: matchday.round, source: leagueSource(data.league) });
   const hrefFor = (next: { round?: number; member?: string }) => {
     const params = new URLSearchParams({ round: String(next.round ?? matchday.round) });
     const member = next.member ?? watched.id;

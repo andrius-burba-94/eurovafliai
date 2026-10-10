@@ -48,14 +48,14 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **invite code** | The short string a commissioner shares out of band; entering it is how you join a league. Unique across leagues. | `leagues.invite_code` |
 | **league status** | A league's coarse lifecycle: `setup` (lobby open) → `drafting` (a draft is running) → `season` (drafted, tracking games) → `complete`. Distinct from the finer-grained `drafts.status`. | `leagues.status` |
 | **draft position** | A member's slot in the draft order, 1…N. Unset until the roll. | `league_members.draft_position` |
-| **roster template** | The shape of a legal team: `{G:5, F:5, C:3}` by default. Lives in settings, never hardcoded. | `leagues.settings.roster_template` |
+| **roster template** | The shape of a legal team: `{G:5, F:5, C:3}` by default. Lives in settings, never hardcoded. A linked league is held to it too, counted in that game's own positions; a synced roster that counts anything else means the two sources disagree about a player, never that the game allows another shape. | `leagues.settings.roster_template` |
 | **membership** | A player's stay on a team. Calendar `from_date`/`to_date` (empty `to_date` = active) back the unique index; scoring uses Euroleague **`from_round`/`to_round`** (empty `to_round` = still open). Inclusive from, exclusive to. | `roster_memberships` |
 | **transaction** | A recorded trade, add or drop. Friends negotiate out loud; the app stores the result. No pending offers. `from_round` is the first night the new squad counts. | `transactions` |
 | **official game** / **Fantasy Challenge** | EuroLeague's own fantasy game, where this league makes its moves after drafting here. Its rosters are the authority; a **sync** copies them in as transactions. | `src/lib/fantasy/` |
 | **freeze** | A Euroleague round's locked spell in the official game: from the first tip-off until its games are done. Only a sync inside the freeze writes; outside it a sync **previews**. | `roundWindows()` |
 | **sync run** | One read of the official rosters: preview, blocked (a **question** to answer), applying, applied or failed. The audit log and the repair key. | `fantasy_syncs` |
 | **impact / delta** | Fantasy tenths (and PIR) of players-in minus players-out from a deal's `from_round` onward. Live from box scores, not a stored cache. | `impactForMember()` |
-| **free agent** | A pool player owned by nobody after the draft. | — |
+| **free agent** | A pool player owned by nobody after the draft. In a linked league he must also be in that game's own player pool, with that game's position stored: a player the game does not list cannot be signed there. | `readTransactionBoard().freeAgents` |
 | **snapshot** | The standings table frozen for one round; powers the round-over-round chart. | `standings_snapshots` |
 | **recap** | One Euroleague round: each team's night, the best night, the deal that moved most. Rank is that round's tenths, not season-to-date. | `recapForRound()`; `/leagues/[id]/recap` |
 | **round** | Ambiguous on purpose — qualify it. A *draft round* is one pass through the order (1…13). A *Euroleague round* is a game week (1…38). | `picks.round` vs `player_game_stats.round` |
@@ -65,7 +65,7 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | Term | Meaning | In code |
 |---|---|---|
 | **player** | A real Euroleague player in the canonical table, whatever the source. | `players` |
-| **position bucket** | Our single-letter position: `G`, `F` or `C`. Official multi-position listings map into one bucket by rule, admin-overridable. | `players.position` |
+| **position bucket** | Our single-letter position: `G`, `F` or `C`. Official multi-position listings map into one bucket by rule, admin-overridable. Each game a league plays in classifies players its own way (BasketNews has Omoruyi at C, the Fantasy Challenge at F), so a league counts in its source's position. | `players.position`, `basketnews_position`; `leaguePosition()` |
 | **person code** | The Euroleague external player id. Preserved through any overwrite so stats joins survive. | `players.person_code` |
 | **normalized name** | Diacritics-folded name for search and matching — "Valančiūnas" must be findable as "valanciunas". | `players.name_normalized` |
 | **manual lock** | An admin correction that neither ingestion source may overwrite. | `players.manual_lock` |
@@ -95,6 +95,13 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **round write-up** | One round's headline, 3–5 summary lines and the analyst's sections (stars, over- and underperformers, surprises, table moves, the biggest swing), from one model call. On Recap the summary panel holds the headline, lines, over, under and surprises; the rest are *notes* on the panels they explain. League Home shows the headline. | kind `round_summary`; `src/app/l/[league]/recap/writeup.tsx` |
 | **re-guard** | Running the guard on a stored write-up against a freshly built sheet. Passing means the prose is still true, whatever the hash says; failing means it is rewritten (ADR-0013). | — |
 | **rewrite** | A new write-up for a round already written: because a re-guard failed, or because the commissioner asked. Never because the model, the prompt or the voice changed. | — |
+| **scout** | The free-agent adviser (7.2): a public waiver wire for the league, and each member's private moves worth making with a two-sentence reason, always in the analyst voice. Advice only; it executes nothing, and moves are still made in the league's own game. A reason may cite what the league can already see (rosters, finished moves) and never another member's moves worth making. | `src/lib/advisor/`; `/l/<league>/scout` |
+| **gain** | What a suggested move is worth: the added player's outlook minus the dropped player's, over the next 5 games. Plain and per game, never lineup-weighted (no captain ×2, no bench ×½). | — |
+| **moves worth making** | A member's private list of at most three legal drop-and-add pairs whose gain clears a named threshold, best first, no player twice. Each carries a **confidence** (high, medium, low) from the sample behind the less certain outlook: games this season in the player's current role, or last season's line. | — |
+| **outlook** | A player's expected fantasy points per game over his club's next 5, 10 and 15 games: PIR per minute × his expected minutes in his current role (starter or reserve), × each opponent's strength, with his game's win term weighted by his club's chance of winning: ×1.1 on a win in the Fantasy Challenge, a flat +1.5 for a win and −1.5 for a loss in BasketNews Modern. In a BasketNews league it is in Modern points. Distinct from the **projection**, which is the stored past average the pool shows. | `src/lib/advisor/` |
+| **opponent strength** | How much PIR a club gives up: what all its opponents' players collect against it per game this season, relative to the league average, pulled toward neutral while the sample is small. Club-level on purpose; points allowed *by position* was judged too noisy (7.2). Last season does not count: its stored lines miss the players who left. | `opponentStrengths()` |
+| **calendar strength** | Opponent strength averaged over a club's next 5, 10 or 15 games: an easy, even or hard run. | — |
+| **waiver wire** | The league's public list of free agents, ranked by outlook over the next 5 games. The same for every member. | — |
 | **league settings** | The commissioner's page for a league in season: write-ups on/off and voice, member management, deleting the league. | `/l/<league>/settings` |
 
 ## Words we do not use

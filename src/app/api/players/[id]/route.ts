@@ -1,5 +1,8 @@
 import { getSession } from "@/lib/auth/session";
+import type { LeagueSource } from "@/lib/positions";
 import { readPlayerProfile } from "@/lib/stats/queries";
+
+const SOURCES: readonly LeagueSource[] = ["basketnews", "fantasy"];
 
 export async function GET(
   request: Request,
@@ -12,7 +15,7 @@ export async function GET(
   const round = Number(query.get("round"));
   const profile = await readPlayerProfile(id, {
     ...(Number.isInteger(round) && round > 0 ? { round } : {}),
-    basketNews: query.get("basketnews") === "1",
+    source: SOURCES.find((source) => source === query.get("source")) ?? "euroleague",
   });
   return profile
     ? Response.json(profile, { headers: { "Cache-Control": "private, no-store" } })

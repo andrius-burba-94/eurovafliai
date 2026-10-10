@@ -21,6 +21,87 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## AI commentary — 7.2 the free-agent scout, October 2026
+
+**Every league in season has a Scout page, after Trades** (blueprint 7.2,
+spec #190; design A "the desk", #193). It advises and executes nothing.
+Moves are still made in the league's own game. What a member sees:
+- **Your moves**, private: at most three like-for-like swaps that keep 5 G /
+  5 F / 3 C in the league's own game's positions and gain at least +3.0
+  fantasy points a game over the next five (+3.4 Modern points in
+  BasketNews). Each move shows:
+  - the gain;
+  - both players' outlooks over 5, 10 and 15 games;
+  - confidence (high, medium or low);
+  - the added player's run;
+  - a two-sentence reason.
+
+  "No move worth making this round." when nothing clears the bar.
+- **Waiver wire**, the same for everyone: every free agent, ranked by next-5
+  outlook, with 10 and 15, the run (easy, even or hard), confidence and
+  availability. A player with no game is "No games yet". There is a G/F/C
+  filter. A linked league lists only players its game lists.
+- On a phone the two are tabs; on a laptop they sit side by side.
+- **League Home:** "Scout: N moves worth making", beside the round's recap.
+  Absent at zero.
+- **Positions per game (7.2 D):** each linked league counts in its own game's
+  positions, read for the whole pool when the league is created and daily
+  after. A disagreement is a question on Player mapping for the
+  commissioner. A roster that does not count its template gets no advice
+  until that question is answered.
+
+How it works:
+- The worker writes `player_outlooks` every 15 minutes in its own pass, with
+  no key needed (`src/lib/advisor/`, pure). Moves are worked out at read
+  time, so a player somebody signs leaves the wire and everyone's moves on
+  the next page load.
+- **Reasons** are written once a round finishes: one call per league for the
+  members due, one private `scout_moves` row each. They go ahead of the round
+  write-up under the shared two-calls-a-pass cap.
+- A reason is always in the analyst voice and is guarded against its own
+  move's figures only, so it cannot cite anyone else's advice.
+- Write-ups Off hides the reasons and keeps every number.
+- Migrations: `1790900000_source_positions.js`,
+  `1791000000_created_player_outlooks.js` and `1791100000_scout_reasons.js`.
+
+**Deviations from blueprint 7.2**, decided in the grill and the slices:
+- **Opponent strength replaces points allowed by position**, which was too
+  noisy. It is club-level and this season's only, pulled toward neutral while
+  the sample is small. It leans on nothing from last season, at the
+  maintainer's call: last season's stored lines miss the quarter of the
+  league that left.
+- **Last season's starts come from per-game `started` lines**, not the
+  `gamesStarted` season total, which cannot say what a starter's minutes were.
+- **Reasons are always in the analyst voice**, whatever the league's voice.
+- **The win term follows the game**: ×1.1 on a win in the Fantasy Challenge, a
+  flat ±1.5 in BasketNews Modern (7.2 A).
+- **Inside a league the Player Pool sits in the EuroLeague group**: Scout made
+  the season League group one row too tall for a 690px screen.
+
+**Production, for a person, after the deploy** (from `/var/www/eurovafliai`;
+details and the counts to expect are in
+[log/free-agent-scout-2026-10-10.md](log/free-agent-scout-2026-10-10.md)):
+1. `npm run stats:sync -- --season=E2025 --all`, about half an hour. Then
+   `npm run stats:starters -- --season=E2025`. Re-running either writes
+   nothing.
+2. `npm run scout:outlooks` once, or wait 15 minutes for the worker.
+3. Each linked league's first positions read happens on the worker's first
+   pass after boot. Check its `positions ·` log line.
+4. Do not run plain `npm run stats:prev` now that last season's lines are
+   stored; only `--check`.
+
+**Next up: 7.3, your round.**
+
+**Try it on localhost:**
+- `npm run dev`, then `npm run scout:outlooks`. The worker does this on its own
+  two minutes after boot.
+- Open `/l/<league>/scout`: your moves beside the waiver wire on a laptop,
+  and two tabs on a phone width. Filter the wire to C.
+- `npm run ai:preview -- --league=<slug|id> --scout --facts-only` prints the
+  reasons' fact sheet in tokens. With `GEMINI_API_KEY` set, drop
+  `--facts-only` to see the reasons as stored and as a member reads them.
+- League Home shows "Scout: N moves worth making" beside the round's recap.
+
 ## AI commentary — 7.1 the round, written, 9 October 2026
 
 **Every finished round is written up, once, and read the same by everyone**
@@ -69,8 +150,6 @@ Closed in this slice, found by putting the write-up beside the numbers:
 - The local deal that said a player was released in round 1 while he still
   counted in round 3 was twelve hand-made `seed-moves` rows in a local
   database, never a product path (see the log).
-
-**Next up: 7.2, the free-agent scout.**
 
 **Try it on localhost:**
 - `.env`: `GEMINI_API_KEY=…`, `GEMINI_MODEL=gemini-3.5-flash-lite`.
@@ -1936,7 +2015,7 @@ declined, because they reverse ADR-0006's No-Atmosphere Rule.
 |---|---|
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
-| 7 — AI commentary (Gemini; rescoped by D28) | **in progress** — 7.0 groundwork done; 7.1 the round written is next |
+| 7 — AI commentary (Gemini; rescoped by D28) | **in progress** — 7.0 groundwork, 7.1 the round written and 7.2 the free-agent scout done; 7.3 your round is next |
 | 8 — Hardening & ops polish | **done** — 8.0–8.5 are in, and the backup timer and logrotate are installed on the box |
 
 ---

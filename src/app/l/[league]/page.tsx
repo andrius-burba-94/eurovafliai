@@ -28,16 +28,19 @@ import { serverConfig } from "@/lib/config/server";
 import { stylesById } from "@/lib/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { readRoundWriteup } from "@/lib/ai/queries";
+import { readScout } from "@/lib/advisor/queries";
+import { formatOutlook } from "@/lib/advisor/wire";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readMatchdayData } from "@/lib/live/queries";
-import { displayName } from "@/lib/players/name";
+import { displayName, surname } from "@/lib/players/name";
 import { liveRound } from "@/lib/season/dashboard";
 import { liveRecap } from "@/lib/season/story";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
 import { LiveLobby } from "./live-lobby";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 /**
  * The lobby: who is in, and the code that lets the rest in.
@@ -100,7 +103,7 @@ export default async function LobbyPage({
   // satisfies — so this gate cannot dangle a door that would 404, and it costs
   // no extra query to decide. Everyone else pays nothing for the read.
   const mappingQueue = viewerIsManager
-    ? await countMappingQueue().catch(() => EMPTY_QUEUE)
+    ? await countMappingQueue(session.user.id).catch(() => EMPTY_QUEUE)
     : EMPTY_QUEUE;
   const mappingSentence = queueSentence(mappingQueue);
 
@@ -125,7 +128,7 @@ export default async function LobbyPage({
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
         readRecentTransactions(id, teamNames).catch(() => []),
-        readPanel({ leagueId: id, season, teamNames, basketNews: Boolean(league.basketnews_team_id) }),
+        readPanel({ leagueId: id, season, teamNames, source: leagueSource(league) }),
         readNews(100).catch(() => []),
       ])
     : [[], [], null, []];
@@ -144,6 +147,20 @@ export default async function LobbyPage({
           )
         )?.view?.headline ?? null)
       : null;
+  // 7.2 F: the viewer's own moves, worked out from stored outlooks; a failed
+  // read hides the line rather than the page.
+  const scoutRead = isSeasonDashboard && youMemberId
+    ? await readScout(id, { source: leagueSource(league), season, memberId: youMemberId, template }).catch(() => null)
+    : null;
+  const bestMove = scoutRead?.advice.moves[0];
+  const scoutLine = scoutRead && bestMove
+    ? {
+        count: scoutRead.advice.moves.length,
+        best: `Drop ${surname(bestMove.drop.name)}, add ${surname(bestMove.add.name)} · +${formatOutlook(bestMove.gain)} ${
+          scoutRead.ruleset === "basketnews" ? "Modern points" : "fantasy points"
+        } a game`,
+      }
+    : null;
   const [recap, matchday] = progress
     ? await Promise.all([
         progress.lastComplete === null
@@ -232,6 +249,7 @@ export default async function LobbyPage({
           }
           recap={recap?.recap ?? null}
           writtenHeadline={writtenHeadline}
+          scout={scoutLine}
           playerNames={recap?.playerNames ?? {}}
           playerCodes={recap?.playerCodes ?? {}}
           teamNames={teamNames}

@@ -2,7 +2,7 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
-import { leaguePosition } from "@/lib/positions";
+import { leaguePosition, type LeagueSource } from "@/lib/positions";
 import { completedOnly } from "@/lib/fixtures/progress";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { lineupWeights, resolveLineups } from "@/lib/lineups/lineup";
@@ -30,7 +30,8 @@ export type LeagueStatsPage = {
  * windows, this season's box scores, the recorded lineups, the draft's picks
  * and the pool's names.
  */
-export async function readLeagueStats(leagueId: string, season: string, basketNews = false): Promise<LeagueStatsPage | null> {
+export async function readLeagueStats(leagueId: string, season: string, source: LeagueSource = "euroleague"): Promise<LeagueStatsPage | null> {
+  const basketNews = source === "basketnews";
   const session = await getSession();
   if (!session) return null;
   const pb = createUserClient(session.token);
@@ -47,8 +48,8 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
     }>({ filter: `league = '${leagueId}'`, fields: "member,player,from_round,to_round,to_date", requestKey: null }),
     readLeaguePlayerRounds(pb, { leagueId, season: code, basketNews }),
     pb.collection("drafts").getFullList<{ id: string }>({ filter: `league = '${leagueId}'`, sort: "-created", fields: "id", requestKey: null }),
-    pb.collection("players").getFullList<{ id: string; name: string; position: Position; basketnews_position?: Position; club_code: string; club_name?: string; person_code?: string }>({
-      fields: "id,name,position,basketnews_position,club_code,club_name,person_code",
+    pb.collection("players").getFullList<{ id: string; name: string; position: Position; basketnews_position?: Position; fantasy_position?: Position; club_code: string; club_name?: string; person_code?: string }>({
+      fields: "id,name,position,basketnews_position,fantasy_position,club_code,club_name,person_code",
       requestKey: null,
     }),
     readRecordedLineups(pb, leagueId, code),
@@ -78,14 +79,14 @@ export async function readLeagueStats(leagueId: string, season: string, basketNe
     weights: lineupWeights(lineups),
     lineups,
     picks: picks.map((pick) => ({ overallNo: pick.overall_no, round: pick.round, memberId: pick.member, playerId: pick.player })),
-    positions: Object.fromEntries(pool.map((player) => [player.id, leaguePosition(player, basketNews)])),
+    positions: Object.fromEntries(pool.map((player) => [player.id, leaguePosition(player, source)])),
   });
   return {
     stats,
     snapshots: finished,
     clubNames: new Map(pool.flatMap((player) => (player.club_name ? [[player.club_code, player.club_name] as const] : []))),
     players: Object.fromEntries(
-      pool.map((player) => [player.id, { name: player.name, position: leaguePosition(player, basketNews), clubCode: player.club_code, personCode: player.person_code }]),
+      pool.map((player) => [player.id, { name: player.name, position: leaguePosition(player, source), clubCode: player.club_code, personCode: player.person_code }]),
     ),
   };
 }

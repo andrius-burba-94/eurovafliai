@@ -180,6 +180,9 @@ export function pendingCodes(
       if (byCode.has(personCode)) continue;
 
       const existing = merged.get(personCode);
+      // Game codes restart every season, so only the first season's games are
+      // kept: a union across seasons would re-import the wrong nights.
+      if (existing && existing.season !== batch.season) continue;
       const games = [
         ...new Set([...(existing?.games ?? []), ...(entry.lines ?? [])]),
       ].sort((a, b) => a - b);
@@ -320,12 +323,18 @@ export type MappingQueue = {
    * see `newsWorthChasing`.
    */
   readonly news: number;
+  /**
+   * Open position questions (7.2 D) in the leagues the viewer manages: a
+   * game's position that disagrees with the stored one, or a roster that does
+   * not count the template in its game's positions.
+   */
+  readonly positions: number;
 };
 
-export const EMPTY_QUEUE: MappingQueue = { renames: 0, codes: 0, news: 0 };
+export const EMPTY_QUEUE: MappingQueue = { renames: 0, codes: 0, news: 0, positions: 0 };
 
 export function queueTotal(queue: MappingQueue): number {
-  return queue.renames + queue.codes + queue.news;
+  return queue.renames + queue.codes + queue.news + queue.positions;
 }
 
 /**
@@ -368,12 +377,23 @@ export function queueSentence(queue: MappingQueue): string | null {
     );
   }
 
+  if (queue.positions > 0) {
+    parts.push(
+      queue.positions === 1
+        ? "One position in a league's game is waiting for an answer."
+        : `${queue.positions} positions in your leagues' games are waiting for an answer.`,
+    );
+  }
+
   const costs: string[] = [];
   if (queue.renames > 0 || queue.codes > 0) {
     costs.push("those players' box scores cannot attach");
   }
   if (queue.news > 0) {
     costs.push("their injuries show up nowhere in the app");
+  }
+  if (queue.positions > 0) {
+    costs.push("a roster may count in the wrong positions");
   }
 
   return `${parts.join(" ")} Until somebody answers them, ${costs.join(" and ")}.`;

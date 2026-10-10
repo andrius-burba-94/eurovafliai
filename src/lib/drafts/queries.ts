@@ -16,7 +16,7 @@ import {
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import type { NavLeague } from "@/lib/nav/items";
 import { createUserClient } from "@/lib/pb/server";
-import { leaguePosition } from "@/lib/positions";
+import { leaguePosition, leagueSource, type LeagueSource } from "@/lib/positions";
 import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
 import type { PoolPlayer } from "@/lib/pool/search";
 import { rankPirFromRecord } from "@/lib/stats/project";
@@ -40,6 +40,8 @@ import { stylesFromRecords, type TeamStyle } from "@/lib/teams/identity";
 export type DraftView = {
   draft: DraftRecord;
   sourceOwned: boolean;
+  /** Whose positions the league counts in. */
+  source: LeagueSource;
   picks: BoardPick[];
   /** Whose turn it is, or null when the draft is finished. */
   onClock: {
@@ -194,6 +196,7 @@ export async function getDraftView(
     status: string;
     slug?: string;
     basketnews_team_id?: string;
+    fantasy_league_id?: string;
   }>(leagueId, { requestKey: null });
   const settings = parseLeagueSettings(league.settings);
 
@@ -219,7 +222,7 @@ export async function getDraftView(
     pb.collection("picks").getFullList<
       PickRecord & {
         expand?: {
-          player?: { name?: string; club_code?: string; position: Position; basketnews_position?: Position };
+          player?: { name?: string; club_code?: string; position: Position; basketnews_position?: Position; fantasy_position?: Position };
         };
       }
     >({
@@ -260,7 +263,7 @@ export async function getDraftView(
     playerId: record.player,
     playerName: record.expand?.player?.name ?? "Unknown player",
     playerClub: record.expand?.player?.club_code ?? "",
-    position: record.expand?.player ? leaguePosition(record.expand.player, Boolean(league.basketnews_team_id)) : "G",
+    position: record.expand?.player ? leaguePosition(record.expand.player, leagueSource(league)) : "G",
     isAuto: Boolean(record.is_auto),
   }));
 
@@ -360,7 +363,7 @@ export async function getDraftView(
         const rankPir = rankPirFromRecord(player);
         return {
           id: player.id,
-          position: leaguePosition(player, Boolean(league.basketnews_team_id)),
+          position: leaguePosition(player, leagueSource(league)),
           ...(rankPir === undefined ? {} : { rankPir }),
         };
       }),
@@ -385,7 +388,7 @@ export async function getDraftView(
         id: player.id,
         name: player.name,
         club: player.club_code,
-        position: leaguePosition(player, Boolean(league.basketnews_team_id)),
+        position: leaguePosition(player, leagueSource(league)),
         rank: place.rank,
         tier: place.tier,
       });
@@ -395,6 +398,7 @@ export async function getDraftView(
   return {
     draft,
     sourceOwned: Boolean(league.basketnews_team_id),
+    source: leagueSource(league),
     picks,
     onClock: clock
       ? {
@@ -427,6 +431,7 @@ export async function getDraftView(
         league.commissioner === session.user.id || Boolean(you?.can_manage),
       rolled: Boolean(settings.rolled_at),
       sourceOwned: Boolean(league.basketnews_team_id),
+      source: leagueSource(league),
     },
     members: memberRecords.map((record) => ({
       id: record.id,
@@ -437,7 +442,7 @@ export async function getDraftView(
     })),
     yourNeeds: needsOf(rosterOf(youId), settings.roster_template),
     pool: players.map((player) =>
-      toPoolPlayer(player, heldBy.get(player.id), Boolean(league.basketnews_team_id)),
+      toPoolPlayer(player, heldBy.get(player.id), leagueSource(league)),
     ),
     availableCount: players.filter((player) => !heldBy.has(player.id)).length,
     radar: buildRadar(

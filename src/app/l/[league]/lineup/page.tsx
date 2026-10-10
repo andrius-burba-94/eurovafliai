@@ -19,6 +19,7 @@ import { formatTipOff } from "@/lib/time/local";
 
 import { LineupForm } from "./lineup-form";
 import { leagueHref } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 /**
  * Who started, who was captain, who sat — slice 9.3.
@@ -74,10 +75,10 @@ export default async function LineupPage({
   const teamNames = Object.fromEntries(
     data.members.map((row) => [row.id, row.teamName.trim() || row.name]),
   );
-  const panel = await readPanel({ leagueId: id, season, teamNames, round: asked ?? undefined, basketNews: Boolean(data.league.basketnews_team_id) });
+  const panel = await readPanel({ leagueId: id, season, teamNames, round: asked ?? undefined, source: leagueSource(data.league) });
   const round = asked ?? panel.schedule?.round ?? 1;
   const board = drafted
-    ? await readLineupBoard({ leagueId: id, memberId, season, round, basketNews: Boolean(data.league.basketnews_team_id) })
+    ? await readLineupBoard({ leagueId: id, memberId, season, round, source: leagueSource(data.league) })
     : null;
   const basketNews = Boolean(data.league.basketnews_team_id);
   // Comparison figures are EuroLeague projections, which a BasketNews league does not score by.

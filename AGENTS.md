@@ -40,7 +40,8 @@ src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door.
                   `rename.ts` (4.2) decides whether an arrival is a rename —
                   token containment, not a fuse threshold
 src/lib/mapping/  player mapping (4.2): queries + actions. A merge keeps the
-                  stored player's id so picks, sheets and box scores survive
+                  stored player's id so picks, sheets and box scores survive.
+                  `store.ts` is the one season-scoped read of unmatched codes
 src/lib/config/   validated env: schema.ts (pure) + public.ts + server.ts
 src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   verbatim with the worker; `actions.ts` is the request-facing
@@ -69,6 +70,9 @@ src/lib/nav/urls.ts  every league, team and player address (S28): /l/<league>,
 src/lib/slugs/    readable address segments: pure `slug.ts`, framework-free
                   `store.ts` (`ensureSlugs`, worker + `npm run slugs:backfill`)
 src/lib/panel/    the side panel's one read (11.2): pool, a round's games, news
+src/lib/advisor/  the free-agent scout (7.2): pure `outlook.ts` (a player's next
+                  5/10/15), `moves.ts` (moves worth making), `wire.ts`; `store.ts`
+                  writes `player_outlooks`; `read.ts` works moves out at read time
 src/lib/ai/       AI commentary (7.0, ADR-0012): pure `round-facts.ts` builds the
                   fact sheet, `tokens.ts` keeps names out, `guard.ts` refuses
                   uncited numbers; `gemini.ts` is the ONE model client.

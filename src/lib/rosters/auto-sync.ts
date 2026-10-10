@@ -35,10 +35,10 @@ import {
   newsWorthChasing,
   pendingCodes,
   pendingNewsNames,
-  type CodeBatch,
   type NewsItemRow,
   type PoolPlayerRow,
 } from "@/lib/mapping/queue";
+import { readCodeBatches } from "@/lib/mapping/store";
 import { matchPlayer } from "@/lib/news/items";
 import { attachSlug, readNewsPlayers } from "@/lib/news/store";
 import { ingestFinishedGames } from "@/lib/stats/ingest";
@@ -77,11 +77,6 @@ export function rosterSyncDue(input: {
   return { due: false };
 }
 
-async function readCodeBatches(pb: PocketBase): Promise<CodeBatch[]> {
-  const page = await pb.collection("stat_imports").getList<CodeBatch>(1, 20, { sort: "-created", requestKey: null });
-  return page.items;
-}
-
 async function readPool(pb: PocketBase): Promise<PoolPlayerRow[]> {
   return pb.collection("players").getFullList<PoolPlayerRow>({ fields: "id,name,name_normalized,club_code,person_code", requestKey: null });
 }
@@ -101,7 +96,7 @@ async function readUnattachedNews(pb: PocketBase): Promise<NewsItemRow[]> {
  */
 export async function readUnknownNames(pb: PocketBase, season: string, now: Date): Promise<string[]> {
   const [batches, pool, news, blocked] = await Promise.all([
-    readCodeBatches(pb),
+    readCodeBatches(pb, { season }),
     readPool(pb),
     readUnattachedNews(pb),
     pb.collection("fantasy_syncs").getFullList<{ league: string; created: string; questions?: unknown }>({
@@ -181,7 +176,7 @@ export async function syncRostersFromFeed(options: {
     return { ...NOTHING, skipped: "unchanged", problems };
   }
 
-  const waiting = codesWorthChasing(pendingCodes(await readCodeBatches(pb), await readPool(pb)), season);
+  const waiting = codesWorthChasing(pendingCodes(await readCodeBatches(pb, { season }), await readPool(pb)), season);
   const outcome = await runRosterImport({ pb, incoming: rows, source: "api", season, problems });
   const report = {
     ...NOTHING,

@@ -130,6 +130,18 @@ describe("pendingCodes", () => {
     expect(open[0].games).toEqual([1, 2, 3]);
   });
 
+  it("keeps the first season's games when a code is unmatched in two seasons", () => {
+    const open = pendingCodes(
+      [
+        codeBatch([{ personCode: "99", lines: [40] }], { id: "now" }),
+        codeBatch([{ personCode: "99", lines: [7, 300] }], { id: "backfill", season: "E2025" }),
+      ],
+      [],
+    );
+    // Game 7 of 2025 is not game 7 of 2026: re-importing it would fetch another night.
+    expect(open).toEqual([expect.objectContaining({ personCode: "99", season: "E2026", games: [40] })]);
+  });
+
   it("drops a code somebody has since attached", () => {
     const batches = [codeBatch([{ personCode: "99", lines: [1] }])];
 
@@ -167,11 +179,11 @@ describe("codesWorthChasing", () => {
 
 describe("queueSentence", () => {
   it("says nothing at all when nothing is standing", () => {
-    expect(queueSentence({ renames: 0, codes: 0, news: 0 })).toBeNull();
+    expect(queueSentence({ renames: 0, codes: 0, news: 0, positions: 0 })).toBeNull();
   });
 
   it("names the renames and what they cost", () => {
-    const sentence = queueSentence({ renames: 15, codes: 0, news: 0 });
+    const sentence = queueSentence({ renames: 15, codes: 0, news: 0, positions: 0 });
 
     expect(sentence).toContain("15 players");
     expect(sentence).toContain("re-registered");
@@ -180,21 +192,21 @@ describe("queueSentence", () => {
   });
 
   it("names the codes on their own", () => {
-    const sentence = queueSentence({ renames: 0, codes: 3, news: 0 });
+    const sentence = queueSentence({ renames: 0, codes: 3, news: 0, positions: 0 });
 
     expect(sentence).toContain("3 person codes");
     expect(sentence).not.toContain("re-registered");
   });
 
   it("carries both halves when both are standing", () => {
-    const sentence = queueSentence({ renames: 2, codes: 4, news: 0 });
+    const sentence = queueSentence({ renames: 2, codes: 4, news: 0, positions: 0 });
 
     expect(sentence).toContain("2 players");
     expect(sentence).toContain("4 person codes");
   });
 
   it("does not say '1 players'", () => {
-    const sentence = queueSentence({ renames: 1, codes: 1, news: 0 });
+    const sentence = queueSentence({ renames: 1, codes: 1, news: 0, positions: 0 });
 
     expect(sentence).toContain("One player in the pool");
     expect(sentence).toContain("One person code");
@@ -205,7 +217,7 @@ describe("queueSentence", () => {
     // An unmatched news name does not stop a box score attaching — it stops an
     // injury being shown. Claiming otherwise would teach the reader to
     // disbelieve the sentence.
-    const sentence = queueSentence({ renames: 0, codes: 0, news: 2 });
+    const sentence = queueSentence({ renames: 0, codes: 0, news: 2, positions: 0 });
 
     expect(sentence).toContain("2 names in recent injury news");
     expect(sentence).toContain("show up nowhere");
@@ -213,7 +225,7 @@ describe("queueSentence", () => {
   });
 
   it("names both costs when all three are standing", () => {
-    const sentence = queueSentence({ renames: 1, codes: 1, news: 1 });
+    const sentence = queueSentence({ renames: 1, codes: 1, news: 1, positions: 0 });
 
     expect(sentence).toContain("box scores cannot attach");
     expect(sentence).toContain("show up nowhere");
@@ -296,8 +308,18 @@ describe("newsWorthChasing", () => {
   });
 });
 
+describe("queueSentence with position questions (7.2 D)", () => {
+  it("names position questions and what they cost", () => {
+    expect(queueSentence({ renames: 0, codes: 0, news: 0, positions: 1 })).toBe(
+      "One position in a league's game is waiting for an answer. Until somebody answers them, a roster may count in the wrong positions.",
+    );
+    expect(queueSentence({ renames: 1, codes: 0, news: 0, positions: 2 })).toContain("2 positions in your leagues' games are waiting for an answer.");
+  });
+});
+
 describe("queueTotal", () => {
   it("adds all three, because each is a question only a person can answer", () => {
-    expect(queueTotal({ renames: 6, codes: 10, news: 3 })).toBe(19);
+    expect(queueTotal({ renames: 6, codes: 10, news: 3, positions: 0 })).toBe(19);
+    expect(queueTotal({ renames: 0, codes: 0, news: 0, positions: 2 })).toBe(2);
   });
 });

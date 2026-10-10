@@ -696,3 +696,62 @@ test("a plain member is not told about a queue they cannot answer", async ({
     await removeBatch(batch);
   }
 });
+
+/**
+ * 7.2 D — a position question is the league's managers' to answer. Planted
+ * rather than read from a game: the read is unit-tested against both games'
+ * captured pools, and this drives the page, the rule and the answer.
+ */
+test("a position question is answered by its league's commissioner, and seen by nobody else", async ({
+  page,
+  context,
+}) => {
+  const commissioner = await createTestUser("positioner");
+  const league = await createLeagueFor(commissioner, "Positions League");
+  const player = await createPlayer("Positioned", { position: "F", fantasy_position: "C" });
+  const pb = await superuser();
+  const question = await pb.collection("position_questions").create(
+    {
+      league: league.id, source: "fantasy", kind: "player", player: player.id,
+      stored_position: "C", read_position: "F", status: "open", open_key: `player:${league.id}:${player.id}`,
+    },
+    { requestKey: null },
+  );
+
+  // A plain member of the league has no way onto the page.
+  const member = await createTestUser("positionmember");
+  await addMemberTo(league.id, member, "Bench Warmers");
+  const memberContext = await context.browser()!.newContext();
+  await signIn(memberContext, member);
+  const memberPage = await memberContext.newPage();
+  await memberPage.goto("/players/mapping");
+  await expectNotFound(memberPage);
+  await memberContext.close();
+
+  // Another league's commissioner reaches the page, but not this question.
+  const stranger = await createTestUser("positionstranger");
+  await createLeagueFor(stranger, "Other Positions League");
+  const strangerContext = await context.browser()!.newContext();
+  await signIn(strangerContext, stranger);
+  const strangerPage = await strangerContext.newPage();
+  await strangerPage.goto("/players/mapping");
+  await expect(strangerPage.getByTestId("player-mapping")).toBeVisible();
+  await expect(strangerPage.getByTestId(`position-${question.id}`)).toHaveCount(0);
+  await strangerContext.close();
+
+  await signIn(context, commissioner);
+  await page.goto("/players/mapping");
+  const row = page.getByTestId(`position-${question.id}`);
+  await expect(row).toContainText("Positions League");
+  await expect(row).toContainText("now lists him as a forward; a center is stored");
+
+  await page.getByTestId(`position-use-${question.id}`).click();
+  await expect(page.getByTestId("mapping-done")).toContainText("Stored as a forward for the Fantasy Challenge");
+  await expect(row).toHaveCount(0);
+
+  const stored = await pb.collection("players").getOne(player.id, { requestKey: null });
+  expect(stored).toMatchObject({ fantasy_position: "F", fantasy_position_confirmed: true });
+  expect(await pb.collection("position_questions").getOne(question.id, { requestKey: null })).toMatchObject({
+    status: "answered", answer: "F", open_key: "",
+  });
+});
