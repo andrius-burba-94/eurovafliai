@@ -15,19 +15,27 @@ export async function runWriteupPass(
     readonly readScoutInput: (leagueId: string) => Promise<ScoutFactsInput | null>;
     readonly writeReasons?: Parameters<typeof runScoutPass>[0]["write"];
     readonly onScout?: (report: ScoutPassReport) => void;
+    readonly onScoutError?: (error: unknown) => void;
   },
 ): Promise<PassReport> {
-  const scout = await runScoutPass({
-    pb: deps.pb,
-    season: deps.season,
-    apiKey: deps.apiKey,
-    model: deps.model,
-    now: deps.now,
-    budget: CALLS_PER_PASS,
-    readComplete: deps.readComplete,
-    readInput: deps.readScoutInput,
-    ...(deps.writeReasons ? { write: deps.writeReasons } : {}),
-  });
+  // A scout fault is the scout's: the round write-ups still get their turn.
+  let scout: ScoutPassReport;
+  try {
+    scout = await runScoutPass({
+      pb: deps.pb,
+      season: deps.season,
+      apiKey: deps.apiKey,
+      model: deps.model,
+      now: deps.now,
+      budget: CALLS_PER_PASS,
+      readComplete: deps.readComplete,
+      readInput: deps.readScoutInput,
+      ...(deps.writeReasons ? { write: deps.writeReasons } : {}),
+    });
+  } catch (error) {
+    deps.onScoutError?.(error);
+    return runRoundPass(deps);
+  }
   deps.onScout?.(scout);
   if (scout.stopped) return { written: 0, refused: 0, guarded: 0, rewritten: 0, stopped: scout.stopped };
   return runRoundPass(deps, { budget: CALLS_PER_PASS - scout.calls });

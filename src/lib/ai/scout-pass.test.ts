@@ -160,6 +160,16 @@ describe("runScoutPass", () => {
     expect(pb.rows("ai_writeups").every((row) => row.status === "failed" && row.league === "L1")).toBe(true);
   });
 
+  it("tries a failed row again on the next pass, until the store's attempts run out", async () => {
+    let fail = true;
+    const { deps, calls, pb } = harness({ leagues: [league("L1")] }, { answer: (members) => (fail ? new GeminiQuota("429") : answerFor(members)) });
+    await runScoutPass(deps);
+    fail = false;
+    await runScoutPass(deps);
+    expect(calls).toHaveLength(2);
+    expect(pb.rows("ai_writeups").every((row) => row.status === "ready")).toBe(true);
+  });
+
   it("re-guards a day later and keeps reasons the fresh sheet still supports", async () => {
     const first = harness({ leagues: [league("L1")] });
     await runScoutPass(first.deps);

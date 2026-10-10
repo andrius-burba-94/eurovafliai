@@ -100,7 +100,13 @@ export async function runScoutPass(deps: ScoutPassDeps): Promise<ScoutPassReport
         due.push({ memberId, hash, rewrite: false });
         continue;
       }
-      if (row.input_hash === hash || row.status === "pending") continue;
+      if (row.status === "pending") continue;
+      // A failure is retried pass by pass; the claim stops at MAX_ATTEMPTS on one input.
+      if (row.status === "failed") {
+        due.push({ memberId, hash, rewrite: false });
+        continue;
+      }
+      if (row.input_hash === hash) continue;
       const checked = instant(row.last_guarded_at) || instant(row.generated_at) || 0;
       if (now - checked < DAILY_MS) continue;
       const reasons = storedReasons(row.output);

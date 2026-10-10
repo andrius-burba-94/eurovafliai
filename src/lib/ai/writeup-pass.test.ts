@@ -42,7 +42,7 @@ function facts(round: number): RoundFacts {
   };
 }
 
-function setup(leagues: string[]) {
+function setup(leagues: string[], { scoutBreaks = false } = {}) {
   const pb = fakePb({ data: { ai_writeups: [], stat_imports: [], leagues: leagues.map((id) => ({ id, status: "season", settings: {} })) } });
   const order: string[] = [];
   const pass = () =>
@@ -67,7 +67,10 @@ function setup(leagues: string[]) {
           latencyMs: 1,
         };
       },
-      readScoutInput: async () => ({ ruleset: "euroleague", members: [{ memberId: "m1", moves: [move] }], privateNames: [] }),
+      readScoutInput: async () => {
+        if (scoutBreaks) throw new Error("PocketBase went away");
+        return { ruleset: "euroleague", members: [{ memberId: "m1", moves: [move] }], privateNames: [] };
+      },
       writeReasons: async () => {
         order.push("scout");
         return {
@@ -94,5 +97,11 @@ describe("runWriteupPass", () => {
     expect(order).toEqual(["scout", "scout"]);
     await pass();
     expect(order).toEqual(["scout", "scout", "round 3", "round 3"]);
+  });
+
+  it("still writes the round when the scout's read breaks", async () => {
+    const { pass, order } = setup(["L1"], { scoutBreaks: true });
+    await pass();
+    expect(order).toEqual(["round 3"]);
   });
 });

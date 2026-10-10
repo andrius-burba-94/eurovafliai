@@ -693,7 +693,9 @@ function main(): void {
           scout.guarded ? `${scout.guarded} re-guarded` : "",
         ].filter(Boolean);
         if (parts.length > 0) log(`scout reasons · ${parts.join(", ")}`);
+        if (scout.stopped) log(`scout reasons stopped early: ${scout.stopped}`, "warn");
       },
+      onScoutError: (error) => log(`scout reasons failed: ${describeError(error)}`, "error"),
     });
   function aiRun(label: string, run: (deps: RoundPassDeps) => Promise<PassReport>): void {
     if (stopping || aiInFlight) return;

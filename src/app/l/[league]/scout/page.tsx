@@ -88,7 +88,7 @@ export default async function ScoutPage({ params }: PageProps<"/l/[league]/scout
                 rosterSize={scout.advice.rosterSize}
                 rosterFull={template.G + template.F + template.C}
                 reasons={reasons}
-                writeupsOn={writeupsOn}
+                promiseReasons={writeupsOn && Boolean(serverConfig().GEMINI_API_KEY) && stored?.status !== "failed"}
                 templateWords={positionSentence(template, "nothing", { keepZeros: true })}
                 gameName={gameName}
                 unit={unit}

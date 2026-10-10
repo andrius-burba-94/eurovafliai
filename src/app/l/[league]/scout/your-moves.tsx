@@ -18,7 +18,7 @@ function ConfidenceBars({ value }: { value: Confidence }) {
   );
 }
 
-function MoveCard({ move, unit, reason, writeupsOn }: { move: ScoutMove; unit: string; reason: string | undefined; writeupsOn: boolean }) {
+function MoveCard({ move, unit, reason, promiseReasons }: { move: ScoutMove; unit: string; reason: string | undefined; promiseReasons: boolean }) {
   const tone = move.confidence === "high" ? "text-ink" : move.confidence === "medium" ? "text-ink-soft" : "text-gold";
   const run = move.add.outlook?.runs[0] ?? null;
   return (
@@ -60,7 +60,7 @@ function MoveCard({ move, unit, reason, writeupsOn }: { move: ScoutMove; unit: s
         <p className="max-w-[65ch] text-sm text-ink" data-testid="scout-move-reason">
           {reason}
         </p>
-      ) : writeupsOn ? (
+      ) : promiseReasons ? (
         <p className="text-sm text-ink-faint" data-testid="scout-move-numbers-only">
           Numbers only for now. The reason is written when the round finishes.
         </p>
@@ -75,7 +75,7 @@ export function YourMoves({
   rosterSize,
   rosterFull,
   reasons,
-  writeupsOn,
+  promiseReasons,
   templateWords,
   gameName,
   unit,
@@ -87,7 +87,8 @@ export function YourMoves({
   rosterFull: number;
   /** `drop|add` → the reason in plain text, names put back. */
   reasons: Readonly<Record<string, string>>;
-  writeupsOn: boolean;
+  /** Say a reason is coming: write-ups on, a key on this box, and no refusal for this round. */
+  promiseReasons: boolean;
   templateWords: string;
   gameName: string;
   unit: string;
@@ -124,7 +125,7 @@ export function YourMoves({
               move={move}
               unit={unit}
               reason={reasons[pairKey(move.drop.id, move.add.id)]}
-              writeupsOn={writeupsOn}
+              promiseReasons={promiseReasons}
             />
           ))}
         </CardBlocks>

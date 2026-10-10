@@ -79,9 +79,11 @@ export async function readRoundWriteup({
 }
 
 /**
- * The viewer's own scout reasons from their latest written round — 7.2 G.
- * Read with their token: `ai_writeups`' rule confines a member's row to that
- * member, so nobody else's advice can come back. Null when there is none.
+ * The viewer's own scout reasons from their latest round — 7.2 G. Read with
+ * their token: `ai_writeups`' rule confines a member's row to that member, so
+ * nobody else's advice can come back. Only the latest round's row counts: an
+ * older round's reasons are not re-guarded, so they are never a fallback.
+ * Null when the member has no row at all.
  */
 export async function readScoutReasons({
   token,
@@ -93,16 +95,21 @@ export async function readScoutReasons({
   leagueId: string;
   season: string;
   memberId: string;
-}): Promise<{ readonly reasons: Readonly<Record<string, string>>; readonly refs: Readonly<Record<string, TokenRef>> } | null> {
+}): Promise<{
+  readonly status: "pending" | "ready" | "failed";
+  readonly reasons: Readonly<Record<string, string>>;
+  readonly refs: Readonly<Record<string, TokenRef>>;
+} | null> {
   if (![leagueId, memberId].every((id) => /^[A-Za-z0-9]+$/.test(id)) || !/^E\d{4}$/.test(season)) return null;
   const rows = await createUserClient(token)
     .collection("ai_writeups")
     .getList<WriteupRecord>(1, 1, {
-      filter: `league = '${leagueId}' && season = "${season}" && kind = 'scout_moves' && member = '${memberId}' && status = 'ready'`,
+      filter: `league = '${leagueId}' && season = "${season}" && kind = 'scout_moves' && member = '${memberId}'`,
       sort: "-round",
       requestKey: null,
     });
   const row = rows.items[0];
-  const reasons = row ? storedReasons(row.output) : null;
-  return row && reasons ? { reasons, refs: (row.refs ?? {}) as Record<string, TokenRef> } : null;
+  if (!row) return null;
+  const reasons = row.status === "ready" ? (storedReasons(row.output) ?? {}) : {};
+  return { status: row.status, reasons, refs: (row.refs ?? {}) as Record<string, TokenRef> };
 }
