@@ -18,6 +18,7 @@ import { navLeagueFrom } from "@/lib/nav/items";
 import { formatSignedTenths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
 import { leagueHref } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 /**
  * Trades (ADR-0011): who is winning the market, then every move on a round
@@ -39,7 +40,7 @@ export default async function TransactionsPage({ params, searchParams }: PagePro
   if ((!you && !canManage) || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
 
   const season = serverConfig().EUROLEAGUE_SEASON;
-  const { deals, players, ledger } = await readLeagueDeals(id, season, Boolean(data.league.basketnews_team_id));
+  const { deals, players, ledger } = await readLeagueDeals(id, season, leagueSource(data.league));
   const styles = stylesById(data.members);
   const name = (memberId: string) => {
     const member = data.members.find((row) => row.id === memberId);

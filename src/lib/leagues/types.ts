@@ -14,6 +14,8 @@ export type LeagueRecord = RecordModel & {
   status: "setup" | "drafting" | "season" | "complete";
   /** The official Fantasy Challenge league this one mirrors; empty when not synced. */
   fantasy_league_id?: string;
+  /** When the worker last read the linked game's whole pool (7.2 D); empty means never. */
+  positions_read_at?: string;
   basketnews_league_id?: string;
   basketnews_team_id?: string;
   /** Its address, /l/<slug>; empty until `ensureSlugs` reaches it (S28). */

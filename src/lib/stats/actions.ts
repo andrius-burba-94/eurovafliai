@@ -15,9 +15,8 @@ import {
   readExistingStats,
   readStatPlayers,
   recordStatBatch,
-  recomputeProjections,
 } from "./store";
-import { recomputeStandings } from "./standings-store";
+import { refreshSeasonCaches } from "./ingest";
 import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
@@ -216,8 +215,7 @@ export async function submitStatCsv(
   const result = await applyStatPlan(pb, plan, batch.id);
 
   if (result.created + result.updated > 0) {
-    await recomputeProjections(pb, season);
-    await recomputeStandings(pb, season);
+    await refreshSeasonCaches(pb, season, serverConfig().EUROLEAGUE_SEASON);
   }
 
   await markStatBatchApplied(

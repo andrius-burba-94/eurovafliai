@@ -74,10 +74,15 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // Partial unique `fantasy_id` while set — one pool row per official player.
   // Partial unique `slug` while set (S28) on players, leagues and, per
   // league, teams.
+  // Partial unique `basketnews_id` while set: one pool row per BasketNews player.
   players: [
     { fields: ["fantasy_id"], whereSet: "fantasy_id" },
+    { fields: ["basketnews_id"], whereSet: "basketnews_id" },
     { fields: ["slug"], whereSet: "slug" },
   ],
+  // Partial unique `open_key` while set (7.2 D): one open question per player
+  // or roster per league, even when two passes race.
+  position_questions: [{ fields: ["open_key"], whereSet: "open_key" }],
   leagues: [{ fields: ["slug"], whereSet: "slug" }],
   league_members: [{ fields: ["league", "slug"], whereSet: "slug" }],
   // `unique(league, season, round, kind, member)` — 7.0's write-ups. An

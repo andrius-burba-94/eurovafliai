@@ -51,6 +51,7 @@ export function SeasonDashboard({
   schedule,
   activity,
   writtenHeadline = null,
+  scout = null,
 }: {
   leagueId: string;
   paths: LeaguePaths;
@@ -71,6 +72,8 @@ export function SeasonDashboard({
   activity: ReactNode;
   /** 7.1: the last finished round's written headline, when it has one. */
   writtenHeadline?: string | null;
+  /** 7.2 F: the viewer's moves worth making, absent when there are none. */
+  scout?: { readonly count: number; readonly best: string } | null;
 }) {
   const latest = snapshots.at(-1) ?? null;
   const previous = snapshots.at(-2) ?? null;
@@ -481,6 +484,15 @@ export function SeasonDashboard({
                 action="Open"
               />
             )}
+            {scout && scout.count > 0 ? (
+              <Door
+                href={`${paths.base}/scout`}
+                testId="enter-scout"
+                title={`Scout: ${scout.count} ${scout.count === 1 ? "move" : "moves"} worth making`}
+                description={scout.best}
+                action="Open"
+              />
+            ) : null}
           </Slots>
         </Bank>
       </div>

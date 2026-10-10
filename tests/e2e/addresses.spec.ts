@@ -56,6 +56,10 @@ test("the pool and a player's page stay inside the league", async ({ page, conte
   if (await sidebar.isVisible()) {
     await expect(sidebar.getByTestId("nav-pool")).toHaveAttribute("href", `/l/${id}/players`);
     await expect(sidebar.getByTestId("nav-pool")).toHaveAttribute("aria-current", "page");
+    // The pool sits in the EuroLeague group (7.2), which is the one open here;
+    // the league's own group is still on the sidebar, a tap from League Home.
+    await expect(sidebar.getByTestId("nav-group-league")).toBeVisible();
+    await sidebar.getByTestId("nav-group-league").click();
     await expect(sidebar.getByTestId("nav-league-home")).toBeVisible();
   }
 

@@ -389,6 +389,11 @@ export async function attachStatCode(
     .split(",")
     .map((value) => Number(value.trim()))
     .filter((value) => Number.isInteger(value) && value > 0);
+  const currentSeason = serverConfig().EUROLEAGUE_SEASON;
+  // Game codes restart every season, so a backfilled season's code re-imports
+  // its own season's games, never this season's games of the same numbers.
+  const posted = String(formData.get("season") ?? "");
+  const season = /^E\d{4}$/.test(posted) ? posted : currentSeason;
 
   if (!playerId || !personCode) {
     return { error: "Pick a player and a code first." };
@@ -430,7 +435,8 @@ export async function attachStatCode(
     try {
       const report = await ingestFinishedGames({
         pb,
-        season: serverConfig().EUROLEAGUE_SEASON,
+        season,
+        currentSeason,
         onlyGames: games,
         maxGames: games.length,
       });

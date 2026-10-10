@@ -43,8 +43,8 @@ const BARE_TOKEN = /(?<![@#\p{L}\p{N}_])[TP]\d+(?![\p{L}\p{N}_])/u;
 const ARTICLE_BEFORE_TOKEN = /\b(a|an)\s+[@#][TP]\d+/i;
 const MARKDOWN = /\*\*|__|`|\[[^\]]*\]\(|^\s*([-*•]|#{1,6})\s/;
 const LINK = /https?:\/\/|www\./i;
-/** The voice rule the prompt states, checked: a bare "points" is ambiguous with PIR. */
-const BARE_POINTS = /(?<!fantasy\s)\bpoints?\b/i;
+/** The voice rule the prompt states, checked: a bare "points" is ambiguous with PIR. BasketNews's are Modern points. */
+const BARE_POINTS = /(?<!(?:fantasy|Modern)\s)\bpoints?\b/i;
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/u;
 
 /** `labels` name each entry in a violation ("headline", "stars"); "line N" by default. */

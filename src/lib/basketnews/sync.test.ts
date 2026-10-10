@@ -137,11 +137,11 @@ describe("BasketNews worker import", () => {
     const playersById = new Map(db.rows("players").map((row) => [row.id, row]));
     const mappedPosition = (id: string): Position => {
       const row = playersById.get(id)!;
-      return leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, true);
+      return leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, "basketnews");
     };
     for (const row of db.rows("players").filter((player) => player.basketnews_id)) {
       expect(mappedPosition(row.id)).toBe(sourcePositions.get(String(row.basketnews_id)));
-      expect(leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, false)).toBe("F");
+      expect(leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, "euroleague")).toBe("F");
     }
     for (const member of db.rows("league_members")) {
       const drafted = db.rows("picks").filter((pick) => pick.member === member.id).map((pick) => ({ position: mappedPosition(String(pick.player)) }));
@@ -300,5 +300,22 @@ describe("BasketNews worker import", () => {
     const snapshot = db.rows("standings_snapshots").find((row) => row.round === 4)!;
     expect(snapshotRowsFrom(snapshot.table).find((row) => row.memberId === memberOf(teamA!.id))?.roundHundredths)
       .toBe(Math.round(fixture.scores[`${teamA!.id}:2`]!.pointsGained * 100));
+  });
+});
+
+describe("BasketNews sync and stored positions (7.2 D)", () => {
+  it("adds a position where none is stored and never changes a stored one", async () => {
+    const data = leagueDb();
+    const valanciunas = playerPool.find((row) => normalizeName(row.name).includes("valanciunas"))!.id;
+    const vezenkov = playerPool.find((row) => normalizeName(row.name).includes("vezenkov"))!.id;
+    data.players = data.players!.map((row) => (row.id === valanciunas ? { ...row, basketnews_position: "F" } : row));
+    const db = fakePb({ data, uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+
+    const rows = new Map(db.rows("players").map((row) => [row.id, row]));
+    expect(rows.get(valanciunas)).toMatchObject({ basketnews_position: "F", basketnews_id: expect.stringMatching(/^[a-f0-9]{24}$/) });
+    expect(rows.get(vezenkov)!.basketnews_position).toBe("F");
+    expect(db.rows("players").filter((row) => row.basketnews_position === "C").length).toBeGreaterThan(20);
   });
 });

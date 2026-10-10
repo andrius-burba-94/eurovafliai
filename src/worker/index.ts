@@ -47,7 +47,11 @@ import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
 import { processBasketNewsJobs, queueBasketNewsLeagues } from "@/lib/basketnews/jobs";
+import { readBasketNewsPlayerPool, readBasketNewsTeamReference } from "@/lib/basketnews/client";
+import { fetchPlayerPool } from "@/lib/fantasy/client";
 import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
+import { readDuePositions, type PositionsReport } from "@/lib/source-positions/store";
+import { refreshOutlooks } from "@/lib/advisor/store";
 
 import { ingestNews, summariseNews } from "@/lib/news/ingest";
 import {
@@ -65,7 +69,9 @@ import { applyPreviousSeason } from "@/lib/stats/store";
 
 import { readCompleteRounds, readRoundFactsInput } from "@/lib/ai/round-facts-store";
 import { buildRoundFacts } from "@/lib/ai/round-facts";
-import { runRoundPass, writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
+import { writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
+import { readScoutFactsInput } from "@/lib/ai/scout-facts-store";
+import { runWriteupPass } from "@/lib/ai/writeup-pass";
 
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
@@ -131,6 +137,12 @@ const LIVE_FIRST_AFTER_MS = 95_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
 const BASKETNEWS_QUEUE_EVERY_MS = 15 * 60_000;
+/** 7.2 D: how often to ask which linked league's game is due a positions read (each is read daily). */
+const POSITIONS_EVERY_MS = 15 * 60_000;
+const POSITIONS_FIRST_AFTER_MS = 180_000;
+/** 7.2 E: outlooks, two minutes after the first stats pass and every quarter-hour after. */
+const SCOUT_EVERY_MS = 15 * 60_000;
+const SCOUT_FIRST_AFTER_MS = 120_000;
 /**
  * How often the roster scheduler asks whether a pass is due. The question is
  * a few local reads; the pass itself is 21 feed requests, and `rosterSyncDue`
@@ -669,6 +681,22 @@ function main(): void {
     if (parts.length > 0) log(`write-ups · ${label} · ${parts.join(", ")}`);
     if (report.stopped) log(`write-ups · ${label} stopped early: ${report.stopped}`, "warn");
   };
+  const scoutThenRounds = (deps: RoundPassDeps): Promise<PassReport> =>
+    runWriteupPass({
+      ...deps,
+      readScoutInput: (leagueId) => readScoutFactsInput(pb, { leagueId, season: deps.season }),
+      onScout: (scout) => {
+        const parts = [
+          scout.written ? `${scout.written} written` : "",
+          scout.rewritten ? `${scout.rewritten} rewritten` : "",
+          scout.refused ? `${scout.refused} refused by the guard` : "",
+          scout.guarded ? `${scout.guarded} re-guarded` : "",
+        ].filter(Boolean);
+        if (parts.length > 0) log(`scout reasons · ${parts.join(", ")}`);
+        if (scout.stopped) log(`scout reasons stopped early: ${scout.stopped}`, "warn");
+      },
+      onScoutError: (error) => log(`scout reasons failed: ${describeError(error)}`, "error"),
+    });
   function aiRun(label: string, run: (deps: RoundPassDeps) => Promise<PassReport>): void {
     if (stopping || aiInFlight) return;
     aiInFlight = (async () => {
@@ -690,13 +718,89 @@ function main(): void {
     }
     log(`write-ups on · ${env.GEMINI_MODEL} · every ${AI_EVERY_MS / 60_000}min, Rewrite checked every minute`);
     setTimeout(() => {
-      aiRun("pass", runRoundPass);
-      aiTimer = setInterval(() => aiRun("pass", runRoundPass), AI_EVERY_MS);
+      aiRun("pass", scoutThenRounds);
+      aiTimer = setInterval(() => aiRun("pass", scoutThenRounds), AI_EVERY_MS);
       aiRequestsTimer = setInterval(() => aiRun("rewrite", writeRequestedRounds), AI_REQUESTS_EVERY_MS);
     }, AI_FIRST_AFTER_MS).unref?.();
   }
 
+  /**
+   * 7.2 D: each linked league's game, read for its whole pool's positions on
+   * the first pass after the league is created or linked, then daily. Without
+   * a Fantasy Challenge token only BasketNews leagues are read; theirs is public.
+   */
+  let positionsInFlight: Promise<void> | null = null;
+  let positionsTimer: ReturnType<typeof setInterval> | null = null;
+  const positionsLine = (report: PositionsReport): string =>
+    report.error
+      ? `positions · league ${report.leagueId} · ${report.source} · read failed: ${report.error}`
+      : `positions · league ${report.leagueId} · ${report.source} · ${report.additions} added, ${report.links} linked, ${report.questions} new question(s), ${report.unlisted} unlisted, ${report.unmatched} unplaced, ${report.rosterQuestions} roster question(s) open`;
+  function schedulePositions(): void {
+    const token = env.FANTASY_CHALLENGE_TOKEN;
+    log(`positions reads on · daily per linked league${token ? "" : " · BasketNews only (no FANTASY_CHALLENGE_TOKEN)"}`);
+    const run = () => {
+      if (stopping || positionsInFlight) return;
+      positionsInFlight = (async () => {
+        try {
+          await ensureAuth(pb, env);
+          const reports = await readDuePositions({
+            pb,
+            now: new Date(),
+            readers: {
+              fantasy: token ? () => fetchPlayerPool(token) : null,
+              basketnews: async (teamId) => readBasketNewsPlayerPool((await readBasketNewsTeamReference(teamId)).leagueId),
+            },
+          });
+          for (const report of reports) log(positionsLine(report), report.error ? "warn" : "info");
+        } catch (error) {
+          log(`positions pass failed: ${describeError(error)}`, "error");
+          pb.authStore.clear();
+        }
+      })().finally(() => {
+        positionsInFlight = null;
+      });
+    };
+    setTimeout(() => {
+      run();
+      positionsTimer = setInterval(run, POSITIONS_EVERY_MS);
+    }, POSITIONS_FIRST_AFTER_MS).unref?.();
+  }
+
+  /**
+   * 7.2 E: every player's outlook, per ruleset a league in season plays. Its
+   * own guard, not the AI lock: it needs no key and calls no model, so a
+   * league without write-ups still gets its waiver wire. Local reads and
+   * changed-row writes only.
+   */
+  let scoutInFlight: Promise<void> | null = null;
+  let scoutTimer: ReturnType<typeof setInterval> | null = null;
+  function scheduleScout(): void {
+    const run = () => {
+      if (stopping || scoutInFlight) return;
+      scoutInFlight = (async () => {
+        try {
+          await ensureAuth(pb, env);
+          const report = await refreshOutlooks(pb, { season: env.EUROLEAGUE_SEASON, now: new Date() });
+          if (report.written + report.removed > 0) {
+            log(`outlooks · ${report.rulesets.join(", ")} · ${report.written} written, ${report.removed} removed, ${report.unchanged} unchanged`);
+          }
+        } catch (error) {
+          log(`outlooks pass failed: ${describeError(error)}`, "error");
+          pb.authStore.clear();
+        }
+      })().finally(() => {
+        scoutInFlight = null;
+      });
+    };
+    setTimeout(() => {
+      run();
+      scoutTimer = setInterval(run, SCOUT_EVERY_MS);
+    }, SCOUT_FIRST_AFTER_MS).unref?.();
+  }
+
   scheduleNews();
+  scheduleScout();
+  schedulePositions();
   scheduleWriteups();
   scheduleLive();
   scheduleFantasy();
@@ -775,6 +879,8 @@ function main(): void {
     if (slugsTimer) clearInterval(slugsTimer);
     if (aiTimer) clearInterval(aiTimer);
     if (aiRequestsTimer) clearInterval(aiRequestsTimer);
+    if (positionsTimer) clearInterval(positionsTimer);
+    if (scoutTimer) clearInterval(scoutTimer);
     log(`${signal} received, finishing the tick in flight`);
     // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
     // handful of local queries, so this returns immediately in practice — and

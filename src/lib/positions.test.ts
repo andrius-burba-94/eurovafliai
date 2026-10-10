@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { positionSentence } from "./positions";
+import { leaguePosition, leagueSource, positionSentence } from "./positions";
 
 /**
  * The one list-join in the app.
@@ -76,5 +76,26 @@ describe("keepZeros — when a nought is the point", () => {
     expect(
       positionSentence({ G: 0, C: 2 }, "nothing", { keepZeros: true }),
     ).toBe("0 guards and 2 centers");
+  });
+});
+
+describe("each league counts in its own game's positions (7.2 D)", () => {
+  const omoruyi = { position: "F" as const, basketnews_position: "C" as const, fantasy_position: "F" as const };
+
+  it("knows a league's game from its link", () => {
+    expect(leagueSource({ basketnews_team_id: "6ab2", fantasy_league_id: "" })).toBe("basketnews");
+    expect(leagueSource({ basketnews_team_id: "", fantasy_league_id: "147" })).toBe("fantasy");
+    expect(leagueSource({})).toBe("euroleague");
+  });
+
+  it("reads the league's game's position", () => {
+    expect(leaguePosition(omoruyi, "basketnews")).toBe("C");
+    expect(leaguePosition({ ...omoruyi, fantasy_position: "C" as const }, "fantasy")).toBe("C");
+    expect(leaguePosition({ ...omoruyi, basketnews_position: "C" as const }, "euroleague")).toBe("F");
+  });
+
+  it("falls back to the EuroLeague position where the game's is not stored yet", () => {
+    expect(leaguePosition({ position: "G", basketnews_position: null, fantasy_position: "" }, "basketnews")).toBe("G");
+    expect(leaguePosition({ position: "G" }, "fantasy")).toBe("G");
   });
 });

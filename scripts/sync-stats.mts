@@ -15,6 +15,9 @@
  * idempotent by unique index, so the worst two passes racing can do is have
  * one of them report rows the other created.
  *
+ * A season other than `EUROLEAGUE_SEASON` is stored and nothing else: no pool
+ * average and no standings table is rebuilt from it (7.2 B).
+ *
  * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
  * rather than importing `src/lib/pb/superuser` — that module pulls in
  * `server-only`, which throws outside a React Server Component graph
@@ -41,6 +44,9 @@ await pb
 console.log(
   `Importing ${season} box scores · up to ${max} game(s) a pass${keepGoing ? " · until nothing is outstanding" : ""}`,
 );
+if (season !== env.EUROLEAGUE_SEASON) {
+  console.log(`  ${env.EUROLEAGUE_SEASON} is the season being played: pool averages and standings stay as they are.`);
+}
 
 let passes = 0;
 let created = 0;
@@ -51,6 +57,7 @@ for (;;) {
   const report = await ingestFinishedGames({
     pb,
     season,
+    currentSeason: env.EUROLEAGUE_SEASON,
     maxGames: max,
     log: (message) => console.log(`  … ${message}`),
   });

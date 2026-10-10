@@ -47,16 +47,16 @@ describe("navFor", () => {
   });
 
   it("in setup, a member sees home and draft resources in their own section", () => {
-    expect(keysOf({ league: league(), isRosterManager: false }, "league")).toEqual(
-      ["league-home", "pool"],
-    );
+    expect(keysOf({ league: league(), isRosterManager: false }, "league")).toEqual(["league-home"]);
     expect(keysOf({ league: league(), isRosterManager: false }, "drafts")).toEqual(["sheet"]);
   });
 
-  it("keeps the pool inside a league, and in the EuroLeague group outside one", () => {
+  it("keeps the pool the league's own page inside a league, in the EuroLeague group either way", () => {
+    // Only the open group takes height; Scout made the season League group a
+    // row too tall for a 690px screen, so the pool waits in the EuroLeague one.
     const inside = navFor({ league: league(), isRosterManager: false });
-    expect(inside.find((group) => group.id === "league")!.items.find((item) => item.key === "pool")?.href).toBe("/l/L1/players");
-    expect(inside.find((group) => group.id === "global")!.items.map((item) => item.key)).not.toContain("pool");
+    expect(inside.find((group) => group.id === "league")!.items.map((item) => item.key)).not.toContain("pool");
+    expect(inside.find((group) => group.id === "global")!.items.find((item) => item.key === "pool")?.href).toBe("/l/L1/players");
     const outside = navFor({ isRosterManager: false });
     expect(outside.find((group) => group.id === "global")!.items.find((item) => item.key === "pool")?.href).toBe("/players");
   });
@@ -92,8 +92,8 @@ describe("navFor", () => {
       "standings",
       "recap",
       "trades",
+      "scout",
       "stats",
-      "pool",
     ]);
     // The sheet has done its job once the board is full, and export is a
     // download on the board rather than a destination.
@@ -152,7 +152,7 @@ describe("navFor", () => {
       },
       "league",
     );
-    expect(keys).toEqual(["league-home", "trades", "pool"]);
+    expect(keys).toEqual(["league-home", "trades"]);
     expect(keysOf({ league: league({ status: "season", youMemberId: null, isCommissioner: true, canManage: true }), isRosterManager: true }, "drafts")).toContain("draft");
   });
 });

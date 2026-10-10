@@ -37,6 +37,7 @@ import { teamSummary } from "@/lib/stats/team-summary";
 import { ImpactList } from "./impact-list";
 import { TeamSwitcher } from "./team-switcher";
 import { leagueHref, playerHref, teamHref } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 /**
  * A team's own page (S31): the team first, then its squad. The hero is the
@@ -84,10 +85,10 @@ export default async function TeamPage({
     ]),
   );
   const [roster, deals, panel, statsPage] = await Promise.all([
-    readMemberRoster(id, memberId, season, Boolean(data.league.basketnews_team_id)),
+    readMemberRoster(id, memberId, season, leagueSource(data.league)),
     readMemberDeals(id, memberId, season, teamNames, Boolean(data.league.basketnews_team_id)),
-    readPanel({ leagueId: id, season, teamNames, basketNews: Boolean(data.league.basketnews_team_id) }),
-    readLeagueStats(id, season, Boolean(data.league.basketnews_team_id)).catch(() => null),
+    readPanel({ leagueId: id, season, teamNames, source: leagueSource(data.league) }),
+    readLeagueStats(id, season, leagueSource(data.league)).catch(() => null),
   ]);
   const finishedSnapshots = statsPage?.snapshots ?? [];
   const progress =

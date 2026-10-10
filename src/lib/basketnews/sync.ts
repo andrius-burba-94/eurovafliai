@@ -6,11 +6,11 @@ import { normalizeName } from "@/lib/rosters/normalize";
 import type { Position } from "@/lib/engine";
 
 import {
-  BasketNewsSessionExpired,
+  BasketNewsSessionExpired, basketNewsPlayer,
   readBasketNewsLeague, readBasketNewsLeagueLineups, readBasketNewsLineup, readBasketNewsScore,
   readBasketNewsTeamReference, readBasketNewsTeams,
   type BasketNewsLeague, type BasketNewsLineup, type BasketNewsScore,
-  type BasketNewsTeam,
+  type BasketNewsTeam, type BasketNewsSourcePlayer as SourcePlayer,
 } from "./client";
 
 /** The business flow knows persistence operations, never PocketBase or its query syntax. */
@@ -62,21 +62,6 @@ export const basketNewsSource: BasketNewsSource = {
   leagueLineups: readBasketNewsLeagueLineups,
 };
 
-type SourcePlayer = BasketNewsLeague["draft"]["picks"][number]["player"];
-
-function fantasyPlayer(player: SourcePlayer): FantasyPlayer {
-  const position = player.team?.positions[0];
-  const mapped = position === "guard" ? "G" : position === "forward" ? "F" : position === "center" ? "C" : null;
-  if (!mapped) throw new Error(`BasketNews has no known position for ${player.firstName} ${player.lastName}.`);
-  return {
-    id: player.id,
-    firstName: [player.firstName, player.middleName].filter(Boolean).join(" "),
-    lastName: player.lastName,
-    jersey: player.team?.number == null ? "" : String(player.team.number),
-    position: mapped,
-    club: { id: player.team?.team.id ?? "", name: player.team?.team.translation.name ?? "" },
-  };
-}
 
 function slotsFor(lineup: BasketNewsLineup, ids: ReadonlyMap<string, string>): LineupSlots {
   const get = (sourceId: string) => {
@@ -184,7 +169,7 @@ export async function syncBasketNews(
   const sourcePlayers = new Map<string, SourcePlayer>();
   for (const pick of picks) {
     sourcePlayers.set(pick.playerId, pick.player);
-    byTeam.set(pick.fantasyTeamId, [...(byTeam.get(pick.fantasyTeamId) ?? []), fantasyPlayer(pick.player)]);
+    byTeam.set(pick.fantasyTeamId, [...(byTeam.get(pick.fantasyTeamId) ?? []), basketNewsPlayer(pick.player)]);
   }
   for (const round of rounds) for (const lineup of round.lineups) for (const entry of lineup.players) {
     if (entry.player.team) sourcePlayers.set(entry.playerId, entry.player);
@@ -197,13 +182,16 @@ export async function syncBasketNews(
   const questions: SyncQuestion[] = [];
   for (const [sourceId, sourcePlayer] of sourcePlayers) {
     const existing = local.pool.find((player) => player.basketnewsId === sourceId);
-    const player = fantasyPlayer(sourcePlayer);
+    const player = basketNewsPlayer(sourcePlayer);
     const match = existing ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool);
     if (match) {
       mapped.set(sourceId, match.id);
-      if (!existing || existing.basketnewsPosition !== player.position) links.push({
+      // Positions are only ever added here: a stored one the game now reports
+      // differently is a question the daily positions read asks (7.2 D).
+      const storedPosition = (existing ?? local.pool.find((row) => row.id === match.id))?.basketnewsPosition;
+      if (!existing || !storedPosition) links.push({
         playerId: match.id, sourceId, position: player.position,
-        updateId: !existing, updatePosition: existing?.basketnewsPosition !== player.position,
+        updateId: !existing, updatePosition: !storedPosition,
       });
       continue;
     }

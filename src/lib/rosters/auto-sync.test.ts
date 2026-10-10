@@ -139,4 +139,25 @@ describe("readUnknownNames", () => {
     });
     expect((await readUnknownNames(client, "E2026", NOW)).sort()).toEqual(["code:014213", "news:cameron-payne", "player:8815"]);
   });
+
+  it("keeps this season's code when a backfill of last season imported after it", async () => {
+    const backfill = Array.from({ length: 35 }, (_, index) => ({
+      id: `old${index}`,
+      season: "E2025",
+      created: `2026-10-09 10:${String(index).padStart(2, "0")}:00.000Z`,
+      plan: { unmatched: [{ personCode: `9${index}`, lines: [index] }] },
+    }));
+    const { client } = fakePb({
+      data: {
+        players: [],
+        stat_imports: [
+          { id: "b1", season: "E2026", created: "2026-10-08 19:00:00.000Z", plan: { unmatched: [{ personCode: "014213", lines: [44] }] } },
+          ...backfill,
+        ],
+        player_news: [],
+        fantasy_syncs: [],
+      },
+    });
+    expect(await readUnknownNames(client, "E2026", NOW)).toEqual(["code:014213"]);
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { previousSeasonOf } from "./seasons";
+import { isPastSeason, previousSeasonOf } from "./seasons";
 
 describe("previousSeasonOf", () => {
   it("steps back one year, keeping the prefix", () => {
@@ -25,5 +25,19 @@ describe("previousSeasonOf", () => {
     expect(previousSeasonOf("E26")).toBeNull();
     expect(previousSeasonOf("EuroLeague")).toBeNull();
     expect(previousSeasonOf("E2026-27")).toBeNull();
+  });
+});
+
+describe("isPastSeason", () => {
+  it("is true only for a season before the one being played", () => {
+    expect(isPastSeason("E2025", "E2026")).toBe(true);
+    expect(isPastSeason("E2026", "E2026")).toBe(false);
+    // The E2E sandbox season sits after the real one and stays rebuildable.
+    expect(isPastSeason("E2099", "E2026")).toBe(false);
+  });
+
+  it("treats a code it cannot read as not past, so it is never silently skipped", () => {
+    expect(isPastSeason("", "E2026")).toBe(false);
+    expect(isPastSeason("E2025", "nonsense")).toBe(false);
   });
 });

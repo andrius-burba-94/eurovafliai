@@ -2,6 +2,7 @@ import "server-only";
 
 import { serverConfig } from "@/lib/config/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
+import { countPositionQuestions } from "@/lib/source-positions/queries";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { rankCandidates } from "@/lib/rosters/rename";
 import {
@@ -11,7 +12,6 @@ import {
   pendingCodes,
   pendingNewsNames,
   pendingRenames,
-  type CodeBatch,
   type MappingQueue,
   type NewsItemRow,
   type PendingCode,
@@ -21,6 +21,7 @@ import {
   type UnmatchedCode,
   type UnmatchedNewsName,
 } from "./queue";
+import { readCodeBatches } from "./store";
 
 /**
  * What the mapping page needs to render — slice 4.2.
@@ -129,10 +130,16 @@ export async function readLastRosterChange(): Promise<LastRosterChange | null> {
 export async function readUnmatchedCodes(limit = 20): Promise<UnmatchedCode[]> {
   const pb = await getSuperuserClient();
 
-  const [batches, players] = await Promise.all([
-    readCodeBatches(pb, limit),
+  const season = serverConfig().EUROLEAGUE_SEASON;
+  // This season's window first, then whatever else is recent: the page lists
+  // every season, but a backfilled one must not crowd out the season the
+  // doorbell rings for.
+  const [current, recent, players] = await Promise.all([
+    readCodeBatches(pb, { season, limit }),
+    readCodeBatches(pb, { limit }),
     pb.collection("players").getFullList<PoolPlayerRow>({ requestKey: null }),
   ]);
+  const batches = [...current, ...recent.filter((batch) => batch.season !== season)];
 
   return pendingCodes(batches, players).map((entry) => ({
     ...entry,
@@ -200,24 +207,26 @@ export async function readUnmatchedNews(): Promise<UnmatchedNews[]> {
  * else fall back to `EMPTY_QUEUE`, the way the lobby already does with chat: a
  * doorbell is not worth a surface.
  */
-export async function countMappingQueue(limit = 20): Promise<MappingQueue> {
+export async function countMappingQueue(userId: string, limit = 20): Promise<MappingQueue> {
   const pb = await getSuperuserClient();
   const season = serverConfig().EUROLEAGUE_SEASON;
 
-  const [checkBatches, codeBatches, players, news] = await Promise.all([
+  const [checkBatches, codeBatches, players, news, positions] = await Promise.all([
     readCheckBatches(pb),
-    readCodeBatches(pb, limit),
+    readCodeBatches(pb, { season, limit }),
     pb.collection("players").getFullList<PoolPlayerRow>({ requestKey: null }),
     pb.collection("player_news").getFullList<NewsItemRow>({
       fields: "id,slug,name,club_name,headline,published,player,url",
       requestKey: null,
     }),
+    countPositionQuestions(userId),
   ]);
 
   return {
     renames: pendingRenames(newestCheckBatch(checkBatches), players).length,
     codes: codesWorthChasing(pendingCodes(codeBatches, players), season).length,
     news: newsWorthChasing(pendingNewsNames(news), new Date()).length,
+    positions,
   };
 }
 
@@ -233,16 +242,6 @@ async function readCheckBatches(pb: PbClient): Promise<RenameBatch[]> {
   const batches = await pb
     .collection("roster_imports")
     .getList<RenameBatch>(1, 10, { sort: "-created", requestKey: null });
-  return batches.items;
-}
-
-async function readCodeBatches(
-  pb: PbClient,
-  limit: number,
-): Promise<CodeBatch[]> {
-  const batches = await pb
-    .collection("stat_imports")
-    .getList<CodeBatch>(1, limit, { sort: "-created", requestKey: null });
   return batches.items;
 }
 

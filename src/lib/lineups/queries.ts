@@ -2,7 +2,7 @@ import "server-only";
 
 import { getSession } from "@/lib/auth/session";
 import type { Position } from "@/lib/engine";
-import { leaguePosition } from "@/lib/positions";
+import { leaguePosition, type LeagueSource } from "@/lib/positions";
 import { readRoundFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { coversRound } from "@/lib/memberships/from";
@@ -46,6 +46,7 @@ type MembershipRow = {
       person_code?: string;
       position: Position;
       basketnews_position?: Position;
+      fantasy_position?: Position;
       proj_last5_fantasy?: number;
       proj_last5_games?: number;
       prev_season_fantasy?: number;
@@ -112,8 +113,9 @@ export async function readLineupBoard(input: {
   readonly memberId: string;
   readonly season: string;
   readonly round: number;
-  readonly basketNews?: boolean;
+  readonly source?: LeagueSource;
 }): Promise<LineupBoard | null> {
+  const basketNews = input.source === "basketnews";
   const session = await getSession();
   if (!session) return null;
 
@@ -141,13 +143,13 @@ export async function readLineupBoard(input: {
       clubCode: player.club_code,
       clubName: player.club_name,
       personCode: player.person_code,
-      position: leaguePosition(player, Boolean(input.basketNews)),
-      estimateTenths: input.basketNews ? null : (player.proj_last5_games ?? 0) > 0
+      position: leaguePosition(player, input.source ?? "euroleague"),
+      estimateTenths: basketNews ? null : (player.proj_last5_games ?? 0) > 0
         ? (player.proj_last5_fantasy ?? 0)
         : (player.prev_season_games ?? 0) > 0
           ? (player.prev_season_fantasy ?? 0)
           : null,
-      estimateSource: input.basketNews ? null : (player.proj_last5_games ?? 0) > 0
+      estimateSource: basketNews ? null : (player.proj_last5_games ?? 0) > 0
         ? "last five"
         : (player.prev_season_games ?? 0) > 0
           ? "previous season"

@@ -11,7 +11,6 @@ import {
 import { coversRound } from "@/lib/memberships/from";
 import { groupTransactionHistory, type HistoryRow } from "@/lib/memberships/history";
 import { displayName, surname } from "@/lib/players/name";
-import { leaguePosition } from "@/lib/positions";
 import { memberHonours } from "@/lib/season/badges";
 import { movementOf, ordinal } from "@/lib/season/story";
 import { impactForMember, type ImpactLine, type ImpactTransaction } from "@/lib/stats/impact";
@@ -100,8 +99,8 @@ export type FactsPlayer = {
   readonly id: string;
   /** The stored name: used only to list what the prose must not spell out. */
   readonly name: string;
+  /** His position in the league's own game (7.2 D), resolved by the reader. */
   readonly position: Position;
-  readonly basketnewsPosition?: Position | null;
   readonly clubCode: string;
   /** Availability **now** (`injured`, `doubtful`, ...): never applied to a past round. */
   readonly status: string;
@@ -709,7 +708,7 @@ function playerLine(
   P: (playerId: string) => string,
 ): string {
   const parts: string[] = [P(entry.playerId)];
-  if (player) parts.push(leaguePosition({ position: player.position, basketnews_position: player.basketnewsPosition ?? null }, basketNews));
+  if (player) parts.push(player.position);
   const game = entry.games[0];
   const club = game?.clubCode ?? player?.clubCode ?? "";
   if (club) parts.push(club);

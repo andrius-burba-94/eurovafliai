@@ -10,6 +10,7 @@
  * app.
  */
 import type { LeagueWithMembers } from "@/lib/leagues/types";
+import { leagueSource, type LeagueSource } from "@/lib/positions";
 import { leagueHref, teamHref } from "@/lib/nav/urls";
 
 export type NavKey =
@@ -28,6 +29,7 @@ export type NavKey =
   | "standings"
   | "recap"
   | "trades"
+  | "scout"
   | "stats"
   | "sheet"
   | "export"
@@ -48,6 +50,7 @@ export type NavIconName =
   | "standings"
   | "recap"
   | "trades"
+  | "scout"
   | "stats"
   | "sheet"
   | "export"
@@ -90,6 +93,8 @@ export type NavLeague = {
   /** The order has been drawn, so `/order` has a ceremony to show. */
   readonly rolled: boolean;
   readonly sourceOwned?: boolean;
+  /** Whose positions the league counts in. */
+  readonly source?: LeagueSource;
 };
 
 /** The nav's view of a league, from what every league page already reads. */
@@ -106,6 +111,7 @@ export function navLeagueFrom(data: LeagueWithMembers): NavLeague {
     canManage: data.isCommissioner || Boolean(you?.canManage),
     rolled: Boolean(data.settings.rolled_at),
     sourceOwned: Boolean(data.league.basketnews_team_id),
+    source: leagueSource(data.league),
   };
 }
 
@@ -143,6 +149,7 @@ function leagueItems(league: NavLeague): NavItem[] {
       },
       { key: "recap", href: `${base}/recap`, label: "Recap", icon: "recap" },
       { key: "trades", href: `${base}/transactions`, label: "Trades", icon: "trades" },
+      { key: "scout", href: `${base}/scout`, label: "Scout", icon: "scout" },
       { key: "stats", href: `${base}/stats`, label: "Stats", icon: "stats" },
     );
   }
@@ -151,11 +158,17 @@ function leagueItems(league: NavLeague): NavItem[] {
     items.push({ key: "trades", href: `${base}/transactions`, label: "Trades", icon: "trades" });
   }
 
-  // Inside a league the pool is one of its pages, so opening it, or a player
-  // from it, never drops the league from the sidebar.
-  items.push({ key: "pool", href: `${base}/players`, label: "Player Pool", icon: "pool" });
-
   return items;
+}
+
+/**
+ * Inside a league the pool is still one of its pages, so opening it, or a
+ * player from it, keeps the league's address. It sits in the EuroLeague group
+ * (7.2): only the open group takes height, and Scout made the season League
+ * group one row too tall for a 690px screen.
+ */
+function leaguePoolItem(league: NavLeague): NavItem {
+  return { key: "pool", href: `${leagueHref(league)}/players`, label: "Player Pool", icon: "pool" };
 }
 
 function draftItems(league: NavLeague): NavItem[] {
@@ -228,7 +241,12 @@ export function navFor({ league, isRosterManager, mappingWaiting = 0 }: NavInput
   groups.push({
     id: "global",
     label: "EuroLeague",
-    items: [...(league ? GLOBAL_ITEMS.filter((item) => item.key !== "pool") : GLOBAL_ITEMS), ...manage],
+    items: [
+      ...(league
+        ? GLOBAL_ITEMS.flatMap((item) => (item.key === "pool" ? [leaguePoolItem(league)] : [item]))
+        : GLOBAL_ITEMS),
+      ...manage,
+    ],
   });
   return groups;
 }

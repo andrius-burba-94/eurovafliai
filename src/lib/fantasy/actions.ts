@@ -74,7 +74,8 @@ export async function linkFantasyLeague(
     }
   }
 
-  await managed.pb.collection("leagues").update(leagueId, { fantasy_league_id: fantasyLeagueId }, { requestKey: null });
+  // A new link is read for its game's positions on the worker's next pass (7.2 D).
+  await managed.pb.collection("leagues").update(leagueId, { fantasy_league_id: fantasyLeagueId, positions_read_at: "" }, { requestKey: null });
   revalidateLeague();
   return { error: null, done: fantasyLeagueId ? `Linked to official league ${fantasyLeagueId}.` : "Unlinked." };
 }
