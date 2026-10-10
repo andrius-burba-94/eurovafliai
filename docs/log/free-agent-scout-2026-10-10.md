@@ -187,3 +187,33 @@ were Kabengele at 26.7 and Vezenkov at 26.2.
 the Player Pool now sits in the EuroLeague group, at the maintainer's choice.
 It is still the league's own pool page. Only the open group takes height, so
 on the pool page the League group is folded, a tap away.
+
+## 7.2 F Moves worth making (#196)
+
+Moves are worked out at read time from stored outlooks and the current
+transaction board. There is no stored "moves" row to go stale: a free agent
+somebody signs leaves the wire and every member's moves on the next page
+load. `scoutFor` only ever reads the viewer's own seats, so no other member's
+advice is computed in their request at all, which is a stronger guarantee
+than filtering it out afterwards.
+
+A pair is legal when the roster still counts its template in the league's
+own positions. For a full roster that means like for like, and the reader
+passes each player's position in the league's game, so the Omoruyi case is
+decided before the advisor sees it. The bar is +3.0 fantasy points a game, or
++3.4 Modern points in BasketNews (7.2 A). A move exactly at the bar is shown;
+one a hundredth under is not.
+
+On a phone the gain leads each card and the names get the full width. The
+first build put the gain beside the names, and on a 390px screen that broke
+names letter by letter. League Home's line is a door beside the round's
+recap, because the advice is about acting between rounds, and that panel is
+where the round is.
+
+Review found that a short roster (a drop not yet replaced) was told a
+position question was coming. D raises one only for a full roster, so a short
+roster now says it has a hole. The same review fixed three outlook gaps:
+- A game marked played whose box score was not stored yet counted as zero
+  PIR conceded.
+- A postponed game still counted as upcoming.
+- Stale rows were never removed.
