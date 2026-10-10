@@ -23,6 +23,7 @@ disagrees with STATUS.md, STATUS.md is right and the line is history.
 | [trades-and-rosters-2026-10-08.md](trades-and-rosters-2026-10-08.md) | Trade impact player against player in both rulesets, the trades timeline, automatic roster sync and the commissioner page clean-up |
 | [ai-groundwork-2026-10-09.md](ai-groundwork-2026-10-09.md) | 7.0: why the model only narrates, tokens instead of names, the key and the tier, the starting-five capture and the backfill's same-line guard |
 | [ai-round-written-2026-10-09.md](ai-round-written-2026-10-09.md) | 7.1: re-guard instead of rewrite-on-hash, no chat post, the settings page, the three previews, and what the live runs found |
+| [free-agent-scout-2026-10-10.md](free-agent-scout-2026-10-10.md) | 7.2, slice by slice: last season's games loaded without touching this season's pool, standings or doorbell, and the production steps |
 
 Append to these when a slice's narrative would otherwise go into STATUS.md.
 The rule for what goes where: a **table row, a Next-up line, an open debt

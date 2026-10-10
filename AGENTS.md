@@ -40,7 +40,8 @@ src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door.
                   `rename.ts` (4.2) decides whether an arrival is a rename —
                   token containment, not a fuse threshold
 src/lib/mapping/  player mapping (4.2): queries + actions. A merge keeps the
-                  stored player's id so picks, sheets and box scores survive
+                  stored player's id so picks, sheets and box scores survive.
+                  `store.ts` is the one season-scoped read of unmatched codes
 src/lib/config/   validated env: schema.ts (pure) + public.ts + server.ts
 src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   verbatim with the worker; `actions.ts` is the request-facing
