@@ -4,7 +4,7 @@ import { createUserClient } from "@/lib/pb/server";
 import { getSession } from "@/lib/auth/session";
 import { memberListQuery, toMember } from "./lobby";
 import { reconcileLeagueStatus } from "@/lib/drafts/repair";
-import { leaguePosition } from "@/lib/positions";
+import { leaguePosition, leagueSource, type LeagueSource } from "@/lib/positions";
 
 import { ensureCommissionerMembership } from "./repair";
 import { parseLeagueSettings, type RosterTemplate } from "./settings";
@@ -21,13 +21,13 @@ const emptyPositionCounts = (): PositionCounts => ({ G: 0, F: 0, C: 0 });
 
 function countPositions(
   rows: {
-    expand?: { player?: { position: "G" | "F" | "C"; basketnews_position?: "G" | "F" | "C" } };
+    expand?: { player?: { position: "G" | "F" | "C"; basketnews_position?: "G" | "F" | "C"; fantasy_position?: "G" | "F" | "C" } };
   }[],
-  basketNews = false,
+  source: LeagueSource,
 ): PositionCounts {
   const counts = emptyPositionCounts();
   for (const row of rows) {
-    const position = row.expand?.player && leaguePosition(row.expand.player, basketNews);
+    const position = row.expand?.player && leaguePosition(row.expand.player, source);
     if (position) counts[position] += 1;
   }
   return counts;
@@ -80,16 +80,16 @@ export async function listMyLeagues(): Promise<LeagueCard[]> {
 
         if (league.status === "drafting") {
           const picks = await pb.collection("picks").getFullList<{
-            expand?: { player?: { position: "G" | "F" | "C"; basketnews_position?: "G" | "F" | "C" } };
+            expand?: { player?: { position: "G" | "F" | "C"; basketnews_position?: "G" | "F" | "C"; fantasy_position?: "G" | "F" | "C" } };
           }>({
             filter: `member = '${member.id}'`,
             expand: "player",
-            fields: "expand.player.position,expand.player.basketnews_position",
+            fields: "expand.player.position,expand.player.basketnews_position,expand.player.fantasy_position",
             requestKey: null,
           });
           return {
             ...league,
-            positionCounts: countPositions(picks, Boolean(league.basketnews_team_id)),
+            positionCounts: countPositions(picks, leagueSource(league)),
             rosterTemplate,
           };
         }
@@ -99,17 +99,17 @@ export async function listMyLeagues(): Promise<LeagueCard[]> {
           .getFullList<{
             to_round?: number | null;
             to_date?: string | null;
-            expand?: { player?: { position: "G" | "F" | "C"; basketnews_position?: "G" | "F" | "C" } };
+            expand?: { player?: { position: "G" | "F" | "C"; basketnews_position?: "G" | "F" | "C"; fantasy_position?: "G" | "F" | "C" } };
           }>({
             filter: `league = '${league.id}' && member = '${member.id}'`,
             expand: "player",
-            fields: "to_round,to_date,expand.player.position,expand.player.basketnews_position",
+            fields: "to_round,to_date,expand.player.position,expand.player.basketnews_position,expand.player.fantasy_position",
             requestKey: null,
           });
         return {
           ...league,
           positionCounts: countPositions(
-            memberships.filter((row) => !row.to_round && !row.to_date), Boolean(league.basketnews_team_id),
+            memberships.filter((row) => !row.to_round && !row.to_date), leagueSource(league),
           ),
           rosterTemplate,
         };

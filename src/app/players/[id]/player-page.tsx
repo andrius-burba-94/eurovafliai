@@ -20,6 +20,7 @@ import { formatTenths } from "@/lib/stats/scoring";
 import { readPlayerProfile } from "@/lib/stats/queries";
 import { playerHref, teamHref } from "@/lib/nav/urls";
 import { resolvePlayerId } from "@/lib/players/queries";
+import { leagueSource } from "@/lib/positions";
 
 /**
  * One figure and its name, as a definition pair.
@@ -80,7 +81,7 @@ export async function PlayerProfilePage({
   if (!id) notFound();
   const leagueData = leagueRef ? await getLeagueWithMembers(leagueRef) : null;
   const [profile, news] = await Promise.all([
-    readPlayerProfile(id, { basketNews: Boolean(leagueData?.league.basketnews_team_id) }),
+    readPlayerProfile(id, { source: leagueData ? leagueSource(leagueData.league) : "euroleague" }),
     readNewsFor(id),
   ]);
   if (!profile || (leagueRef && !leagueData)) notFound();

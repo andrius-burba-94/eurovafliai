@@ -11,13 +11,14 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 import type { Position } from "@/lib/engine";
-import { leaguePosition } from "@/lib/positions";
+import { leaguePosition, leagueSource, type LeagueSource } from "@/lib/positions";
 import { readNextFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { createUserClient } from "@/lib/pb/server";
 import { impactForMember, type ImpactTransaction } from "@/lib/stats/impact";
 import { readLeaguePlayerRounds } from "@/lib/stats/player-rounds";
 import { last5SeriesOf } from "@/lib/stats/project";
+import { signableIn } from "@/lib/source-positions/plan";
 
 import { groupTransactionHistory } from "./history";
 import type { Seat } from "./plan";
@@ -32,6 +33,7 @@ type ExpandedPlayer = {
   person_code?: string;
   position: Position;
   basketnews_position?: Position;
+  fantasy_position?: Position;
   status?: string;
   proj_last5_games?: number;
   proj_last5_pirs?: unknown;
@@ -86,8 +88,9 @@ export async function readMemberRoster(
   leagueId: string,
   memberId: string,
   season: string,
-  basketNews = false,
+  source: LeagueSource = "euroleague",
 ): Promise<RosterPlayer[]> {
+  const basketNews = source === "basketnews";
   const session = await getSession();
   if (!session) return [];
 
@@ -137,7 +140,7 @@ export async function readMemberRoster(
         clubCode: player.club_code,
         clubName: player.club_name,
         personCode: player.person_code,
-        position: leaguePosition(player, basketNews),
+        position: leaguePosition(player, source),
         overallNo: overallByPlayer.get(player.id) ?? null,
         last5Pirs: last5SeriesOf(player),
         fixture: fixtures.get(player.club_code) ?? null,
@@ -169,6 +172,10 @@ type PoolRow = {
   club_code: string;
   club_name: string;
   position: Position;
+  basketnews_position?: Position;
+  fantasy_position?: Position;
+  basketnews_listed?: boolean;
+  fantasy_listed?: boolean;
   status: string;
 };
 
@@ -183,14 +190,19 @@ export async function readTransactionBoard(leagueId: string): Promise<{
   if (!session) return null;
 
   const pb = createUserClient(session.token);
-  const [memberships, pool] = await Promise.all([
+  const [league, memberships, pool] = await Promise.all([
+    pb.collection("leagues").getOne<{ basketnews_team_id?: string; fantasy_league_id?: string }>(leagueId, {
+      fields: "basketnews_team_id,fantasy_league_id",
+      requestKey: null,
+    }),
     listActiveMemberships<MembershipRow>(pb, leagueId, { expand: "player" }),
     pb.collection("players").getFullList<PoolRow>({
       filter: "status != 'left'",
-      fields: "id,name,name_normalized,club_code,club_name,position,status",
+      fields: "id,name,name_normalized,club_code,club_name,position,basketnews_position,fantasy_position,basketnews_listed,fantasy_listed,status",
       requestKey: null,
     }),
   ]);
+  const source = leagueSource(league);
 
   const seats: BoardSeat[] = memberships.flatMap((row) => {
     const player = row.expand?.player;
@@ -200,21 +212,21 @@ export async function readTransactionBoard(leagueId: string): Promise<{
         id: row.id,
         member: row.member,
         player: player.id,
-        position: player.position,
+        position: leaguePosition(player, source),
         name: player.name,
         clubName: player.club_name,
       },
     ];
   });
   const owned = new Set(seats.map((seat) => seat.player));
-  const freeAgents = pool
+  const freeAgents = signableIn(pool, source)
     .filter((player) => !owned.has(player.id))
     .map((player) => ({
       id: player.id,
       name: player.name,
       clubName: player.club_name,
       clubCode: player.club_code,
-      position: player.position,
+      position: leaguePosition(player, source),
       normalized: player.name_normalized ?? player.name,
     }));
 
@@ -579,7 +591,8 @@ export type LeagueDeals = {
  * scores this season; the verdict is the same `impactForMember` the team page
  * and the recap use, so the three can never disagree about a deal.
  */
-export async function readLeagueDeals(leagueId: string, season: string, basketNews = false): Promise<LeagueDeals> {
+export async function readLeagueDeals(leagueId: string, season: string, source: LeagueSource = "euroleague"): Promise<LeagueDeals> {
+  const basketNews = source === "basketnews";
   const empty: LeagueDeals = { deals: [], players: {}, ledger: {} };
   const session = await getSession();
   if (!session) return empty;
@@ -617,9 +630,9 @@ export async function readLeagueDeals(leagueId: string, season: string, basketNe
       ? [[], []]
       : await Promise.all([
           readLeaguePlayerRounds(pb, { leagueId, season, basketNews, players: playerIds }),
-          pb.collection("players").getFullList<{ id: string; name: string; person_code?: string; position: Position; basketnews_position?: Position; club_code?: string }>({
+          pb.collection("players").getFullList<{ id: string; name: string; person_code?: string; position: Position; basketnews_position?: Position; fantasy_position?: Position; club_code?: string }>({
             filter: idFilter,
-            fields: "id,name,person_code,position,basketnews_position,club_code",
+            fields: "id,name,person_code,position,basketnews_position,fantasy_position,club_code",
             requestKey: null,
           }),
         ]);
@@ -665,7 +678,7 @@ export async function readLeagueDeals(leagueId: string, season: string, basketNe
     players: Object.fromEntries(
       people.map((person) => [
         person.id,
-        { name: person.name, personCode: person.person_code, position: leaguePosition(person, basketNews), clubCode: person.club_code },
+        { name: person.name, personCode: person.person_code, position: leaguePosition(person, source), clubCode: person.club_code },
       ]),
     ),
     ledger,

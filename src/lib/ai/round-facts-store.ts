@@ -6,6 +6,7 @@ import { readStoredFixtures, scheduleRowsFrom } from "@/lib/fixtures/store";
 import { readRecordedLineups } from "@/lib/lineups/store";
 import type { HistoryRow } from "@/lib/memberships/history";
 import { PHASES, snapshotRowsFrom, type Phase, type RoundSnapshot } from "@/lib/stats/standings";
+import { leaguePosition, leagueSource } from "@/lib/positions";
 
 import type { FactsGame, FactsOfficialRound, RoundFactsInput } from "./round-facts";
 
@@ -40,6 +41,7 @@ type LeagueRow = {
   status: string;
   basketnews_team_id?: string;
   basketnews_league_id?: string;
+  fantasy_league_id?: string;
 };
 
 type MemberRow = { id: string; team_name?: string; expand?: { user?: { name?: string } } };
@@ -66,6 +68,7 @@ type PlayerRow = {
   name: string;
   position: Position;
   basketnews_position?: Position | "";
+  fantasy_position?: Position | "";
   club_code?: string;
   status?: string;
   prev_season_fantasy?: number;
@@ -160,7 +163,7 @@ export async function readRoundFactsInput(
       requestKey: null,
     }),
     pb.collection("players").getFullList<PlayerRow>({
-      fields: "id,name,position,basketnews_position,club_code,status,prev_season_fantasy,prev_season_games",
+      fields: "id,name,position,basketnews_position,fantasy_position,club_code,status,prev_season_fantasy,prev_season_games",
       requestKey: null,
     }),
     pb.collection("player_news").getFullList<{ player?: string; status?: string; body_part?: string; published?: string }>({
@@ -250,8 +253,7 @@ export async function readRoundFactsInput(
       players: players.map((player) => ({
         id: player.id,
         name: player.name,
-        position: player.position,
-        basketnewsPosition: player.basketnews_position || null,
+        position: leaguePosition(player, leagueSource(league)),
         clubCode: player.club_code ?? "",
         status: player.status ?? "",
         prevSeasonFantasyTenths: player.prev_season_fantasy ?? 0,

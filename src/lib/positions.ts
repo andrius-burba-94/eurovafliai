@@ -19,12 +19,30 @@ export const POSITION_WORD: Record<Position, [string, string]> = {
   C: ["center", "centers"],
 };
 
-/** BasketNews and EuroLeague can classify the same player differently. */
+/**
+ * Whose positions a league counts in: the game it is linked to, or the
+ * EuroLeague feed's for a league that plays only here. BasketNews has Omoruyi
+ * at C where the Fantasy Challenge and the feed have him at F.
+ */
+export type LeagueSource = "euroleague" | "basketnews" | "fantasy";
+
+export function leagueSource(league: {
+  basketnews_team_id?: string | null;
+  fantasy_league_id?: string | null;
+}): LeagueSource {
+  if (league.basketnews_team_id) return "basketnews";
+  if (league.fantasy_league_id) return "fantasy";
+  return "euroleague";
+}
+
+/** A player's position in a league's game; the feed's until the game's own is stored. */
 export function leaguePosition(
-  player: { position: Position; basketnews_position?: Position | null },
-  basketNews: boolean,
+  player: { position: Position; basketnews_position?: Position | "" | null; fantasy_position?: Position | "" | null },
+  source: LeagueSource,
 ): Position {
-  return basketNews ? player.basketnews_position || player.position : player.position;
+  if (source === "basketnews") return player.basketnews_position || player.position;
+  if (source === "fantasy") return player.fantasy_position || player.position;
+  return player.position;
 }
 
 /**

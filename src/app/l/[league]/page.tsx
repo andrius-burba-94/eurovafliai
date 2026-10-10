@@ -38,6 +38,7 @@ import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
 import { LiveLobby } from "./live-lobby";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 /**
  * The lobby: who is in, and the code that lets the rest in.
@@ -125,7 +126,7 @@ export default async function LobbyPage({
     ? await Promise.all([
         readStandingsSnapshots(id, season).catch(() => []),
         readRecentTransactions(id, teamNames).catch(() => []),
-        readPanel({ leagueId: id, season, teamNames, basketNews: Boolean(league.basketnews_team_id) }),
+        readPanel({ leagueId: id, season, teamNames, source: leagueSource(league) }),
         readNews(100).catch(() => []),
       ])
     : [[], [], null, []];

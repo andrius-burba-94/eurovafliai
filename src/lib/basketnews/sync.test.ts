@@ -137,11 +137,11 @@ describe("BasketNews worker import", () => {
     const playersById = new Map(db.rows("players").map((row) => [row.id, row]));
     const mappedPosition = (id: string): Position => {
       const row = playersById.get(id)!;
-      return leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, true);
+      return leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, "basketnews");
     };
     for (const row of db.rows("players").filter((player) => player.basketnews_id)) {
       expect(mappedPosition(row.id)).toBe(sourcePositions.get(String(row.basketnews_id)));
-      expect(leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, false)).toBe("F");
+      expect(leaguePosition({ position: row.position as Position, basketnews_position: row.basketnews_position as Position }, "euroleague")).toBe("F");
     }
     for (const member of db.rows("league_members")) {
       const drafted = db.rows("picks").filter((pick) => pick.member === member.id).map((pick) => ({ position: mappedPosition(String(pick.player)) }));

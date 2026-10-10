@@ -35,6 +35,7 @@ import {
   type Who,
 } from "./sections";
 import { leagueHref, leaguePaths } from "@/lib/nav/urls";
+import { leagueSource } from "@/lib/positions";
 
 const TOPICS = [
   ["records", "Records"],
@@ -68,7 +69,7 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/l/
   if (!you || (data.league.status !== "season" && data.league.status !== "complete")) notFound();
 
   const season = serverConfig().EUROLEAGUE_SEASON;
-  const [page, deals] = await Promise.all([readLeagueStats(id, season, Boolean(data.league.basketnews_team_id)), readLeagueDeals(id, season, Boolean(data.league.basketnews_team_id))]);
+  const [page, deals] = await Promise.all([readLeagueStats(id, season, leagueSource(data.league)), readLeagueDeals(id, season, leagueSource(data.league))]);
   const styles = stylesById(data.members);
   const team = (memberId: string | null) => {
     if (!memberId) return "Free agent";

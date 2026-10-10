@@ -10,6 +10,7 @@
  * app.
  */
 import type { LeagueWithMembers } from "@/lib/leagues/types";
+import { leagueSource, type LeagueSource } from "@/lib/positions";
 import { leagueHref, teamHref } from "@/lib/nav/urls";
 
 export type NavKey =
@@ -90,6 +91,8 @@ export type NavLeague = {
   /** The order has been drawn, so `/order` has a ceremony to show. */
   readonly rolled: boolean;
   readonly sourceOwned?: boolean;
+  /** Whose positions the league counts in. */
+  readonly source?: LeagueSource;
 };
 
 /** The nav's view of a league, from what every league page already reads. */
@@ -106,6 +109,7 @@ export function navLeagueFrom(data: LeagueWithMembers): NavLeague {
     canManage: data.isCommissioner || Boolean(you?.canManage),
     rolled: Boolean(data.settings.rolled_at),
     sourceOwned: Boolean(data.league.basketnews_team_id),
+    source: leagueSource(data.league),
   };
 }
 

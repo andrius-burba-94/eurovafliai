@@ -1,4 +1,5 @@
 import type { Position, RosterTemplate } from "@/lib/engine";
+import type { LeagueSource } from "@/lib/positions";
 import { matchPlayer, resolveClubs, type PoolPlayer } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 
@@ -93,4 +94,18 @@ export function countsTemplate(positions: readonly Position[], template: RosterT
   const counts: Record<Position, number> = { G: 0, F: 0, C: 0 };
   for (const position of positions) counts[position] += 1;
   return counts.G === template.G && counts.F === template.F && counts.C === template.C;
+}
+
+/**
+ * A linked league's free agents are the players its game lists (7.2 D): a
+ * player it does not list cannot be signed there. Until the league's first
+ * positions read nobody is marked listed, and the whole pool stands in.
+ */
+export function signableIn<T extends { basketnews_listed?: boolean; fantasy_listed?: boolean }>(
+  pool: readonly T[],
+  source: LeagueSource,
+): T[] {
+  if (source === "euroleague") return [...pool];
+  const listed = (player: T) => (source === "basketnews" ? player.basketnews_listed : player.fantasy_listed) === true;
+  return pool.some(listed) ? pool.filter(listed) : [...pool];
 }

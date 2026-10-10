@@ -10,6 +10,7 @@ import { readLiveSnapshots } from "@/lib/live/store";
 import { readNews } from "@/lib/news/queries";
 import { createUserClient } from "@/lib/pb/server";
 import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
+import type { LeagueSource } from "@/lib/positions";
 import type { PoolPlayer } from "@/lib/pool/search";
 
 import type { PanelData } from "./types";
@@ -28,7 +29,7 @@ export async function readPanel({
   teamNames = {},
   round,
   pool,
-  basketNews = false,
+  source = "euroleague",
 }: {
   leagueId: string;
   season: string;
@@ -41,14 +42,15 @@ export async function readPanel({
    * one and refreshes on every pick, so it should not pay for a second.
    */
   pool?: readonly PoolPlayer[];
-  basketNews?: boolean;
+  /** Whose positions the pool shows. */
+  source?: LeagueSource;
 }): Promise<PanelData> {
   const session = await getSession();
   if (!session) return { players: [], fixtures: {}, schedule: null, news: [] };
   const pb = createUserClient(session.token);
 
   const [players, fixtureRows, news] = await Promise.all([
-    pool ? Promise.resolve(pool) : readPool(pb, leagueId, teamNames, basketNews),
+    pool ? Promise.resolve(pool) : readPool(pb, leagueId, teamNames, source),
     readStoredFixtures(pb, season)
       .then(scheduleRowsFrom)
       .catch(() => []),
@@ -103,7 +105,7 @@ async function readPool(
   pb: ReturnType<typeof createUserClient>,
   leagueId: string,
   teamNames: Readonly<Record<string, string>>,
-  basketNews: boolean,
+  source: LeagueSource,
 ): Promise<PoolPlayer[]> {
   const [players, held] = await Promise.all([
     pb
@@ -136,5 +138,5 @@ async function readPool(
         { by: teamNames[row.member] ?? "Another team", at: null },
       ]),
   );
-  return players.map((player) => toPoolPlayer(player, holder.get(player.id), basketNews));
+  return players.map((player) => toPoolPlayer(player, holder.get(player.id), source));
 }

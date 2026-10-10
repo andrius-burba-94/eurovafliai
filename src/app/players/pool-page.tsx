@@ -33,7 +33,7 @@ import { PoolBrowser } from "./pool-browser";
  * (`/l/<league>/players`, S29), where the sidebar keeps the league.
  */
 export async function PoolPage({ league }: { league: NavLeague | null }) {
-  const pool = await getPool(Boolean(league?.sourceOwned));
+  const pool = await getPool(league?.source);
   if (!pool) redirect("/login?error=unauthorized");
 
   const { counts, authority, lastImport, clubs } = pool;

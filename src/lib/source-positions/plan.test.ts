@@ -7,7 +7,7 @@ import type { Position } from "@/lib/engine";
 import fantasyCapture from "@/lib/fantasy/fixtures/player-pool-api.json";
 import { parsePlayerPoolPage, type FantasyPlayer } from "@/lib/fantasy/parse";
 
-import { countsTemplate, planPositionRead, type StoredPlayer } from "./plan";
+import { countsTemplate, planPositionRead, signableIn, type StoredPlayer } from "./plan";
 
 const fixture = (path: string) => JSON.parse(readFileSync(new URL(`../../../tests/fixtures/${path}`, import.meta.url), "utf8"));
 
@@ -141,5 +141,26 @@ describe("countsTemplate", () => {
   it("refuses any other count, including a short roster", () => {
     expect(countsTemplate(roster(5, 6, 2), template)).toBe(false);
     expect(countsTemplate(roster(5, 5, 2), template)).toBe(false);
+  });
+});
+
+describe("signableIn", () => {
+  const pool = [
+    { id: "a", basketnews_listed: true, fantasy_listed: false },
+    { id: "b", basketnews_listed: false, fantasy_listed: true },
+    { id: "c" },
+  ];
+
+  it("keeps only the players a linked league's game lists", () => {
+    expect(signableIn(pool, "basketnews").map((player) => player.id)).toEqual(["a"]);
+    expect(signableIn(pool, "fantasy").map((player) => player.id)).toEqual(["b"]);
+  });
+
+  it("keeps everybody in a league that plays only here", () => {
+    expect(signableIn(pool, "euroleague")).toHaveLength(3);
+  });
+
+  it("keeps everybody until the game has been read once", () => {
+    expect(signableIn([{ id: "a" }, { id: "b", fantasy_listed: false }], "fantasy")).toHaveLength(2);
   });
 });
