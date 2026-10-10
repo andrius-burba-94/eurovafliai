@@ -67,6 +67,20 @@ function playerLine(label: "ADD" | "DROP", row: WireRow, token: string, ruleset:
   return parts.join(" · ");
 }
 
+const SURE: Record<string, number> = { low: 0, medium: 1, high: 2 };
+
+/**
+ * What a move's confidence rests on, said so the model has nothing to guess:
+ * the less certain of the two players (the add on a tie) and why.
+ */
+function restingOn(move: ScoutMove, dropToken: string, addToken: string): string {
+  const add = move.add.outlook!;
+  const drop = move.drop.outlook!;
+  const [who, outlook] = SURE[drop.confidence]! < SURE[add.confidence]! ? [dropToken, drop] : [addToken, add];
+  if (outlook.baseSource === "last") return `${who}: rated on last season's games`;
+  return `${who}: ${outlook.gamesInRole} ${outlook.gamesInRole === 1 ? "game" : "games"} in his current role`;
+}
+
 export function buildScoutFacts({
   ruleset,
   members,
@@ -98,11 +112,12 @@ export function buildScoutFacts({
       const drop = tokens.player.get(move.drop.id)!;
       const add = tokens.player.get(move.add.id)!;
       const text = [
-        `MOVE ${id} · drop ${drop} · add ${add} · gain +${formatOutlook(move.gain)} ${unit} over the next 5 · confidence ${move.confidence}`,
+        `MOVE ${id} · drop ${drop} · add ${add} · gain +${formatOutlook(move.gain)} ${unit} over the next 5 · confidence ${move.confidence}, resting on ${restingOn(move, drop, add)}`,
         playerLine("ADD", move.add, add, ruleset),
         playerLine("DROP", move.drop, drop, ruleset),
       ].join("\n");
-      moves.push({ id, memberId: member.memberId, dropId: move.drop.id, addId: move.add.id, text, tokens: new Set([drop, add]) });
+      // The member's own team may be named in their own advice; nobody else's.
+      moves.push({ id, memberId: member.memberId, dropId: move.drop.id, addId: move.add.id, text, tokens: new Set([drop, add, team]) });
       return text;
     });
     sections.set(member.memberId, [`TEAM ${team}`, ...blocks].join("\n"));

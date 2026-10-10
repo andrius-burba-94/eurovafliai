@@ -46,10 +46,21 @@ describe("buildScoutFacts", () => {
     const add = facts.tokens.get("fra")!;
     const drop = facts.tokens.get("obst")!;
     expect(first.text).toContain(`MOVE ${first.id} · drop ${drop} · add ${add} · gain +4.2 fantasy points a game over the next 5 · confidence medium`);
+    // Nothing invites a guess: a player's line says "available" unless he is not.
+    expect(first.text).not.toContain("flag");
     expect(first.text).toContain(`ADD ${add} · next 5 / 10 / 15: 13.8 / 13.2 / 13.5 · 0.48 PIR a minute · 28.5 minutes a game as a starter · started 4 of his last 5 · next 5 games: easy run · club: favourite · available`);
     expect(first.text).toContain(`DROP ${drop}`);
     expect(first.text).toContain("off the bench");
     expect(first.text).toContain("club: underdog");
+  });
+
+  it("says what the confidence rests on: the less certain player and why", () => {
+    const facts = buildScoutFacts(input);
+    const first = facts.moves.find((entry) => entry.memberId === "m1")!;
+    // Both have 4 games in role: the add is named, with its count.
+    expect(first.text).toContain(`confidence medium, resting on ${facts.tokens.get("fra")}: 4 games in his current role`);
+    const second = facts.moves.find((entry) => entry.memberId === "m2")!;
+    expect(second.text).toContain(`resting on ${facts.tokens.get("mas")}: rated on last season's games`);
   });
 
   it("says when a figure rests on last season", () => {
@@ -77,9 +88,9 @@ describe("buildScoutFacts", () => {
     expect(mine).toContain(facts.tokens.get("fra")!);
     expect(mine).not.toContain(facts.tokens.get("mas")!);
     expect(mine).not.toContain(facts.tokens.get("luc")!);
-    // A reason may cite its own move's players and nobody else's.
+    // A reason may cite its own move's players and its own team, nobody else's.
     const own = facts.moves.find((entry) => entry.memberId === "m1")!;
-    expect([...own.tokens].sort()).toEqual([facts.tokens.get("fra")!, facts.tokens.get("obst")!].sort());
+    expect([...own.tokens].sort()).toEqual([facts.tokens.get("fra")!, facts.tokens.get("obst")!, facts.tokens.get("m1")!].sort());
   });
 
   it("gives the same tokens and text whatever order the members came in", () => {

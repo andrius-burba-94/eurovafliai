@@ -285,9 +285,28 @@ leaves the round write-ups their turn.
 The advisor stores those inputs beside each outlook, so the sheet prints only
 figures tested code computed.
 
-**Not run here: a live model call.** The worktree's `.env` has no
-`GEMINI_API_KEY`. The sheet was checked against the local league with
-`ai:preview --scout --facts-only`: 9 moves for 3 members, 4,361 characters,
-tokens only. Every model path is covered by injected answers. The first live
-reasons should be checked with `npm run ai:preview -- --league=<slug> --scout`
-on a machine with the key, before or just after the deploy.
+**What the live runs found** (`gemini-3.5-flash-lite`, the local league,
+9 moves for 3 members, one call each run, about 2,500 tokens in and 600 out):
+1. **The first prompt passed the guard and said nothing.** Every reason
+   restated the added player's line and ended "Confidence is low." The task
+   now asks for the swap and its gain first, with both players named, then
+   why now or the risk.
+2. **The second prompt invented a risk.** "This move rests on an availability
+   flag" was written for every move, and every player was available. The
+   guard cannot catch it, because the claim has no number. The model had
+   copied an example from the prompt. The MOVE line now says what the
+   confidence rests on ("resting on #P5: 1 game in his current role"), and
+   the prompt mentions availability only when a line says out or doubtful.
+   The rule is the round sheet's: label what a sentence may judge, never ask
+   the model to judge.
+3. **It also named the member's own team**, which the per-move guard refused.
+   The member's own team token is now allowed in their own reasons; any other
+   team still fails.
+
+The third prompt (`scout-moves-3`) passed first time for all nine moves, and
+every clause matched its line. Example: "Adding Mfiondu Tshimanga Kabengele
+yields +25.7 fantasy points a game over the next 5, outpacing Conor Morgan with
+32.0 minutes a game as a starter. Confidence is low, resting on Morgan having
+1 game in his current role." The local copy's fixtures are stale, so every
+run read "even" and sentence 2 had no calendar to use. On production's
+current fixtures it should.

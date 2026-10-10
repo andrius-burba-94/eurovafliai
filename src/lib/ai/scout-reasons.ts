@@ -21,7 +21,7 @@ import { systemRules } from "./voice";
  * their moves passed; otherwise their row fails and the page shows the numbers.
  */
 
-export const SCOUT_PROMPT_VERSION = "scout-moves-1";
+export const SCOUT_PROMPT_VERSION = "scout-moves-3";
 
 export type Ask = (request: GeminiRequest) => Promise<GeminiAnswer>;
 
@@ -40,10 +40,11 @@ export type ScoutReasonsResult = {
 };
 
 
-const TASK = `Task: write the reason for each move.
-- Exactly two sentences per move, 60 to 300 characters in all, on one line.
-- Sentence 1: why the added player, from his own lines (his figures, his minutes and role, his starts).
-- Sentence 2: why now, from the calendar and the club's chance of winning, or the risk (low confidence, last season's games, the drop's form).
+const TASK = `Task: write the reason for each move, as an analyst advising the team's manager.
+- Exactly two sentences per move, 80 to 300 characters in all, on one line. Name both the added and the dropped player, by token.
+- Sentence 1, why this swap: the gain, and what makes the added player better than the dropped one (role, minutes, starts, or his figure against the dropped player's).
+- Sentence 2, why now or the risk: the next-5 run and the club's chance (favourite, even, underdog); or, when the confidence is low or medium, what the MOVE line says it rests on. Mention a player's availability only when his line says out or doubtful.
+- Never end on the confidence word alone, and do not repeat the same sentence for two moves.
 - Use only the lines of that move: its MOVE, ADD and DROP lines. Never mention another move, another team or a player from another move.
 - Say "fantasy points", "Modern points" or "PIR" as the lines do, never "points" on its own.`;
 
@@ -87,7 +88,7 @@ const SENTENCE_END = /[.!?](?=\s|$)/g;
 const reason = z
   .string()
   .trim()
-  .min(60)
+  .min(80)
   .max(300)
   .refine((text) => !/[\r\n]/.test(text), "one line")
   .refine((text) => (text.match(SENTENCE_END) ?? []).length === 2, "exactly two sentences");

@@ -80,8 +80,13 @@ if (flag("scout")) {
   console.log(`Asking ${model} in the analyst voice…`);
   const written = await writeScoutReasons({ facts: sheet, model, apiKey });
   console.log(`${written.model} · ${written.calls} call(s) · tokens in ${written.usage.inputTokens}, out ${written.usage.outputTokens}`);
+  const teams = await pbScout.collection("league_members").getFullList<{ id: string; team_name?: string }>({
+    filter: `league = '${found.id}'`,
+    fields: "id,team_name",
+    requestKey: null,
+  });
   const names = {
-    members: {} as Record<string, string>,
+    members: Object.fromEntries(teams.map((team) => [team.id, team.team_name || "a team"])),
     players: Object.fromEntries(input.members.flatMap((member) => member.moves.flatMap((entry) => [[entry.drop.id, entry.drop.name], [entry.add.id, entry.add.name]]))),
   };
   let refusedAny = false;

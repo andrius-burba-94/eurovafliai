@@ -99,7 +99,8 @@ details and the counts to expect are in
   and two tabs on a phone width. Filter the wire to C.
 - `npm run ai:preview -- --league=<slug|id> --scout --facts-only` prints the
   reasons' fact sheet in tokens. With `GEMINI_API_KEY` set, drop
-  `--facts-only` to see the reasons as stored and as a member reads them.
+  `--facts-only` to see the reasons as stored and as a member reads them
+  (checked live on 10 October 2026: 9 of 9 passed the guard first time).
 - League Home shows "Scout: N moves worth making" beside the round's recap.
 
 ## AI commentary — 7.1 the round, written, 9 October 2026
