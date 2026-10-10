@@ -21,6 +21,7 @@ const PATHS: Record<NavIconName, string> = {
   standings: "M3 13.5V9h2.5v4.5M6.8 13.5V5h2.5v8.5M10.5 13.5V7.5H13v6M2 13.5h12",
   recap: "M8 2.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11ZM8 5v3l2 1.5",
   trades: "M3 5.5h9l-2.5-2.5M13 10.5H4l2.5 2.5",
+  scout: "M7 2.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9ZM10.3 10.3l3.2 3.2",
   sheet: "M4 2.5h6l2 2v9H4zM6 6.5h4M6 9h4M6 11.5h2.5",
   export: "M8 9.5v-7M5 5l3-3 3 3M3 9v4.5h10V9",
   stats: "M8 2.5a5.5 5.5 0 1 0 5.5 5.5H8V2.5ZM10 1.8a5.5 5.5 0 0 1 4.2 4.2H10V1.8Z",

@@ -163,6 +163,8 @@ export type FreeAgent = {
   readonly clubCode: string;
   readonly position: Position;
   readonly normalized: string;
+  /** The pool's availability word: `active`, `injured`, `doubtful`. */
+  readonly status: string;
 };
 
 type PoolRow = {
@@ -228,6 +230,7 @@ export async function readTransactionBoard(leagueId: string): Promise<{
       clubCode: player.club_code,
       position: leaguePosition(player, source),
       normalized: player.name_normalized ?? player.name,
+      status: player.status,
     }));
 
   return { seats, freeAgents };
