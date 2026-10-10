@@ -2,7 +2,6 @@
  * Recompute last-5 and season averages onto `players` — slice 4.4.
  *
  *   npm run stats:project
- *   npm run stats:project -- --season=E2025
  *
  * The worker and the CSV door already call `recomputeProjections` after an
  * ingest that wrote rows. This script is the repair: a crash between the box
@@ -22,6 +21,15 @@ const env = parseServerEnv(process.env);
 const season =
   process.argv.find((value) => value.startsWith("--season="))?.split("=")[1] ??
   env.EUROLEAGUE_SEASON;
+
+// A cache of the season being played. Last season's lines are loaded mid-season
+// for the scout (7.2 B); rebuilding from them would overwrite this season's.
+if (season !== env.EUROLEAGUE_SEASON) {
+  console.error(
+    `Refusing ${season}: pool averages describe EUROLEAGUE_SEASON (${env.EUROLEAGUE_SEASON}). Set EUROLEAGUE_SEASON to rebuild another season on a rehearsal database.`,
+  );
+  process.exit(1);
+}
 
 const pb = new PocketBase(env.PB_INTERNAL_URL);
 await pb

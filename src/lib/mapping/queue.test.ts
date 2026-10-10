@@ -130,6 +130,18 @@ describe("pendingCodes", () => {
     expect(open[0].games).toEqual([1, 2, 3]);
   });
 
+  it("keeps the first season's games when a code is unmatched in two seasons", () => {
+    const open = pendingCodes(
+      [
+        codeBatch([{ personCode: "99", lines: [40] }], { id: "now" }),
+        codeBatch([{ personCode: "99", lines: [7, 300] }], { id: "backfill", season: "E2025" }),
+      ],
+      [],
+    );
+    // Game 7 of 2025 is not game 7 of 2026: re-importing it would fetch another night.
+    expect(open).toEqual([expect.objectContaining({ personCode: "99", season: "E2026", games: [40] })]);
+  });
+
   it("drops a code somebody has since attached", () => {
     const batches = [codeBatch([{ personCode: "99", lines: [1] }])];
 

@@ -225,10 +225,17 @@ describe("loading last season by hand mid-season", () => {
   });
 
   it("still keeps the averages and standings current when the season loaded is this one", async () => {
-    const { client, db } = fakePb({ data: midSeason() });
+    const data = midSeason();
+    // Two players the golden games score, on the league's two teams.
+    data.roster_memberships = [
+      { id: "w1", league: "L1", member: "m1", player: "players_0", from_round: 1, to_round: 0, to_date: "" },
+      { id: "w2", league: "L1", member: "m2", player: "players_1", from_round: 1, to_round: 0, to_date: "" },
+    ];
+    const { client, db } = fakePb({ data });
 
     await ingestFinishedGames({ pb: client, season: "E2025", currentSeason: "E2025", doFetch: feed() });
 
     expect(db.players!.some((player) => player.proj_last5_games !== 2)).toBe(true);
+    expect(db.standings_snapshots!.some((snap) => snap.season === "E2025")).toBe(true);
   });
 });

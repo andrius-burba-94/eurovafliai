@@ -59,32 +59,6 @@ function teamLabel(member: MemberRecord): string {
   return member.expand?.user?.name || "Unknown";
 }
 
-async function seasonsForLeague(
-  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
-  leagueId: string,
-): Promise<string[]> {
-  const memberships = await pb.collection("roster_memberships").getFullList<{
-    player: string;
-  }>({
-    filter: `league = '${leagueId}'`,
-    fields: "player",
-    requestKey: null,
-  });
-  const seasons = new Set<string>([serverConfig().EUROLEAGUE_SEASON]);
-  const ids = [...new Set(memberships.map((row) => row.player))];
-  if (ids.length === 0) return [...seasons];
-  const filter = ids.map((id) => `player = '${id}'`).join(" || ");
-  const lines = await pb.collection("player_game_stats").getFullList<{
-    season: string;
-  }>({
-    filter,
-    fields: "season",
-    requestKey: null,
-  });
-  for (const line of lines) seasons.add(line.season);
-  return [...seasons];
-}
-
 export async function recordTransaction(
   _previous: TransactionResult,
   formData: FormData,
@@ -275,9 +249,10 @@ export async function recordTransaction(
     note,
   );
 
-  for (const season of await seasonsForLeague(pb, leagueId)) {
-    await recomputeStandings(pb, season);
-  }
+  // This season only: a deal's windows are round numbers with no season, so
+  // replaying them over last season's backfilled lines would score a 2025
+  // table for a league drafted in 2026 (7.2 B).
+  await recomputeStandings(pb, serverConfig().EUROLEAGUE_SEASON);
 
   revalidateLeague();
   redirect(await leaguePathOf(pb, leagueId));

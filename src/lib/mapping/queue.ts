@@ -180,6 +180,9 @@ export function pendingCodes(
       if (byCode.has(personCode)) continue;
 
       const existing = merged.get(personCode);
+      // Game codes restart every season, so only the first season's games are
+      // kept: a union across seasons would re-import the wrong nights.
+      if (existing && existing.season !== batch.season) continue;
       const games = [
         ...new Set([...(existing?.games ?? []), ...(entry.lines ?? [])]),
       ].sort((a, b) => a - b);

@@ -621,6 +621,7 @@ function CodeRow({
               <input type="hidden" name="player" value={playerId} />
               <input type="hidden" name="code" value={entry.personCode} />
               <input type="hidden" name="games" value={entry.games.join(",")} />
+              <input type="hidden" name="season" value={entry.season} />
               <SubmitButton testId={`code-attach-${entry.personCode}`} tone="liveOnField" compact pendingLabel="Attaching…">
                 Attach and re-import
               </SubmitButton>
