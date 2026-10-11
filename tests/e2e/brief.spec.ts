@@ -112,6 +112,19 @@ test("a member reads their own round, tagged from their place, and nobody else's
   const setup = await briefedLeague("Briefed Recap");
   await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.chiefRow.id, CHIEF_BRIEF), { requestKey: null });
   await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.mateRow.id, MATE_BRIEF), { requestKey: null });
+  await setup.pb.collection("ai_writeups").create(
+    {
+      ...briefRow(setup, "", null),
+      kind: "round_summary",
+      prompt_version: "round-summary-2",
+      output: {
+        headline: "@T1 take the night on #P1's 38.5.",
+        lines: ["@T1 won the night with 227.1 fantasy points.", "@T2 finished 2nd on 180.2 fantasy points.", "@T1 stay top of the table."],
+        sections: {},
+      },
+    },
+    { requestKey: null },
+  );
 
   await signIn(context, setup.chief);
   const received = captureResponses(page);
@@ -119,16 +132,19 @@ test("a member reads their own round, tagged from their place, and nobody else's
 
   const panel = page.getByTestId("recap-brief");
   await expect(panel.getByRole("heading", { level: 2 })).toHaveText("Your round");
-  await expect(page.getByTestId("recap-brief-verdict")).toHaveText("won");
-  await expect(page.getByTestId("recap-brief-verdict")).toHaveAttribute("data-verdict", "won");
+  await expect(page.getByTestId("recap-brief-verdict")).toHaveText("Won");
+  await expect(page.getByTestId("recap-brief-verdict")).toHaveAttribute("data-badge", "won");
   await expect(panel).toContainText("Round 1");
   // Three labelled lines, names put back at read time.
   await expect(panel.getByRole("term")).toHaveText(["Night", "Table", "Next"]);
   await expect(page.getByTestId("recap-brief-result")).toContainText(`carried by ${shown(setup.star.name)}'s 38.5 fantasy points`);
   await expect(page.getByTestId("recap-brief-standing")).toContainText("You lead Pancake Brigade by 46.9");
-  // First in the reading column: above The night.
+  // First in the reading column: above the round write-up and The night.
   const column = page.getByTestId("recap-brief").locator("xpath=..");
-  await expect(column.locator(":scope > section").first()).toHaveAttribute("data-testid", "recap-brief");
+  await expect(column.locator(":scope > section")).toHaveCount(3);
+  await expect(column.locator(":scope > section").nth(0)).toHaveAttribute("data-testid", "recap-brief");
+  await expect(column.locator(":scope > section").nth(1)).toHaveAttribute("data-testid", "recap-writeup");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.locator('[data-framed="true"] [data-framed="true"]')).toHaveCount(0);
 
   // Another member's brief is on neither the page nor the wire.
@@ -149,7 +165,7 @@ test("a member reads their own round, tagged from their place, and nobody else's
   const matePage = await mate.newPage();
   const mateReceived = captureResponses(matePage);
   await matePage.goto(`/l/${setup.league.id}/recap?round=1`);
-  await expect(matePage.getByTestId("recap-brief-verdict")).toHaveText("held");
+  await expect(matePage.getByTestId("recap-brief-verdict")).toHaveText("Held");
   await expect(matePage.getByTestId("recap-brief-result")).toContainText("single bench half");
   await expect(matePage.locator("body")).not.toContainText("fantasy points as captain");
   const mateWire = await mateReceived();

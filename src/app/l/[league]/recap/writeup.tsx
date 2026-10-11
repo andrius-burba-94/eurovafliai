@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Bank } from "@/components/board";
+import { StatusBadge } from "@/components/broadcast";
 import type { NightVerdict } from "@/lib/ai/brief-facts";
 import type { RoundWriteupRead } from "@/lib/ai/queries";
 import type { Segment } from "@/lib/ai/tokens";
@@ -131,11 +132,7 @@ export function WriteupNote({
   );
 }
 
-const VERDICT_TAG: Record<NightVerdict, string> = {
-  won: "border-gain/60 text-gain",
-  held: "border-rule-strong text-ink",
-  lost: "border-loss/60 text-loss",
-};
+const VERDICT_WORD: Record<NightVerdict, string> = { won: "Won", held: "Held", lost: "Lost" };
 
 const BRIEF_ROWS: readonly { key: keyof BriefView; label: string }[] = [
   { key: "result", label: "Night" },
@@ -167,25 +164,21 @@ export function YourRound({
       testId="recap-brief"
       aside={
         <span className="flex items-center gap-2">
-          <span
-            data-testid="recap-brief-verdict"
-            data-verdict={verdict}
-            className={`rounded-md border px-1.5 py-0.5 text-[0.6875rem] leading-4 font-extrabold tracking-[0.06em] uppercase ${VERDICT_TAG[verdict]}`}
-          >
-            {verdict}
-          </span>
+          <StatusBadge kind={verdict} testId="recap-brief-verdict">
+            {VERDICT_WORD[verdict]}
+          </StatusBadge>
           Round {round}
         </span>
       }
     >
       <dl className="grid max-w-[68ch] grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 sm:gap-x-6">
         {BRIEF_ROWS.map(({ key, label }) => (
-          <div key={key} className="contents" data-testid={`recap-brief-${key}`}>
+          <Fragment key={key}>
             <dt className="slot-label pt-[0.2em] text-ink-soft">{label}</dt>
-            <dd className="min-w-0 leading-relaxed break-words">
+            <dd className="min-w-0 leading-relaxed break-words" data-testid={`recap-brief-${key}`}>
               <Prose segments={view[key]} links={links} />
             </dd>
-          </div>
+          </Fragment>
         ))}
       </dl>
     </Bank>
