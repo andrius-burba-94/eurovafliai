@@ -2,6 +2,7 @@ import type PocketBase from "pocketbase";
 
 import { isUniqueViolation } from "@/lib/drafts/unique";
 
+import type { BriefLines } from "./briefs";
 import type { GeminiUsage } from "./gemini";
 import type { TokenRef } from "./tokens";
 import type { RoundWriteup, Voice } from "./voice";
@@ -25,7 +26,7 @@ import type { RoundWriteup, Voice } from "./voice";
  * to burn on a sheet the model cannot write.
  */
 
-export type WriteupKind = "round_summary" | "scout_moves";
+export type WriteupKind = "round_summary" | "scout_moves" | "round_brief";
 
 export type WriteupKey = {
   readonly leagueId: string;
@@ -153,7 +154,7 @@ export async function claimWriteup(
   return { outcome: "claimed", id: existing.id };
 }
 
-/** Every member's row of one kind for one round: the scout's private reasons (7.2 G). */
+/** Every member's row of one kind for one round: the scout's reasons (7.2 G), the briefs (7.3 B). */
 export async function readMemberWriteups(
   pb: PocketBase,
   { leagueId, season, round, kind }: { leagueId: string; season: string; round: number; kind: WriteupKind },
@@ -201,8 +202,8 @@ export async function completeWriteup(
   pb: PocketBase,
   id: string,
   result: {
-    /** A round's write-up, or a member's scout reasons (7.2 G). */
-    readonly writeup: RoundWriteup | { readonly reasons: Readonly<Record<string, string>> };
+    /** A round's write-up, a member's scout reasons (7.2 G) or a member's brief (7.3 B). */
+    readonly writeup: RoundWriteup | { readonly reasons: Readonly<Record<string, string>> } | BriefLines;
     readonly refs: Readonly<Record<string, TokenRef>>;
     readonly usage: GeminiUsage;
     readonly model: string;

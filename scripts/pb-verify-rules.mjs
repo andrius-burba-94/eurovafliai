@@ -1756,6 +1756,21 @@ try {
     "a member reads her own scout reasons",
   );
 
+  // 7.3 B: a member's brief is a private row too, hidden from the commissioner.
+  const bobsBrief = await su.collection("ai_writeups").create(
+    { ...writeup(bobMember.id), kind: "round_brief", output: { result: "You won.", standing: "You lead.", next: "An easy run." } },
+    { requestKey: null },
+  );
+  created.ai_writeups.push(bobsBrief.id);
+  check(
+    await rejects(() => aliceClient.collection("ai_writeups").getOne(bobsBrief.id, { requestKey: null })),
+    "the commissioner cannot open a member's brief",
+  );
+  check(
+    (await bobClient.collection("ai_writeups").getOne(bobsBrief.id, { requestKey: null })).output?.standing === "You lead.",
+    "a member reads his own brief",
+  );
+
   // 7.2 E: outlooks are the same for everyone and written by the worker only.
   check(!!byName.player_outlooks, "player_outlooks collection exists");
   check(
