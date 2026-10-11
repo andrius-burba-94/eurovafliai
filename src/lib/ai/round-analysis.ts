@@ -16,9 +16,10 @@ import type { FactsGame, FactsPlayer, RoundFactsInput } from "./round-facts";
 
 /**
  * One finished round, measured: every player's night in the league's
- * ruleset, who captained whom, every deal's swing — 7.3 A, lifted out of the
- * round sheet so the briefs read the same figures it prints. Pure. It
- * decides nothing about what is worth saying; the sheets built on it do.
+ * ruleset, who captained whom, every deal's swing — 7.3 A. The round sheet and
+ * the briefs both read it, so a brief and the round write-up cannot disagree
+ * about a night. Pure. It decides nothing about what is worth saying; the
+ * sheets built on it do.
  */
 
 /** Earlier games this season before the season's own average is trusted. */
@@ -31,6 +32,8 @@ export const UNDER_BY = -800;
 export const UNDER_RATIO = 0.5;
 
 export const STARTING_ROLES: readonly LineupRole[] = ["captain", "starter", "sixth"];
+/** Today's availability flags worth a sentence about the next round. */
+export const FLAGGED: readonly string[] = ["injured", "doubtful"];
 
 export type Basis = {
   readonly tenths: number;

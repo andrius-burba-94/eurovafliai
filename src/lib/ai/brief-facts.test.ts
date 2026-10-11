@@ -256,6 +256,15 @@ describe("buildBriefFacts: deciders", () => {
     expect(deciders(sheet)[0]).toBe(`DECIDER · top counted scorer · ${tokenOf(sheet, "pMate")} counted 60.0, his average 10.0 · +50.0`);
   });
 
+  it("never spends both slots on one captain's night", () => {
+    // 40.0 on a 25.0 average: the bonus is +40.0, and he would also top the counted list by +30.0.
+    const sheet = facts({ games: games({ ...NIGHT, pCap: 400, pBig: 300 }) });
+    expect(deciders(sheet)).toEqual([
+      `DECIDER · captain bonus · ${tokenOf(sheet, "pCap")} · +40.0`,
+      `DECIDER · top counted scorer · ${tokenOf(sheet, "pBig")} counted 30.0, his average 20.0 · +10.0`,
+    ]);
+  });
+
   it("can be won by the biggest underperformer", () => {
     const sheet = facts({ games: games({ ...NIGHT, pCap: 150, pBig: 20 }) });
     expect(deciders(sheet)).toEqual([
@@ -354,6 +363,16 @@ describe("buildBriefFacts: standing, trend and honour", () => {
       snap.round === 2 ? { ...snap, table: snap.table.map((row) => (row.memberId === "m4" ? { ...row, totalHundredths: 30000 } : row)) } : snap,
     );
     expect(linesOf(facts({ snapshots: falling }), "m4", "TREND")).toEqual(["TREND · falling · 1st after round 2, 4th now"]);
+  });
+
+  it("calls one place down steady and two down falling", () => {
+    // After round 2 m3 sat 3rd; one place higher there, two higher.
+    const m3After2 = (total: number) =>
+      SNAPSHOTS.map((snap) =>
+        snap.round === 2 ? { ...snap, table: snap.table.map((row) => (row.memberId === "m3" ? { ...row, totalHundredths: total } : row)) } : snap,
+      );
+    expect(linesOf(facts({ snapshots: m3After2(21000) }), "m3", "TREND")).toEqual(["TREND · steady · 2nd after round 2, 3rd now"]);
+    expect(linesOf(facts({ snapshots: m3After2(27000) }), "m3", "TREND")).toEqual(["TREND · falling · 1st after round 2, 3rd now"]);
   });
 
   it("has no trend before three earlier snapshots", () => {

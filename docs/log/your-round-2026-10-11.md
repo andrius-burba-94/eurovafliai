@@ -24,7 +24,10 @@ and matched after it.
 - **The top counted scorer is valued above his own average** (counted minus
   his average times his role), not at his counted night. Valued at his night,
   he would win every ranking: a captain's counted night is always double the
-  captain's bonus. With no average he is not a candidate.
+  captain's bonus. With no average he is not a candidate. A recorded
+  captain is never the top scorer: his night is the captain decider's, and
+  the review caught one night filling both printed slots ("captain bonus
+  +40.0", "top counted scorer +30.0").
 - **The underperformer is valued the same way**, so a captain's slump costs
   double, as it did on the night. The line still prints his raw night against
   his average, as the round sheet does.
@@ -41,8 +44,13 @@ and matched after it.
   of more than three teams**. Real data showed why: in a three-team league
   every team is always top three, and every section read "top-three streak
   now 4".
-- **Standing does not repeat the rank.** The hero prints it, and a figure in
-  the sheet is a figure the model will use.
+- **Standing does not repeat the rank.** The hero prints it. The header's
+  table and the trend line still carry ranks, as the spec asks, so keeping
+  the second line off the rank is the prompt's job in 7.3 B, not the
+  sheet's.
+- **The trend compares with the snapshot three back** (`TREND_ROUNDS`) and
+  prints which round that was, so a league whose snapshots skip a round is
+  told the round it is actually compared with.
 
 **The gap below** is `neighboursOf` in `src/lib/season/story.ts`, beside
 `movementOf` and ranked by the same rule (total, then team name), so the

@@ -10,7 +10,7 @@ import { formatHundredths, formatSignedHundredths, formatTenths } from "@/lib/st
 import type { RoundSnapshot } from "@/lib/stats/standings";
 
 import { numbersIn } from "./facts";
-import { analyseRound, byId, STARTING_ROLES, UNDER_BASIS, type Night } from "./round-analysis";
+import { analyseRound, byId, FLAGGED, STARTING_ROLES, UNDER_BASIS, type Night } from "./round-analysis";
 import { assignTokens, type TokenRef } from "./tokens";
 
 /**
@@ -281,7 +281,7 @@ export function buildRoundFacts(input: RoundFactsInput): RoundFactsResult {
   const nextLines = memberIds.flatMap((memberId) => {
     const run = nextFor(memberId);
     if (!run) return [];
-    const out = run.squad.filter((playerId) => ["injured", "doubtful"].includes(playerById.get(playerId)?.status ?? "")).slice(0, 2);
+    const out = run.squad.filter((playerId) => FLAGGED.includes(playerById.get(playerId)?.status ?? "")).slice(0, 2);
     return [{ memberId, counts: run.counts, out }];
   });
 

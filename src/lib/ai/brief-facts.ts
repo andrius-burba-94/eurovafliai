@@ -6,7 +6,7 @@ import { memberHonours, ON_FIRE_STREAK, type MemberHonours } from "@/lib/season/
 import { movementOf, neighboursOf, ordinal } from "@/lib/season/story";
 import { formatHundredths, formatSignedHundredths, formatTenths } from "@/lib/stats/scoring";
 
-import { analyseRound, byId, type Night } from "./round-analysis";
+import { analyseRound, byId, FLAGGED, type Night } from "./round-analysis";
 import { CAPTAIN_REGRET, MOVED_PLACES, type RoundFactsInput } from "./round-facts";
 import { assignTokens, TOKEN_PATTERN, type TokenRef } from "./tokens";
 
@@ -30,6 +30,10 @@ export const BRIEF_FACTS_VERSION = 1;
 export const DECIDERS_SHOWN = 2;
 /** Snapshots back the trend compares against. */
 export const TREND_ROUNDS = 3;
+/** The night splits into this many parts: the top one won, the bottom one lost. */
+export const NIGHT_PARTS = 3;
+/** A top-three streak is news only when somebody can miss the top three. */
+export const STREAK_TEAMS = 4;
 
 export type BriefFactsInput = RoundFactsInput & {
   /** Each member's moves worth making, best first, as the Scout works them out. Members with none may be left out. */
@@ -64,9 +68,12 @@ type Decider = {
   readonly line: (P: (playerId: string) => string) => string;
 };
 
-/** Won the top third of the night, lost the bottom third: `k = max(1, floor(N/3))` each. */
+/** Places at each end of the night: `k = max(1, floor(N/3))`. */
+const endOf = (teams: number) => Math.max(1, Math.floor(teams / NIGHT_PARTS));
+
+/** Won the top k places of the night, lost the bottom k. */
 function verdictOf(place: number, teams: number): "won" | "held" | "lost" {
-  const k = Math.max(1, Math.floor(teams / 3));
+  const k = endOf(teams);
   if (place <= k) return "won";
   if (place > teams - k) return "lost";
   return "held";
@@ -111,7 +118,8 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
       });
     }
 
-    const top = [...own].sort((a, b) => (b.counted ?? 0) - (a.counted ?? 0) || byId(a.playerId, b.playerId))[0];
+    // A recorded captain's night is the captain decider's: never both slots for one night.
+    const top = [...own].filter((entry) => entry.playerId !== captaincy?.captain.playerId).sort((a, b) => (b.counted ?? 0) - (a.counted ?? 0) || byId(a.playerId, b.playerId))[0];
     const topExpected = top ? expected(top) : null;
     if (top && top.basis && topExpected !== null && (top.counted ?? 0) > topExpected) {
       const basis = top.basis;
@@ -200,7 +208,7 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
   /** The one flagged player who matters most: the bigger average, then the firmer flag. */
   const flaggedOf = (squad: readonly string[]) =>
     squad
-      .filter((playerId) => ["injured", "doubtful"].includes(playerById.get(playerId)?.status ?? ""))
+      .filter((playerId) => FLAGGED.includes(playerById.get(playerId)?.status ?? ""))
       .sort(
         (a, b) =>
           (nightOf(b).basis?.tenths ?? 0) - (nightOf(a).basis?.tenths ?? 0) ||
@@ -230,7 +238,7 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
 
   // ---- header -------------------------------------------------------------------
   const unit = basketNews ? "BasketNews Modern points" : "EuroLeague fantasy points";
-  const k = Math.max(1, Math.floor(ladder.length / 3));
+  const k = endOf(ladder.length);
   const order = [...memberIds].sort((a, b) => (movementOf(snapshots, a, teamNames)?.rank ?? 99) - (movementOf(snapshots, b, teamNames)?.rank ?? 99));
   const header = [
     `BRIEF FACTS · version ${BRIEF_FACTS_VERSION} · Euroleague round ${R} · ${memberIds.length} teams`,
@@ -239,11 +247,10 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
     "META · a decider is something that moved a team's night: + added to it, - cost it",
     "",
     `TABLE AFTER ROUND ${R} (season totals)`,
-    ...order.map((memberId, index) => {
+    ...order.map((memberId) => {
       const move = movementOf(snapshots, memberId, teamNames)!;
-      const next = order[index + 1];
-      const gap = next ? move.totalHundredths - (movementOf(snapshots, next, teamNames)?.totalHundredths ?? 0) : null;
-      return [`${T(memberId)} · ${ordinal(move.rank)} · total ${h(move.totalHundredths)}`, next ? `${h(gap!)} ahead of ${T(next)}` : null]
+      const below = neighboursOf(snapshots, memberId, teamNames)?.below;
+      return [`${T(memberId)} · ${ordinal(move.rank)} · total ${h(move.totalHundredths)}`, below ? `${h(below.lead)} ahead of ${T(below.memberId)}` : null]
         .filter(Boolean)
         .join(" · ");
     }),
@@ -337,7 +344,7 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
 function honourLine(before: MemberHonours | undefined, now: MemberHonours | undefined, teams: number): string | null {
   if (!now) return null;
   const was = before ?? { roundsWon: 0, spoons: 0, topThreeStreak: 0 };
-  const streaks = teams > 3;
+  const streaks = teams >= STREAK_TEAMS;
   const parts = [
     now.roundsWon > was.roundsWon ? `nights won now ${now.roundsWon}` : null,
     now.spoons > was.spoons ? `last-place nights now ${now.spoons}` : null,
