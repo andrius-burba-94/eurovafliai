@@ -239,9 +239,10 @@ test("the commissioner counts the round's briefs without reading one, and Rewrit
   await signIn(context, setup.chief);
   const received = captureResponses(page);
   await page.goto(`/l/${setup.league.id}/recap?round=1`);
-  await page.getByTestId("recap-writeup-strip").locator("summary").click();
+  // A brief short, the strip opens on its own under a write-up that is fine.
+  await expect(page.getByTestId("recap-writeup-strip")).toHaveAttribute("open");
   const count = page.getByTestId("recap-writeup-briefs");
-  await expect(count).toHaveText("Briefs: 2 of 3 written");
+  await expect(count).toHaveText("Briefs: 2 of 3 written. Rewrite this round rewrites them too.");
   // A count, never a brief: no team is named, and no other member's lines reach the commissioner.
   await expect(count).not.toContainText("Pancake Brigade");
   await expect(count).not.toContainText("Syrup Squad");

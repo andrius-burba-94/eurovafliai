@@ -36,7 +36,7 @@ one.
 | 7.3 B Briefs written and stored (#202) | Done | `ai_writeups.kind` gains `round_brief`: one private row per member, `output` `{ result, standing, next }`. `writeBriefs` (`briefs.ts`) makes one call per league, guards each member against the table and their own section, and retries only the refused. `runBriefPass` (`brief-pass.ts`) writes the latest finished round only; the pass order is now round write-up, briefs, scout. `ai:preview --briefs` writes them, `--save` stores them. Nobody sees a brief in the app yet. |
 | 7.3 C Three previews of Your round (#203) | Done | Picked **A, the panel**, revised: the brief shows **only on Recap**, as a framed "Your round" panel first in the reading column (WON / HELD / LOST tag and the round in its corner, three labelled lines: Night, Table, Next). **League Home is unchanged**, so it does not grow. The Next line names no injured or doubtful player and no count of players without a game; the sheet (version 2) and prompt (`round-brief-3`) no longer carry either. |
 | 7.3 D Your round on Recap (#204) | Done | A framed "Your round" panel, first in Recap's reading column, for the viewed round: a WON / HELD / LOST tag and the round in its corner, then Night, Table and Next. `readRoundBrief` (`queries.ts`) reads the row with the viewer's token, filtered to their member; `briefView` (`view.ts`) puts names back as links; `briefVerdict` takes the tag from the viewer's place on Recap's own ladder through `nightVerdict`, the sheet's thirds. Absent with no row, a failed row, write-ups Off or a round still in play. League Home is unchanged. |
-| 7.3 E Re-guard, rewrite, the commissioner's count (#205) | Done | `runBriefPass` re-guards written briefs daily and after a `/stats/import` correction: `reguardBrief` checks the stored `result` and `standing` against the rebuilt sheet; a brief that holds is marked, one that does not is rewritten whole in the league's voice now. `next` is never checked. Rewrite this round marks the round's briefs too, and the one-minute check (`runRequestedRewrites`) writes the round, then its briefs. A request now stands until its rewrite finishes or fails, so a worker that dies mid-write leaves it asked for. Recap's strip shows the commissioner "Briefs: N of M written" (`readBriefCount`, counts only, via the superuser). |
+| 7.3 E Re-guard, rewrite, the commissioner's count (#205) | Done | `runBriefPass` re-guards written briefs daily and after a `/stats/import` correction: `reguardBrief` checks the stored `result` and `standing` against the rebuilt sheet; a brief that holds is marked, one that does not is rewritten whole in the league's voice now. `next` is never checked. Rewrite this round marks the round's briefs too, and the one-minute check (`runRequestedRewrites`) writes the round, then its briefs. A request now stands until it gets a verdict (written or refused): a worker that dies mid-write, or Google not answering, leaves it asked for, and `abandonClaim` puts a written brief or write-up back as it was. Recap's strip shows the commissioner "Briefs: N of M written" (`readBriefCount`, counts only, via the superuser, checking the commissioner itself). |
 
 Decisions the spec left open (the log has the reasons):
 - The top counted scorer and the underperformer are valued against their
@@ -54,7 +54,10 @@ Decisions the spec left open (the log has the reasons):
   even one out of attempts.
 - The commissioner's count is the one read in the app that uses the
   superuser on a member's behalf: the commissioner's token cannot see
-  another member's row, and it returns numbers only.
+  another member's row. It checks the commissioner itself and returns
+  numbers only (ADR-0013, as amended).
+- A refused answer clears a rewrite request; Google not answering does
+  not, and puts a written brief or write-up back as it was.
 
 **Production:** not deployed yet. The checks after the merge go to
 [log/deploy-checks.md](log/deploy-checks.md).
@@ -84,6 +87,10 @@ starting with a grill.
   of M written". Rewrite this round shows "rewriting…" on the count too, and
   the worker's log shows `write-ups · rewrite · 1 rewritten` and then
   `briefs · N rewritten` within a minute.
+- Recap for an older round (`?round=N`) shows that round's brief if one was
+  written then. The re-guard rechecks older rounds daily and after a
+  `/stats/import` batch: the worker logs `briefs · N re-guarded`, and
+  `N rewritten` when a correction made one false.
 - Set Write-ups Off in the league's settings: the panel and the count go.
 
 ## AI commentary — 7.2 the free-agent scout, October 2026

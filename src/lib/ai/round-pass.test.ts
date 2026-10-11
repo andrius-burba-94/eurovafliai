@@ -253,6 +253,16 @@ describe("writeRequestedRounds", () => {
     expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", rewrite_requested_at: "" });
   });
 
+  it("keeps the written round and the request when Google does not answer", async () => {
+    const { pb, deps } = harness(
+      { leagues: [league("L1")], ai_writeups: [readyRow("L1", 2, { rewrite_requested_at: stamp(NOW - 30_000) })] },
+      { answer: () => new GeminiQuota("429") },
+    );
+    expect((await writeRequestedRounds(deps)).stopped).toContain("quota");
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", output: writeupFor(2) });
+    expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).not.toBe("");
+  });
+
   it("takes a requested rewrite over once a crashed claim goes stale", async () => {
     const { pb, deps, calls } = harness({
       leagues: [league("L1")],

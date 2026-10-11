@@ -128,21 +128,27 @@ export async function readRoundBrief({
  * How many of a round's briefs members can read, for the commissioner's strip
  * — 7.3 E. The commissioner's token cannot see another member's row, so this
  * one read uses the superuser client: a deliberate, narrow exception to
- * "reads use the user's token". It returns counts and nothing else, and the
- * page asks for it only for the commissioner. Null when the round has no
- * brief rows at all (a round written before briefs existed).
+ * "reads use the user's token" (ADR-0013, as amended). It answers only the
+ * league's commissioner, checked here rather than trusted to the caller, and
+ * returns counts and nothing else. Null for anyone else, and for a round with
+ * no brief rows at all (a round written before briefs existed).
  */
 export async function readBriefCount({
+  viewerId,
   leagueId,
   season,
   round,
 }: {
+  /** The signed-in user's id, as the session verified it. */
+  viewerId: string;
   leagueId: string;
   season: string;
   round: number;
 }): Promise<{ readonly written: number; readonly rewriting: boolean } | null> {
   if (!/^[A-Za-z0-9]+$/.test(leagueId) || !/^E\d{4}$/.test(season) || !Number.isInteger(round)) return null;
   const pb = await getSuperuserClient();
+  const league = await pb.collection("leagues").getOne<{ commissioner: string }>(leagueId, { fields: "commissioner", requestKey: null });
+  if (!viewerId || league.commissioner !== viewerId) return null;
   const rows = await pb.collection("ai_writeups").getFullList<Pick<WriteupRecord, "status" | "output" | "rewrite_requested_at">>({
     // Never `facts`: the superuser sees the hidden sheet, and a count needs none of it.
     filter: `league = '${leagueId}' && season = "${season}" && round = ${round} && kind = 'round_brief' && member != ''`,
@@ -152,7 +158,8 @@ export async function readBriefCount({
   if (rows.length === 0) return null;
   return {
     written: rows.filter((row) => row.status !== "failed" && storedBrief(row.output) !== null).length,
-    rewriting: rows.some((row) => row.status === "pending" || Boolean(row.rewrite_requested_at)),
+    // Queued, not merely being written: a request stands until its rewrite finishes or fails.
+    rewriting: rows.some((row) => Boolean(row.rewrite_requested_at)),
   };
 }
 

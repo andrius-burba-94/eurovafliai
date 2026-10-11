@@ -6,14 +6,15 @@ import { inputHash } from "./facts";
 import { GeminiKeyRefused, GeminiQuota, GeminiRequestRefused, GeminiUnavailable } from "./gemini";
 import type { RoundFacts } from "./round-facts";
 import {
+  abandonClaim,
   claimWriteup,
   completeWriteup,
   failWriteup,
   instant,
+  isFreshClaim,
   markGuarded,
   readLeagueWriteups,
   readRewriteRequests,
-  STALE_AFTER_MS,
   type WriteupRecord,
 } from "./store";
 import { guardWriteup, writeRoundSummary } from "./summary";
@@ -73,8 +74,8 @@ export type PassReport = {
 
 type League = { readonly id: string; readonly ai: WriteupSettings };
 
-/** The kind of Gemini failure that says "not now" rather than "not this answer". */
-class PassStopped extends Error {}
+/** Google said "not now": the pass ends, and the next one is the retry. */
+export class PassStopped extends Error {}
 
 export const stopping = (error: unknown) =>
   error instanceof GeminiQuota ||
@@ -120,7 +121,7 @@ async function writeRound(
     result = await (deps.write ?? writeRoundSummary)({ facts, voice, model: deps.model, apiKey: deps.apiKey });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await failWriteup(deps.pb, claim.id, message);
+    await abandonClaim(deps.pb, claim, message);
     if (stopping(error)) throw new PassStopped(message);
     throw error;
   }
@@ -241,7 +242,7 @@ export async function writeRequestedRounds(deps: RoundPassDeps): Promise<PassRep
       if (budget <= 0) break;
       const league = leagues.get(row.league);
       if (!league) continue;
-      if (row.status === "pending" && now - instant(row.claimed_at) < STALE_AFTER_MS) continue;
+      if (isFreshClaim(row, now)) continue;
       const outcome = await writeRound(deps, league, row.round, true);
       if (outcome === "skipped") continue;
       budget -= 1;

@@ -44,7 +44,7 @@ function facts(round: number): RoundFacts {
   };
 }
 
-function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, roundBreaks = false, roundQuota = false } = {}) {
+function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, briefsCallBreaks = false, roundBreaks = false, roundQuota = false } = {}) {
   const pb = fakePb({
     data: {
       ai_writeups: [],
@@ -86,6 +86,7 @@ function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, ro
       },
       writeBriefs: async ({ memberIds = [] }) => {
         order.push("briefs");
+        if (briefsCallBreaks) throw new Error("socket hang up");
         return {
           byMember: Object.fromEntries(
             memberIds.map((memberId) => [memberId, { ok: true as const, brief: { result: "A night.", standing: "A place.", next: "A run." } }]),
@@ -147,6 +148,12 @@ describe("runWriteupPass", () => {
     const { pass, order } = setup(["L1"], { briefsBreak: true });
     await pass();
     expect(order).toEqual(["round 3", "scout"]);
+  });
+
+  it("spends a briefs call that throws, so the scout gets only what is left", async () => {
+    const { pass, order } = setup(["L1"], { briefsCallBreaks: true });
+    await pass();
+    expect(order).toEqual(["round 3", "briefs"]);
   });
 
   it("still writes the round and the briefs when the scout's read breaks", async () => {

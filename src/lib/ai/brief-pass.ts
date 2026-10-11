@@ -1,18 +1,19 @@
 import type PocketBase from "pocketbase";
 
 import type { BriefFacts } from "./brief-facts";
-import { BRIEF_PROMPT_VERSION, briefInput, briefRefs, reguardBrief, storedBrief, writeBriefs } from "./briefs";
-import { enabledLeagues, latestCorrection, reguardDue, stopping } from "./round-pass";
+import { BRIEF_PROMPT_VERSION, briefInput, briefRefs, reguardBrief, storedBrief, writeBriefs, type BriefLines } from "./briefs";
+import { enabledLeagues, latestCorrection, PassStopped, reguardDue, stopping } from "./round-pass";
 import {
+  abandonClaim,
   claimWriteup,
   completeWriteup,
   failWriteup,
-  instant,
+  isFreshClaim,
   markGuarded,
   MAX_ATTEMPTS,
   readMemberWriteups,
   readRewriteRequests,
-  STALE_AFTER_MS,
+  type Claim,
 } from "./store";
 import type { Voice } from "./voice";
 
@@ -68,16 +69,15 @@ export type BriefPassReport = {
   stopped: string | null;
 };
 
-/** Google said "not now": the claimed rows are failed and the pass ends. */
-class PassStopped extends Error {}
-
 /**
- * Claim the members' rows, ask once, finish each row on its own. Returns how
- * many were written and refused; `null` when nothing could be claimed, so no
- * call was made.
+ * Claim the members' rows, ask once, finish each row on its own. The call is
+ * counted before it is made, so one that throws still spends the budget.
+ * Returns how many were written and refused; `null` when nothing could be
+ * claimed, so no call was made.
  */
 async function writeMembers(
-  deps: BriefPassDeps,
+  deps: Omit<BriefPassDeps, "readComplete">,
+  report: BriefPassReport,
   { leagueId, voice, round, facts, memberIds, force }: {
     leagueId: string;
     voice: Voice;
@@ -88,7 +88,7 @@ async function writeMembers(
   },
 ): Promise<{ written: number; refused: number } | null> {
   const now = deps.now();
-  const claimed: { memberId: string; id: string }[] = [];
+  const claimed: (Extract<Claim, { outcome: "claimed" }> & { memberId: string })[] = [];
   for (const memberId of memberIds) {
     const { text, inputHash } = briefInput(facts, memberId, { voice, model: deps.model });
     const claim = await claimWriteup(
@@ -96,10 +96,11 @@ async function writeMembers(
       { leagueId, season: deps.season, round, kind: KIND, memberId },
       { inputHash, voice, model: deps.model, promptVersion: BRIEF_PROMPT_VERSION, facts: { version: facts.version, round, text }, now, force },
     );
-    if (claim.outcome === "claimed") claimed.push({ memberId, id: claim.id });
+    if (claim.outcome === "claimed") claimed.push({ ...claim, memberId });
   }
   if (claimed.length === 0) return null;
 
+  report.calls += 1;
   let result: Awaited<ReturnType<typeof writeBriefs>>;
   try {
     result = await (deps.write ?? writeBriefs)({
@@ -111,7 +112,7 @@ async function writeMembers(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    for (const entry of claimed) await failWriteup(deps.pb, entry.id, message);
+    for (const entry of claimed) await abandonClaim(deps.pb, entry, message);
     if (stopping(error)) throw new PassStopped(message);
     throw error;
   }
@@ -166,9 +167,8 @@ export async function runBriefPass(deps: BriefPassDeps): Promise<BriefPassReport
       const facts = await deps.readFacts(league.id, round);
       if (!facts) continue;
       const due = facts.memberIds.filter((memberId) => stored.get(memberId)?.status !== "ready");
-      const outcome = await writeMembers(deps, { leagueId: league.id, voice: league.ai.voice, round, facts, memberIds: due, force: false });
+      const outcome = await writeMembers(deps, report, { leagueId: league.id, voice: league.ai.voice, round, facts, memberIds: due, force: false });
       if (!outcome) continue;
-      report.calls += 1;
       report.written += outcome.written;
       report.refused += outcome.refused;
     }
@@ -178,17 +178,18 @@ export async function runBriefPass(deps: BriefPassDeps): Promise<BriefPassReport
     const now = deps.now();
     for (const league of leagues) {
       const rows = await readMemberWriteups(deps.pb, { leagueId: league.id, season: deps.season, kind: KIND });
-      const dueByRound = new Map<number, typeof rows>();
+      const dueByRound = new Map<number, { member: string; id: string; brief: BriefLines }[]>();
       for (const row of rows) {
-        if (row.status !== "ready" || !storedBrief(row.output) || !reguardDue(row, now, corrected)) continue;
-        dueByRound.set(row.round, [...(dueByRound.get(row.round) ?? []), row]);
+        const brief = row.status === "ready" ? storedBrief(row.output) : null;
+        if (!brief || !reguardDue(row, now, corrected)) continue;
+        dueByRound.set(row.round, [...(dueByRound.get(row.round) ?? []), { member: row.member, id: row.id, brief }]);
       }
       for (const [round, due] of dueByRound) {
         const facts = await deps.readFacts(league.id, round);
         if (!facts) continue;
         const broken: string[] = [];
         for (const row of due) {
-          if (reguardBrief(facts, row.member, storedBrief(row.output)!).length === 0) {
+          if (reguardBrief(facts, row.member, row.brief).length === 0) {
             await markGuarded(deps.pb, row.id, now);
             report.guarded += 1;
           } else {
@@ -197,9 +198,8 @@ export async function runBriefPass(deps: BriefPassDeps): Promise<BriefPassReport
         }
         // Unmarked, a false brief is checked again on the next pass, and rewritten when a call is left.
         if (broken.length === 0 || report.calls >= deps.budget) continue;
-        const outcome = await writeMembers(deps, { leagueId: league.id, voice: league.ai.voice, round, facts, memberIds: broken, force: true });
+        const outcome = await writeMembers(deps, report, { leagueId: league.id, voice: league.ai.voice, round, facts, memberIds: broken, force: true });
         if (!outcome) continue;
-        report.calls += 1;
         report.rewritten += outcome.written;
         report.refused += outcome.refused;
       }
@@ -218,16 +218,12 @@ export async function runBriefPass(deps: BriefPassDeps): Promise<BriefPassReport
  * claim is writing the row; a claim that went stale (the worker died
  * mid-write) is taken over.
  */
-export async function writeRequestedBriefs(deps: BriefPassDeps): Promise<BriefPassReport> {
+export async function writeRequestedBriefs(deps: Omit<BriefPassDeps, "readComplete">): Promise<BriefPassReport> {
   const report = emptyReport();
   if (!deps.apiKey) return { ...report, stopped: "no GEMINI_API_KEY" };
   const now = deps.now();
   const requests = (await readRewriteRequests(deps.pb)).filter(
-    (row) =>
-      row.kind === KIND &&
-      row.member &&
-      row.season === deps.season &&
-      !(row.status === "pending" && now - instant(row.claimed_at) < STALE_AFTER_MS),
+    (row) => row.kind === KIND && row.member && row.season === deps.season && !isFreshClaim(row, now),
   );
   if (requests.length === 0) return report;
 
@@ -245,7 +241,7 @@ export async function writeRequestedBriefs(deps: BriefPassDeps): Promise<BriefPa
       const { league: leagueId, round } = rows[0]!;
       const facts = await deps.readFacts(leagueId, round);
       if (!facts) continue;
-      const outcome = await writeMembers(deps, {
+      const outcome = await writeMembers(deps, report, {
         leagueId,
         voice: leagues.get(leagueId)!.ai.voice,
         round,
@@ -254,7 +250,6 @@ export async function writeRequestedBriefs(deps: BriefPassDeps): Promise<BriefPa
         force: true,
       });
       if (!outcome) continue;
-      report.calls += 1;
       report.rewritten += outcome.written;
       report.refused += outcome.refused;
     }

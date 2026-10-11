@@ -78,3 +78,14 @@ they are not all the same kind of claim.
   because a correction that makes the round write-up wrong makes them wrong
   too. The commissioner cannot read a brief; Recap's strip shows only a
   count ("Briefs: 9 of 10 written") and that a rewrite is queued.
+- **That count is the one page read that does not use the viewer's token**
+  (7.3 E). The commissioner's token cannot see members' rows, which is the
+  point of them, so `readBriefCount` reads with the superuser: only
+  `status`, `output` and `rewrite_requested_at`, never the hidden sheet. It
+  checks that the viewer is the league's commissioner itself and returns
+  two numbers.
+- **A request is answered by a verdict, not by a claim** (7.3 E). Finishing
+  or a refused answer clears it. Google not answering at all (the quota, the
+  key, an outage) puts a written row back as it was and leaves the request
+  standing, and so does a worker that dies mid-write. A brief members can
+  read never disappears because Google was down.

@@ -352,6 +352,18 @@ describe("writeRequestedBriefs", () => {
     ]);
   });
 
+  it("keeps a brief readable and its request standing when Google does not answer", async () => {
+    const { pb, deps } = harness(
+      { leagues: [league("L1")], ai_writeups: [storedRow("m1", requested), storedRow("m2", requested)] },
+      { answer: () => new GeminiQuota("429") },
+    );
+    expect((await writeRequestedBriefs(deps)).stopped).toContain("quota");
+    expect(pb.rows("ai_writeups").map((row) => [row.status, row.output, row.rewrite_requested_at !== ""])).toEqual([
+      ["ready", STORED.m1, true],
+      ["ready", STORED.m2, true],
+    ]);
+  });
+
   it("leaves requests standing in a league with write-ups off, and asks nothing without one", async () => {
     const off = harness({ leagues: [league("L1", { enabled: false, voice: "analyst" })], ai_writeups: [storedRow("m1", requested)] });
     expect(await writeRequestedBriefs(off.deps)).toMatchObject({ calls: 0 });

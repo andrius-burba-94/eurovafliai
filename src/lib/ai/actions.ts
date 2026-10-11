@@ -23,8 +23,9 @@ export type RewriteResult = {
  *
  * 7.3 E: it marks that round's briefs too, since a correction that makes the
  * write-up wrong makes them wrong as well. The commissioner never reads one;
- * the superuser client marks them. One mark per row and no transaction: a
- * fault partway leaves some rows asked for, and asking again marks the rest.
+ * the superuser client marks them. One mark per row and no transaction:
+ * the briefs are marked first and the write-up last, so "Could not ask" is
+ * true whenever it shows, and asking again marks whatever was missed.
  */
 export async function requestRoundRewrite(_previous: RewriteResult, formData: FormData): Promise<RewriteResult> {
   const session = await requireSession();
@@ -60,10 +61,10 @@ export async function requestRoundRewrite(_previous: RewriteResult, formData: Fo
 
   try {
     const now = Date.now();
-    await requestRewrite(pb, row.id, now);
     for (const brief of await readMemberWriteups(pb, { leagueId, season, round, kind: "round_brief" })) {
       await requestRewrite(pb, brief.id, now);
     }
+    await requestRewrite(pb, row.id, now);
   } catch {
     return { error: "Could not ask for that. Try again." };
   }

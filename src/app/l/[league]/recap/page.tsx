@@ -97,7 +97,9 @@ export default async function RecapPage({
           () => null,
         )
       : null,
-    written && data.isCommissioner ? readBriefCount({ leagueId: id, season, round: written.round }).catch(() => null) : null,
+    written && data.isCommissioner
+      ? readBriefCount({ viewerId: session.user.id, leagueId: id, season, round: written.round }).catch(() => null)
+      : null,
   ]);
   const viewerManages = data.isCommissioner || viewer.canManage;
   const paths = leaguePaths(data.league, data.members);

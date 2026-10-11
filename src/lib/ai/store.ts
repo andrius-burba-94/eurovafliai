@@ -58,7 +58,12 @@ export type WriteupRecord = {
 };
 
 export type Claim =
-  | { readonly outcome: "claimed"; readonly id: string }
+  | {
+      readonly outcome: "claimed";
+      readonly id: string;
+      /** The row's status before this claim, null for a new row: what `abandonClaim` puts back. */
+      readonly previous: WriteupRecord["status"] | null;
+    }
   | { readonly outcome: "unchanged" | "busy" | "exhausted"; readonly id: string };
 
 export const STALE_AFTER_MS = 10 * 60_000;
@@ -124,7 +129,7 @@ export async function claimWriteup(
         },
         { requestKey: null },
       );
-      return { outcome: "claimed", id: created.id };
+      return { outcome: "claimed", id: created.id, previous: null };
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       existing = await readWriteup(pb, key);
@@ -135,10 +140,7 @@ export async function claimWriteup(
   const sameInput = existing.input_hash === input.inputHash;
   if (!input.force) {
     if (existing.status === "ready" && sameInput) return { outcome: "unchanged", id: existing.id };
-    const claimedAt = instant(existing.claimed_at);
-    if (existing.status === "pending" && Number.isFinite(claimedAt) && input.now - claimedAt < STALE_AFTER_MS) {
-      return { outcome: "busy", id: existing.id };
-    }
+    if (isFreshClaim(existing, input.now)) return { outcome: "busy", id: existing.id };
     if (existing.status === "failed" && sameInput && (existing.attempts ?? 0) >= MAX_ATTEMPTS) {
       return { outcome: "exhausted", id: existing.id };
     }
@@ -149,7 +151,13 @@ export async function claimWriteup(
     { ...fields, attempts: sameInput ? (existing.attempts ?? 0) + 1 : 1 },
     { requestKey: null },
   );
-  return { outcome: "claimed", id: existing.id };
+  return { outcome: "claimed", id: existing.id, previous: existing.status };
+}
+
+/** Another run is writing this row now; a claim older than `STALE_AFTER_MS` is presumed dead. */
+export function isFreshClaim(row: Pick<WriteupRecord, "status" | "claimed_at">, now: number): boolean {
+  const claimedAt = instant(row.claimed_at);
+  return row.status === "pending" && Number.isFinite(claimedAt) && now - claimedAt < STALE_AFTER_MS;
 }
 
 /**
@@ -234,9 +242,10 @@ export async function completeWriteup(
 }
 
 /**
- * The previous prose stays: a failed rewrite must not take a good write-up
- * down with it. A failure answers a request too: asked again every minute, a
- * refused sheet would only spend the quota.
+ * The model answered and the answer was refused. The previous prose stays: a
+ * failed rewrite must not take a good write-up down with it. A refusal
+ * answers a request too: asked again every minute, a sheet the model cannot
+ * write would only spend the quota.
  */
 export async function failWriteup(pb: PocketBase, id: string, reason: string, usage?: GeminiUsage): Promise<void> {
   await pb.collection("ai_writeups").update(
@@ -249,6 +258,20 @@ export async function failWriteup(pb: PocketBase, id: string, reason: string, us
         ? { tokens_in: usage.inputTokens, tokens_out: usage.outputTokens, tokens_thinking: usage.thinkingTokens }
         : {}),
     },
+    { requestKey: null },
+  );
+}
+
+/**
+ * Google did not answer at all (the quota, the key, an outage, the network):
+ * no verdict on the sheet. The row goes back to what it was — a written row
+ * stays written, so a member's brief does not vanish over an outage — and a
+ * commissioner's request stands, so the next check asks again.
+ */
+export async function abandonClaim(pb: PocketBase, claim: { readonly id: string; readonly previous: WriteupRecord["status"] | null }, reason: string): Promise<void> {
+  await pb.collection("ai_writeups").update(
+    claim.id,
+    { status: claim.previous === "ready" ? "ready" : "failed", error: reason.slice(0, ERROR_LIMIT) },
     { requestKey: null },
   );
 }

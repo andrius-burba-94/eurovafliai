@@ -202,18 +202,32 @@ retries it; for any round the commissioner's Rewrite does, past the three
 attempts (a forced claim has no cap). This answers 7.3 B's carried note
 about an exhausted brief not being retried when its sheet changes.
 
-**A request now outlives the claim.** The claim used to clear
-`rewrite_requested_at`. A worker that died between the claim and the answer
-then left a pending row with no request, and with old prose the write step
-counts as written, so the rewrite was lost. Now finishing or failing clears
-it, and a crash leaves it standing until the claim goes stale. A failure
-answers the request on purpose. Otherwise a sheet the model cannot write
-would be asked for every minute, and the strip already says "couldn't
-write", so the commissioner can ask again.
+**A request now outlives the claim, and an outage is not an answer.** The
+claim used to clear `rewrite_requested_at`. A worker that died between the
+claim and the answer then left a pending row with no request, and with old
+prose the write step counts as written, so the rewrite was lost. Now a
+verdict clears it: finishing, or a refused answer, which would otherwise be
+asked for every minute. The review then caught the other half. Every thrown
+model error also failed the row, so one 429 during the commissioner's
+Rewrite hid every member's brief for an older round (#204 renders nothing
+for a failed row), and nothing would retry it. `abandonClaim` is for Google
+not answering. It puts a written row back to `ready`, with its prose and its
+request, and fails only a row that never held anything. The round write-up
+goes through the same path.
+
+**Calls are counted at the door.** `writeMembers` counts its call before it
+asks, and `runWriteupPass` wraps the briefs' writer the way it already
+wrapped the round's (`callBudget`). A briefs call that throws can no longer
+leave the scout a full two calls.
 
 **The commissioner's count is the one superuser read on a page.** The
 commissioner's token cannot see members' rows, which is the point of them.
 `readBriefCount` reads only `status`, `output` and `rewrite_requested_at`
 (never the hidden sheet), returns two numbers, and the page asks only when
-the viewer is the commissioner. A co-manager has the strip and no count.
-M is the round's ladder, the members a brief is written for.
+the viewer is the commissioner, and the function checks that itself, so a
+later caller cannot skip it. A co-manager has the strip and no count. M is
+the round's ladder, the members a brief is written for. A round with no brief
+rows at all, written before briefs existed, shows no count rather than "0 of
+M": Rewrite only re-asks for rows that exist, so a zero there could never be
+fixed. "Rewriting" means queued: a first write of the latest round does not
+show it.

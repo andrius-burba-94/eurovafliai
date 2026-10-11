@@ -3,7 +3,22 @@ import { runBriefPass, writeRequestedBriefs, type BriefPassReport } from "./brie
 import { CALLS_PER_PASS, runRoundPass, writeRequestedRounds, type PassReport, type RoundPassDeps } from "./round-pass";
 import type { ScoutFactsInput } from "./scout-facts-store";
 import { runScoutPass, type ScoutPassReport } from "./scout-pass";
+import { writeBriefs } from "./briefs";
 import { writeRoundSummary } from "./summary";
+
+/** One pass's model calls, each taken as it is made: a call that throws midway still spends one. */
+function callBudget() {
+  let left = CALLS_PER_PASS;
+  return {
+    left: () => left,
+    spend:
+      <A, R>(call: (args: A) => Promise<R>) =>
+      (args: A) => {
+        left -= 1;
+        return call(args);
+      },
+  };
+}
 
 type BriefDeps = {
   readonly readBriefFacts: (leagueId: string, round: number) => Promise<BriefFacts | null>;
@@ -36,19 +51,11 @@ export async function runWriteupPass(
       readonly onScoutError?: (error: unknown) => void;
     },
 ): Promise<PassReport> {
-  // Counted at the door, so a round pass that throws midway still leaves an honest budget.
-  let budget = CALLS_PER_PASS;
-  const write = deps.write ?? writeRoundSummary;
+  const budget = callBudget();
   let rounds: PassReport = { written: 0, refused: 0, guarded: 0, rewritten: 0, stopped: null };
   let roundFault: { readonly error: unknown } | null = null;
   try {
-    rounds = await runRoundPass({
-      ...deps,
-      write: (args) => {
-        budget -= 1;
-        return write(args);
-      },
-    });
+    rounds = await runRoundPass({ ...deps, write: budget.spend(deps.write ?? writeRoundSummary) });
   } catch (error) {
     roundFault = { error };
   }
@@ -58,12 +65,11 @@ export async function runWriteupPass(
   try {
     const briefs = await runBriefPass({
       ...shared,
-      budget,
+      budget: budget.left(),
       readFacts: deps.readBriefFacts,
-      ...(deps.writeBriefs ? { write: deps.writeBriefs } : {}),
+      write: budget.spend(deps.writeBriefs ?? writeBriefs),
     });
     deps.onBriefs?.(briefs);
-    budget -= briefs.calls;
     if (briefs.stopped) rounds = { ...rounds, stopped: briefs.stopped };
   } catch (error) {
     deps.onBriefsError?.(error);
@@ -73,7 +79,7 @@ export async function runWriteupPass(
     try {
       const scout = await runScoutPass({
         ...shared,
-        budget,
+        budget: budget.left(),
         readInput: deps.readScoutInput,
         ...(deps.writeReasons ? { write: deps.writeReasons } : {}),
       });
@@ -94,16 +100,9 @@ export async function runWriteupPass(
  * what the worker logs.
  */
 export async function runRequestedRewrites(deps: RoundPassDeps & BriefDeps): Promise<PassReport> {
-  const write = deps.write ?? writeRoundSummary;
-  let budget = CALLS_PER_PASS;
-  const rounds = await writeRequestedRounds({
-    ...deps,
-    write: (args) => {
-      budget -= 1;
-      return write(args);
-    },
-  });
-  if (rounds.stopped || budget <= 0) return rounds;
+  const budget = callBudget();
+  const rounds = await writeRequestedRounds({ ...deps, write: budget.spend(deps.write ?? writeRoundSummary) });
+  if (rounds.stopped || budget.left() <= 0) return rounds;
   try {
     const briefs = await writeRequestedBriefs({
       pb: deps.pb,
@@ -111,10 +110,9 @@ export async function runRequestedRewrites(deps: RoundPassDeps & BriefDeps): Pro
       apiKey: deps.apiKey,
       model: deps.model,
       now: deps.now,
-      readComplete: deps.readComplete,
-      budget,
+      budget: budget.left(),
       readFacts: deps.readBriefFacts,
-      ...(deps.writeBriefs ? { write: deps.writeBriefs } : {}),
+      write: budget.spend(deps.writeBriefs ?? writeBriefs),
     });
     deps.onBriefs?.(briefs);
     if (briefs.stopped) return { ...rounds, stopped: briefs.stopped };
