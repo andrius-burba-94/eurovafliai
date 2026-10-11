@@ -231,3 +231,17 @@ rows at all, written before briefs existed, shows no count rather than "0 of
 M": Rewrite only re-asks for rows that exist, so a zero there could never be
 fixed. "Rewriting" means queued: a first write of the latest round does not
 show it.
+
+**The critique** (`/impeccable critique`, two isolated assessments, recorded
+in `.impeccable/critique/` and the PR). It was run on the Recap panel, which
+replaced the hero #205 named. It scored 19/32, with two heuristics n/a. Fixed
+here:
+- the commissioner's strip opens when a brief is missing, and says Rewrite
+  covers the briefs;
+- a screen reader hears "Your night: Won. Round 4", not "Won Round 4".
+
+Left for the maintainer, because they reopen #203's decision:
+- "Won" (the top third) sits under a "Round winner" banner that crowns one
+  team;
+- the Night line repeats the badge;
+- the panel costs about 400px on a phone before the write-up.

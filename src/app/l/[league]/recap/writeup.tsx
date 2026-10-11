@@ -164,9 +164,11 @@ export function YourRound({
       testId="recap-brief"
       aside={
         <span className="flex items-center gap-2">
+          <span className="sr-only">Your night:</span>
           <StatusBadge kind={verdict} testId="recap-brief-verdict">
             {VERDICT_WORD[verdict]}
           </StatusBadge>
+          <span className="sr-only">.</span>
           Round {round}
         </span>
       }
