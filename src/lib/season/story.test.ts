@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Recap } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
 
-import { liveRecap, movementOf, ordinal, roundStory } from "./story";
+import { liveRecap, movementOf, neighboursOf, ordinal, roundStory } from "./story";
 
 const recap = (rows: [string, number][]): Recap => ({
   round: 3,
@@ -106,6 +106,22 @@ describe("movementOf", () => {
   it("returns null for somebody not in the table, or no table at all", () => {
     expect(movementOf(snapshots, "zz", names)).toBeNull();
     expect(movementOf([], "a", names)).toBeNull();
+  });
+});
+
+describe("neighboursOf", () => {
+  const table = [snap(4, [["a", 9000], ["b", 12000], ["c", 9000], ["d", 5000]])];
+
+  it("gives the gap up and the lead down, tied totals ranked by team name as the table ranks them", () => {
+    expect(neighboursOf(table, "a", names)).toEqual({ above: { memberId: "b", gap: 3000 }, below: { memberId: "c", lead: 0 } });
+    expect(neighboursOf(table, "c", names)).toEqual({ above: { memberId: "a", gap: 0 }, below: { memberId: "d", lead: 4000 } });
+  });
+
+  it("has nobody above the leader and nobody below last place", () => {
+    expect(neighboursOf(table, "b", names)).toEqual({ above: null, below: { memberId: "a", lead: 3000 } });
+    expect(neighboursOf(table, "d", names)).toEqual({ above: { memberId: "c", gap: 4000 }, below: null });
+    expect(neighboursOf(table, "z", names)).toBeNull();
+    expect(neighboursOf([], "a", names)).toBeNull();
   });
 });
 

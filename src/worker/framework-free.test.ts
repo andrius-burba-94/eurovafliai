@@ -29,8 +29,7 @@ const SRC = resolve(HERE, "..");
 const ENTRY = join(HERE, "index.ts");
 /**
  * Modules the worker will run that it does not import yet, so a framework
- * import added before they are wired in still fails here. Empty since 7.1
- * wired in the write-up pass.
+ * import added before they are wired in still fails here.
  */
 const PENDING: string[] = [];
 
@@ -104,6 +103,7 @@ describe("the worker is framework-free", () => {
       "lib/drafts/pipeline.ts",
     );
     expect(files.map((file) => relative(SRC, file))).toContain("lib/ai/gemini.ts");
+    expect(files.map((file) => relative(SRC, file))).toContain("lib/ai/brief-facts-store.ts");
     expect(packages.size).toBeGreaterThan(0);
   });
 

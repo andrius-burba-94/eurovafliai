@@ -1,11 +1,13 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Bank } from "@/components/board";
 import type { RoundWriteupRead } from "@/lib/ai/queries";
 import type { Segment } from "@/lib/ai/tokens";
+import type { BriefView } from "@/lib/ai/view";
 import type { SectionKey } from "@/lib/ai/voice";
 import { playerHref, type LeaguePaths, type Ref } from "@/lib/nav/urls";
+import { ordinal } from "@/lib/season/story";
 
 /**
  * The round, written — slice 7.1, option C of #186 ("margin notes", as the
@@ -126,5 +128,53 @@ export function WriteupNote({
         <Prose segments={segments} links={links} />
       </p>
     </div>
+  );
+}
+
+const BRIEF_ROWS: readonly { key: keyof BriefView; label: string }[] = [
+  { key: "result", label: "Night" },
+  { key: "standing", label: "Table" },
+  { key: "next", label: "Next" },
+];
+
+/**
+ * Your round — slice 7.3 D, option A of #203 as the maintainer revised it:
+ * the viewer's own brief, first in the reading column. The corner is the
+ * place on the night, read off Recap's ladder, and no verdict word: "won"
+ * beside another team's crown read as a claim to the round (#204's critique).
+ * The three lines are the model's, checked before they were stored.
+ */
+export function YourRound({
+  view,
+  place,
+  links,
+}: {
+  view: BriefView;
+  place: { readonly place: number; readonly teams: number };
+  links: WriteupLinks;
+}) {
+  return (
+    <Bank
+      framed
+      label="Your round"
+      testId="recap-brief"
+      aside={
+        <span data-testid="recap-brief-place">
+          <span className="sr-only">Your night: </span>
+          <span className="font-semibold text-ink">{ordinal(place.place)}</span> of {place.teams}
+        </span>
+      }
+    >
+      <dl className="grid max-w-[68ch] grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 sm:gap-x-6">
+        {BRIEF_ROWS.map(({ key, label }) => (
+          <Fragment key={key}>
+            <dt className="slot-label pt-[0.2em] text-ink-soft">{label}</dt>
+            <dd className="min-w-0 leading-relaxed break-words" data-testid={`recap-brief-${key}`}>
+              <Prose segments={view[key]} links={links} />
+            </dd>
+          </Fragment>
+        ))}
+      </dl>
+    </Bank>
   );
 }

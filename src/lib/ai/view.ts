@@ -1,3 +1,4 @@
+import { BRIEF_LINES, storedBrief } from "./briefs";
 import { renderSegments, type Names, type Segment, type TokenRef } from "./tokens";
 import { storedWriteup, type SectionKey } from "./voice";
 
@@ -50,6 +51,33 @@ export function writeupView(output: unknown, refs: unknown, names: Names): Write
   // A headline is a title: the model's habit of a closing full stop goes.
   const title = headline!.map((segment) => segment.text).join("").replace(/(?<!\.)\.\s*$/, "");
   return { headline: title, lines, sections };
+}
+
+/** A member's brief as Recap draws it — slice 7.3 D: its three lines, names put back. */
+export type BriefView = Readonly<Record<(typeof BRIEF_LINES)[number], readonly Segment[]>>;
+
+export function briefView(output: unknown, refs: unknown, names: Names): BriefView | null {
+  const brief = storedBrief(output);
+  if (!brief || !isRefs(refs)) return null;
+  const [result, standing, next] = renderSegments(
+    BRIEF_LINES.map((key) => brief[key]),
+    refs,
+    names,
+  );
+  return { result: result!, standing: standing!, next: next! };
+}
+
+/**
+ * The brief's corner: the member's place on Recap's own ladder, which ranks
+ * ties as the brief's sheet does (#204, as revised). Null when the night did
+ * not rank them.
+ */
+export function briefPlace(
+  ladder: readonly { readonly memberId: string }[],
+  memberId: string,
+): { readonly place: number; readonly teams: number } | null {
+  const index = ladder.findIndex((row) => row.memberId === memberId);
+  return index < 0 ? null : { place: index + 1, teams: ladder.length };
 }
 
 /**

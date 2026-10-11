@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 
+import { buildBriefFacts } from "./brief-facts";
+import { readBriefFactsInput } from "./brief-facts-store";
 import { buildRoundFacts } from "./round-facts";
 import { readRoundFactsInput } from "./round-facts-store";
 
@@ -151,5 +153,34 @@ describe("readRoundFactsInput", () => {
   it("says so when no round has finished", async () => {
     const data = db({ standings_snapshots: [] });
     await expect(read(data)).resolves.toEqual({ ok: false, reason: "no round has finished yet" });
+  });
+});
+
+describe("readBriefFactsInput", () => {
+  const readBriefs = (data: FakeDb, round?: number) =>
+    readBriefFactsInput(fakePb({ data }).client, { leagueId: "L1", season: "E2026", now: NOW, ...(round ? { round } : {}) });
+
+  it("refuses whatever the round sheet refuses", async () => {
+    const data = db({ fixtures: [fixture(1, true, 1), fixture(2, false, 2)] });
+    await expect(readBriefs(data, 2)).resolves.toEqual({ ok: false, reason: "round 2 is not finished" });
+  });
+
+  it("adds each member's moves worth making, as the Scout works them out today", async () => {
+    // A one-guard template: m1's guard p1 (next-5 2.0) loses to free agent p3 (6.0).
+    const data = db({
+      leagues: [{ id: "L1", name: "EuroVafliai 26-27", status: "season", settings: { roster_template: { G: 1, F: 0, C: 0 } } }],
+      players: [...db().players!, { id: "p3", name: "Cole, Carl", position: "G", club_code: "AAA", status: "" }],
+      player_outlooks: [
+        { id: "o1", season: "E2026", ruleset: "euroleague", player: "p1", outlook_5: 200, games_ahead: 5 },
+        { id: "o3", season: "E2026", ruleset: "euroleague", player: "p3", outlook_5: 600, games_ahead: 5 },
+      ],
+    });
+    const result = await readBriefs(data);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.input.moves.map((entry) => [entry.memberId, entry.moves.map((move) => [move.drop.id, move.add.id])])).toEqual([["m1", [["p1", "p3"]]]]);
+    const built = buildBriefFacts(result.input);
+    if (!built.ok) throw new Error(built.reason);
+    expect(built.facts.sectionFor("m1")).toContain("best move: drop");
+    expect(built.facts.sectionFor("m2")).not.toContain("best move");
   });
 });

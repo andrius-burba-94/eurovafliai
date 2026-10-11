@@ -74,7 +74,9 @@ src/lib/advisor/  the free-agent scout (7.2): pure `outlook.ts` (a player's next
                   5/10/15), `moves.ts` (moves worth making), `wire.ts`; `store.ts`
                   writes `player_outlooks`; `read.ts` works moves out at read time
 src/lib/ai/       AI commentary (7.0, ADR-0012): pure `round-facts.ts` builds the
-                  fact sheet, `tokens.ts` keeps names out, `guard.ts` refuses
+                  fact sheet and `brief-facts.ts` the briefs' (7.3), both from
+                  `round-analysis.ts`'s one set of measurements; `tokens.ts`
+                  keeps names out, `guard.ts` refuses
                   uncited numbers; `gemini.ts` is the ONE model client.
                   The model narrates; it never computes or decides
 src/worker/       PM2 worker: ~1s sweep, autodraft, stats ingest

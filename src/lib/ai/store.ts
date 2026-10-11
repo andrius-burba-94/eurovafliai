@@ -2,6 +2,7 @@ import type PocketBase from "pocketbase";
 
 import { isUniqueViolation } from "@/lib/drafts/unique";
 
+import type { BriefLines } from "./briefs";
 import type { GeminiUsage } from "./gemini";
 import type { TokenRef } from "./tokens";
 import type { RoundWriteup, Voice } from "./voice";
@@ -25,7 +26,7 @@ import type { RoundWriteup, Voice } from "./voice";
  * to burn on a sheet the model cannot write.
  */
 
-export type WriteupKind = "round_summary" | "scout_moves";
+export type WriteupKind = "round_summary" | "scout_moves" | "round_brief";
 
 export type WriteupKey = {
   readonly leagueId: string;
@@ -50,14 +51,19 @@ export type WriteupRecord = {
   readonly attempts?: number;
   readonly claimed_at?: string;
   readonly generated_at?: string;
-  /** 7.1: the commissioner asked for a rewrite; cleared by the claim that starts it. */
+  /** 7.1: the commissioner asked for a rewrite; cleared when the rewrite finishes or fails. */
   readonly rewrite_requested_at?: string;
   /** 7.1: when the stored prose last passed a re-guard (ADR-0013). */
   readonly last_guarded_at?: string;
 };
 
 export type Claim =
-  | { readonly outcome: "claimed"; readonly id: string }
+  | {
+      readonly outcome: "claimed";
+      readonly id: string;
+      /** The row's status before this claim, null for a new row: what `abandonClaim` puts back. */
+      readonly previous: WriteupRecord["status"] | null;
+    }
   | { readonly outcome: "unchanged" | "busy" | "exhausted"; readonly id: string };
 
 export const STALE_AFTER_MS = 10 * 60_000;
@@ -105,8 +111,6 @@ export async function claimWriteup(
     facts: input.facts,
     claimed_at: stamp(input.now),
     error: "",
-    // The claim is the rewrite starting, so it answers any request standing.
-    rewrite_requested_at: "",
   };
 
   let existing = await readWriteup(pb, key);
@@ -125,7 +129,7 @@ export async function claimWriteup(
         },
         { requestKey: null },
       );
-      return { outcome: "claimed", id: created.id };
+      return { outcome: "claimed", id: created.id, previous: null };
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       existing = await readWriteup(pb, key);
@@ -136,10 +140,7 @@ export async function claimWriteup(
   const sameInput = existing.input_hash === input.inputHash;
   if (!input.force) {
     if (existing.status === "ready" && sameInput) return { outcome: "unchanged", id: existing.id };
-    const claimedAt = instant(existing.claimed_at);
-    if (existing.status === "pending" && Number.isFinite(claimedAt) && input.now - claimedAt < STALE_AFTER_MS) {
-      return { outcome: "busy", id: existing.id };
-    }
+    if (isFreshClaim(existing, input.now)) return { outcome: "busy", id: existing.id };
     if (existing.status === "failed" && sameInput && (existing.attempts ?? 0) >= MAX_ATTEMPTS) {
       return { outcome: "exhausted", id: existing.id };
     }
@@ -150,17 +151,28 @@ export async function claimWriteup(
     { ...fields, attempts: sameInput ? (existing.attempts ?? 0) + 1 : 1 },
     { requestKey: null },
   );
-  return { outcome: "claimed", id: existing.id };
+  return { outcome: "claimed", id: existing.id, previous: existing.status };
 }
 
-/** Every member's row of one kind for one round: the scout's private reasons (7.2 G). */
+/** Another run is writing this row now; a claim older than `STALE_AFTER_MS` is presumed dead. */
+export function isFreshClaim(row: Pick<WriteupRecord, "status" | "claimed_at">, now: number): boolean {
+  const claimedAt = instant(row.claimed_at);
+  return row.status === "pending" && Number.isFinite(claimedAt) && now - claimedAt < STALE_AFTER_MS;
+}
+
+/**
+ * Every member's row of one kind for one round, or for the whole season with
+ * no round: the scout's reasons (7.2 G), the briefs (7.3 B, re-guarded in 7.3 E).
+ */
 export async function readMemberWriteups(
   pb: PocketBase,
-  { leagueId, season, round, kind }: { leagueId: string; season: string; round: number; kind: WriteupKind },
-): Promise<(WriteupRecord & { readonly member: string })[]> {
-  if (!ID.test(leagueId) || !/^E\d{4}$/.test(season) || !Number.isInteger(round)) throw new Error("ai_writeups: refusing a malformed key");
-  const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord & { member: string }>({
-    filter: `league = '${leagueId}' && season = "${season}" && round = ${round} && kind = '${kind}'`,
+  { leagueId, season, round, kind }: { leagueId: string; season: string; round?: number; kind: WriteupKind },
+): Promise<(WriteupRecord & { readonly member: string; readonly round: number })[]> {
+  if (!ID.test(leagueId) || !/^E\d{4}$/.test(season) || (round !== undefined && !Number.isInteger(round))) {
+    throw new Error("ai_writeups: refusing a malformed key");
+  }
+  const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord & { member: string; round: number }>({
+    filter: `league = '${leagueId}' && season = "${season}"${round === undefined ? "" : ` && round = ${round}`} && kind = '${kind}'`,
     requestKey: null,
   });
   return rows.filter((row) => row.member);
@@ -201,8 +213,8 @@ export async function completeWriteup(
   pb: PocketBase,
   id: string,
   result: {
-    /** A round's write-up, or a member's scout reasons (7.2 G). */
-    readonly writeup: RoundWriteup | { readonly reasons: Readonly<Record<string, string>> };
+    /** A round's write-up, a member's scout reasons (7.2 G) or a member's brief (7.3 B). */
+    readonly writeup: RoundWriteup | { readonly reasons: Readonly<Record<string, string>> } | BriefLines;
     readonly refs: Readonly<Record<string, TokenRef>>;
     readonly usage: GeminiUsage;
     readonly model: string;
@@ -221,22 +233,45 @@ export async function completeWriteup(
       tokens_thinking: result.usage.thinkingTokens,
       generated_at: stamp(result.now),
       error: "",
+      // Finishing answers a commissioner's request; a claim alone does not,
+      // so a worker that dies mid-write leaves the request for the next one.
+      rewrite_requested_at: "",
     },
     { requestKey: null },
   );
 }
 
-/** The previous prose stays: a failed rewrite must not take a good write-up down with it. */
+/**
+ * The model answered and the answer was refused. The previous prose stays: a
+ * failed rewrite must not take a good write-up down with it. A refusal
+ * answers a request too: asked again every minute, a sheet the model cannot
+ * write would only spend the quota.
+ */
 export async function failWriteup(pb: PocketBase, id: string, reason: string, usage?: GeminiUsage): Promise<void> {
   await pb.collection("ai_writeups").update(
     id,
     {
       status: "failed",
       error: reason.slice(0, ERROR_LIMIT),
+      rewrite_requested_at: "",
       ...(usage
         ? { tokens_in: usage.inputTokens, tokens_out: usage.outputTokens, tokens_thinking: usage.thinkingTokens }
         : {}),
     },
+    { requestKey: null },
+  );
+}
+
+/**
+ * Google did not answer at all (the quota, the key, an outage, the network):
+ * no verdict on the sheet. The row goes back to what it was — a written row
+ * stays written, so a member's brief does not vanish over an outage — and a
+ * commissioner's request stands, so the next check asks again.
+ */
+export async function abandonClaim(pb: PocketBase, claim: { readonly id: string; readonly previous: WriteupRecord["status"] | null }, reason: string): Promise<void> {
+  await pb.collection("ai_writeups").update(
+    claim.id,
+    { status: claim.previous === "ready" ? "ready" : "failed", error: reason.slice(0, ERROR_LIMIT) },
     { requestKey: null },
   );
 }

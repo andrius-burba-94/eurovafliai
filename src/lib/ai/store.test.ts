@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 
-import { claimWriteup, completeWriteup, failWriteup, readWriteup, STALE_AFTER_MS, type WriteupKey } from "./store";
+import { abandonClaim, claimWriteup, completeWriteup, failWriteup, readWriteup, requestRewrite, STALE_AFTER_MS, type WriteupKey } from "./store";
 
 const NOW = Date.parse("2026-10-09T12:00:00Z");
 const HASH_A = "a".repeat(64);
@@ -35,7 +35,7 @@ describe("claimWriteup", () => {
     const pb = fresh();
     const { id } = await claim(pb);
     await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
-    await expect(claim(pb, { inputHash: HASH_B, now: NOW + 1000 })).resolves.toEqual({ outcome: "claimed", id });
+    await expect(claim(pb, { inputHash: HASH_B, now: NOW + 1000 })).resolves.toMatchObject({ outcome: "claimed", id });
     expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "pending", input_hash: HASH_B, attempts: 1, output: WRITEUP });
   });
 
@@ -43,7 +43,7 @@ describe("claimWriteup", () => {
     const pb = fresh();
     const { id } = await claim(pb);
     await expect(claim(pb, { now: NOW + 60_000 })).resolves.toEqual({ outcome: "busy", id });
-    await expect(claim(pb, { now: NOW + STALE_AFTER_MS + 1 })).resolves.toEqual({ outcome: "claimed", id });
+    await expect(claim(pb, { now: NOW + STALE_AFTER_MS + 1 })).resolves.toMatchObject({ outcome: "claimed", id });
     expect(pb.rows("ai_writeups")[0]).toMatchObject({ attempts: 2 });
   });
 
@@ -55,7 +55,7 @@ describe("claimWriteup", () => {
       await failWriteup(pb.client, id, "refused by the guard", USAGE);
     }
     await expect(claim(pb)).resolves.toEqual({ outcome: "exhausted", id });
-    await expect(claim(pb, { force: true })).resolves.toEqual({ outcome: "claimed", id });
+    await expect(claim(pb, { force: true })).resolves.toMatchObject({ outcome: "claimed", id });
   });
 
   it("keeps the previous prose when a rewrite fails", async () => {
@@ -67,6 +67,45 @@ describe("claimWriteup", () => {
     const row = await readWriteup(pb.client, KEY);
     expect(row).toMatchObject({ status: "failed", output: WRITEUP });
     expect(row?.error).toHaveLength(500);
+  });
+
+  it("leaves a commissioner's request standing through the claim, so a crash mid-write is still asked for", async () => {
+    const pb = fresh();
+    const { id } = await claim(pb);
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
+    await requestRewrite(pb.client, id, NOW + 1000);
+    await claim(pb, { force: true, now: NOW + 2000 });
+    expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).not.toBe("");
+
+    // Finishing answers it; so does failing, or the minute check would ask the model every minute.
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW + 3000 });
+    expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).toBe("");
+    await requestRewrite(pb.client, id, NOW + 4000);
+    await claim(pb, { force: true, now: NOW + 5000 });
+    await failWriteup(pb.client, id, "stars: missing");
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "failed", rewrite_requested_at: "" });
+  });
+
+  it("puts a written row back when Google does not answer, and keeps the request standing", async () => {
+    const pb = fresh();
+    const { id } = await claim(pb);
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
+    await requestRewrite(pb.client, id, NOW + 1000);
+    const again = await claim(pb, { force: true, now: NOW + 2000 });
+    expect(again).toEqual({ outcome: "claimed", id, previous: "ready" });
+    if (again.outcome !== "claimed") throw new Error("unreachable");
+
+    await abandonClaim(pb.client, again, "Gemini's quota is used up for now (daily).");
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", output: WRITEUP, error: "Gemini's quota is used up for now (daily)." });
+    expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).not.toBe("");
+
+    // A row that never held a write-up has nothing to go back to: it is failed, and still asked for.
+    const other = fresh();
+    const first = await claim(other);
+    expect(first).toEqual({ outcome: "claimed", id: first.id, previous: null });
+    if (first.outcome !== "claimed") throw new Error("unreachable");
+    await abandonClaim(other.client, first, "Gemini did not answer (503: overloaded).");
+    expect(other.rows("ai_writeups")[0]).toMatchObject({ status: "failed" });
   });
 
   it("re-reads and decides when another run created the row first", async () => {

@@ -112,6 +112,34 @@ export function movementOf(
   };
 }
 
+export type Neighbours = {
+  /** The team one place up and how far ahead of the member it is; null for the leader. */
+  readonly above: { readonly memberId: string; readonly gap: number } | null;
+  /** The team one place down and the member's lead over it; null for last place. */
+  readonly below: { readonly memberId: string; readonly lead: number } | null;
+};
+
+/** Who a member is racing after the latest counted round, ranked as `movementOf` ranks. */
+export function neighboursOf(
+  snapshots: readonly RoundSnapshot[],
+  memberId: string,
+  teamNames: Readonly<Record<string, string>>,
+): Neighbours | null {
+  const latest = snapshots.at(-1);
+  if (!latest) return null;
+  const order = ranking(latest, teamNames);
+  const index = order.indexOf(memberId);
+  if (index === -1) return null;
+  const totals = new Map(latest.table.map((row) => [row.memberId, row.totalHundredths]));
+  const total = totals.get(memberId) ?? 0;
+  const above = index > 0 ? order[index - 1]! : null;
+  const below = order[index + 1] ?? null;
+  return {
+    above: above ? { memberId: above, gap: (totals.get(above) ?? 0) - total } : null,
+    below: below ? { memberId: below, lead: total - (totals.get(below) ?? 0) } : null,
+  };
+}
+
 /** "1st", "2nd", "3rd", "11th", "22nd". */
 export function ordinal(n: number): string {
   const tens = n % 100;

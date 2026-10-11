@@ -17,6 +17,9 @@ const START: RewriteResult = { error: null };
  * write-up is written; open when something needs a look. Rewrite is the
  * commissioner's alone and only queues: the worker writes within a minute and
  * the row's change re-renders the page. Never shown to a member.
+ *
+ * 7.3 E: the commissioner also sees how many of the round's briefs members
+ * can read. A count only — the commissioner never reads a member's brief.
  */
 export function WriteupStrip({
   leagueId,
@@ -29,6 +32,7 @@ export function WriteupStrip({
   canRewrite,
   settingsHref,
   authToken,
+  briefs = null,
 }: {
   leagueId: string;
   season: string;
@@ -41,6 +45,8 @@ export function WriteupStrip({
   canRewrite: boolean;
   settingsHref: string;
   authToken: string;
+  /** The commissioner's count of the round's briefs; null for anyone else, or a round with none. */
+  briefs?: { readonly written: number; readonly total: number; readonly rewriting: boolean } | null;
 }) {
   const router = useRouter();
   const [result, action] = useActionState(requestRoundRewrite, START);
@@ -67,7 +73,12 @@ export function WriteupStrip({
   const dot = shown === "written" ? "bg-gain" : shown === "rewriting" ? "bg-live motion-safe:animate-pulse" : "bg-loss";
 
   return (
-    <details className="group border-t border-panel-border" open={shown !== "written"} data-testid="recap-writeup-strip">
+    <details
+      className="group border-t border-panel-border"
+      // A brief members cannot read is something to look at, even under a write-up that is fine.
+      open={shown !== "written" || (briefs !== null && briefs.written < briefs.total)}
+      data-testid="recap-writeup-strip"
+    >
       <summary className="slot-label flex min-h-11 cursor-pointer list-none items-center gap-2.5 text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live [&::-webkit-details-marker]:hidden">
         <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${dot}`} />
         <span data-testid="recap-writeup-status">{summary}</span>
@@ -92,6 +103,12 @@ export function WriteupStrip({
             Any earlier write-up stays up.
           </p>
         )}
+        {briefs ? (
+          <p data-testid="recap-writeup-briefs">
+            Briefs: {briefs.written} of {briefs.total} written
+            {briefs.rewriting || asked ? " · rewriting…" : canRewrite ? ". Rewrite this round rewrites them too." : ""}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {canRewrite ? (
             <form action={action}>

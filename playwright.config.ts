@@ -20,6 +20,7 @@ const BASE_URL = `http://localhost:${PORT}`;
 const MOBILE_SCOPE = process.env.E2E_MOBILE_SCOPE ?? "all";
 const MOBILE_LAYOUT_SPECS = [
   "a11y.spec.ts",
+  "brief.spec.ts",
   "cheat-sheet.spec.ts",
   "design.spec.ts",
   "draft-board.spec.ts",
