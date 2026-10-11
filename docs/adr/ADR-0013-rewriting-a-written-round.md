@@ -1,7 +1,8 @@
 # ADR-0013: When a written round is rewritten
 
 Date: 2026-10-09
-Status: accepted; settles the question ADR-0012 left to slice 7.1
+Status: accepted; settles the question ADR-0012 left to slice 7.1; amended
+2026-10-11 for 7.3's briefs
 
 ## Context
 
@@ -57,3 +58,23 @@ runs show how often fair prose trips it.
   of the hash, and still rewrites the season on a model or prompt bump.
 - **Freeze; commissioner only.** Simplest, but a correction leaves wrong
   numbers in front of friends until somebody notices.
+
+## Amendment, 2026-10-11: briefs (7.3)
+
+A **brief** is a member's own three lines about a round: what won or lost
+it, where they stand, what is next. It is stored as three named lines, and
+they are not all the same kind of claim.
+
+- **The first two lines are history and follow this ADR exactly.** They are
+  re-guarded daily and after a correction against the rebuilt sheet, and
+  rewritten in the league's current voice only if they no longer pass.
+- **The third line is a forecast as of writing, and is never re-guarded.**
+  It reads the next round's run, an injury flag and the member's best move
+  worth making, all of which move daily with no stat corrected. Re-guarding
+  it would rewrite a brief under a member who had already read it, and a
+  round long past has no next round left to check it against. It is dated
+  advice, like a scout reason.
+- **The commissioner's Rewrite also re-queues that round's briefs**,
+  because a correction that makes the round write-up wrong makes them wrong
+  too. The commissioner cannot read a brief; Recap's strip shows only a
+  count ("Briefs: 9 of 10 written") and that a rewrite is queued.

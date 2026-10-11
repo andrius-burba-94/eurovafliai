@@ -21,6 +21,36 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## In progress: AI commentary — 7.3 your round, October 2026
+
+**A private brief per member, three lines about their own round** (blueprint
+7.3, spec #200; vocabulary **brief** and **decider** in `CONTEXT.md`;
+ADR-0013 amended for briefs). Nothing a member sees has changed yet.
+
+| Slice | State | What it is |
+|---|---|---|
+| 7.3 A The brief's fact sheet (#201) | Done | `buildBriefFacts` (`src/lib/ai/brief-facts.ts`, pure): a shared header (the table in tokens) and one section per member covering the night, deciders, standing, trend, honour and next. It reads the round sheet's own measurements, now `analyseRound` in `round-analysis.ts`. `readBriefFactsInput` adds every member's moves worth making. |
+| 7.3 B Briefs written and stored (#202) | Next | The migration, the writer, the worker's briefs pass |
+
+Decisions the spec left open (the log has the reasons):
+- The top counted scorer and the underperformer are valued against their
+  own average in their role.
+- The bench decider is the one bench player whose half cost most.
+- No game and did not play are one "short-handed" decider, valued at the
+  players' averages.
+- A top-three streak counts only from three nights, and only in a league of
+  more than three teams.
+
+**Next up: 7.3 B, briefs written and stored (#202).**
+
+**Try it on localhost:**
+- `npm run dev`, then
+  `npm run ai:preview -- --league=<slug|id> --briefs --facts-only` prints the
+  briefs' sheet in tokens: the table, then each member's night, deciders,
+  standing, trend, honour and next round. Without `--facts-only` it stops
+  after the facts until 7.3 B. It refuses whatever the round write-up
+  refuses, so a local database needs a finished round (`npm run stats:sync`).
+
 ## AI commentary — 7.2 the free-agent scout, October 2026
 
 **Every league in season has a Scout page, after Trades** (blueprint 7.2,
@@ -84,8 +114,6 @@ the first positions reads and round 4's reasons by itself. The E2025 backfill
 then stored 7,130 lines, every one with a known start, and a hash taken before
 and after showed this season's averages, standings and doorbell unchanged.
 Plain `npm run stats:prev` should still not be run; only `--check`.
-
-**Next up: 7.3, your round.**
 
 **Try it on localhost:**
 - `npm run dev` (it starts the worker, which computes the outlooks two
