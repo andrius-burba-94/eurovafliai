@@ -18,7 +18,7 @@ import { systemRules, type Voice } from "./voice";
  * faults listed; a second refusal fails those members and keeps the rest.
  */
 
-export const BRIEF_PROMPT_VERSION = "round-brief-2";
+export const BRIEF_PROMPT_VERSION = "round-brief-3";
 
 export const BRIEF_LINES = ["result", "standing", "next"] as const;
 export type BriefLines = Readonly<Record<(typeof BRIEF_LINES)[number], string>>;
@@ -37,7 +37,7 @@ type Ask = (request: GeminiRequest) => Promise<GeminiAnswer>;
 const TASK = `Task: write each team's brief: three lines to that team's manager about their own round, in the second person ("you", "your").
 - result: whether the night was won, held or lost (the NIGHT line), and the one or two things that decided it (the DECIDER lines), with their values.
 - standing: the gap to the team above and the lead over the team below (the STANDING line), then the TREND line's word (rising, falling or steady) or the HONOUR line when there is one. Never write a place in the table (1st, 2nd, 3rd…) or how many places the team moved: the page already shows both.
-- next: the next round's run, the unavailable player if there is one, and the best move if there is one (the NEXT line). No captain, lineup or start/sit advice.
+- next: the next round's run and the best move if there is one (the NEXT line). Never say a player is injured, doubtful, out or without a game. No captain, lineup or start/sit advice.
 - Each line is exactly one sentence, 20 to 200 characters, on one line.
 - Use only the table and that team's own lines. Never mention another team's night, deciders, players or moves; other teams may appear only as the table shows them.
 - Say "fantasy points", "Modern points" or "PIR" as the lines do, never "points" on its own.`;

@@ -434,14 +434,14 @@ describe("buildBriefFacts: next", () => {
     expect(facts({ nextRound: null }).sectionFor("m1")).not.toContain("NEXT ROUND");
   });
 
-  it("names at most one injured or doubtful player: the one with the bigger average", () => {
+  it("names no injured or doubtful player and no count of players without a game", () => {
     const players = PLAYERS.map((entry) =>
       entry.id === "pBig" ? { ...entry, status: "doubtful" } : entry.id === "pMate" ? { ...entry, status: "injured" } : entry,
     );
     const sheet = facts({ players, news: [{ player: "pBig", status: "doubtful", bodyPart: "Ankle", published: "2026-10-04" }] });
-    const line = linesOf(sheet, "m1", "NEXT ROUND 6")[0]!;
-    expect(line).toContain(`unavailable now ${tokenOf(sheet, "pBig")} (doubtful, reported 2026-10-04)`);
-    expect(line).not.toContain(tokenOf(sheet, "pMate"));
+    const section = sheet.sectionFor("m1");
+    expect(section).not.toMatch(/unavailable|doubtful|injured|without a game/);
+    expect(linesOf(sheet, "m1", "NEXT ROUND 6")[0]).not.toContain(tokenOf(sheet, "pMate"));
   });
 
   it("points to the best move worth making, and to none when the roster does not count its template", () => {

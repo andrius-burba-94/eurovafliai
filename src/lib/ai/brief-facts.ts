@@ -6,7 +6,7 @@ import { memberHonours, ON_FIRE_STREAK, type MemberHonours } from "@/lib/season/
 import { movementOf, neighboursOf, ordinal } from "@/lib/season/story";
 import { formatHundredths, formatSignedHundredths, formatTenths } from "@/lib/stats/scoring";
 
-import { analyseRound, byId, FLAGGED, type Night } from "./round-analysis";
+import { analyseRound, byId, type Night } from "./round-analysis";
 import { CAPTAIN_REGRET, MOVED_PLACES, type RoundFactsInput } from "./round-facts";
 import { assignTokens, TOKEN_PATTERN, type TokenRef } from "./tokens";
 
@@ -25,7 +25,7 @@ import { assignTokens, TOKEN_PATTERN, type TokenRef } from "./tokens";
  * round write-up cannot disagree about a night.
  */
 
-export const BRIEF_FACTS_VERSION = 1;
+export const BRIEF_FACTS_VERSION = 2;
 /** Deciders a section prints, biggest first. */
 export const DECIDERS_SHOWN = 2;
 /** Snapshots back the trend compares against. */
@@ -82,7 +82,7 @@ function verdictOf(place: number, teams: number): "won" | "held" | "lost" {
 export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
   const analysed = analyseRound(input);
   if (!analysed.ok) return analysed;
-  const { round: R, basketNews, snapshots, current, memberIds: allIds, teamNames, playerById, sourceOf, nightOf, rostered, clubOf, clubPlayed, isUnder, captaincies, deals, nextFor, availability } =
+  const { round: R, basketNews, snapshots, current, memberIds: allIds, teamNames, playerById, sourceOf, rostered, clubOf, clubPlayed, isUnder, captaincies, deals, nextFor } =
     analysed.analysis;
   const inTable = new Set(current.table.map((row) => row.memberId));
   const memberIds = allIds.filter((memberId) => inTable.has(memberId));
@@ -205,30 +205,14 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
       .slice(0, DECIDERS_SHOWN);
   };
 
-  /** The one flagged player who matters most: the bigger average, then the firmer flag. */
-  const flaggedOf = (squad: readonly string[]) =>
-    squad
-      .filter((playerId) => FLAGGED.includes(playerById.get(playerId)?.status ?? ""))
-      .sort(
-        (a, b) =>
-          (nightOf(b).basis?.tenths ?? 0) - (nightOf(a).basis?.tenths ?? 0) ||
-          Number(playerById.get(b)?.status === "injured") - Number(playerById.get(a)?.status === "injured") ||
-          byId(a, b),
-      )[0] ?? null;
-
   const moveOf = new Map(input.moves.flatMap((entry) => (entry.moves[0] ? [[entry.memberId, entry.moves[0]] as const] : [])));
 
-  type Plan = { memberId: string; deciders: Decider[]; flagged: string | null; move: ScoutMove | null };
-  const plans: Plan[] = memberIds.map((memberId) => {
-    const run = nextFor(memberId);
-    const squad = run ? run.squad : rostered.filter((entry) => entry.ownerId === memberId).map((entry) => entry.playerId);
-    return { memberId, deciders: decidersOf(memberId), flagged: flaggedOf(squad), move: moveOf.get(memberId) ?? null };
-  });
+  type Plan = { memberId: string; deciders: Decider[]; move: ScoutMove | null };
+  const plans: Plan[] = memberIds.map((memberId) => ({ memberId, deciders: decidersOf(memberId), move: moveOf.get(memberId) ?? null }));
 
   // ---- tokens -----------------------------------------------------------------
   const mentioned = plans.flatMap((plan) => [
     ...plan.deciders.flatMap((decider) => decider.players),
-    ...(plan.flagged ? [plan.flagged] : []),
     ...(plan.move ? [plan.move.drop.id, plan.move.add.id] : []),
   ]);
   const tokens = assignTokens(memberIds, mentioned);
@@ -291,12 +275,13 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
     const honour = honourLine(honoursBefore.get(memberId), honoursNow.get(memberId), ladder.length);
     if (honour) lines.push(`HONOUR · ${honour}`);
 
+    // No availability and no count of players without a game: who plays is
+    // rarely known until close to tip-off, and Lineup already shows the fixtures.
     const run = nextFor(memberId);
     const next = [
       run
-        ? `${run.counts.easy} easy, ${run.counts.even} even, ${run.counts.hard} hard${run.counts.unknown > 0 ? `, ${run.counts.unknown} not yet rated` : ""}${run.counts.idle > 0 ? `, ${run.counts.idle} without a game` : ""}`
+        ? `${run.counts.easy} easy, ${run.counts.even} even, ${run.counts.hard} hard${run.counts.unknown > 0 ? `, ${run.counts.unknown} not yet rated` : ""}`
         : null,
-      plan.flagged ? `unavailable now ${P(plan.flagged)} (${availability(plan.flagged)})` : null,
       plan.move
         ? `best move: drop ${P(plan.move.drop.id)}, add ${P(plan.move.add.id)} · +${formatOutlook(plan.move.gain)} ${basketNews ? "Modern points" : "fantasy points"} a game over the next 5`
         : null,
