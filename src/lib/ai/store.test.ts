@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 
-import { claimWriteup, completeWriteup, failWriteup, readWriteup, STALE_AFTER_MS, type WriteupKey } from "./store";
+import { claimWriteup, completeWriteup, failWriteup, readWriteup, requestRewrite, STALE_AFTER_MS, type WriteupKey } from "./store";
 
 const NOW = Date.parse("2026-10-09T12:00:00Z");
 const HASH_A = "a".repeat(64);
@@ -67,6 +67,23 @@ describe("claimWriteup", () => {
     const row = await readWriteup(pb.client, KEY);
     expect(row).toMatchObject({ status: "failed", output: WRITEUP });
     expect(row?.error).toHaveLength(500);
+  });
+
+  it("leaves a commissioner's request standing through the claim, so a crash mid-write is still asked for", async () => {
+    const pb = fresh();
+    const { id } = await claim(pb);
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
+    await requestRewrite(pb.client, id, NOW + 1000);
+    await claim(pb, { force: true, now: NOW + 2000 });
+    expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).not.toBe("");
+
+    // Finishing answers it; so does failing, or the minute check would ask the model every minute.
+    await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW + 3000 });
+    expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).toBe("");
+    await requestRewrite(pb.client, id, NOW + 4000);
+    await claim(pb, { force: true, now: NOW + 5000 });
+    await failWriteup(pb.client, id, "stars: missing");
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "failed", rewrite_requested_at: "" });
   });
 
   it("re-reads and decides when another run created the row first", async () => {

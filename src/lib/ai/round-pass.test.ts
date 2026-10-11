@@ -253,6 +253,18 @@ describe("writeRequestedRounds", () => {
     expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", rewrite_requested_at: "" });
   });
 
+  it("takes a requested rewrite over once a crashed claim goes stale", async () => {
+    const { pb, deps, calls } = harness({
+      leagues: [league("L1")],
+      ai_writeups: [
+        readyRow("L1", 2, { status: "pending", claimed_at: stamp(NOW - STALE_AFTER_MS - 1), rewrite_requested_at: stamp(NOW - STALE_AFTER_MS - 30_000) }),
+      ],
+    });
+    expect(await writeRequestedRounds(deps)).toMatchObject({ rewritten: 1 });
+    expect(calls).toEqual([{ round: 2, voice: "analyst" }]);
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", rewrite_requested_at: "" });
+  });
+
   it("asks nothing when nothing is requested, and leaves requests in an off league or mid-write", async () => {
     const idle = harness({ leagues: [league("L1")], ai_writeups: [readyRow("L1", 1)] });
     await writeRequestedRounds(idle.deps);

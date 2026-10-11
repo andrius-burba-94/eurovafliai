@@ -51,7 +51,7 @@ export type WriteupRecord = {
   readonly attempts?: number;
   readonly claimed_at?: string;
   readonly generated_at?: string;
-  /** 7.1: the commissioner asked for a rewrite; cleared by the claim that starts it. */
+  /** 7.1: the commissioner asked for a rewrite; cleared when the rewrite finishes or fails. */
   readonly rewrite_requested_at?: string;
   /** 7.1: when the stored prose last passed a re-guard (ADR-0013). */
   readonly last_guarded_at?: string;
@@ -106,8 +106,6 @@ export async function claimWriteup(
     facts: input.facts,
     claimed_at: stamp(input.now),
     error: "",
-    // The claim is the rewrite starting, so it answers any request standing.
-    rewrite_requested_at: "",
   };
 
   let existing = await readWriteup(pb, key);
@@ -154,14 +152,19 @@ export async function claimWriteup(
   return { outcome: "claimed", id: existing.id };
 }
 
-/** Every member's row of one kind for one round: the scout's reasons (7.2 G), the briefs (7.3 B). */
+/**
+ * Every member's row of one kind for one round, or for the whole season with
+ * no round: the scout's reasons (7.2 G), the briefs (7.3 B, re-guarded in 7.3 E).
+ */
 export async function readMemberWriteups(
   pb: PocketBase,
-  { leagueId, season, round, kind }: { leagueId: string; season: string; round: number; kind: WriteupKind },
-): Promise<(WriteupRecord & { readonly member: string })[]> {
-  if (!ID.test(leagueId) || !/^E\d{4}$/.test(season) || !Number.isInteger(round)) throw new Error("ai_writeups: refusing a malformed key");
-  const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord & { member: string }>({
-    filter: `league = '${leagueId}' && season = "${season}" && round = ${round} && kind = '${kind}'`,
+  { leagueId, season, round, kind }: { leagueId: string; season: string; round?: number; kind: WriteupKind },
+): Promise<(WriteupRecord & { readonly member: string; readonly round: number })[]> {
+  if (!ID.test(leagueId) || !/^E\d{4}$/.test(season) || (round !== undefined && !Number.isInteger(round))) {
+    throw new Error("ai_writeups: refusing a malformed key");
+  }
+  const rows = await pb.collection("ai_writeups").getFullList<WriteupRecord & { member: string; round: number }>({
+    filter: `league = '${leagueId}' && season = "${season}"${round === undefined ? "" : ` && round = ${round}`} && kind = '${kind}'`,
     requestKey: null,
   });
   return rows.filter((row) => row.member);
@@ -222,18 +225,26 @@ export async function completeWriteup(
       tokens_thinking: result.usage.thinkingTokens,
       generated_at: stamp(result.now),
       error: "",
+      // Finishing answers a commissioner's request; a claim alone does not,
+      // so a worker that dies mid-write leaves the request for the next one.
+      rewrite_requested_at: "",
     },
     { requestKey: null },
   );
 }
 
-/** The previous prose stays: a failed rewrite must not take a good write-up down with it. */
+/**
+ * The previous prose stays: a failed rewrite must not take a good write-up
+ * down with it. A failure answers a request too: asked again every minute, a
+ * refused sheet would only spend the quota.
+ */
 export async function failWriteup(pb: PocketBase, id: string, reason: string, usage?: GeminiUsage): Promise<void> {
   await pb.collection("ai_writeups").update(
     id,
     {
       status: "failed",
       error: reason.slice(0, ERROR_LIMIT),
+      rewrite_requested_at: "",
       ...(usage
         ? { tokens_in: usage.inputTokens, tokens_out: usage.outputTokens, tokens_thinking: usage.thinkingTokens }
         : {}),
