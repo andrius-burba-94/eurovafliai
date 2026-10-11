@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { failureKind, writeupView } from "./view";
+import { briefVerdict, briefView, failureKind, writeupView } from "./view";
 
 const refs = {
   "@T1": { kind: "member", id: "m1" },
@@ -43,6 +43,46 @@ describe("writeupView", () => {
   it("never renders an unknown token as a name", () => {
     const view = writeupView({ ...output, lines: ["#P9 starred for the whole night long.", ...output.lines.slice(1)] }, refs, names)!;
     expect(view.lines[0]![0]).toEqual({ type: "text", text: "#P9" });
+  });
+});
+
+describe("briefView", () => {
+  const brief = {
+    result: "You won the night in 1st, carried by #P1's 38.5 fantasy points as captain.",
+    standing: "You lead @T2 by 12.4 fantasy points, and you are rising.",
+    next: "Round 4 is an easy run, and the Scout likes #P2 for #P1.",
+  };
+  const briefRefs = { ...refs, "@T2": { kind: "member", id: "m2" } };
+  const briefNames = { ...names, members: { ...names.members, m2: "Blynų Brigada" } };
+
+  it("puts names back across the three lines, a player in full first and by surname after", () => {
+    const view = briefView(brief, briefRefs, briefNames)!;
+    expect(view.result[1]).toEqual({ type: "player", id: "p1", text: "Alexanter Vezenkov" });
+    expect(view.standing[1]).toEqual({ type: "member", id: "m2", text: "Blynų Brigada" });
+    expect(view.next.filter((segment) => segment.type === "player")).toEqual([
+      { type: "player", id: "p2", text: "Dzanan Musa" },
+      { type: "player", id: "p1", text: "Vezenkov" },
+    ]);
+  });
+
+  it("shows nothing for an output that is not three lines, or refs that are not refs", () => {
+    expect(briefView(null, briefRefs, briefNames)).toBeNull();
+    expect(briefView({ result: brief.result, standing: brief.standing }, briefRefs, briefNames)).toBeNull();
+    expect(briefView(output, briefRefs, briefNames)).toBeNull();
+    expect(briefView(brief, { "@T1": { kind: "team", id: "m1" } }, briefNames)).toBeNull();
+  });
+});
+
+describe("briefVerdict", () => {
+  const ladder = ["a", "b", "c", "d", "e", "f"].map((memberId) => ({ memberId }));
+
+  it("reads the place off Recap's own ladder, by thirds", () => {
+    expect(ladder.map((row) => briefVerdict(ladder, row.memberId))).toEqual(["won", "won", "held", "held", "lost", "lost"]);
+  });
+
+  it("has no verdict for a member the night did not rank", () => {
+    expect(briefVerdict(ladder, "z")).toBeNull();
+    expect(briefVerdict([], "a")).toBeNull();
   });
 });
 
