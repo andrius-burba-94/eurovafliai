@@ -178,3 +178,42 @@ round write-up does; a failed row, no row, an output this version cannot
 parse, write-ups Off and a round still in play show nothing, and Recap is
 then exactly what it was. The write-up and the brief are read in parallel.
 
+
+## 7.3 E Re-guard, rewrite, the commissioner's count (#205)
+
+**The re-guard follows the round write-up's, line by line.** ADR-0013, as
+amended, splits a brief into history (`result`, `standing`) and a forecast
+(`next`). `reguardBrief` runs the same guard the writer runs, against the
+same table and the member's own section, on the two history lines only. The
+schedule is the round pass's: `reguardDue` (daily, or once an applied
+`/stats/import` changed rows after the last check) is now shared by both, so
+a correction reaches every write-up in the league on the same pass.
+
+**A false brief is rewritten whole, one call per league round.** The members
+whose briefs fail go to `writeBriefs` together, with a forced claim, in the
+league's voice now. A brief that holds is marked and nothing else. With no
+call left in the pass, a false brief stays unmarked, so the next pass checks
+it again and rewrites it then. The whole brief is rewritten, as #205 asks,
+not just the broken line: the three lines are one piece in one voice.
+
+**Only a written brief is re-guarded.** A failed row has nothing members can
+see, so there is nothing to keep true. For the latest round the write step
+retries it; for any round the commissioner's Rewrite does, past the three
+attempts (a forced claim has no cap). This answers 7.3 B's carried note
+about an exhausted brief not being retried when its sheet changes.
+
+**A request now outlives the claim.** The claim used to clear
+`rewrite_requested_at`. A worker that died between the claim and the answer
+then left a pending row with no request, and with old prose the write step
+counts as written, so the rewrite was lost. Now finishing or failing clears
+it, and a crash leaves it standing until the claim goes stale. A failure
+answers the request on purpose. Otherwise a sheet the model cannot write
+would be asked for every minute, and the strip already says "couldn't
+write", so the commissioner can ask again.
+
+**The commissioner's count is the one superuser read on a page.** The
+commissioner's token cannot see members' rows, which is the point of them.
+`readBriefCount` reads only `status`, `output` and `rewrite_requested_at`
+(never the hidden sheet), returns two numbers, and the page asks only when
+the viewer is the commissioner. A co-manager has the strip and no count.
+M is the round's ladder, the members a brief is written for.

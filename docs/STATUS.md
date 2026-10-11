@@ -21,12 +21,14 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
-## In progress: AI commentary — 7.3 your round, October 2026
+## AI commentary — 7.3 your round, October 2026
 
 **A private brief per member, three lines about their own round** (blueprint
 7.3, spec #200; vocabulary **brief** and **decider** in `CONTEXT.md`;
 ADR-0013 amended for briefs). The worker writes briefs, and a member reads
-their own on Recap as "Your round".
+their own on Recap as "Your round". A brief stays true after a correction,
+and the commissioner can have a round's briefs rewritten without reading
+one.
 
 | Slice | State | What it is |
 |---|---|---|
@@ -34,7 +36,7 @@ their own on Recap as "Your round".
 | 7.3 B Briefs written and stored (#202) | Done | `ai_writeups.kind` gains `round_brief`: one private row per member, `output` `{ result, standing, next }`. `writeBriefs` (`briefs.ts`) makes one call per league, guards each member against the table and their own section, and retries only the refused. `runBriefPass` (`brief-pass.ts`) writes the latest finished round only; the pass order is now round write-up, briefs, scout. `ai:preview --briefs` writes them, `--save` stores them. Nobody sees a brief in the app yet. |
 | 7.3 C Three previews of Your round (#203) | Done | Picked **A, the panel**, revised: the brief shows **only on Recap**, as a framed "Your round" panel first in the reading column (WON / HELD / LOST tag and the round in its corner, three labelled lines: Night, Table, Next). **League Home is unchanged**, so it does not grow. The Next line names no injured or doubtful player and no count of players without a game; the sheet (version 2) and prompt (`round-brief-3`) no longer carry either. |
 | 7.3 D Your round on Recap (#204) | Done | A framed "Your round" panel, first in Recap's reading column, for the viewed round: a WON / HELD / LOST tag and the round in its corner, then Night, Table and Next. `readRoundBrief` (`queries.ts`) reads the row with the viewer's token, filtered to their member; `briefView` (`view.ts`) puts names back as links; `briefVerdict` takes the tag from the viewer's place on Recap's own ladder through `nightVerdict`, the sheet's thirds. Absent with no row, a failed row, write-ups Off or a round still in play. League Home is unchanged. |
-| 7.3 E Re-guard, rewrite, the commissioner's count (#205) | Next | Stored briefs re-guarded, Rewrite this round rewrites them too, and the commissioner sees how many were written. |
+| 7.3 E Re-guard, rewrite, the commissioner's count (#205) | Done | `runBriefPass` re-guards written briefs daily and after a `/stats/import` correction: `reguardBrief` checks the stored `result` and `standing` against the rebuilt sheet; a brief that holds is marked, one that does not is rewritten whole in the league's voice now. `next` is never checked. Rewrite this round marks the round's briefs too, and the one-minute check (`runRequestedRewrites`) writes the round, then its briefs. A request now stands until its rewrite finishes or fails, so a worker that dies mid-write leaves it asked for. Recap's strip shows the commissioner "Briefs: N of M written" (`readBriefCount`, counts only, via the superuser). |
 
 Decisions the spec left open (the log has the reasons):
 - The top counted scorer and the underperformer are valued against their
@@ -47,12 +49,18 @@ Decisions the spec left open (the log has the reasons):
 - The Next line says nothing about availability (#203): who plays is rarely
   known until close to tip-off, and Lineup already shows the fixtures.
 - Briefs show on Recap only (#203), against spec stories 31 and 32.
+- Only a written brief is re-guarded (#205). A failed one is retried by the
+  next pass for the latest round, and by Rewrite this round for any round,
+  even one out of attempts.
+- The commissioner's count is the one read in the app that uses the
+  superuser on a member's behalf: the commissioner's token cannot see
+  another member's row, and it returns numbers only.
 
-**Next up: 7.3 E, re-guard, rewrite, the commissioner's count and the
-close-out (#205).**
+**Production:** not deployed yet. The checks after the merge go to
+[log/deploy-checks.md](log/deploy-checks.md).
 
-Carried until 7.3 E (#205): a written brief is never re-guarded, and
-Rewrite this round does not touch briefs.
+**Next up: 7.4, power rankings and the season so far** (blueprint 7.4),
+starting with a grill.
 
 **Try it on localhost:**
 - `npm run dev`, then
@@ -72,6 +80,11 @@ Rewrite this round does not touch briefs.
   round" sits under the winner's banner, above the round write-up, with a
   WON / HELD / LOST tag that matches your place on The night below it.
   Signed in as another member, you see only theirs.
+- As the commissioner, open the strip under the round write-up: "Briefs: N
+  of M written". Rewrite this round shows "rewriting…" on the count too, and
+  the worker's log shows `write-ups · rewrite · 1 rewritten` and then
+  `briefs · N rewritten` within a minute.
+- Set Write-ups Off in the league's settings: the panel and the count go.
 
 ## AI commentary — 7.2 the free-agent scout, October 2026
 
@@ -2061,7 +2074,7 @@ declined, because they reverse ADR-0006's No-Atmosphere Rule.
 |---|---|
 | 5 — Season mode: rosters, trades, impact tracking | **done** — 5.4 is the weekly recap |
 | 6 — Optional formats | todo — 6.1 keepers is luxury, not now |
-| 7 — AI commentary (Gemini; rescoped by D28) | **in progress** — 7.0 groundwork, 7.1 the round written and 7.2 the free-agent scout done; 7.3 your round is next |
+| 7 — AI commentary (Gemini; rescoped by D28) | **in progress** — 7.0 groundwork, 7.1 the round written, 7.2 the free-agent scout and 7.3 your round done; 7.4 power rankings is next |
 | 8 — Hardening & ops polish | **done** — 8.0–8.5 are in, and the backup timer and logrotate are installed on the box |
 
 ---
