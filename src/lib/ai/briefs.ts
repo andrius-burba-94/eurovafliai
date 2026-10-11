@@ -78,23 +78,37 @@ const line = z
 
 const briefAnswer = z.object({ result: line, standing: line, next: line }).strict();
 
-/** One member's answer: its shape, then the guard over each line with the table and that member's section. */
-function faultsOf(facts: BriefFacts, memberId: string, token: string, value: unknown): string[] {
-  const parsed = briefAnswer.safeParse(value);
-  if (!parsed.success) {
-    return parsed.error.issues.map((issue) => `${[token, ...issue.path].join(" ")}: ${value === undefined ? "missing" : issue.message}`);
-  }
+/** The guard over some of a member's lines, against the table and that member's own section. */
+function guardLines(facts: BriefFacts, memberId: string, token: string, brief: BriefLines, keys: readonly (keyof BriefLines)[]): string[] {
   return [
     ...checkWriteup(
-      BRIEF_LINES.map((key) => parsed.data[key]),
+      keys.map((key) => brief[key]),
       {
         allowed: new Set(numbersIn(`${facts.header}\n${facts.sectionFor(memberId)}`)),
         tokens: facts.tokensFor(memberId),
         privateNames: facts.privateNames,
       },
-      BRIEF_LINES.map((key) => `${token} ${key}`),
+      keys.map((key) => `${token} ${key}`),
     ).violations,
   ];
+}
+
+/** One member's answer: its shape, then the guard over each line. */
+function faultsOf(facts: BriefFacts, memberId: string, token: string, value: unknown): string[] {
+  const parsed = briefAnswer.safeParse(value);
+  if (!parsed.success) {
+    return parsed.error.issues.map((issue) => `${[token, ...issue.path].join(" ")}: ${value === undefined ? "missing" : issue.message}`);
+  }
+  return guardLines(facts, memberId, token, parsed.data, BRIEF_LINES);
+}
+
+/** The lines that are history. `next` is a forecast as of writing and is never re-guarded (ADR-0013, as amended). */
+const HISTORY_LINES = ["result", "standing"] as const;
+
+/** A stored brief against a rebuilt sheet: its faults, empty when it still holds — 7.3 E. */
+export function reguardBrief(facts: BriefFacts, memberId: string, brief: BriefLines): string[] {
+  const token = memberToken(facts, memberId);
+  return token ? guardLines(facts, memberId, token, brief, HISTORY_LINES) : ["not in this round's table"];
 }
 
 export async function writeBriefs({

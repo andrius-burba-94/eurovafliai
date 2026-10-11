@@ -9,7 +9,7 @@ import type { WireRow } from "@/lib/advisor/wire";
 import { GeminiQuota } from "./gemini";
 import type { RoundFacts } from "./round-facts";
 import type { SummaryResult } from "./summary";
-import { runWriteupPass } from "./writeup-pass";
+import { runRequestedRewrites, runWriteupPass } from "./writeup-pass";
 
 const NOW = Date.parse("2026-10-09T12:00:00Z");
 const USAGE = { inputTokens: 1, outputTokens: 1, thinkingTokens: 0 };
@@ -54,8 +54,8 @@ function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, ro
     },
   });
   const order: string[] = [];
-  const pass = () =>
-    runWriteupPass({
+  const deps = () =>
+    ({
       pb: pb.client,
       season: "E2026",
       apiKey: "k",
@@ -108,8 +108,8 @@ function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, ro
           calls: 1,
         };
       },
-    });
-  return { pass, order };
+    }) satisfies Parameters<typeof runWriteupPass>[0];
+  return { pb, order, pass: () => runWriteupPass(deps()), requested: () => runRequestedRewrites(deps()) };
 }
 
 describe("runWriteupPass", () => {
@@ -154,5 +154,27 @@ describe("runWriteupPass", () => {
     await pass();
     await pass();
     expect(order).toEqual(["round 3", "briefs"]);
+  });
+});
+
+describe("runRequestedRewrites", () => {
+  it("rewrites a requested round and its requested briefs from one minute's budget, and answers every request", async () => {
+    const { pb, pass, requested, order } = setup(["L1"]);
+    await pass();
+    for (const row of pb.rows("ai_writeups")) row.rewrite_requested_at = "2026-10-09 11:59:00.000Z";
+    order.length = 0;
+
+    await requested();
+
+    expect(order).toEqual(["round 3", "briefs"]);
+    expect(pb.rows("ai_writeups").map((row) => row.rewrite_requested_at)).toEqual(["", "", "", ""]);
+  });
+
+  it("asks nothing when nothing is requested", async () => {
+    const { pass, requested, order } = setup(["L1"]);
+    await pass();
+    order.length = 0;
+    await requested();
+    expect(order).toEqual([]);
   });
 });

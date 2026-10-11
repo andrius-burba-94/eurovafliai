@@ -139,11 +139,17 @@ async function writeRound(
 }
 
 /** When the newest stat correction landed: an applied import that changed stored rows. */
-async function latestCorrection(pb: PocketBase): Promise<number> {
+export async function latestCorrection(pb: PocketBase): Promise<number> {
   const batches = await pb
     .collection("stat_imports")
     .getFullList<{ updated_rows?: number; updated?: string }>({ filter: `applied = true`, fields: "updated_rows,updated", requestKey: null });
   return batches.reduce((latest, batch) => ((batch.updated_rows ?? 0) > 0 ? Math.max(latest, instant(batch.updated)) : latest), 0);
+}
+
+/** A written row is checked once a day, and again once a correction lands after its last check. */
+export function reguardDue(row: WriteupRecord, now: number, corrected: number): boolean {
+  const checked = instant(row.last_guarded_at) || instant(row.generated_at) || 0;
+  return now - checked >= DAILY_MS || corrected > checked;
 }
 
 /**
@@ -195,9 +201,7 @@ export async function runRoundPass(
     for (const league of leagues) {
       for (const row of rowsByLeague.get(league.id)!) {
         const stored = row.status === "pending" ? null : storedWriteup(row.output);
-        if (!stored) continue;
-        const checked = instant(row.last_guarded_at) || instant(row.generated_at) || 0;
-        if (now - checked < DAILY_MS && corrected <= checked) continue;
+        if (!stored || !reguardDue(row, now, corrected)) continue;
         const facts = await deps.readFacts(league.id, row.round);
         if (!facts) continue;
         if (guardWriteup(stored, facts).violations.length === 0) {

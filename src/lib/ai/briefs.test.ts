@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { briefSheet as sheet } from "../../../tests/unit/helpers/brief-sheet";
 
 import { GeminiNoAnswer, GeminiQuota, type GeminiAnswer, type GeminiRequest } from "./gemini";
-import { briefRefs, storedBrief, writeBriefs, type BriefLines } from "./briefs";
+import { briefRefs, reguardBrief, storedBrief, writeBriefs, type BriefLines } from "./briefs";
+import type { BriefFacts } from "./brief-facts";
 
 const USAGE = { inputTokens: 10, outputTokens: 5, thinkingTokens: 0 };
 
@@ -109,6 +110,32 @@ describe("writeBriefs", () => {
 
     const quota = recorder([new GeminiQuota("429")]);
     await expect(writeBriefs({ facts: sheet(), voice: "analyst", model: "m", apiKey: "k", ask: quota.ask })).rejects.toThrow(GeminiQuota);
+  });
+});
+
+describe("reguardBrief", () => {
+  /** The sheet with the table and one member's section edited, as a rebuilt sheet after a correction reads. */
+  const edited = (memberId: string, edit: (text: string) => string): BriefFacts => {
+    const base = sheet();
+    return { ...base, header: edit(base.header), sectionFor: (id) => (id === memberId ? edit(base.sectionFor(id)) : base.sectionFor(id)) };
+  };
+
+  it("passes a stored brief whose history still holds", () => {
+    expect(reguardBrief(sheet(), "m2", GOOD["@T2"]!)).toEqual([]);
+  });
+
+  it("refuses a brief whose standing a correction made false", () => {
+    const corrected = edited("m2", (text) => text.replaceAll("20.0", "21.0"));
+    expect(reguardBrief(corrected, "m2", GOOD["@T2"]!)).toEqual(["@T2 standing: 20 is not in the facts"]);
+  });
+
+  it("never checks the next line, a forecast as of writing", () => {
+    const moved = edited("m2", (section) => section.replace("1 easy, 1 even, 1 hard", "3 easy, 0 even, 0 hard"));
+    expect(reguardBrief(moved, "m2", { ...GOOD["@T2"]!, next: "Round 6 is mixed: 1 easy, 1 even and 1 hard game, #P9 aside." })).toEqual([]);
+  });
+
+  it("refuses a member the rebuilt table no longer holds", () => {
+    expect(reguardBrief(sheet(), "m9", GOOD["@T2"]!)).toEqual(["not in this round's table"]);
   });
 });
 

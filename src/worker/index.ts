@@ -69,11 +69,12 @@ import { applyPreviousSeason } from "@/lib/stats/store";
 
 import { buildBriefFacts } from "@/lib/ai/brief-facts";
 import { readBriefFactsInput } from "@/lib/ai/brief-facts-store";
+import type { BriefPassReport } from "@/lib/ai/brief-pass";
 import { readCompleteRounds, readRoundFactsInput } from "@/lib/ai/round-facts-store";
 import { buildRoundFacts } from "@/lib/ai/round-facts";
-import { writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
+import type { PassReport, RoundPassDeps } from "@/lib/ai/round-pass";
 import { readScoutFactsInput } from "@/lib/ai/scout-facts-store";
-import { runWriteupPass } from "@/lib/ai/writeup-pass";
+import { runRequestedRewrites, runWriteupPass } from "@/lib/ai/writeup-pass";
 
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
@@ -684,24 +685,30 @@ function main(): void {
     if (parts.length > 0) log(`write-ups · ${label} · ${parts.join(", ")}`);
     if (report.stopped) log(`write-ups · ${label} stopped early: ${report.stopped}`, "warn");
   };
+  const briefDeps = (deps: RoundPassDeps) => ({
+    readBriefFacts: async (leagueId: string, round: number) => {
+      const read = await readBriefFactsInput(pb, { leagueId, season: deps.season, round, now: deps.now() });
+      if (!read.ok) return null;
+      const built = buildBriefFacts(read.input);
+      return built.ok ? built.facts : null;
+    },
+    onBriefs: (briefs: BriefPassReport) => {
+      const parts = [
+        briefs.written ? `${briefs.written} written` : "",
+        briefs.rewritten ? `${briefs.rewritten} rewritten` : "",
+        briefs.refused ? `${briefs.refused} refused by the guard` : "",
+        briefs.guarded ? `${briefs.guarded} re-guarded` : "",
+      ].filter(Boolean);
+      if (parts.length > 0) log(`briefs · ${parts.join(", ")}`);
+      if (briefs.stopped) log(`briefs stopped early: ${briefs.stopped}`, "warn");
+    },
+    onBriefsError: (error: unknown) => log(`briefs failed: ${describeError(error)}`, "error"),
+  });
+  const requestedRewrites = (deps: RoundPassDeps): Promise<PassReport> => runRequestedRewrites({ ...deps, ...briefDeps(deps) });
   const writeupPass = (deps: RoundPassDeps): Promise<PassReport> =>
     runWriteupPass({
       ...deps,
-      readBriefFacts: async (leagueId, round) => {
-        const read = await readBriefFactsInput(pb, { leagueId, season: deps.season, round, now: deps.now() });
-        if (!read.ok) return null;
-        const built = buildBriefFacts(read.input);
-        return built.ok ? built.facts : null;
-      },
-      onBriefs: (briefs) => {
-        const parts = [
-          briefs.written ? `${briefs.written} written` : "",
-          briefs.refused ? `${briefs.refused} refused by the guard` : "",
-        ].filter(Boolean);
-        if (parts.length > 0) log(`briefs · ${parts.join(", ")}`);
-        if (briefs.stopped) log(`briefs stopped early: ${briefs.stopped}`, "warn");
-      },
-      onBriefsError: (error) => log(`briefs failed: ${describeError(error)}`, "error"),
+      ...briefDeps(deps),
       readScoutInput: (leagueId) => readScoutFactsInput(pb, { leagueId, season: deps.season }),
       onScout: (scout) => {
         const parts = [
@@ -738,7 +745,7 @@ function main(): void {
     setTimeout(() => {
       aiRun("pass", writeupPass);
       aiTimer = setInterval(() => aiRun("pass", writeupPass), AI_EVERY_MS);
-      aiRequestsTimer = setInterval(() => aiRun("rewrite", writeRequestedRounds), AI_REQUESTS_EVERY_MS);
+      aiRequestsTimer = setInterval(() => aiRun("rewrite", requestedRewrites), AI_REQUESTS_EVERY_MS);
     }, AI_FIRST_AFTER_MS).unref?.();
   }
 

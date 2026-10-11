@@ -1,13 +1,20 @@
 import type { BriefFacts } from "./brief-facts";
-import { runBriefPass, type BriefPassReport } from "./brief-pass";
-import { CALLS_PER_PASS, runRoundPass, type PassReport, type RoundPassDeps } from "./round-pass";
+import { runBriefPass, writeRequestedBriefs, type BriefPassReport } from "./brief-pass";
+import { CALLS_PER_PASS, runRoundPass, writeRequestedRounds, type PassReport, type RoundPassDeps } from "./round-pass";
 import type { ScoutFactsInput } from "./scout-facts-store";
 import { runScoutPass, type ScoutPassReport } from "./scout-pass";
 import { writeRoundSummary } from "./summary";
 
+type BriefDeps = {
+  readonly readBriefFacts: (leagueId: string, round: number) => Promise<BriefFacts | null>;
+  readonly writeBriefs?: Parameters<typeof runBriefPass>[0]["write"];
+  readonly onBriefs?: (report: BriefPassReport) => void;
+  readonly onBriefsError?: (error: unknown) => void;
+};
+
 /**
  * The fifteen-minute write-up pass — 7.1 round write-ups, 7.2 G reasons,
- * 7.3 B briefs.
+ * 7.3 B briefs (re-guarded since 7.3 E).
  *
  * Three jobs spend from the same two calls, in this order: the round's
  * write-up, then every member's brief, then the scout's reasons. The league's
@@ -21,16 +28,13 @@ import { writeRoundSummary } from "./summary";
  * it and re-authenticates as before; the briefs' and the scout's are reported.
  */
 export async function runWriteupPass(
-  deps: RoundPassDeps & {
-    readonly readBriefFacts: (leagueId: string, round: number) => Promise<BriefFacts | null>;
-    readonly writeBriefs?: Parameters<typeof runBriefPass>[0]["write"];
-    readonly onBriefs?: (report: BriefPassReport) => void;
-    readonly onBriefsError?: (error: unknown) => void;
-    readonly readScoutInput: (leagueId: string) => Promise<ScoutFactsInput | null>;
-    readonly writeReasons?: Parameters<typeof runScoutPass>[0]["write"];
-    readonly onScout?: (report: ScoutPassReport) => void;
-    readonly onScoutError?: (error: unknown) => void;
-  },
+  deps: RoundPassDeps &
+    BriefDeps & {
+      readonly readScoutInput: (leagueId: string) => Promise<ScoutFactsInput | null>;
+      readonly writeReasons?: Parameters<typeof runScoutPass>[0]["write"];
+      readonly onScout?: (report: ScoutPassReport) => void;
+      readonly onScoutError?: (error: unknown) => void;
+    },
 ): Promise<PassReport> {
   // Counted at the door, so a round pass that throws midway still leaves an honest budget.
   let budget = CALLS_PER_PASS;
@@ -80,5 +84,42 @@ export async function runWriteupPass(
   }
 
   if (roundFault) throw roundFault.error;
+  return rounds;
+}
+
+/**
+ * The one-minute check for the commissioner's Rewrite this round (ADR-0013,
+ * as amended): the round's write-up, then that round's briefs, from one
+ * minute's two calls. A fault in the briefs is theirs; the round's report is
+ * what the worker logs.
+ */
+export async function runRequestedRewrites(deps: RoundPassDeps & BriefDeps): Promise<PassReport> {
+  const write = deps.write ?? writeRoundSummary;
+  let budget = CALLS_PER_PASS;
+  const rounds = await writeRequestedRounds({
+    ...deps,
+    write: (args) => {
+      budget -= 1;
+      return write(args);
+    },
+  });
+  if (rounds.stopped || budget <= 0) return rounds;
+  try {
+    const briefs = await writeRequestedBriefs({
+      pb: deps.pb,
+      season: deps.season,
+      apiKey: deps.apiKey,
+      model: deps.model,
+      now: deps.now,
+      readComplete: deps.readComplete,
+      budget,
+      readFacts: deps.readBriefFacts,
+      ...(deps.writeBriefs ? { write: deps.writeBriefs } : {}),
+    });
+    deps.onBriefs?.(briefs);
+    if (briefs.stopped) return { ...rounds, stopped: briefs.stopped };
+  } catch (error) {
+    deps.onBriefsError?.(error);
+  }
   return rounds;
 }
