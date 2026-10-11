@@ -29,10 +29,9 @@ const SRC = resolve(HERE, "..");
 const ENTRY = join(HERE, "index.ts");
 /**
  * Modules the worker will run that it does not import yet, so a framework
- * import added before they are wired in still fails here. The briefs' sheet
- * until 7.3 B wires in its pass.
+ * import added before they are wired in still fails here.
  */
-const PENDING = ["lib/ai/brief-facts.ts", "lib/ai/brief-facts-store.ts"].map((file) => join(SRC, file));
+const PENDING: string[] = [];
 
 const BANNED = [
   { pattern: /^next(\/|$)/, why: "Next.js is not available in the worker process" },
@@ -104,6 +103,7 @@ describe("the worker is framework-free", () => {
       "lib/drafts/pipeline.ts",
     );
     expect(files.map((file) => relative(SRC, file))).toContain("lib/ai/gemini.ts");
+    expect(files.map((file) => relative(SRC, file))).toContain("lib/ai/brief-facts-store.ts");
     expect(packages.size).toBeGreaterThan(0);
   });
 

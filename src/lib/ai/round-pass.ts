@@ -76,7 +76,7 @@ type League = { readonly id: string; readonly ai: WriteupSettings };
 /** The kind of Gemini failure that says "not now" rather than "not this answer". */
 class PassStopped extends Error {}
 
-const stopping = (error: unknown) =>
+export const stopping = (error: unknown) =>
   error instanceof GeminiQuota ||
   error instanceof GeminiKeyRefused ||
   error instanceof GeminiUnavailable ||

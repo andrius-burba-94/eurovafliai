@@ -67,6 +67,8 @@ import { ensureSlugs } from "@/lib/slugs/store";
 import { previousSeasonOf } from "@/lib/stats/seasons";
 import { applyPreviousSeason } from "@/lib/stats/store";
 
+import { buildBriefFacts } from "@/lib/ai/brief-facts";
+import { readBriefFactsInput } from "@/lib/ai/brief-facts-store";
 import { readCompleteRounds, readRoundFactsInput } from "@/lib/ai/round-facts-store";
 import { buildRoundFacts } from "@/lib/ai/round-facts";
 import { writeRequestedRounds, type PassReport, type RoundPassDeps } from "@/lib/ai/round-pass";
@@ -648,11 +650,12 @@ function main(): void {
 
   scheduleStats();
   /**
-   * 7.1, round write-ups (ADR-0012, ADR-0013). Its own in-flight guard,
-   * shared by the fifteen-minute pass and the one-minute Rewrite check, so the
-   * two never write the same row at once — and neither waits on, or delays,
-   * a pick deadline. Nothing here is fairness-critical: a dead pass means no
-   * prose, and every page renders as it did without it.
+   * Write-ups: 7.1 round write-ups, 7.3 B briefs, 7.2 G reasons (ADR-0012,
+   * ADR-0013). Its own in-flight guard, shared by the fifteen-minute pass and
+   * the one-minute Rewrite check, so the two never write the same row at
+   * once — and neither waits on, or delays, a pick deadline. Nothing here is
+   * fairness-critical: a dead pass means no prose, and every page renders as
+   * it did without it.
    */
   let aiInFlight: Promise<void> | null = null;
   let aiTimer: ReturnType<typeof setInterval> | null = null;
@@ -681,9 +684,24 @@ function main(): void {
     if (parts.length > 0) log(`write-ups · ${label} · ${parts.join(", ")}`);
     if (report.stopped) log(`write-ups · ${label} stopped early: ${report.stopped}`, "warn");
   };
-  const scoutThenRounds = (deps: RoundPassDeps): Promise<PassReport> =>
+  const writeupPass = (deps: RoundPassDeps): Promise<PassReport> =>
     runWriteupPass({
       ...deps,
+      readBriefFacts: async (leagueId, round) => {
+        const read = await readBriefFactsInput(pb, { leagueId, season: deps.season, round, now: deps.now() });
+        if (!read.ok) return null;
+        const built = buildBriefFacts(read.input);
+        return built.ok ? built.facts : null;
+      },
+      onBriefs: (briefs) => {
+        const parts = [
+          briefs.written ? `${briefs.written} written` : "",
+          briefs.refused ? `${briefs.refused} refused by the guard` : "",
+        ].filter(Boolean);
+        if (parts.length > 0) log(`briefs · ${parts.join(", ")}`);
+        if (briefs.stopped) log(`briefs stopped early: ${briefs.stopped}`, "warn");
+      },
+      onBriefsError: (error) => log(`briefs failed: ${describeError(error)}`, "error"),
       readScoutInput: (leagueId) => readScoutFactsInput(pb, { leagueId, season: deps.season }),
       onScout: (scout) => {
         const parts = [
@@ -718,8 +736,8 @@ function main(): void {
     }
     log(`write-ups on · ${env.GEMINI_MODEL} · every ${AI_EVERY_MS / 60_000}min, Rewrite checked every minute`);
     setTimeout(() => {
-      aiRun("pass", scoutThenRounds);
-      aiTimer = setInterval(() => aiRun("pass", scoutThenRounds), AI_EVERY_MS);
+      aiRun("pass", writeupPass);
+      aiTimer = setInterval(() => aiRun("pass", writeupPass), AI_EVERY_MS);
       aiRequestsTimer = setInterval(() => aiRun("rewrite", writeRequestedRounds), AI_REQUESTS_EVERY_MS);
     }, AI_FIRST_AFTER_MS).unref?.();
   }

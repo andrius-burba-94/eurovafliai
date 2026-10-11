@@ -1,8 +1,7 @@
 import type PocketBase from "pocketbase";
 
 import { inputHash } from "./facts";
-import { GeminiKeyRefused, GeminiQuota, GeminiRequestRefused, GeminiUnavailable } from "./gemini";
-import { DAILY_MS, enabledLeagues } from "./round-pass";
+import { DAILY_MS, enabledLeagues, stopping } from "./round-pass";
 import { buildScoutFacts, type ScoutFacts } from "./scout-facts";
 import type { ScoutFactsInput } from "./scout-facts-store";
 import { reasonsStillHold, SCOUT_PROMPT_VERSION, storedReasons, writeScoutReasons } from "./scout-reasons";
@@ -52,12 +51,6 @@ export type ScoutPassReport = {
   calls: number;
   stopped: string | null;
 };
-
-const stopping = (error: unknown) =>
-  error instanceof GeminiQuota ||
-  error instanceof GeminiKeyRefused ||
-  error instanceof GeminiUnavailable ||
-  error instanceof GeminiRequestRefused;
 
 /** Only the tokens in one member's section: their team and the players of their own moves. */
 function refsFor(facts: ScoutFacts, memberId: string): Record<string, TokenRef> {
