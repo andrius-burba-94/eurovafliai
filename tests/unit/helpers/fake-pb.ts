@@ -228,11 +228,11 @@ export function fakePb(options: {
         };
       },
 
-      async getOne<T>(id: string, options?: object): Promise<T> {
-        onlySupported(options, []);
+      async getOne<T>(id: string, options?: { fields?: string }): Promise<T> {
+        onlySupported(options, ["fields"]);
         const found = rows(collection).find((record) => record.id === id);
         if (!found) throw notFound(collection, id);
-        return { ...found } as T;
+        return project({ ...found }, options?.fields) as T;
       },
 
       async create<T>(

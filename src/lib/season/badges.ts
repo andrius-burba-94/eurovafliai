@@ -24,6 +24,9 @@ export type MemberHonours = {
   readonly bestRoundHundredths: number;
 };
 
+/** Top three this many nights running is "on fire". */
+export const ON_FIRE_STREAK = 3;
+
 export type BadgeId = "on-fire" | "crowned" | "spoon-collector";
 
 /** What each honour means, in the words of the thresholds `badgesFrom` applies. */
@@ -101,7 +104,7 @@ export function badgesFrom(snapshots: readonly RoundSnapshot[]): Badge[] {
   const badges: Badge[] = [];
   const all = memberHonours(snapshots);
   for (const member of all) {
-    if (member.topThreeStreak >= 3) {
+    if (member.topThreeStreak >= ON_FIRE_STREAK) {
       badges.push({
         id: "on-fire",
         memberId: member.memberId,

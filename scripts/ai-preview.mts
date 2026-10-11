@@ -9,6 +9,7 @@
  *   npm run ai:preview -- --league=<slug> --save [--force]   # store it in ai_writeups
  *   npm run ai:preview -- --ping                             # which models the key may use
  *   npm run ai:preview -- --league=<slug> --scout [--facts-only]  # 7.2 G: the moves' reasons
+ *   npm run ai:preview -- --league=<slug> --briefs --facts-only   # 7.3 A: the briefs' fact sheet
  *
  * Nothing a member sees changes: no page reads `ai_writeups` until 7.1. The
  * fact sheet prints with tokens, exactly as the model reads it; the summary
@@ -22,6 +23,8 @@
  */
 import PocketBase from "pocketbase";
 
+import { buildBriefFacts } from "../src/lib/ai/brief-facts";
+import { readBriefFactsInput } from "../src/lib/ai/brief-facts-store";
 import { inputHash } from "../src/lib/ai/facts";
 import { listModels } from "../src/lib/ai/gemini";
 import { buildRoundFacts } from "../src/lib/ai/round-facts";
@@ -109,6 +112,24 @@ if (flag("scout")) {
     console.log(`  reads:   ${renderPlain([text], sheet.refs, names)[0]}`);
   }
   process.exit(refusedAny ? 1 : 0);
+}
+
+if (flag("briefs")) {
+  const read = await readBriefFactsInput(pb, {
+    leagueId: league.id,
+    season: env.EUROLEAGUE_SEASON,
+    ...(round !== undefined ? { round } : {}),
+    now: Date.now(),
+  });
+  if (!read.ok) refuse(`Refused: ${read.reason}.`);
+  const built = buildBriefFacts(read.input);
+  if (!built.ok) refuse(`Refused: ${built.reason}.`);
+  const sheet = built.facts;
+  console.log(`PocketBase ${env.PB_INTERNAL_URL} · ${league.name} · round ${sheet.round} · ${read.input.ruleset} scoring · ${sheet.memberIds.length} brief(s)`);
+  console.log(`Fact sheet: ${sheet.text.length} characters, about ${Math.round(sheet.text.length / 4)} tokens`);
+  console.log(`\n${sheet.text}\n`);
+  if (!flag("facts-only")) console.log("Writing the briefs arrives with 7.3 B; stopping after the facts.");
+  process.exit(0);
 }
 
 const read = await readRoundFactsInput(pb, {
