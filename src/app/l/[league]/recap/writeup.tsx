@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Bank } from "@/components/board";
+import type { NightVerdict } from "@/lib/ai/brief-facts";
 import type { RoundWriteupRead } from "@/lib/ai/queries";
 import type { Segment } from "@/lib/ai/tokens";
+import type { BriefView } from "@/lib/ai/view";
 import type { SectionKey } from "@/lib/ai/voice";
 import { playerHref, type LeaguePaths, type Ref } from "@/lib/nav/urls";
 
@@ -126,5 +128,66 @@ export function WriteupNote({
         <Prose segments={segments} links={links} />
       </p>
     </div>
+  );
+}
+
+const VERDICT_TAG: Record<NightVerdict, string> = {
+  won: "border-gain/60 text-gain",
+  held: "border-rule-strong text-ink",
+  lost: "border-loss/60 text-loss",
+};
+
+const BRIEF_ROWS: readonly { key: keyof BriefView; label: string }[] = [
+  { key: "result", label: "Night" },
+  { key: "standing", label: "Table" },
+  { key: "next", label: "Next" },
+];
+
+/**
+ * Your round — slice 7.3 D, option A of #203 as the maintainer revised it:
+ * the viewer's own brief, first in the reading column. The tag is the place
+ * on the night by thirds, worked out from Recap's ladder, and always says
+ * the word; the three lines are the model's, checked before they were stored.
+ */
+export function YourRound({
+  view,
+  verdict,
+  round,
+  links,
+}: {
+  view: BriefView;
+  verdict: NightVerdict;
+  round: number;
+  links: WriteupLinks;
+}) {
+  return (
+    <Bank
+      framed
+      label="Your round"
+      testId="recap-brief"
+      aside={
+        <span className="flex items-center gap-2">
+          <span
+            data-testid="recap-brief-verdict"
+            data-verdict={verdict}
+            className={`rounded-md border px-1.5 py-0.5 text-[0.6875rem] leading-4 font-extrabold tracking-[0.06em] uppercase ${VERDICT_TAG[verdict]}`}
+          >
+            {verdict}
+          </span>
+          Round {round}
+        </span>
+      }
+    >
+      <dl className="grid max-w-[68ch] grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 sm:gap-x-6">
+        {BRIEF_ROWS.map(({ key, label }) => (
+          <div key={key} className="contents" data-testid={`recap-brief-${key}`}>
+            <dt className="slot-label pt-[0.2em] text-ink-soft">{label}</dt>
+            <dd className="min-w-0 leading-relaxed break-words">
+              <Prose segments={view[key]} links={links} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </Bank>
   );
 }

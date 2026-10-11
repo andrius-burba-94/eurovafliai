@@ -29,6 +29,7 @@ export function RecapBody({
   paths,
   season,
   open,
+  brief,
   summary,
   notes,
 }: {
@@ -42,6 +43,8 @@ export function RecapBody({
   season: string;
   /** Set while the round has a game left; its counts when it is the current round. */
   open: { played: number | null; total: number | null } | null;
+  /** 7.3 D: the viewer's own brief, first in the reading column; null when there is none to show. */
+  brief?: ReactNode;
   /** 7.1: the round's write-up, above The night; null when there is none to show. */
   summary?: ReactNode;
   /** 7.1: the analyst's line on the panel it explains. */
@@ -153,6 +156,7 @@ export function RecapBody({
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
+          {brief}
           {summary}
           <Bank framed label="The night" aside={`Round ${recap.round}`}>
             {recap.rows.length === 0 ? (
