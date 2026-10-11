@@ -113,10 +113,15 @@ function summaryRow(setup: Setup) {
   };
 }
 
-/** Every response body the page receives from here on, read in full. */
+/**
+ * Every response body the page receives from here on, read in full. The
+ * realtime stream is left out: its body never ends, and PocketBase sends
+ * through it only the events the same API rule lets this viewer list.
+ */
 function captureResponses(page: Page) {
   const bodies: Promise<string>[] = [];
   page.on("response", (response) => {
+    if (response.url().includes("/api/realtime")) return;
     bodies.push(response.text().catch(() => ""));
   });
   return async () => (await Promise.all(bodies)).join("\n");
