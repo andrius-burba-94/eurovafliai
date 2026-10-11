@@ -10,6 +10,7 @@
  *   npm run ai:preview -- --ping                             # which models the key may use
  *   npm run ai:preview -- --league=<slug> --scout [--facts-only]  # 7.2 G: the moves' reasons
  *   npm run ai:preview -- --league=<slug> --briefs --facts-only   # 7.3 A: the briefs' fact sheet
+ *   npm run ai:preview -- --league=<slug> --briefs [--voice=pundit] [--save [--force]]  # 7.3 B: the briefs
  *
  * Nothing a member sees changes: no page reads `ai_writeups` until 7.1. The
  * fact sheet prints with tokens, exactly as the model reads it; the summary
@@ -25,6 +26,7 @@ import PocketBase from "pocketbase";
 
 import { buildBriefFacts } from "../src/lib/ai/brief-facts";
 import { readBriefFactsInput } from "../src/lib/ai/brief-facts-store";
+import { BRIEF_LINES, BRIEF_PROMPT_VERSION, briefRefs, writeBriefs } from "../src/lib/ai/briefs";
 import { inputHash } from "../src/lib/ai/facts";
 import { listModels } from "../src/lib/ai/gemini";
 import { buildRoundFacts } from "../src/lib/ai/round-facts";
@@ -128,8 +130,69 @@ if (flag("briefs")) {
   console.log(`PocketBase ${env.PB_INTERNAL_URL} · ${league.name} · round ${sheet.round} · ${read.input.ruleset} scoring · ${sheet.memberIds.length} brief(s)`);
   console.log(`Fact sheet: ${sheet.text.length} characters, about ${Math.round(sheet.text.length / 4)} tokens`);
   console.log(`\n${sheet.text}\n`);
-  if (!flag("facts-only")) console.log("Writing the briefs arrives with 7.3 B; stopping after the facts.");
-  process.exit(0);
+  if (flag("facts-only")) process.exit(0);
+  if (!apiKey) refuse("GEMINI_API_KEY is not set; stopping after the facts.", 0);
+
+  const claimed = new Map<string, string>();
+  if (flag("save")) {
+    for (const memberId of sheet.memberIds) {
+      const text = `${sheet.header}\n\n${sheet.sectionFor(memberId)}`;
+      const claim = await claimWriteup(
+        pb,
+        { leagueId: league.id, season: env.EUROLEAGUE_SEASON, round: sheet.round, kind: "round_brief", memberId },
+        {
+          inputHash: inputHash({ kind: "round_brief", text, refs: briefRefs(sheet, memberId), voice, promptVersion: BRIEF_PROMPT_VERSION, model }),
+          voice,
+          model,
+          promptVersion: BRIEF_PROMPT_VERSION,
+          facts: { version: sheet.version, round: sheet.round, text },
+          now: Date.now(),
+          force: flag("force"),
+        },
+      );
+      if (claim.outcome === "claimed") claimed.set(memberId, claim.id);
+      else console.log(`Not written for member ${memberId}: the stored brief is ${claim.outcome} (${claim.id}).`);
+    }
+    if (claimed.size === 0) refuse("Every brief is already stored. Pass --force to write them again.", 0);
+  }
+
+  const asked = flag("save") ? [...claimed.keys()] : sheet.memberIds;
+  console.log(`Asking ${model} in the ${voice} voice for ${asked.length} brief(s)…`);
+  let written: Awaited<ReturnType<typeof writeBriefs>>;
+  try {
+    written = await writeBriefs({ facts: sheet, memberIds: asked, voice, model, apiKey });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    for (const id of claimed.values()) await failWriteup(pb, id, message);
+    refuse(message, 1);
+  }
+  console.log(`${written.model} · ${written.calls} call(s) · tokens in ${written.usage.inputTokens}, out ${written.usage.outputTokens}`);
+
+  const names = { members: read.teamNames, players: read.playerNames };
+  let refusedAny = false;
+  for (const memberId of asked) {
+    const outcome = written.byMember[memberId]!;
+    const id = claimed.get(memberId);
+    console.log(`\nmember ${memberId}`);
+    if (!outcome.ok) {
+      refusedAny = true;
+      for (const violation of outcome.violations) console.log(`  ✗ ${violation}`);
+      if (id) await failWriteup(pb, id, outcome.violations.join("; "), written.usage);
+      continue;
+    }
+    const lines = BRIEF_LINES.map((key) => outcome.brief[key]);
+    const refs = briefRefs(sheet, memberId);
+    const reads = renderPlain(lines, refs, names);
+    BRIEF_LINES.forEach((key, index) => {
+      console.log(`  ${key.padEnd(8)}  stored: ${lines[index]}`);
+      console.log(`  ${"".padEnd(8)}  reads:  ${reads[index]}`);
+    });
+    if (id) {
+      await completeWriteup(pb, id, { writeup: outcome.brief, refs, usage: written.usage, model: written.model, now: Date.now() });
+      console.log(`  saved to ai_writeups ${id}`);
+    }
+  }
+  process.exit(refusedAny ? 1 : 0);
 }
 
 const read = await readRoundFactsInput(pb, {
