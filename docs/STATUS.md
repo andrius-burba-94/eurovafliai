@@ -25,12 +25,14 @@ keeps the tables, the open debt, the next step and the current phase's
 
 **A private brief per member, three lines about their own round** (blueprint
 7.3, spec #200; vocabulary **brief** and **decider** in `CONTEXT.md`;
-ADR-0013 amended for briefs). Nothing a member sees has changed yet.
+ADR-0013 amended for briefs). The worker writes briefs; nothing a member
+sees has changed yet.
 
 | Slice | State | What it is |
 |---|---|---|
 | 7.3 A The brief's fact sheet (#201) | Done | `buildBriefFacts` (`src/lib/ai/brief-facts.ts`, pure): a shared header (the table in tokens) and one section per member covering the night, deciders, standing, trend, honour and next. It reads the round sheet's own measurements, now `analyseRound` in `round-analysis.ts`. `readBriefFactsInput` adds every member's moves worth making. |
-| 7.3 B Briefs written and stored (#202) | Next | The migration, the writer, the worker's briefs pass |
+| 7.3 B Briefs written and stored (#202) | Done | `ai_writeups.kind` gains `round_brief`: one private row per member, `output` `{ result, standing, next }`. `writeBriefs` (`briefs.ts`) makes one call per league, guards each member against the table and their own section, and retries only the refused. `runBriefPass` (`brief-pass.ts`) writes the latest finished round only; the pass order is now round write-up, briefs, scout. `ai:preview --briefs` writes them, `--save` stores them. Nobody sees a brief in the app yet. |
+| 7.3 C Three previews of Your round in the hero (#203) | Next | `/impeccable` previews; the maintainer picks one |
 
 Decisions the spec left open (the log has the reasons):
 - The top counted scorer and the underperformer are valued against their
@@ -41,15 +43,24 @@ Decisions the spec left open (the log has the reasons):
 - A top-three streak counts only from three nights, and only in a league of
   more than three teams.
 
-**Next up: 7.3 B, briefs written and stored (#202).**
+**Next up: 7.3 C, three previews of Your round in the hero (#203).**
+
+Carried until 7.3 E (#205): a written brief is never re-guarded, and
+Rewrite this round does not touch briefs.
 
 **Try it on localhost:**
 - `npm run dev`, then
   `npm run ai:preview -- --league=<slug|id> --briefs --facts-only` prints the
   briefs' sheet in tokens: the table, then each member's night, deciders,
-  standing, trend, honour and next round. Without `--facts-only` it stops
-  after the facts until 7.3 B. It refuses whatever the round write-up
-  refuses, so a local database needs a finished round (`npm run stats:sync`).
+  standing, trend, honour and next round. It refuses whatever the round
+  write-up refuses, so a local database needs a finished round
+  (`npm run stats:sync`).
+- With `GEMINI_API_KEY` set (locally `GEMINI_MODEL=gemini-3.5-flash-lite`),
+  drop `--facts-only`: each member's three lines print as stored (tokens) and
+  as the member reads them. Add `--voice=pundit` to hear the other voice, and
+  `--save` to store them as `round_brief` rows.
+- `npm run worker:dev` with a key writes them itself, after the round
+  write-up: look for `briefs · N written` in its log.
 
 ## AI commentary — 7.2 the free-agent scout, October 2026
 
