@@ -150,3 +150,31 @@ flagged player above no longer applies.
 
 The routes were deleted once the choice was made. The screenshots stay in
 `.impeccable/mocks/decision/203/`, which is gitignored.
+
+## 7.3 D Your round on Recap (#204)
+
+The panel 7.3 C chose, built from the r3 screenshots: `YourRound` in
+`recap/writeup.tsx`, beside the round write-up's `Prose`, so names in a brief
+link exactly as they do in the write-up.
+
+**The tag is worked out at read time, not stored.** The brief's sheet already
+decides the verdict by thirds, but the row stores only the three lines. So
+`verdictOf` became the exported `nightVerdict`, and Recap reads the viewer's
+place off its own ladder (`briefVerdict`). The sheet and Recap rank ties the
+same way (lower member id first), and a test in `brief-facts.test.ts` checks
+`nightVerdict` against the sheet's NIGHT line at two, three, four and ten
+teams, so the tag and the prose cannot disagree about a night. A member the
+night did not rank gets no panel; the pass writes no brief for them anyway.
+
+**Privacy is the API rule's, and the filter says so too.** `readRoundBrief`
+reads with the viewer's token and filters on their member as well as league,
+season, round and kind, and asks only for `status`, `output` and `refs`. The
+E2E spec plants two briefs, records every response body the page receives,
+and checks the viewer's own phrase is there and the other member's is not,
+from both sides.
+
+**What shows.** A row being rewritten keeps showing the lines it had, as the
+round write-up does; a failed row, no row, an output this version cannot
+parse, write-ups Off and a round still in play show nothing, and Recap is
+then exactly what it was. The write-up and the brief are read in parallel.
+

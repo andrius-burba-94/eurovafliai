@@ -25,15 +25,16 @@ keeps the tables, the open debt, the next step and the current phase's
 
 **A private brief per member, three lines about their own round** (blueprint
 7.3, spec #200; vocabulary **brief** and **decider** in `CONTEXT.md`;
-ADR-0013 amended for briefs). The worker writes briefs; nothing a member
-sees has changed yet.
+ADR-0013 amended for briefs). The worker writes briefs, and a member reads
+their own on Recap as "Your round".
 
 | Slice | State | What it is |
 |---|---|---|
 | 7.3 A The brief's fact sheet (#201) | Done | `buildBriefFacts` (`src/lib/ai/brief-facts.ts`, pure): a shared header (the table in tokens) and one section per member covering the night, deciders, standing, trend, honour and next. It reads the round sheet's own measurements, now `analyseRound` in `round-analysis.ts`. `readBriefFactsInput` adds every member's moves worth making. |
 | 7.3 B Briefs written and stored (#202) | Done | `ai_writeups.kind` gains `round_brief`: one private row per member, `output` `{ result, standing, next }`. `writeBriefs` (`briefs.ts`) makes one call per league, guards each member against the table and their own section, and retries only the refused. `runBriefPass` (`brief-pass.ts`) writes the latest finished round only; the pass order is now round write-up, briefs, scout. `ai:preview --briefs` writes them, `--save` stores them. Nobody sees a brief in the app yet. |
 | 7.3 C Three previews of Your round (#203) | Done | Picked **A, the panel**, revised: the brief shows **only on Recap**, as a framed "Your round" panel first in the reading column (WON / HELD / LOST tag and the round in its corner, three labelled lines: Night, Table, Next). **League Home is unchanged**, so it does not grow. The Next line names no injured or doubtful player and no count of players without a game; the sheet (version 2) and prompt (`round-brief-3`) no longer carry either. |
-| 7.3 D Your round on Recap (#204) | Next | The member's brief for the viewed round, read with their token, in the panel 7.3 C chose. Nothing on League Home. |
+| 7.3 D Your round on Recap (#204) | Done | A framed "Your round" panel, first in Recap's reading column, for the viewed round: a WON / HELD / LOST tag and the round in its corner, then Night, Table and Next. `readRoundBrief` (`queries.ts`) reads the row with the viewer's token, filtered to their member; `briefView` (`view.ts`) puts names back as links; `briefVerdict` takes the tag from the viewer's place on Recap's own ladder through `nightVerdict`, the sheet's thirds. Absent with no row, a failed row, write-ups Off or a round still in play. League Home is unchanged. |
+| 7.3 E Re-guard, rewrite, the commissioner's count (#205) | Next | Stored briefs re-guarded, Rewrite this round rewrites them too, and the commissioner sees how many were written. |
 
 Decisions the spec left open (the log has the reasons):
 - The top counted scorer and the underperformer are valued against their
@@ -47,7 +48,8 @@ Decisions the spec left open (the log has the reasons):
   known until close to tip-off, and Lineup already shows the fixtures.
 - Briefs show on Recap only (#203), against spec stories 31 and 32.
 
-**Next up: 7.3 D, Your round on Recap (#204).**
+**Next up: 7.3 E, re-guard, rewrite, the commissioner's count and the
+close-out (#205).**
 
 Carried until 7.3 E (#205): a written brief is never re-guarded, and
 Rewrite this round does not touch briefs.
@@ -66,6 +68,10 @@ Rewrite this round does not touch briefs.
   `--save` to store them as `round_brief` rows.
 - `npm run worker:dev` with a key writes them itself, after the round
   write-up: look for `briefs · N written` in its log.
+- Then open `http://localhost:3007/l/<league>/recap` for that round: "Your
+  round" sits under the winner's banner, above the round write-up, with a
+  WON / HELD / LOST tag that matches your place on The night below it.
+  Signed in as another member, you see only theirs.
 
 ## AI commentary — 7.2 the free-agent scout, October 2026
 
