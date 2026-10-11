@@ -78,19 +78,12 @@ How it works:
 - **Inside a league the Player Pool sits in the EuroLeague group**: Scout made
   the season League group one row too tall for a 690px screen.
 
-**Production, for a person, after the deploy** (from `/var/www/eurovafliai`;
-details and the counts to expect are in
-[log/free-agent-scout-2026-10-10.md](log/free-agent-scout-2026-10-10.md)):
-1. `npm run stats:sync -- --season=E2025 --all`, about half an hour. Then
-   `npm run stats:starters -- --season=E2025`. Re-running either writes
-   nothing.
-2. Nothing for the outlooks: the worker computes them two minutes after the
-   deploy restarts it, and every 15 minutes after. Look for its `outlooks ·`
-   log line.
-3. Each linked league's first positions read happens on the worker's first
-   pass after boot. Check its `positions ·` log line.
-4. Do not run plain `npm run stats:prev` now that last season's lines are
-   stored; only `--check`.
+**Production: done on 11 October 2026** (the record is in
+[log/deploy-checks.md](log/deploy-checks.md)). The worker wrote the outlooks,
+the first positions reads and round 4's reasons by itself. The E2025 backfill
+then stored 7,130 lines, every one with a known start, and a hash taken before
+and after showed this season's averages, standings and doorbell unchanged.
+Plain `npm run stats:prev` should still not be run; only `--check`.
 
 **Next up: 7.3, your round.**
 
