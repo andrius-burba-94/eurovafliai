@@ -7,7 +7,7 @@ import type { LeagueRecord } from "@/lib/leagues/types";
 import { revalidateLeague } from "@/lib/nav/revalidate";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
-import { readWriteup, requestRewrite } from "./store";
+import { readMemberWriteups, readWriteup, requestRewrite } from "./store";
 
 export type RewriteResult = {
   error: string | null;
@@ -17,9 +17,14 @@ export type RewriteResult = {
 
 /**
  * The commissioner's Rewrite this round (7.1, ADR-0013). It only marks the
- * row: the worker's one-minute check does the writing, so no request waits
+ * rows: the worker's one-minute check does the writing, so no request waits
  * on Google and only the worker ever writes prose. A round with no row has
  * nothing to rewrite — the next pass writes it anyway.
+ *
+ * 7.3 E: it marks that round's briefs too, since a correction that makes the
+ * write-up wrong makes them wrong as well. The commissioner never reads one;
+ * the superuser client marks them. One mark per row and no transaction: a
+ * fault partway leaves some rows asked for, and asking again marks the rest.
  */
 export async function requestRoundRewrite(_previous: RewriteResult, formData: FormData): Promise<RewriteResult> {
   const session = await requireSession();
@@ -54,7 +59,11 @@ export async function requestRoundRewrite(_previous: RewriteResult, formData: Fo
   }
 
   try {
-    await requestRewrite(pb, row.id, Date.now());
+    const now = Date.now();
+    await requestRewrite(pb, row.id, now);
+    for (const brief of await readMemberWriteups(pb, { leagueId, season, round, kind: "round_brief" })) {
+      await requestRewrite(pb, brief.id, now);
+    }
   } catch {
     return { error: "Could not ask for that. Try again." };
   }

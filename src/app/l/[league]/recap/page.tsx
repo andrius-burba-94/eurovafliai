@@ -15,7 +15,7 @@ import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { stylesById } from "@/lib/teams/identity";
 
-import { readRoundBrief, readRoundWriteup } from "@/lib/ai/queries";
+import { readBriefCount, readRoundBrief, readRoundWriteup } from "@/lib/ai/queries";
 import { briefVerdict } from "@/lib/ai/view";
 import { formatTipOff } from "@/lib/time/local";
 
@@ -86,7 +86,9 @@ export default async function RecapPage({
   // place on Recap's ladder; a member the night did not rank gets no panel.
   const written = page && !open && data.settings.ai.enabled ? page.recap : null;
   const verdict = written ? briefVerdict(written.rows, viewer.id) : null;
-  const [writeup, brief] = await Promise.all([
+  // 7.3 E: the commissioner's count of the round's briefs — numbers only, read
+  // server-side because their token cannot see other members' rows.
+  const [writeup, brief, briefCount] = await Promise.all([
     written
       ? readRoundWriteup({ token: session.token, leagueId: id, season, round: written.round, teamNames: names }).catch(() => null)
       : null,
@@ -95,6 +97,7 @@ export default async function RecapPage({
           () => null,
         )
       : null,
+    written && data.isCommissioner ? readBriefCount({ leagueId: id, season, round: written.round }).catch(() => null) : null,
   ]);
   const viewerManages = data.isCommissioner || viewer.canManage;
   const paths = leaguePaths(data.league, data.members);
@@ -201,6 +204,7 @@ export default async function RecapPage({
                         canRewrite={data.isCommissioner && season === currentSeason}
                         settingsHref={`${base}/settings`}
                         authToken={session.token}
+                        briefs={briefCount ? { ...briefCount, total: page.recap.rows.length } : null}
                       />
                     ) : null
                   }

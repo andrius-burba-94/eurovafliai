@@ -99,6 +99,20 @@ function briefRow(setup: Setup, memberId: string, output: Record<string, string>
   };
 }
 
+/** The round's league-wide write-up, so Recap has its panel and the managers' strip. */
+function summaryRow(setup: Setup) {
+  return {
+    ...briefRow(setup, "", null),
+    kind: "round_summary",
+    prompt_version: "round-summary-2",
+    output: {
+      headline: "@T1 take the night on #P1's 38.5.",
+      lines: ["@T1 won the night with 227.1 fantasy points.", "@T2 finished 2nd on 180.2 fantasy points.", "@T1 stay top of the table."],
+      sections: {},
+    },
+  };
+}
+
 /** Every response body the page receives from here on, read in full. */
 function captureResponses(page: Page) {
   const bodies: Promise<string>[] = [];
@@ -112,19 +126,7 @@ test("a member reads their own round, tagged from their place, and nobody else's
   const setup = await briefedLeague("Briefed Recap");
   await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.chiefRow.id, CHIEF_BRIEF), { requestKey: null });
   await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.mateRow.id, MATE_BRIEF), { requestKey: null });
-  await setup.pb.collection("ai_writeups").create(
-    {
-      ...briefRow(setup, "", null),
-      kind: "round_summary",
-      prompt_version: "round-summary-2",
-      output: {
-        headline: "@T1 take the night on #P1's 38.5.",
-        lines: ["@T1 won the night with 227.1 fantasy points.", "@T2 finished 2nd on 180.2 fantasy points.", "@T1 stay top of the table."],
-        sections: {},
-      },
-    },
-    { requestKey: null },
-  );
+  await setup.pb.collection("ai_writeups").create(summaryRow(setup), { requestKey: null });
 
   await signIn(context, setup.chief);
   const received = captureResponses(page);
@@ -223,4 +225,47 @@ test("write-ups off hide Your round", async ({ page, context }) => {
   await page.reload();
   await expect(page.getByTestId("recap-table")).toBeVisible();
   await expect(page.getByTestId("recap-brief")).toHaveCount(0);
+});
+
+test("the commissioner counts the round's briefs without reading one, and Rewrite queues them too", async ({ page, context, browser }) => {
+  const setup = await briefedLeague("Counted Recap");
+  await setup.pb.collection("ai_writeups").create(summaryRow(setup), { requestKey: null });
+  await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.chiefRow.id, CHIEF_BRIEF), { requestKey: null });
+  await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.mateRow.id, MATE_BRIEF), { requestKey: null });
+  await setup.pb
+    .collection("ai_writeups")
+    .create(briefRow(setup, setup.thirdRow.id, null, { status: "failed", error: "@T3 result: missing" }), { requestKey: null });
+
+  await signIn(context, setup.chief);
+  const received = captureResponses(page);
+  await page.goto(`/l/${setup.league.id}/recap?round=1`);
+  await page.getByTestId("recap-writeup-strip").locator("summary").click();
+  const count = page.getByTestId("recap-writeup-briefs");
+  await expect(count).toHaveText("Briefs: 2 of 3 written");
+  // A count, never a brief: no team is named, and no other member's lines reach the commissioner.
+  await expect(count).not.toContainText("Pancake Brigade");
+  await expect(count).not.toContainText("Syrup Squad");
+  expect(await received()).not.toContain("single bench half");
+
+  await page.getByTestId("recap-writeup-rewrite").click();
+  await expect(count).toContainText("rewriting");
+  const requested = async () =>
+    (await setup.pb.collection("ai_writeups").getFullList({ filter: `league = '${setup.league.id}' && kind = 'round_brief'`, requestKey: null })).filter(
+      (row) => row.rewrite_requested_at,
+    ).length;
+  await expect.poll(requested).toBe(3);
+  // Queued, the strip stays open on its own.
+  await page.reload();
+  await expect(page.getByTestId("recap-writeup-strip")).toHaveAttribute("open");
+  await expect(count).toHaveText("Briefs: 2 of 3 written · rewriting…");
+
+  // A co-manager has the strip but not the count: it is the commissioner's alone.
+  await setup.pb.collection("league_members").update(setup.mateRow.id, { can_manage: true }, { requestKey: null });
+  const mate = await browser.newContext();
+  await signIn(mate, setup.mate);
+  const matePage = await mate.newPage();
+  await matePage.goto(`/l/${setup.league.id}/recap?round=1`);
+  await expect(matePage.getByTestId("recap-writeup-strip")).toBeVisible();
+  await expect(matePage.getByTestId("recap-writeup-briefs")).toHaveCount(0);
+  await mate.close();
 });
