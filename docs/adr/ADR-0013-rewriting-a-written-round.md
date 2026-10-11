@@ -69,8 +69,8 @@ they are not all the same kind of claim.
   re-guarded daily and after a correction against the rebuilt sheet, and
   rewritten in the league's current voice only if they no longer pass.
 - **The third line is a forecast as of writing, and is never re-guarded.**
-  It reads the next round's run, an injury flag and the member's best move
-  worth making, all of which move daily with no stat corrected. Re-guarding
+  It reads the next round's run and the member's best move worth making,
+  both of which move daily with no stat corrected. Re-guarding
   it would rewrite a brief under a member who had already read it, and a
   round long past has no next round left to check it against. It is dated
   advice, like a scout reason.

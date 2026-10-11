@@ -32,7 +32,8 @@ sees has changed yet.
 |---|---|---|
 | 7.3 A The brief's fact sheet (#201) | Done | `buildBriefFacts` (`src/lib/ai/brief-facts.ts`, pure): a shared header (the table in tokens) and one section per member covering the night, deciders, standing, trend, honour and next. It reads the round sheet's own measurements, now `analyseRound` in `round-analysis.ts`. `readBriefFactsInput` adds every member's moves worth making. |
 | 7.3 B Briefs written and stored (#202) | Done | `ai_writeups.kind` gains `round_brief`: one private row per member, `output` `{ result, standing, next }`. `writeBriefs` (`briefs.ts`) makes one call per league, guards each member against the table and their own section, and retries only the refused. `runBriefPass` (`brief-pass.ts`) writes the latest finished round only; the pass order is now round write-up, briefs, scout. `ai:preview --briefs` writes them, `--save` stores them. Nobody sees a brief in the app yet. |
-| 7.3 C Three previews of Your round in the hero (#203) | Next | `/impeccable` previews; the maintainer picks one |
+| 7.3 C Three previews of Your round (#203) | Done | Picked **A, the panel**, revised: the brief shows **only on Recap**, as a framed "Your round" panel first in the reading column (WON / HELD / LOST tag and the round in its corner, three labelled lines: Night, Table, Next). **League Home is unchanged**, so it does not grow. The Next line names no injured or doubtful player and no count of players without a game; the sheet (version 2) and prompt (`round-brief-3`) no longer carry either. |
+| 7.3 D Your round on Recap (#204) | Next | The member's brief for the viewed round, read with their token, in the panel 7.3 C chose. Nothing on League Home. |
 
 Decisions the spec left open (the log has the reasons):
 - The top counted scorer and the underperformer are valued against their
@@ -42,8 +43,11 @@ Decisions the spec left open (the log has the reasons):
   players' averages.
 - A top-three streak counts only from three nights, and only in a league of
   more than three teams.
+- The Next line says nothing about availability (#203): who plays is rarely
+  known until close to tip-off, and Lineup already shows the fixtures.
+- Briefs show on Recap only (#203), against spec stories 31 and 32.
 
-**Next up: 7.3 C, three previews of Your round in the hero (#203).**
+**Next up: 7.3 D, Your round on Recap (#204).**
 
 Carried until 7.3 E (#205): a written brief is never re-guarded, and
 Rewrite this round does not touch briefs.
@@ -52,7 +56,8 @@ Rewrite this round does not touch briefs.
 - `npm run dev`, then
   `npm run ai:preview -- --league=<slug|id> --briefs --facts-only` prints the
   briefs' sheet in tokens: the table, then each member's night, deciders,
-  standing, trend, honour and next round. It refuses whatever the round
+  standing, trend, honour and next round (its run and best move, with no
+  injury flag and no "without a game"). It refuses whatever the round
   write-up refuses, so a local database needs a finished round
   (`npm run stats:sync`).
 - With `GEMINI_API_KEY` set (locally `GEMINI_MODEL=gemini-3.5-flash-lite`),

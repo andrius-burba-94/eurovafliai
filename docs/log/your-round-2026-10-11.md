@@ -117,3 +117,36 @@ kinds back. `pb:verify` passed against that copy. `ai:preview --briefs`
 against the same copy (three teams, round 4, `gemini-3.5-flash-lite`) wrote
 all three briefs in one call in the analyst voice and again in the pundit
 voice; one run of three needed the retry, and every brief passed the guard.
+
+## 7.3 C Three previews of Your round (#203)
+
+Three treatments were built as throwaway routes under `/concepts`, from
+copies of the real League Home dashboard and Recap body with one slot each,
+at 390px and 1280px, each in a won, a held and a lost night and with no
+brief: A, three labelled lines in the hero (a framed panel on Recap); B, a
+broadcast lower third with the verdict as a big tile; C, the result line as
+the hero's sentence with Table and Next folded away on a phone. The verdict
+tag comes from the place on the night by thirds, never the model.
+
+**League Home was already too long.** The maintainer dropped B, then asked
+for A and C to be compact. A folded single row (about 50px) and C joined to
+the hero's night line (about 110px) followed, against roughly 400px for the
+first A. The maintainer then took the brief off League Home altogether: Home
+stays as it is, and the brief lives on Recap only, for the viewed round.
+For Recap the maintainer picked **A, the panel**, recorded on #203. That
+departs from spec stories 31 and 32 (the brief in the Home hero, labelled
+for a live round), so the live-round labelling question goes with it.
+
+**The Next line forecast availability.** The first previews said "Pau
+Mostra doubtful" and "Ivan Primer out". The maintainer pointed out that
+whether a player sits is rarely known until close to tip-off, so a brief
+written the morning after cannot say it. "Two players idle", the fixture
+count that replaced it in the next round of previews, read as the same kind
+of claim and goes too: Lineup already shows who has no game. `BriefFacts`
+version 2 drops the flagged player and the "without a game" count from the
+NEXT line, and the prompt (`round-brief-3`) forbids saying a player is
+injured, doubtful, out or without a game. The 7.3 A note on choosing the
+flagged player above no longer applies.
+
+The routes were deleted once the choice was made. The screenshots stay in
+`.impeccable/mocks/decision/203/`, which is gitignored.
