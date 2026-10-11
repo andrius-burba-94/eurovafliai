@@ -16,7 +16,7 @@ import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { stylesById } from "@/lib/teams/identity";
 
 import { readBriefCount, readRoundBrief, readRoundWriteup } from "@/lib/ai/queries";
-import { briefVerdict } from "@/lib/ai/view";
+import { briefPlace } from "@/lib/ai/view";
 import { formatTipOff } from "@/lib/time/local";
 
 import { RecapBody } from "./recap-body";
@@ -82,17 +82,17 @@ export default async function RecapPage({
 
   // 7.1: the round's write-up, when write-ups are on and the round is over.
   // Read-only and never the model: the worker wrote it (ADR-0012).
-  // 7.3 D: the viewer's own brief, under the same conditions. Its tag is the
+  // 7.3 D: the viewer's own brief, under the same conditions. Its corner is the
   // place on Recap's ladder; a member the night did not rank gets no panel.
   const written = page && !open && data.settings.ai.enabled ? page.recap : null;
-  const verdict = written ? briefVerdict(written.rows, viewer.id) : null;
+  const place = written ? briefPlace(written.rows, viewer.id) : null;
   // 7.3 E: the commissioner's count of the round's briefs — numbers only, read
   // server-side because their token cannot see other members' rows.
   const [writeup, brief, briefCount] = await Promise.all([
     written
       ? readRoundWriteup({ token: session.token, leagueId: id, season, round: written.round, teamNames: names }).catch(() => null)
       : null,
-    written && verdict
+    written && place
       ? readRoundBrief({ token: session.token, leagueId: id, season, round: written.round, memberId: viewer.id, teamNames: names }).catch(
           () => null,
         )
@@ -179,13 +179,8 @@ export default async function RecapPage({
             season={season}
             open={open}
             brief={
-              brief && verdict ? (
-                <YourRound
-                  view={brief.view}
-                  verdict={verdict}
-                  round={page.recap.round}
-                  links={{ paths, league: data.league, players: brief.players }}
-                />
+              brief && place ? (
+                <YourRound view={brief.view} place={place} links={{ paths, league: data.league, players: brief.players }} />
               ) : null
             }
             summary={

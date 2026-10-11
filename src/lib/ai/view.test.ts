@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { briefVerdict, briefView, failureKind, writeupView } from "./view";
+import { briefPlace, briefView, failureKind, writeupView } from "./view";
 
 const refs = {
   "@T1": { kind: "member", id: "m1" },
@@ -73,16 +73,17 @@ describe("briefView", () => {
   });
 });
 
-describe("briefVerdict", () => {
-  const ladder = ["a", "b", "c", "d", "e", "f"].map((memberId) => ({ memberId }));
+describe("briefPlace", () => {
+  const ladder = ["a", "b", "c", "d"].map((memberId) => ({ memberId }));
 
-  it("reads the place off Recap's own ladder, by thirds", () => {
-    expect(ladder.map((row) => briefVerdict(ladder, row.memberId))).toEqual(["won", "won", "held", "held", "lost", "lost"]);
+  it("reads the place off Recap's own ladder", () => {
+    expect(briefPlace(ladder, "b")).toEqual({ place: 2, teams: 4 });
+    expect(briefPlace(ladder, "d")).toEqual({ place: 4, teams: 4 });
   });
 
-  it("has no verdict for a member the night did not rank", () => {
-    expect(briefVerdict(ladder, "z")).toBeNull();
-    expect(briefVerdict([], "a")).toBeNull();
+  it("has no place for a member the night did not rank", () => {
+    expect(briefPlace(ladder, "z")).toBeNull();
+    expect(briefPlace([], "a")).toBeNull();
   });
 });
 

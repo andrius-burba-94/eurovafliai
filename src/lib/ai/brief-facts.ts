@@ -71,10 +71,8 @@ type Decider = {
 /** Places at each end of the night: `k = max(1, floor(N/3))`. */
 const endOf = (teams: number) => Math.max(1, Math.floor(teams / NIGHT_PARTS));
 
-export type NightVerdict = "won" | "held" | "lost";
-
-/** Won the top k places of the night, lost the bottom k. Recap's tag reads it too. */
-export function nightVerdict(place: number, teams: number): NightVerdict {
+/** Won the top k places of the night, lost the bottom k. */
+function verdictOf(place: number, teams: number): "won" | "held" | "lost" {
   const k = endOf(teams);
   if (place <= k) return "won";
   if (place > teams - k) return "lost";
@@ -248,7 +246,7 @@ export function buildBriefFacts(input: BriefFactsInput): BriefFactsResult {
     const { memberId } = plan;
     const lines = [`TEAM ${T(memberId)}`];
     const place = ladder.findIndex((row) => row.memberId === memberId) + 1;
-    lines.push(`NIGHT · ${ordinal(place)} of ${ladder.length} on the night · ${h(ladder[place - 1]!.roundHundredths)} · ${nightVerdict(place, ladder.length)}`);
+    lines.push(`NIGHT · ${ordinal(place)} of ${ladder.length} on the night · ${h(ladder[place - 1]!.roundHundredths)} · ${verdictOf(place, ladder.length)}`);
     for (const decider of plan.deciders) lines.push(`DECIDER · ${decider.line(P)} · ${formatSignedHundredths(decider.value)}`);
 
     const neighbours = neighboursOf(snapshots, memberId, teamNames);

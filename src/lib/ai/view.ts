@@ -1,4 +1,3 @@
-import { nightVerdict, type NightVerdict } from "./brief-facts";
 import { BRIEF_LINES, storedBrief } from "./briefs";
 import { renderSegments, type Names, type Segment, type TokenRef } from "./tokens";
 import { storedWriteup, type SectionKey } from "./voice";
@@ -69,12 +68,16 @@ export function briefView(output: unknown, refs: unknown, names: Names): BriefVi
 }
 
 /**
- * The brief's tag, from the member's place on Recap's own ladder — never from
- * the model. Null when the night did not rank them.
+ * The brief's corner: the member's place on Recap's own ladder, which ranks
+ * ties as the brief's sheet does (#204, as revised). Null when the night did
+ * not rank them.
  */
-export function briefVerdict(ladder: readonly { readonly memberId: string }[], memberId: string): NightVerdict | null {
+export function briefPlace(
+  ladder: readonly { readonly memberId: string }[],
+  memberId: string,
+): { readonly place: number; readonly teams: number } | null {
   const index = ladder.findIndex((row) => row.memberId === memberId);
-  return index < 0 ? null : nightVerdict(index + 1, ladder.length);
+  return index < 0 ? null : { place: index + 1, teams: ladder.length };
 }
 
 /**

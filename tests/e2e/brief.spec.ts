@@ -14,7 +14,7 @@ import {
 /**
  * Your round — slice 7.3 D (option A of #203, Recap only). Briefs are planted
  * the way the worker stores them; nothing here calls a model. A member reads
- * their own brief first in Recap's reading column, tagged from their place on
+ * their own brief first in Recap's reading column, with their place on
  * the night; another member's brief reaches neither the page nor the wire.
  *
  * Needs a running PocketBase (`npm run dev`).
@@ -26,7 +26,7 @@ test.afterEach(async () => {
 
 const SEASON = "E2026";
 
-/** Three teams, so round 1 has one of each verdict: won, held, lost. */
+/** Three teams, so round 1 has a first, a middle and a last place. */
 async function briefedLeague(name: string) {
   const chief = await createTestUser("briefchief");
   const mate = await createTestUser("briefmate");
@@ -122,7 +122,7 @@ function captureResponses(page: Page) {
   return async () => (await Promise.all(bodies)).join("\n");
 }
 
-test("a member reads their own round, tagged from their place, and nobody else's", async ({ page, context, browser }) => {
+test("a member reads their own round, with their place on the night, and nobody else's", async ({ page, context, browser }) => {
   const setup = await briefedLeague("Briefed Recap");
   await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.chiefRow.id, CHIEF_BRIEF), { requestKey: null });
   await setup.pb.collection("ai_writeups").create(briefRow(setup, setup.mateRow.id, MATE_BRIEF), { requestKey: null });
@@ -134,9 +134,8 @@ test("a member reads their own round, tagged from their place, and nobody else's
 
   const panel = page.getByTestId("recap-brief");
   await expect(panel.getByRole("heading", { level: 2 })).toHaveText("Your round");
-  await expect(page.getByTestId("recap-brief-verdict")).toHaveText("Won");
-  await expect(page.getByTestId("recap-brief-verdict")).toHaveAttribute("data-badge", "won");
-  await expect(panel).toContainText("Round 1");
+  // The corner is the place on the night, never a verdict word beside another team's crown.
+  await expect(page.getByTestId("recap-brief-place")).toHaveText("Your night: 1st of 3");
   // Three labelled lines, names put back at read time.
   await expect(panel.getByRole("term")).toHaveText(["Night", "Table", "Next"]);
   await expect(page.getByTestId("recap-brief-result")).toContainText(`carried by ${shown(setup.star.name)}'s 38.5 fantasy points`);
@@ -167,7 +166,7 @@ test("a member reads their own round, tagged from their place, and nobody else's
   const matePage = await mate.newPage();
   const mateReceived = captureResponses(matePage);
   await matePage.goto(`/l/${setup.league.id}/recap?round=1`);
-  await expect(matePage.getByTestId("recap-brief-verdict")).toHaveText("Held");
+  await expect(matePage.getByTestId("recap-brief-place")).toHaveText("Your night: 2nd of 3");
   await expect(matePage.getByTestId("recap-brief-result")).toContainText("single bench half");
   await expect(matePage.locator("body")).not.toContainText("fantasy points as captain");
   const mateWire = await mateReceived();

@@ -157,14 +157,13 @@ The panel 7.3 C chose, built from the r3 screenshots: `YourRound` in
 `recap/writeup.tsx`, beside the round write-up's `Prose`, so names in a brief
 link exactly as they do in the write-up.
 
-**The tag is worked out at read time, not stored.** The brief's sheet already
-decides the verdict by thirds, but the row stores only the three lines. So
-`verdictOf` became the exported `nightVerdict`, and Recap reads the viewer's
-place off its own ladder (`briefVerdict`). The sheet and Recap rank ties the
-same way (lower member id first), and a test in `brief-facts.test.ts` checks
-`nightVerdict` against the sheet's NIGHT line at two, three, four and ten
-teams, so the tag and the prose cannot disagree about a night. A member the
-night did not rank gets no panel; the pass writes no brief for them anyway.
+**The corner is worked out at read time, not stored.** The row stores only
+the three lines, so Recap reads the viewer's place off its own ladder
+(`briefPlace`). The sheet and Recap rank ties the same way (lower member id
+first), so the corner and the Night line cannot disagree about a place. A
+member the night did not rank gets no panel; the pass writes no brief for
+them anyway. (7.3 D shipped a WON / HELD / LOST badge here; 7.3 E's critique
+replaced it with the place, below.)
 
 **Privacy is the API rule's, and the filter says so too.** `readRoundBrief`
 reads with the viewer's token and filters on their member as well as league,
@@ -238,10 +237,16 @@ replaced the hero #205 named. It scored 19/32, with two heuristics n/a. Fixed
 here:
 - the commissioner's strip opens when a brief is missing, and says Rewrite
   covers the briefs;
-- a screen reader hears "Your night: Won. Round 4", not "Won Round 4".
+- **the corner is the place, not a verdict.** "Won" meant the top third and
+  sat under a "Round winner" banner crowning one team, so in a nine-team
+  league 2nd and 3rd appeared to claim the round. The maintainer turned down
+  a place beside the word, a reworded verdict and keeping it, then four more
+  (teams beaten, a hot/warm/cold scale, against your own average, just the
+  place), and picked just the place: "2nd of 9", with the round number gone
+  from the corner because the page already says it. A screen reader hears
+  "Your night: 2nd of 9". The sheet and the prompt keep won/held/lost: the
+  Night line still says it in words, which is the model's job.
 
-Left for the maintainer, because they reopen #203's decision:
-- "Won" (the top third) sits under a "Round winner" banner that crowns one
-  team;
-- the Night line repeats the badge;
+Left for the maintainer:
+- the Night line restates the place the corner shows;
 - the panel costs about 400px on a phone before the write-up.

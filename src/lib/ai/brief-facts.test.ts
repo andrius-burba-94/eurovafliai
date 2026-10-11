@@ -7,7 +7,7 @@ import type { HistoryRow } from "@/lib/memberships/history";
 import type { RecapWindow } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
 
-import { buildBriefFacts, nightVerdict, type BriefFacts, type BriefFactsInput } from "./brief-facts";
+import { buildBriefFacts, type BriefFacts, type BriefFactsInput } from "./brief-facts";
 import { numbersIn } from "./facts";
 import { checkWriteup } from "./guard";
 import type { FactsGame, FactsPlayer } from "./round-facts";
@@ -201,10 +201,7 @@ describe("buildBriefFacts: the night", () => {
       lineups: [],
       snapshots: [snapshot(5, members.map((member, index) => [member.id, 50000 - index * 100, nights[index]!]))],
     });
-    const fromSheet = members.map((member) => linesOf(sheet, member.id, "NIGHT")[0]!.split(" · ").at(-1));
-    // Recap's tag reads the same thirds off its own ladder, so the two always agree.
-    expect(members.map((_, index) => nightVerdict(index + 1, count))).toEqual(fromSheet);
-    return fromSheet;
+    return members.map((member) => linesOf(sheet, member.id, "NIGHT")[0]!.split(" · ").at(-1));
   };
 
   it("splits the night into thirds: one won and one lost at two, three and four teams", () => {

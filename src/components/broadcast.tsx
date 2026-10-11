@@ -69,7 +69,7 @@ export function ScoreFigure({
   );
 }
 
-export type BadgeKind = "out" | "doubtful" | "live" | "final" | "provisional" | "scheduled" | "left" | "won" | "held" | "lost";
+export type BadgeKind = "out" | "doubtful" | "live" | "final" | "provisional" | "scheduled" | "left";
 
 const BADGE: Record<BadgeKind, string> = {
   out: "bg-loss/15 text-loss",
@@ -79,10 +79,6 @@ const BADGE: Record<BadgeKind, string> = {
   provisional: "border border-dashed border-rule-strong text-ink-soft",
   scheduled: "bg-stock-high text-ink-soft",
   left: "bg-stock-high text-ink-faint",
-  // A member's night on Recap: outlined, so it never reads as a game's state.
-  won: "border border-gain/60 text-gain",
-  held: "border border-rule-strong text-ink",
-  lost: "border border-loss/60 text-loss",
 };
 
 /** A state with its word printed on it. Colour is never the carrier alone. */

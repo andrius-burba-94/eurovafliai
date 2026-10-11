@@ -2,13 +2,12 @@ import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 
 import { Bank } from "@/components/board";
-import { StatusBadge } from "@/components/broadcast";
-import type { NightVerdict } from "@/lib/ai/brief-facts";
 import type { RoundWriteupRead } from "@/lib/ai/queries";
 import type { Segment } from "@/lib/ai/tokens";
 import type { BriefView } from "@/lib/ai/view";
 import type { SectionKey } from "@/lib/ai/voice";
 import { playerHref, type LeaguePaths, type Ref } from "@/lib/nav/urls";
+import { ordinal } from "@/lib/season/story";
 
 /**
  * The round, written — slice 7.1, option C of #186 ("margin notes", as the
@@ -132,8 +131,6 @@ export function WriteupNote({
   );
 }
 
-const VERDICT_WORD: Record<NightVerdict, string> = { won: "Won", held: "Held", lost: "Lost" };
-
 const BRIEF_ROWS: readonly { key: keyof BriefView; label: string }[] = [
   { key: "result", label: "Night" },
   { key: "standing", label: "Table" },
@@ -142,19 +139,18 @@ const BRIEF_ROWS: readonly { key: keyof BriefView; label: string }[] = [
 
 /**
  * Your round — slice 7.3 D, option A of #203 as the maintainer revised it:
- * the viewer's own brief, first in the reading column. The tag is the place
- * on the night by thirds, worked out from Recap's ladder, and always says
- * the word; the three lines are the model's, checked before they were stored.
+ * the viewer's own brief, first in the reading column. The corner is the
+ * place on the night, read off Recap's ladder, and no verdict word: "won"
+ * beside another team's crown read as a claim to the round (#204's critique).
+ * The three lines are the model's, checked before they were stored.
  */
 export function YourRound({
   view,
-  verdict,
-  round,
+  place,
   links,
 }: {
   view: BriefView;
-  verdict: NightVerdict;
-  round: number;
+  place: { readonly place: number; readonly teams: number };
   links: WriteupLinks;
 }) {
   return (
@@ -163,13 +159,9 @@ export function YourRound({
       label="Your round"
       testId="recap-brief"
       aside={
-        <span className="flex items-center gap-2">
-          <span className="sr-only">Your night:</span>
-          <StatusBadge kind={verdict} testId="recap-brief-verdict">
-            {VERDICT_WORD[verdict]}
-          </StatusBadge>
-          <span className="sr-only">.</span>
-          Round {round}
+        <span data-testid="recap-brief-place">
+          <span className="sr-only">Your night: </span>
+          <span className="font-semibold text-ink">{ordinal(place.place)}</span> of {place.teams}
         </span>
       }
     >
