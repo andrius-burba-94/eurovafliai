@@ -133,3 +133,38 @@ round-2 table to the hundredth, team for team. Round 1 moved by one typing
 slip: Monikutės Naktys 165.7 → 164.6, which is the official figure. The run
 report on the Fantasy sync page lists each team's formation and captain with
 both totals; four of the five formations appear in round 2 alone.
+
+**7.2 (the free-agent scout) was checked on 11 October 2026, the morning after
+the deploy of `47f497b`.** The worker had already done its part:
+- `outlooks · euroleague, basketnews · 526 written`.
+- Both linked leagues' first positions read: the Fantasy Challenge league
+  335 added, 213 linked, 1 unplaced; BasketNews 188 added, 188 linked, 7
+  unplaced; no questions either way.
+- `scout reasons · 17 written`: round 4, prompt `scout-moves-3`, 24 reasons
+  for 8 members and 20 for 9. All 44 are two sentences, 159–232 characters,
+  with no guard refusal or retry.
+- One sweep tick failed at the restart (`Something went wrong.`, 20:37:54)
+  and has not repeated.
+
+A fresh backup (`eurovafliai-20261011112721.zip`) went first. Then the E2025
+backfill ran from `/var/www/eurovafliai`, on the fnm Node 24 that the backup
+service uses (the box's plain `node` is v22):
+- `stats:sync -- --season=E2025 --all` made 34 passes in 32 minutes: **7,130
+  lines**, 402 fixtures, 0 corrected, no problems. Six of those minutes were
+  the feed's 429 waits. That is 120 more lines than the local copy, from
+  production's larger pool.
+- `stats:starters -- --season=E2025` read 0 games and wrote 0 rows, because
+  the sync stores starts itself.
+- Starts: 3,179 started, 3,951 off the bench, 0 unknown.
+- Both commands re-run wrote nothing.
+
+The current season did not move. A hash of every pool average
+(`ae36b68eb9a1`), the 8 E2026 standings tables (`7c807814586c`), the 959
+E2026 lines and the doorbell's 0 unmatched codes was taken before and after,
+and every value matched. No E2025 snapshot was written.
+`stats:prev -- --check` matched 233 players to the official table with no
+PIR disagreement. Plain `stats:prev` was not run. The worker's next passes
+read the new lines on their own (`84 written`, then `72 written`): 612
+outlooks, the extra ones mostly players with no E2026 game who now rate on
+last season. Its own E2026 schedule request met one 429 during the backfill
+and retried, as designed. The error log is empty.
