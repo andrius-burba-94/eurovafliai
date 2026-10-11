@@ -1,10 +1,9 @@
 import type PocketBase from "pocketbase";
 
 import type { BriefFacts } from "./brief-facts";
-import { BRIEF_PROMPT_VERSION, briefRefs, writeBriefs } from "./briefs";
-import { inputHash } from "./facts";
+import { BRIEF_PROMPT_VERSION, briefInput, briefRefs, writeBriefs } from "./briefs";
 import { enabledLeagues, stopping } from "./round-pass";
-import { claimWriteup, completeWriteup, failWriteup, readMemberWriteups } from "./store";
+import { claimWriteup, completeWriteup, failWriteup, MAX_ATTEMPTS, readMemberWriteups } from "./store";
 
 /**
  * The worker's briefs pass — slice 7.3 B.
@@ -18,7 +17,9 @@ import { claimWriteup, completeWriteup, failWriteup, readMemberWriteups } from "
  *
  * Due means no row, or a failed one: the claim's own rules decide the rest (a
  * fresh claim is left to its writer, a stale one is taken over, and three
- * failures on one input stop asking). Each member's row is claimed, then
+ * failures on one input stop asking). A league whose members are all written
+ * or out of attempts is not read at all, so an exhausted brief waits for 7.3
+ * E's re-guard rather than a changed sheet. Each member's row is claimed, then
  * completed or failed on its own, so a crash leaves only claims that go stale.
  */
 
@@ -59,11 +60,15 @@ export async function runBriefPass(deps: BriefPassDeps): Promise<BriefPassReport
       (await readMemberWriteups(deps.pb, { leagueId: league.id, season: deps.season, round, kind: KIND })).map((row) => [row.member, row]),
     );
     const written = (memberId: string) => stored.get(memberId)?.status === "ready";
-    // The sheet reads the season's box scores; a league whose briefs are all written needs none of it.
+    const settled = (memberId: string) => {
+      const row = stored.get(memberId);
+      return row?.status === "ready" || (row?.status === "failed" && (row.attempts ?? 0) >= MAX_ATTEMPTS);
+    };
+    // The sheet reads the season's box scores: a league with nothing left to ask needs none of it.
     const roster = await deps.pb
       .collection("league_members")
       .getFullList<{ id: string }>({ filter: `league = '${league.id}'`, fields: "id", requestKey: null });
-    if (roster.every((member) => written(member.id))) continue;
+    if (roster.every((member) => settled(member.id))) continue;
 
     const facts = await deps.readFacts(league.id, round);
     if (!facts) continue;
@@ -72,12 +77,12 @@ export async function runBriefPass(deps: BriefPassDeps): Promise<BriefPassReport
     const claimed: { memberId: string; id: string }[] = [];
     for (const memberId of facts.memberIds) {
       if (written(memberId)) continue;
-      const text = `${facts.header}\n\n${facts.sectionFor(memberId)}`;
+      const { text, inputHash } = briefInput(facts, memberId, { voice, model: deps.model });
       const claim = await claimWriteup(
         deps.pb,
         { leagueId: league.id, season: deps.season, round, kind: KIND, memberId },
         {
-          inputHash: inputHash({ kind: KIND, text, refs: briefRefs(facts, memberId), voice, promptVersion: BRIEF_PROMPT_VERSION, model: deps.model }),
+          inputHash,
           voice,
           model: deps.model,
           promptVersion: BRIEF_PROMPT_VERSION,

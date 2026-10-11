@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { BriefFacts } from "./brief-facts";
-import { numbersIn } from "./facts";
+import { inputHash, numbersIn } from "./facts";
 import { generateJson, GeminiNoAnswer, type GeminiAnswer, type GeminiRequest, type GeminiUsage } from "./gemini";
 import { checkWriteup } from "./guard";
 import type { TokenRef } from "./tokens";
@@ -169,6 +169,15 @@ export async function writeBriefs({
 export function briefRefs(facts: BriefFacts, memberId: string): Record<string, TokenRef> {
   const own = facts.tokensFor(memberId);
   return Object.fromEntries(Object.entries(facts.refs).filter(([token]) => own.has(token)));
+}
+
+/** What a member's row is claimed with: the text the brief rests on, and its hash. */
+export function briefInput(facts: BriefFacts, memberId: string, { voice, model }: { voice: Voice; model: string }) {
+  const text = `${facts.header}\n\n${facts.sectionFor(memberId)}`;
+  return {
+    text,
+    inputHash: inputHash({ kind: "round_brief", text, refs: briefRefs(facts, memberId), voice, promptVersion: BRIEF_PROMPT_VERSION, model }),
+  };
 }
 
 /** A stored row's three lines, or null for anything this version cannot show. */

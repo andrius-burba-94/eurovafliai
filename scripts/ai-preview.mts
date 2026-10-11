@@ -26,7 +26,7 @@ import PocketBase from "pocketbase";
 
 import { buildBriefFacts } from "../src/lib/ai/brief-facts";
 import { readBriefFactsInput } from "../src/lib/ai/brief-facts-store";
-import { BRIEF_LINES, BRIEF_PROMPT_VERSION, briefRefs, writeBriefs } from "../src/lib/ai/briefs";
+import { BRIEF_LINES, BRIEF_PROMPT_VERSION, briefInput, briefRefs, writeBriefs } from "../src/lib/ai/briefs";
 import { inputHash } from "../src/lib/ai/facts";
 import { listModels } from "../src/lib/ai/gemini";
 import { buildRoundFacts } from "../src/lib/ai/round-facts";
@@ -136,12 +136,12 @@ if (flag("briefs")) {
   const claimed = new Map<string, string>();
   if (flag("save")) {
     for (const memberId of sheet.memberIds) {
-      const text = `${sheet.header}\n\n${sheet.sectionFor(memberId)}`;
+      const { text, inputHash: hash } = briefInput(sheet, memberId, { voice, model });
       const claim = await claimWriteup(
         pb,
         { leagueId: league.id, season: env.EUROLEAGUE_SEASON, round: sheet.round, kind: "round_brief", memberId },
         {
-          inputHash: inputHash({ kind: "round_brief", text, refs: briefRefs(sheet, memberId), voice, promptVersion: BRIEF_PROMPT_VERSION, model }),
+          inputHash: hash,
           voice,
           model,
           promptVersion: BRIEF_PROMPT_VERSION,

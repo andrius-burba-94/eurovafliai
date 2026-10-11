@@ -128,6 +128,14 @@ describe("runBriefPass", () => {
     expect(reads).toEqual(["L1:3"]);
   });
 
+  it("reads no sheet for a league whose unwritten briefs are out of attempts", async () => {
+    const { pb, deps, calls, reads } = harness({ leagues: [league("L1")] }, { answer: (memberIds) => answerFor(memberIds, ["L1m2"]) });
+    for (let pass = 0; pass < 5; pass += 1) await runBriefPass(deps);
+    expect(calls.map((call) => call.members)).toEqual([["L1m1", "L1m2", "L1m3"], ["L1m2"], ["L1m2"]]);
+    expect(reads).toHaveLength(3);
+    expect(pb.rows("ai_writeups")[1]).toMatchObject({ status: "failed", attempts: 3 });
+  });
+
   it("makes no call and writes no brief with write-ups off or without a key", async () => {
     const off = harness({ leagues: [league("L1", { enabled: false, voice: "analyst" })] });
     expect((await runBriefPass(off.deps)).calls).toBe(0);

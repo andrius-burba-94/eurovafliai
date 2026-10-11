@@ -91,9 +91,12 @@ another member's players.
   to 3rd now", copied off the TREND line. Asking for the trend's word alone
   and naming "1st, 2nd, 3rd" as forbidden fixed it (`round-brief-2`).
 - **The pass reads `league_members` before the sheet.** The sheet reads the
-  whole season's box scores, and a league whose briefs are all written needs
-  none of it. That keeps the fifteen-minute pass cheap once a round's briefs
-  are stored.
+  whole season's box scores, and a league with nothing left to ask needs
+  none of it: every member written, or failed three times. The review caught
+  the first version reloading the sheet every pass for one exhausted member.
+  The cost: an exhausted brief is not retried when its sheet changes; 7.3 E's
+  re-guard is where a corrected round is looked at again. A member missing
+  from the round's table still costs a read each pass, which is rare.
 - **Due means no row or a failed row**; a `pending` row is left to the
   claim, which waits out a fresh one and takes over a stale one. A ready
   brief is not looked at again until 7.3 E's re-guard.

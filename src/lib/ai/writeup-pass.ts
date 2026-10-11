@@ -13,8 +13,8 @@ import { writeRoundSummary } from "./summary";
  * write-up, then every member's brief, then the scout's reasons. The league's
  * story lands first and each member's own round right behind it; reasons
  * that wait a pass still arrive well inside the window between rounds.
- * (7.2 ran the scout first; 7.3 reversed it.) Google saying "not now" to one
- * ends the whole pass, since the next would only hear the same.
+ * Google saying "not now" to one ends the whole pass, since the next would
+ * only hear the same.
  *
  * A fault in one job is that job's: the others still get their turn. The
  * round pass's fault is thrown once the others are done, so the worker logs
