@@ -1,7 +1,8 @@
 import { matchPlayer, playerLabel, resolveClubs, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
 import type { FantasyPlayer, FantasyTeam } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
-import type { LineupSlots } from "@/lib/lineups/lineup";
+import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, playerGameDays, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
+import { readDayAt, roundWindows } from "@/lib/fantasy/windows";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { formatHundredths } from "@/lib/stats/scoring";
 import type { Position } from "@/lib/engine";
@@ -22,8 +23,8 @@ export interface BasketNewsRepository {
     firstOpenRound: number;
     /** The newest round with any stored lineup; rosters were mirrored up to it. */
     latestStoredRound: number;
-    /** Each stored EuroLeague fixture's round and whether it has been played. */
-    fixtures: readonly { round: number; played: boolean }[];
+    /** Each stored EuroLeague fixture: its round, clubs, tip-off and whether it has been played. */
+    fixtures: readonly { round: number; played: boolean; localClub: string; roadClub: string; utcDate: string | null }[];
     pool: (PoolPlayer & { basketnewsId?: string; basketnewsPosition?: Position | "" })[];
   }>;
   linkLeague(leagueId: string, sourceLeagueId: string): Promise<void>;
@@ -32,10 +33,15 @@ export interface BasketNewsRepository {
   ensureDraft(leagueId: string, picks: readonly { memberId: string; playerId: string }[], order: readonly string[], draftDate: Date): Promise<void>;
   seats(leagueId: string): Promise<SyncSeat[]>;
   apply(leagueId: string, steps: readonly SyncStep[], at: Date): Promise<void>;
-  writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null): Promise<void>;
+  /** Each member's frozen roles for a round, as stored. */
+  frozenRoles(leagueId: string, season: string, round: number): Promise<ReadonlyMap<string, FrozenRoles>>;
+  writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null, freeze?: RoundFreeze): Promise<void>;
   recompute(season: string, leagueId: string): Promise<void>;
   progress(jobId: string, nextRound: number): Promise<void>;
 }
+
+/** What one read freezes: the players whose game day it reached. */
+export type RoundFreeze = { readonly gameDays: ReadonlyMap<string, string>; readonly readDay: string; readonly at: string };
 
 export type BasketNewsRoundResult = {
   /** Every EuroLeague game of the round was played when this was read. */
@@ -81,12 +87,21 @@ function slotsFor(lineup: BasketNewsLineup, ids: ReadonlyMap<string, string>): L
   };
 }
 
-export function basketNewsResult(lineup: BasketNewsLineup, score: BasketNewsScore, ids: ReadonlyMap<string, string>, final = true): BasketNewsRoundResult {
+/**
+ * The round as BasketNews scored it. A player whose game day a read has
+ * reached is weighed by the role he froze in (`roleFor`); anyone else by his
+ * card now.
+ */
+export function basketNewsResult(
+  lineup: BasketNewsLineup, score: BasketNewsScore, ids: ReadonlyMap<string, string>, final = true,
+  roleFor: (playerId: string) => LineupRole | null = () => null,
+): BasketNewsRoundResult {
   const players = lineup.players.map((entry) => {
     const playerId = ids.get(entry.playerId);
     if (!playerId) throw new Error(`BasketNews player ${entry.playerId} has no mapping.`);
     const role = entry.cardIdentifier;
-    const multiplier = role.startsWith("i-") ? 0 : role === "b-1" ? 1 : role.startsWith("b-") ? 0.5 : entry.captain ? 2 : 1;
+    const frozen = roleFor(playerId);
+    const multiplier = frozen ? ROLE_MULTIPLIERS[frozen] : role.startsWith("i-") ? 0 : role === "b-1" ? 1 : role.startsWith("b-") ? 0.5 : entry.captain ? 2 : 1;
     const rawHundredths = Math.round((entry.player.fantasy_pts ?? 0) * 100);
     return { playerId, rawHundredths, weightedHundredths: Math.round(rawHundredths * multiplier), role };
   });
@@ -112,6 +127,7 @@ export async function syncBasketNews(
   cookie: string | undefined,
   startRound: number,
   source: BasketNewsSource = basketNewsSource,
+  now: Date = new Date(),
 ): Promise<BasketNewsSyncOutcome> {
   const local = await repo.load(leagueId);
   const reference = await source.teamReference(local.sourceTeamId);
@@ -210,20 +226,7 @@ export async function syncBasketNews(
   if (questions.length) return { status: "blocked", message: `${questions.length} BasketNews player mapping question(s) need answers.`, questions, rounds: 0 };
   if (new Set(mapped.values()).size !== mapped.size) throw new Error("Two BasketNews players matched one local player; resolve their mappings before importing.");
 
-  // BasketNews scores each player in the slot he held when his game was
-  // played, but serves the lineup as it stands now, so a change made between a
-  // round's game days leaves a lineup that cannot rebuild its own score. The
-  // official score is the one the league plays for: keep it, and say so.
-  const warnings: string[] = [];
-  for (const round of rounds) for (const [index, lineup] of round.lineups.entries()) {
-    slotsFor(lineup, mapped);
-    const score = round.scores[index];
-    if (!score || !round.final) continue;
-    const result = basketNewsResult(lineup, score, mapped);
-    if (result.calculatedHundredths !== result.totalHundredths) {
-      warnings.push(`Round ${round.round}: ${teams[index]!.title} adds up to ${formatHundredths(result.calculatedHundredths)} from its lineup, not the official ${formatHundredths(result.totalHundredths)}; the official score is kept.`);
-    }
-  }
+  for (const round of rounds) for (const lineup of round.lineups) slotsFor(lineup, mapped);
 
   const firstPickOrder = picks.slice(0, teams.length).map((pick) => pick.fantasyTeamId);
   await repo.linkLeague(leagueId, official.id);
@@ -232,6 +235,9 @@ export async function syncBasketNews(
   const draftPicks = picks.map((pick) => ({ memberId: members.get(pick.fantasyTeamId)!.id, playerId: mapped.get(pick.playerId)! }));
   await repo.ensureDraft(leagueId, draftPicks, firstPickOrder.map((id) => members.get(id)!.id), new Date(official.draftDate ?? Date.now()));
 
+  const windows = roundWindows(local.fixtures);
+  const clubOf = new Map(local.pool.map((player) => [player.id, player.clubCode]));
+  const warnings: string[] = [];
   for (const round of rounds) {
     // Re-reading an open or legacy round must not replay its roster over
     // trades already mirrored from a later round.
@@ -247,10 +253,23 @@ export async function syncBasketNews(
       });
       await repo.apply(leagueId, plan.steps, new Date());
     }
+    const readDay = readDayAt(now.getTime(), windows.find((window) => window.round === round.round));
+    const freeze = readDay ? { gameDays: playerGameDays({ fixtures: local.fixtures, round: round.round, clubOf }), readDay, at: now.toISOString() } : undefined;
+    const stored = freeze ? await repo.frozenRoles(leagueId, local.season, round.round) : new Map<string, FrozenRoles>();
     for (const [index, lineup] of round.lineups.entries()) {
       const member = members.get(teams[index]!.id)!;
       const score = round.scores[index];
-      await repo.writeRound(leagueId, local.season, round.round, member.id, slotsFor(lineup, mapped), score ? basketNewsResult(lineup, score, mapped, round.final) : null);
+      const slots = slotsFor(lineup, mapped);
+      const roles = freeze ? freezeRoles({ previous: stored.get(member.id), slots, ...freeze }) : (stored.get(member.id) ?? {});
+      const result = score ? basketNewsResult(lineup, score, mapped, round.final, (playerId) => roles[playerId]?.role ?? null) : null;
+      // BasketNews scores each player in the slot he held when his game was
+      // played. A day whose read was missed leaves a lineup that cannot
+      // rebuild the score; the official score is the one the league plays
+      // for, so it is kept and the gap is said out loud.
+      if (result && round.final && result.calculatedHundredths !== result.totalHundredths) {
+        warnings.push(`Round ${round.round}: ${teams[index]!.title} adds up to ${formatHundredths(result.calculatedHundredths)} from its lineup, not the official ${formatHundredths(result.totalHundredths)}; the official score is kept.`);
+      }
+      await repo.writeRound(leagueId, local.season, round.round, member.id, slots, result, freeze);
     }
     await repo.recompute(local.season, leagueId);
     if (round.final) await repo.progress(jobId, round.round + 1);

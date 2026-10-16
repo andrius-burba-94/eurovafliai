@@ -187,6 +187,46 @@ describe("syncRoundLineups", () => {
   });
 });
 
+describe("roles frozen by game day", () => {
+  it("keeps day 1's captain at his day-1 role when the captaincy moves before day 2", async () => {
+    const fake = league();
+    const official = lineupsJson["2827842"].data.players;
+    const club = (playerId: number) => official.find((player) => player.id === playerId)!.team.name.slice(0, 3).toUpperCase();
+    // Bryant (3903, the captain) plays on day 1; everybody else on day 2.
+    const others = [...new Set(official.map((player) => club(player.id)).filter((code) => code !== club(3903)))];
+    fake.rows("fixtures").splice(0, 2,
+      { id: "d1", season: SEASON, game_code: 11, round: 2, local_club: club(3903), road_club: "XXX", utc_date: "2026-09-29T16:00:00Z" },
+      ...others.map((code, index) => ({ id: `d2_${code}`, season: SEASON, game_code: 20 + index, round: 2, local_club: code, road_club: "YYY", utc_date: "2026-09-30T18:15:00Z" })),
+    );
+    const moved = structuredClone(lineupsJson);
+    for (const player of moved["2827842"].data.players) player.is_captain = player.id === 4882;
+    const dayTwoGame = (async (url: string) => {
+      if (url.includes("/user/fantasy-teams")) return new Response(JSON.stringify(teamsJson), { status: 200 });
+      const team = /fantasy-teams\/(\d+)\/matchdays\/1529\/roster\/preview$/.exec(url)?.[1] as keyof typeof moved | undefined;
+      return team && moved[team] ? new Response(JSON.stringify(moved[team]), { status: 200 }) : new Response("{}", { status: 404 });
+    }) as typeof fetch;
+
+    await syncRoundLineups({ pb: fake.client, leagueId: LEAGUE, token: "tok", season: SEASON, round: 2, now: new Date("2026-09-29T16:10:00Z"), doFetch: officialGame().doFetch });
+    const afterDayOne = fake.rows("round_lineups").find((row) => row.member === "m_a")!;
+    expect(Object.keys(afterDayOne.roles as object)).toContain("p_3903");
+    expect(Object.keys(afterDayOne.roles as object)).not.toContain("p_4882");
+
+    await syncRoundLineups({ pb: fake.client, leagueId: LEAGUE, token: "tok", season: SEASON, round: 2, now: new Date("2026-09-30T18:20:00Z"), doFetch: dayTwoGame });
+    const stored = fake.rows("round_lineups").find((row) => row.member === "m_a")!;
+    expect((stored.slots as { captain: string }).captain).toBe("p_4882");
+    const roles = stored.roles as Record<string, { role: string; day: string }>;
+    expect(roles.p_3903).toMatchObject({ role: "captain", day: "2026-09-29" });
+    expect(roles.p_4882).toMatchObject({ role: "captain", day: "2026-09-30" });
+  });
+
+  it("freezes nobody on a Sync now pressed before the round's first tip-off", async () => {
+    const fake = league();
+    fake.rows("fixtures")[0]!.local_club = "ANY";
+    await syncRoundLineups({ pb: fake.client, leagueId: LEAGUE, token: "tok", season: SEASON, round: 2, now: new Date("2026-09-29T09:00:00Z"), doFetch: officialGame().doFetch });
+    expect(fake.rows("round_lineups").every((row) => row.roles === undefined)).toBe(true);
+  });
+});
+
 describe("syncDueLineups", () => {
   it("fills in a finished round once, then leaves it", async () => {
     const fake = league();

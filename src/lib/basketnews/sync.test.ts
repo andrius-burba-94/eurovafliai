@@ -22,7 +22,7 @@ import {
   readBasketNewsTeamReference,
   readBasketNewsTeams,
 } from "./client";
-import { processBasketNewsJobs } from "./jobs";
+import { processBasketNewsJobs, queueBasketNewsLeagues } from "./jobs";
 import { queueBasketNewsSync, readBasketNewsPlayerRounds } from "./repository";
 import type { BasketNewsSource } from "./sync";
 
@@ -268,6 +268,56 @@ describe("BasketNews worker import", () => {
     expect(snapshotRowsFrom(snapshot.table).find((row) => row.memberId === member.id)?.roundHundredths).toBe(stored.totalHundredths);
   });
 
+  it("weighs a player by the role he froze in on his game day, so a change between game days still adds up", async () => {
+    const data = leagueDb();
+    const clubs = [...new Set(playerPool.map((row) => row.club_code))].filter((code) => code !== "MAD");
+    const game = (id: string, local: string, road: string, utcDate: string) =>
+      ({ id, season: "E2026", round: 3, game_code: Number(id.replace(/\D/g, "")), local_club: local, road_club: road, utc_date: utcDate, played: false });
+    // Real Madrid play on Tuesday; everybody else on Wednesday.
+    data.fixtures = [
+      game("g1", "MAD", "OTH", "2026-10-13T17:45:00Z"),
+      ...clubs.map((code, index) => game(`g${index + 2}`, code, "OTH", "2026-10-14T18:00:00Z")),
+    ];
+    const db = fakePb({ data, uniqueIndexes: unique });
+    const team = fixture.teams[6]!;
+    const key = `${team.id}:2`;
+    type Entry = { playerId: string; cardIdentifier: string; player: { lastName: string; fantasy_pts: number | null } };
+    const tuesday = fixture.lineups[key] as unknown as { players: Entry[] };
+    const card = (entry: Entry, cardIdentifier: string, pts?: number) =>
+      ({ ...entry, cardIdentifier, player: { ...entry.player, ...(pts === undefined ? {} : { fantasy_pts: pts }) } });
+    const luwawu = tuesday.players.find((entry) => entry.player.lastName === "Luwawu-Cabarrot")!;
+    const gach = tuesday.players.find((entry) => entry.player.lastName === "Gach")!;
+    // Wednesday: Luwawu-Cabarrot (played Tuesday as a starter) goes inactive; Gach starts and scores 16.5.
+    const wednesday = {
+      ...tuesday,
+      players: tuesday.players.map((entry) =>
+        entry === luwawu ? card(entry, gach.cardIdentifier) : entry === gach ? card(entry, luwawu.cardIdentifier, 16.5) : entry),
+    };
+    const score = fixture.scores[key]!;
+    const warnings: string[] = [];
+
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-13T17:55:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(), (message) => warnings.push(message), () => new Date("2026-10-13T18:00:00Z"));
+    for (const row of db.rows("fixtures")) row.played = true;
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-15T09:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, {
+      lineups: { [key]: wednesday },
+      scores: { [key]: { ...score, pointsGained: score.pointsGained + 16.5 } },
+    }), (message) => warnings.push(message), () => new Date("2026-10-15T09:00:00Z"));
+
+    expect(db.rows("fantasy_syncs").map((row) => row.status)).toEqual(["applied", "applied"]);
+    expect(warnings).toEqual([]);
+    const member = db.rows("league_members").find((row) => row.basketnews_team_id === team.id)!;
+    const stored = db.rows("round_lineups").find((row) => row.member === member.id && row.round === 3)!;
+    const result = stored.basketnews_result as { final: boolean; totalHundredths: number; calculatedHundredths: number };
+    expect(result).toMatchObject({ final: true, totalHundredths: Math.round((score.pointsGained + 16.5) * 100) });
+    expect(result.calculatedHundredths).toBe(result.totalHundredths);
+    const playerOf = (sourceId: string) => db.rows("players").find((row) => row.basketnews_id === sourceId)!.id;
+    const roles = stored.roles as Record<string, { role: string; day: string }>;
+    expect(roles[playerOf(luwawu.playerId)]).toMatchObject({ role: "starter", day: "2026-10-13" });
+    expect(roles[playerOf(gach.playerId)]).toMatchObject({ role: "starter", day: "2026-10-14" });
+  });
+
   it("mirrors an open round and a trade from the league-wide lineups, then corrects that round once its games are played", async () => {
     const data = leagueDb();
     const games = (round: number, played: boolean) => ({ id: `game${round}`, season: "E2026", round, game_code: round, played });
@@ -328,6 +378,28 @@ describe("BasketNews worker import", () => {
     const snapshot = db.rows("standings_snapshots").find((row) => row.round === 4)!;
     expect(snapshotRowsFrom(snapshot.table).find((row) => row.memberId === memberOf(teamA!.id))?.roundHundredths)
       .toBe(Math.round(fixture.scores[`${teamA!.id}:2`]!.pointsGained * 100));
+  });
+});
+
+describe("queueBasketNewsLeagues", () => {
+  it("queues a league on a game day's first tip-off, not again that day, and not every fifteen minutes between rounds", async () => {
+    const data = leagueDb();
+    data.fixtures = [
+      { id: "g1", season: "E2026", round: 3, game_code: 1, local_club: "MAD", road_club: "BAR", utc_date: "2026-10-13T17:45:00Z", played: false },
+      { id: "g2", season: "E2026", round: 3, game_code: 2, local_club: "PAN", road_club: "OLY", utc_date: "2026-10-14T18:00:00Z", played: false },
+    ];
+    const db = fakePb({ data, uniqueIndexes: unique });
+    const tick = async (iso: string) => {
+      const queued = await queueBasketNewsLeagues(db.client, "E2026", new Date(iso));
+      for (const row of db.rows("fantasy_syncs")) if (row.status === "queued") Object.assign(row, { status: "applied", active_league: "" });
+      return queued;
+    };
+    expect(await tick("2026-10-13T09:00:00Z")).toBe(1);
+    expect(await tick("2026-10-13T09:15:00Z")).toBe(0);
+    expect(await tick("2026-10-13T17:50:00Z")).toBe(1);
+    expect(await tick("2026-10-13T21:00:00Z")).toBe(0);
+    expect(await tick("2026-10-14T09:00:00Z")).toBe(0);
+    expect(await tick("2026-10-14T18:10:00Z")).toBe(1);
   });
 });
 

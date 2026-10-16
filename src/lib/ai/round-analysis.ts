@@ -1,7 +1,8 @@
 import { difficultyOf } from "@/lib/fixtures/schedule";
 import {
+  effectiveCaptain,
+  effectiveRoles,
   resolveLineups,
-  rolesFromSlots,
   ROLE_MULTIPLIERS,
   type LineupRole,
   type LineupSource,
@@ -138,8 +139,9 @@ export function analyseRound(input: RoundFactsInput): RoundAnalysisResult {
 
   const resolved = resolveLineups({ recorded: input.lineups, rounds: [R], memberIds });
   const sourceOf = new Map<string, LineupSource>(resolved.map((row) => [row.memberId, row.source]));
-  const rolesOf = new Map(resolved.map((row) => [row.memberId, row.slots ? rolesFromSlots(row.slots) : null]));
-  const captainOf = new Map(resolved.flatMap((row) => (row.slots ? [[row.memberId, row.slots.captain] as const] : [])));
+  // Roles as each player scored them: frozen on his game day where a sync read it.
+  const rolesOf = new Map(resolved.map((row) => [row.memberId, row.slots ? effectiveRoles(row.slots, row.roles) : null]));
+  const captainOf = new Map(resolved.flatMap((row) => (row.slots ? [[row.memberId, effectiveCaptain(row.slots, row.roles)] as const] : [])));
   // BasketNews's own published value wins wherever a lineup recorded one, in
   // every round — the rule `mergeBasketNewsLines` applies for the trades page.
   const officialOf = new Map<string, { rawHundredths: number; weightedHundredths: number }>();

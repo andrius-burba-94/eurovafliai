@@ -4,6 +4,11 @@ import { isUniqueViolation } from "@/lib/drafts/unique";
 import { coversRound } from "@/lib/memberships/from";
 
 import {
+  freezeRoles,
+  type FrozenRole,
+  type FrozenRoles,
+  LINEUP_ROLES,
+  type LineupRole,
   type LineupSlots,
   type LineupSquadPlayer,
   lineupWeights,
@@ -23,7 +28,9 @@ import {
  *
  * One row per `(league, member, season, round)`, one JSON `slots` field, so a
  * write either landed or did not — there is no half-written lineup to repair,
- * which matters because PocketBase has no transactions. A resubmit updates the
+ * which matters because PocketBase has no transactions. Frozen `roles` live in
+ * the same row, so a sync read writes the lineup and what it froze together.
+ * A resubmit updates the
  * row; a create that loses a race is caught on the unique index and retried as
  * the update it always was. Nothing here deletes: a round the league stopped
  * caring about still scored the way it scored.
@@ -34,6 +41,7 @@ type LineupRecord = {
   member: string;
   round: number;
   slots: unknown;
+  roles?: unknown;
 };
 
 type MembershipRef = {
@@ -70,6 +78,19 @@ export function slotsFrom(raw: unknown): LineupSlots | null {
   };
 }
 
+/** Frozen roles, read like `slotsFrom`: an entry that does not parse is dropped, never thrown. */
+export function rolesFrom(raw: unknown): FrozenRoles {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, FrozenRole> = {};
+  for (const [playerId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const { role, day, at } = value as Record<string, unknown>;
+    if (!LINEUP_ROLES.includes(role as LineupRole) || typeof day !== "string" || typeof at !== "string") continue;
+    out[playerId] = { role: role as LineupRole, day, at };
+  }
+  return out;
+}
+
 export async function readRecordedLineups(
   pb: PocketBase,
   leagueId: string,
@@ -77,13 +98,14 @@ export async function readRecordedLineups(
 ): Promise<RecordedLineup[]> {
   const rows = await pb.collection("round_lineups").getFullList<LineupRecord>({
     filter: `league = '${leagueId}' && season = "${season}"`,
-    fields: "id,member,round,slots",
+    fields: "id,member,round,slots,roles",
     requestKey: null,
   });
   return rows.flatMap((row) => {
     const slots = slotsFrom(row.slots);
     if (!slots) return [];
-    return [{ memberId: row.member, round: row.round, slots }];
+    const roles = rolesFrom(row.roles);
+    return [{ memberId: row.member, round: row.round, slots, ...(Object.keys(roles).length ? { roles } : {}) }];
   });
 }
 
@@ -133,12 +155,45 @@ export type LineupWrite = {
   readonly recordedBy: string;
   readonly source?: "recorded" | "synced";
   readonly basketnewsResult?: unknown;
+  /**
+   * A sync read freezes the roles of the players whose game day it reached
+   * (`freezeRoles`), on top of whatever earlier reads froze. Without it the
+   * stored roles are left exactly as they were: a typed lineup moves nobody
+   * who already played.
+   */
+  readonly freeze?: {
+    readonly gameDays: ReadonlyMap<string, string>;
+    readonly readDay: string;
+    readonly at: string;
+  };
 };
+
+/** What a write's freeze would leave stored, read first so a caller can score by it before writing. */
+export async function readFrozenRoles(
+  pb: PocketBase,
+  where: { readonly leagueId: string; readonly season: string; readonly round: number },
+): Promise<Map<string, FrozenRoles>> {
+  const rows = await pb.collection("round_lineups").getFullList<LineupRecord>({
+    filter: `league = '${where.leagueId}' && season = "${where.season}" && round = ${where.round}`,
+    fields: "member,roles",
+    requestKey: null,
+  });
+  return new Map(rows.map((row) => [row.member, rolesFrom(row.roles)]));
+}
 
 export async function writeLineup(
   pb: PocketBase,
   write: LineupWrite,
 ): Promise<"created" | "updated"> {
+  const where =
+    `league = '${write.leagueId}' && member = '${write.memberId}' && ` +
+    `season = "${write.season}" && round = ${write.round}`;
+  const find = () =>
+    pb.collection("round_lineups").getFullList<LineupRecord>({ filter: where, fields: "id,roles", requestKey: null });
+  const rolesOver = (row: LineupRecord | undefined) =>
+    write.freeze
+      ? { roles: freezeRoles({ previous: rolesFrom(row?.roles), slots: write.slots, ...write.freeze }) }
+      : {};
   const body = {
     league: write.leagueId,
     member: write.memberId,
@@ -149,33 +204,24 @@ export async function writeLineup(
     recorded_by: write.recordedBy,
     ...(write.basketnewsResult === undefined ? {} : { basketnews_result: write.basketnewsResult }),
   };
-  const where =
-    `league = '${write.leagueId}' && member = '${write.memberId}' && ` +
-    `season = "${write.season}" && round = ${write.round}`;
 
-  const existing = await pb
-    .collection("round_lineups")
-    .getFullList<LineupRecord>({ filter: where, fields: "id", requestKey: null });
-  const row = existing[0];
+  const row = (await find())[0];
   if (row) {
     await pb
       .collection("round_lineups")
-      .update(row.id, body, { requestKey: null });
+      .update(row.id, { ...body, ...rolesOver(row) }, { requestKey: null });
     return "updated";
   }
   try {
-    await pb.collection("round_lineups").create(body, { requestKey: null });
+    await pb.collection("round_lineups").create({ ...body, ...rolesOver(undefined) }, { requestKey: null });
     return "created";
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
-    const raced = await pb
-      .collection("round_lineups")
-      .getFullList<LineupRecord>({ filter: where, fields: "id", requestKey: null });
-    const lost = raced[0];
+    const lost = (await find())[0];
     if (lost) {
       await pb
         .collection("round_lineups")
-        .update(lost.id, body, { requestKey: null });
+        .update(lost.id, { ...body, ...rolesOver(lost) }, { requestKey: null });
     }
     return "updated";
   }

@@ -225,6 +225,23 @@ describe("buildRoundFacts", () => {
     ]);
   });
 
+  it("calls a player captain who played as one, after the armband moved to a later game day", () => {
+    const moved = LINEUPS.map((lineup) =>
+      lineup.memberId === "m2"
+        ? {
+            ...lineup,
+            slots: { ...lineup.slots, captain: "pRock" },
+            roles: { pSlump: { role: "captain" as const, day: "2026-10-13", at: "2026-10-13T18:00:00Z" } },
+          }
+        : lineup,
+    );
+    const sheet = facts({ lineups: moved });
+    // pSlump played as captain on day 1; the slots alone would call him a starter.
+    expect(lineWith(sheet, "UNDERPERFORMER")).toContainEqual(
+      `UNDERPERFORMER · ${tokenOf(sheet, "pSlump")} · -16.0 on his average of 20.0 · captain`,
+    );
+  });
+
   it("notices a player moving into the starting five", () => {
     const sheet = facts();
     expect(lineWith(sheet, "ROLE CHANGE")).toEqual([

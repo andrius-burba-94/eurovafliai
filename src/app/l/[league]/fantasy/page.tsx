@@ -64,7 +64,7 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
         <Bank framed label="Source league" aside={serverConfig().BASKETNEWS_COOKIE ? "Session set" : "Session needed"}>
           <p className="text-sm text-ink-soft">{data.league.name} · Your team: {data.members.find((member) => member.isYou)?.teamName ?? "Importing"}</p>
           {!serverConfig().BASKETNEWS_COOKIE ? <EmptyNotice>Set BASKETNEWS_COOKIE on the worker to import private lineups. The league data already stored here is preserved if the session expires.</EmptyNotice> : null}
-          <p className="mt-3 text-sm text-ink-soft">Sync now adds a worker job. New rounds are checked every 15 minutes.</p>
+          <p className="mt-3 text-sm text-ink-soft">Sync now adds a worker job. The worker reads BasketNews once each game day, five minutes after its first tip-off, once more when the round has settled, and every six hours between rounds.</p>
           <div className="mt-3"><SyncNowForm leagueId={id} label="Sync now" pendingLabel="Queuing…" /></div>
         </Bank>
         {questions.length ? <Bank framed label="Match BasketNews players" aside={`${questions.length} waiting`}>
@@ -94,9 +94,9 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
 
   const schedule =
     view.decision.mode === "apply"
-      ? `Round ${view.decision.round} is under way, so the official rosters are frozen. The sync writes any change it finds, and every team's official lineup, hourly until the round's last game.`
+      ? `Round ${view.decision.round} is under way, so the official rosters are frozen. The sync reads every team's official lineup once each game day, five minutes after its first tip-off, and that day's players keep the role it finds them in.`
       : view.window && view.firstApplyAt
-        ? `Round ${view.window.round} tips off ${formatTipOff(view.window.lockAt)}. The sync writes from ${formatTipOff(view.firstApplyAt)}, then hourly through the round; until then it only previews.`
+        ? `Round ${view.window.round} tips off ${formatTipOff(view.window.lockAt)}. The sync writes from ${formatTipOff(view.firstApplyAt)}, then once each game day through the round; until then it only previews.`
         : "No upcoming round is in the schedule, so the sync only previews.";
 
   return (

@@ -19,6 +19,13 @@ const CLOCK = new Intl.DateTimeFormat("en-GB", {
   timeZone: LEAGUE_TIME_ZONE,
 });
 
+const CALENDAR_DAY = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: LEAGUE_TIME_ZONE,
+});
+
 const MONTH_DAY = new Intl.DateTimeFormat("en-US", {
   month: "numeric",
   day: "numeric",
@@ -45,4 +52,14 @@ export function formatMonthDay(value: string | number | undefined | null): strin
   const month = parts.find((part) => part.type === "month")?.value;
   const day = parts.find((part) => part.type === "day")?.value;
   return month && day ? `${month}/${day}` : null;
+}
+
+/**
+ * The game day an instant falls on: "2026-10-13", the league-time calendar day.
+ * A Euroleague round is two or three of these, and a lineup's roles freeze one
+ * game day at a time. Sortable as a string.
+ */
+export function gameDayOf(value: string | number | undefined | null): string | null {
+  const time = typeof value === "number" ? value : Date.parse(value ?? "");
+  return Number.isFinite(time) ? CALENDAR_DAY.format(time) : null;
 }

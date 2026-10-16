@@ -21,6 +21,39 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Game-day sync and frozen roles, October 2026
+
+**Both linked leagues read once per game day, and every player scores in the
+role he played in** (ADR-0014; vocabulary **game day** and **frozen role** in
+`CONTEXT.md`). A Euroleague round is two or three game days, and both official
+games let a manager move a player, or the captaincy, after his game. Before
+this the app kept one lineup per round, overwritten by each read, so day 1's
+captain benched for day 2 scored at ×0.5 (Montero, round 3: 50 here, 62
+official).
+
+| Piece | What it is |
+|---|---|
+| Frozen roles | `round_lineups.roles` (migration `1791300000_round_lineup_roles.js`): `{ playerId: { role, day, at } }`, written by a sync read for every player whose game day it reached (`freezeRoles`, pure, `src/lib/lineups/lineup.ts`). A frozen role never moves; `slots` stays the lineup as it is now. Scoring reads the frozen role first (`lineupWeights`), so the table, Matchday, Recap, Stats and the AI round and brief sheets all agree. A hand-typed lineup never touches stored roles. |
+| One schedule | `roundWindows` gains `days` (each game day's first tip-off) and `settledAt` (last tip-off + 3 h). Fantasy Challenge rosters and lineups read five minutes after each game day's first tip-off, once after the round settles, and preview every 6 h between rounds; the hourly read is gone. BasketNews runs on the same clock (`basketNewsDue`, checked every 10 minutes) instead of a job every 15 minutes around the clock. Sync now is unchanged. |
+| BasketNews | Each player is weighed by his frozen role, so `calculatedHundredths` rebuilds the official score after a change between game days. The "adds up to" warning from #208 now means a game-day read was missed. |
+
+Decided with the maintainer: **one read per game day**, not one after each
+tip-off. The day's read freezes the day's late games too, so a change made
+after it for a game later that same day is missed (debt below).
+
+**Production:** not deployed yet.
+
+**Try it on localhost:**
+- `npx vitest run src/lib/fantasy/windows.test.ts -t "real round"`: on the
+  worker's ten-minute clock, round 3 is read three times, once per game day
+  and once when it has settled.
+- `npx vitest run src/lib/basketnews -t "froze"`: a day 1 starter benched for
+  a day 2 player still adds up to the official score.
+- With `npm run dev` and `npm run worker:dev` on a game day, the worker logs
+  `BasketNews · 1 league(s) due a read` once after the day's first tip-off,
+  not every fifteen minutes; `round_lineups.roles` fills for that day's
+  players and stays put after a captain change the next day.
+
 ## AI commentary — 7.3 your round, October 2026
 
 **A private brief per member, three lines about their own round** (blueprint
@@ -599,7 +632,9 @@ reported 7 of 8 totals off, part of it live games and part this. The API has
 no per-game-day view (`/roster/preview` ignores a `round_id`; a per-round path
 is 404), so the fix is ours: freeze each player's role from the first read
 after his tip-off and score from the frozen roles (a schema field on
-`round_lineups` plus every scoring reader). Not started; needs a decision.
+`round_lineups` plus every scoring reader). **Closed** by game-day sync and
+frozen roles (October 2026), from the round after its deploy; earlier rounds
+keep their totals.
 
 **Try it on localhost.** Put `FANTASY_CHALLENGE_TOKEN` and
 `FANTASY_CHALLENGE_LEAGUE_ID` in `.env`, `npm run dev`, then as commissioner of
@@ -2154,10 +2189,12 @@ touch should be fixed by that slice rather than deferred again.
 
 | # | What | Blocks |
 |---|---|---|
+| **A same-day change after the game-day read is missed** | One read per game day (ADR-0014) freezes the day's late games with its early ones. A captaincy moved after the day's first tip-off, onto a player whose game is later that day, scores in the role the read found. Reading after every tip-off closes it, at three to five reads a game day | Nothing; the official score still rules BasketNews, and Fantasy Challenge prints its gap in the lineup report |
+| **Rounds before frozen roles keep their totals** | Nothing read those rounds per game day, so Montero (round 3) and Tinginiai (round 5) stay as they were. BasketNews's `playedAsCardIdentifier` might name the slot a player was scored in, but it matched only 11 of 27 captured rounds, so it is not trusted until probed | Nothing |
+| **Lineup and Matchday courts show the lineup as it is now** | Points are counted by frozen roles, but the court still draws `slots`, so a benched day 1 captain shows on the bench with a ×2 night behind him | A follow-up UI slice |
 | **Recap's "Biggest swing" ignores grouped deals** | Found in 7.0. `recapForRound` ranks raw transaction rows one by one, so a free-agent exchange stored as a drop row and an add row is never netted: the swing shown is one half of the deal. The fact sheet already groups with `groupTransactionHistory`; the recap page should too | Nothing; the recap overstates one deal |
 | **When a stat correction may rewrite a published write-up** | A corrected box score changes a fact sheet's hash, and with it the write-up. 7.1 must choose a window after which prose people have read stays as it is, or is marked updated | 7.1's worker job |
 | **A round with no stored fixtures counts as complete** | `roundProgress` treats a snapshot round with no unplayed fixture as finished, including one whose fixtures were never stored. A write-up could be written early on a database without a schedule | Nothing in production, where the schedule is stored |
-| **A captain change between game days is invisible to the fact sheet** | Roles come from the round's stored lineup, the same one the table scores; a captain moved after a tip-off (S35) reads as the final one | Nothing; consistent with the table |
 | **Recap's open round reads fewer lines than League Home** | Found in S25. League Home's "Round N so far" and Live read `readMatchdayData` (recorded box scores plus the live feed); Recap's in-progress view reads `readLeagueRecap` (the stored snapshot plus recorded box scores only). While a game is on air the two can rank the round differently until its box score is recorded. The fix is Recap reading `liveRecap` for an open round | Nothing; the figures meet when each game is recorded |
 | **The Fantasy Challenge token expires by hand** | `FANTASY_CHALLENGE_TOKEN` is a browser session token of unknown lifetime; password login is not available to an SSO account. A refused token is a `failed` run saying so on the sync page and in the worker log, and nothing is written; replacing it means editing the VPS `.env` and restarting both PM2 apps | Rosters stop syncing until somebody notices |
 | **The sync page has no E2E spec** | It talks to somebody else's API, which CI must not. Covered by unit tests over the real 30 September rosters and pool, and `fake-pb` store tests; the page itself is checked by hand | Nothing; a UI regression would be caught late |

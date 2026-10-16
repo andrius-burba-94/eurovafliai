@@ -3,7 +3,7 @@ import type PocketBase from "pocketbase";
 
 import { readStoredFixtures } from "@/lib/fixtures/store";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
-import { formationName, type LineupSlots, type LineupSquadPlayer } from "@/lib/lineups/lineup";
+import { formationName, type LineupSlots, type LineupSquadPlayer, playerGameDays } from "@/lib/lineups/lineup";
 import { readSquadWithPositions, writeLineup } from "@/lib/lineups/store";
 import { applyTransaction, asPbDate, listActiveMemberships } from "@/lib/memberships/store";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
@@ -13,7 +13,7 @@ import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueMoves, fetchLeagu
 import { linkLineupPlayers, matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
 import { resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
 import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncSeat, type SyncStep } from "./plan";
-import { lineupRoundsDue, roundWindows, syncDue, syncModeAt, type SyncDecision } from "./windows";
+import { lineupRoundsDue, readDayAt, roundWindows, syncDue, syncModeAt, type RoundWindow, type SyncDecision } from "./windows";
 
 /**
  * Running a sync — the PocketBase half.
@@ -78,12 +78,13 @@ function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
-export async function decideSync(pb: PocketBase, season: string, now: Date): Promise<SyncDecision> {
+async function readWindows(pb: PocketBase, season: string): Promise<RoundWindow[]> {
   const fixtures = await readStoredFixtures(pb, season);
-  return syncModeAt(
-    now.getTime(),
-    roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null }))),
-  );
+  return roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null })));
+}
+
+export async function decideSync(pb: PocketBase, season: string, now: Date): Promise<SyncDecision> {
+  return syncModeAt(now.getTime(), await readWindows(pb, season));
 }
 
 export async function readSyncRuns(pb: PocketBase, leagueId: string, limit: number): Promise<SyncRun[]> {
@@ -488,7 +489,8 @@ export async function syncDueLeagues(options: {
     requestKey: null,
   });
   if (leagues.length === 0) return [];
-  const decision = await decideSync(pb, options.season, now);
+  const windows = await readWindows(pb, options.season);
+  const decision = syncModeAt(now.getTime(), windows);
   const results: { leagueId: string; run?: SyncRun; error?: string }[] = [];
   for (const league of leagues) {
     try {
@@ -497,7 +499,7 @@ export async function syncDueLeagues(options: {
           ? await lastRunAt(pb, `league = '${league.id}' && ${ROSTER_RUNS} && mode = 'apply' && round = ${decision.round}`)
           : null;
       const lastAny = await lastRunAt(pb, `league = '${league.id}' && ${ROSTER_RUNS}`);
-      if (!syncDue(now.getTime(), decision, lastApply, lastAny)) continue;
+      if (!syncDue(now.getTime(), decision, windows, lastApply, lastAny)) continue;
       const run = await runFantasySync({ ...options, leagueId: league.id, decision });
       results.push({ leagueId: league.id, run });
     } catch (error) {
@@ -584,8 +586,17 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
     });
   }
 
-  const [members, pool] = await Promise.all([readMembers(pb, leagueId), readPool(pb)]);
+  const [members, pool, fixtures] = await Promise.all([readMembers(pb, leagueId), readPool(pb), readStoredFixtures(pb, season)]);
   const template = parseLeagueSettings(league.settings).lineup_template;
+  // The day's players freeze in the roles this read finds them in.
+  const window = roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null }))).find((row) => row.round === round);
+  const readDay = readDayAt(now.getTime(), window);
+  const gameDays = playerGameDays({
+    fixtures: fixtures.map((row) => ({ round: row.round, localClub: row.local_club, roadClub: row.road_club, utcDate: row.utc_date || null })),
+    round,
+    clubOf: new Map(pool.map((row) => [row.id, row.clubCode])),
+  });
+  const freeze = readDay ? { gameDays, readDay, at: now.toISOString() } : undefined;
 
   const refused: string[] = [];
   const fetched: { memberId: string; team: string; squad: LineupSquadPlayer[]; lineup: OfficialLineup }[] = [];
@@ -627,7 +638,7 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
       refused.push(`${team}: ${verdict.reason}`);
       continue;
     }
-    await writeLineup(pb, { leagueId, memberId, season, round, slots: verdict.slots, recordedBy: "", source: "synced" });
+    await writeLineup(pb, { leagueId, memberId, season, round, slots: verdict.slots, recordedBy: "", source: "synced", ...(freeze ? { freeze } : {}) });
     written.push({
       memberId,
       team,

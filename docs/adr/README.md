@@ -19,6 +19,7 @@ alternatives.
 | [0011](ADR-0011-matchnight.md) | Matchnight: the broadcast interface — two grounds, team identity, moments | accepted |
 | [0012](ADR-0012-ai-commentary.md) | AI commentary over a computed fact sheet: tokens, a guard, written once | accepted |
 | [0013](ADR-0013-rewriting-a-written-round.md) | When a written round is rewritten: re-guard, rewrite only if false | accepted |
+| [0014](ADR-0014-frozen-roles.md) | One read per game day, and a player scores in the role he played in | accepted |
 
 Locked product decisions (scoring formula, stats source, formats in and out of
 scope, participant count) are not ADRs — they live in the decision log,
