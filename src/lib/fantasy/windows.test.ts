@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { APPLY_EVERY_MS, lineupRoundsDue, PREVIEW_EVERY_MS, roundWindows, syncDue, syncModeAt } from "./windows";
+import { basketNewsDue, lineupRoundsDue, readDayAt, PREVIEW_EVERY_MS, roundWindows, syncDue, syncModeAt } from "./windows";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -24,7 +24,20 @@ describe("roundWindows", () => {
       lockAt: at("2026-10-01T16:00:00Z"),
       closesAt: at("2026-10-02T20:00:00Z"),
       tips: [at("2026-10-01T16:00:00Z"), at("2026-10-02T18:30:00Z")],
+      days: [at("2026-10-01T16:00:00Z"), at("2026-10-02T18:30:00Z")],
+      settledAt: at("2026-10-02T21:30:00Z"),
     });
+  });
+
+  it("names each game day by its first tip-off, for two- and three-day rounds", () => {
+    const [round5] = roundWindows(
+      ["2026-10-13T17:45:00Z", "2026-10-13T19:00:00Z", "2026-10-14T16:00:00Z", "2026-10-14T18:45:00Z"].map((utcDate) => ({ round: 5, utcDate })),
+    );
+    expect(round5!.days).toEqual([at("2026-10-13T17:45:00Z"), at("2026-10-14T16:00:00Z")]);
+    const [round7] = roundWindows(
+      ["2026-10-21T16:00:00Z", "2026-10-22T17:30:00Z", "2026-10-22T18:45:00Z", "2026-10-23T17:00:00Z"].map((utcDate) => ({ round: 7, utcDate })),
+    );
+    expect(round7!.days).toEqual([at("2026-10-21T16:00:00Z"), at("2026-10-22T17:30:00Z"), at("2026-10-23T17:00:00Z")]);
   });
 
   it("lists each tip-off once, and not a postponed game's", () => {
@@ -77,30 +90,33 @@ describe("syncModeAt", () => {
 });
 
 describe("syncDue", () => {
-  const now = at("2026-10-01T17:00:00Z");
-  const apply = { mode: "apply", round: 3 } as const;
+  const windows = roundWindows(fixtures);
   const preview = { mode: "preview", round: 3 } as const;
+  const apply = { mode: "apply", round: 3 } as const;
+  const dayOne = at("2026-10-01T16:05:00Z");
+  const dayTwo = at("2026-10-02T18:35:00Z");
 
-  it("applies at once in a round that has not been applied", () => {
-    expect(syncDue(now, apply, null, now - 60_000)).toBe(true);
-  });
-
-  it("applies again an hour after the last apply", () => {
-    expect(syncDue(now, apply, now - APPLY_EVERY_MS + 60_000, null)).toBe(false);
-    expect(syncDue(now, apply, now - APPLY_EVERY_MS, null)).toBe(true);
+  it("applies once per game day, five minutes after its first tip-off", () => {
+    expect(syncDue(dayOne, apply, windows, null, null)).toBe(true);
+    expect(syncDue(dayOne + 3_600_000, apply, windows, dayOne, null)).toBe(false);
+    expect(syncDue(at("2026-10-02T03:00:00Z"), apply, windows, dayOne, null)).toBe(false);
+    expect(syncDue(dayTwo - 60_000, apply, windows, dayOne, null)).toBe(false);
+    expect(syncDue(dayTwo, apply, windows, dayOne, null)).toBe(true);
+    expect(syncDue(dayTwo + 3_600_000, apply, windows, dayTwo, null)).toBe(false);
   });
 
   it("previews every six hours", () => {
-    expect(syncDue(now, preview, null, now - PREVIEW_EVERY_MS + 60_000)).toBe(false);
-    expect(syncDue(now, preview, null, now - PREVIEW_EVERY_MS)).toBe(true);
-    expect(syncDue(now, preview, null, null)).toBe(true);
+    const now = at("2026-10-01T09:00:00Z");
+    expect(syncDue(now, preview, windows, null, now - PREVIEW_EVERY_MS + 60_000)).toBe(false);
+    expect(syncDue(now, preview, windows, null, now - PREVIEW_EVERY_MS)).toBe(true);
+    expect(syncDue(now, preview, windows, null, null)).toBe(true);
   });
 });
 
 describe("lineupRoundsDue", () => {
   const windows = roundWindows(fixtures);
   const now = at("2026-10-01T17:00:00Z");
-  const round2ClosedAt = at("2026-09-30T19:45:00Z");
+  const round2SettledAt = at("2026-09-30T21:15:00Z");
 
   it("fills in a finished round never synced, and the frozen round, but not one still to come", () => {
     expect(lineupRoundsDue(now, windows, [])).toEqual([2, 3]);
@@ -110,21 +126,29 @@ describe("lineupRoundsDue", () => {
     expect(lineupRoundsDue(at("2026-10-01T16:02:00Z"), windows, [])).toEqual([2]);
   });
 
-  it("reads the frozen round hourly", () => {
-    const recent = [{ round: 3, ranAt: now - APPLY_EVERY_MS + 60_000, status: "applied" }];
-    expect(lineupRoundsDue(now, windows, recent)).toEqual([2]);
-    const hourAgo = [{ round: 3, ranAt: now - APPLY_EVERY_MS, status: "applied" }];
-    expect(lineupRoundsDue(now, windows, hourAgo)).toEqual([2, 3]);
+  it("reads a frozen round once on each game day, not hourly", () => {
+    const today = [{ round: 3, ranAt: at("2026-10-01T16:06:00Z"), status: "applied" }];
+    expect(lineupRoundsDue(at("2026-10-01T19:00:00Z"), windows, today)).toEqual([2]);
+    expect(lineupRoundsDue(at("2026-10-02T03:00:00Z"), windows, today)).toEqual([2]);
+    expect(lineupRoundsDue(at("2026-10-02T18:35:00Z"), windows, today)).toEqual([2, 3]);
   });
 
-  it("reads a finished round once more after its freeze closes, then leaves it", () => {
-    const duringFreeze = [{ round: 2, ranAt: round2ClosedAt - 60_000, status: "applied" }];
-    expect(lineupRoundsDue(now, windows, duringFreeze)).toContain(2);
-    const afterClose = [...duringFreeze, { round: 2, ranAt: round2ClosedAt + 60_000, status: "applied" }];
-    expect(lineupRoundsDue(now, windows, afterClose)).not.toContain(2);
+  it("reads a finished round once more after it has settled, then leaves it", () => {
+    const beforeSettled = [{ round: 2, ranAt: round2SettledAt - 60_000, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, beforeSettled)).toContain(2);
+    const afterSettled = [...beforeSettled, { round: 2, ranAt: round2SettledAt + 60_000, status: "applied" }];
+    expect(lineupRoundsDue(now, windows, afterSettled)).not.toContain(2);
   });
 
-  it("retries a finished round whose passes since closing all failed, four times a day", () => {
+  it("does not read between the freeze closing and the round settling, unless forced", () => {
+    const between = at("2026-10-02T20:30:00Z");
+    const ran = [{ round: 3, ranAt: at("2026-10-02T18:36:00Z"), status: "applied" }];
+    expect(lineupRoundsDue(between, windows, ran)).not.toContain(3);
+    expect(lineupRoundsDue(between, windows, ran, true)).toContain(3);
+    expect(lineupRoundsDue(at("2026-10-02T21:31:00Z"), windows, ran)).toContain(3);
+  });
+
+  it("retries a finished round whose passes since settling all failed, four times a day", () => {
     const failed = [{ round: 2, ranAt: now - PREVIEW_EVERY_MS + 60_000, status: "failed" }];
     expect(lineupRoundsDue(now, windows, failed)).not.toContain(2);
     const failedLongAgo = [{ round: 2, ranAt: now - PREVIEW_EVERY_MS, status: "blocked" }];
@@ -143,9 +167,8 @@ describe("lineupRoundsDue", () => {
   });
 });
 
-describe("lineupRoundsDue across a round's game days", () => {
-  // E2026 round 3 as stored on 2 October 2026. A manager benched day 1's
-  // captain for a day 2 player before 17:00; the hourly read had run at 16:57.
+describe("one read per game day across a real round", () => {
+  // E2026 round 3 as stored on 2 October 2026: four tip-offs on day 1, six on day 2.
   const round3 = roundWindows(
     [
       "2026-10-01T16:00:00Z",
@@ -160,24 +183,53 @@ describe("lineupRoundsDue across a round's game days", () => {
       "2026-10-02T18:30:00Z",
     ].map((utcDate) => ({ round: 3, utcDate })),
   );
-  const ran = (iso: string) => [{ round: 3, ranAt: at(iso), status: "applied" }];
 
-  it("reads again five minutes after a tip-off the last read came before", () => {
-    expect(lineupRoundsDue(at("2026-10-02T17:04:00Z"), round3, ran("2026-10-02T16:57:00Z"))).toEqual([]);
-    expect(lineupRoundsDue(at("2026-10-02T17:05:00Z"), round3, ran("2026-10-02T16:57:00Z"))).toEqual([3]);
+  it("reads twice in the round's freeze and once after it settles, from a ten-minute clock", () => {
+    const reads: string[] = [];
+    const runs: { round: number; ranAt: number; status: string }[] = [];
+    for (let now = at("2026-10-01T12:00:00Z"); now <= at("2026-10-03T06:00:00Z"); now += 10 * 60_000) {
+      if (lineupRoundsDue(now, round3, runs).length === 0) continue;
+      reads.push(new Date(now).toISOString());
+      runs.push({ round: 3, ranAt: now, status: "applied" });
+    }
+    expect(reads).toEqual(["2026-10-01T16:10:00.000Z", "2026-10-02T17:10:00.000Z", "2026-10-02T21:30:00.000Z"]);
+  });
+});
+
+describe("basketNewsDue", () => {
+  const windows = roundWindows(fixtures);
+  const job = (iso: string, status = "applied") => ({ round: 0, ranAt: at(iso), status });
+
+  it("reads on each game day and after the round settles, every six hours only between rounds", () => {
+    const reads: string[] = [];
+    const runs = [job("2026-10-01T06:00:00Z")];
+    for (let now = at("2026-10-01T06:10:00Z"); now <= at("2026-10-03T06:00:00Z"); now += 10 * 60_000) {
+      if (!basketNewsDue(now, windows, runs)) continue;
+      reads.push(new Date(now).toISOString());
+      runs.push({ round: 0, ranAt: now, status: "applied" });
+    }
+    expect(reads).toEqual([
+      "2026-10-01T12:00:00.000Z",
+      "2026-10-01T16:10:00.000Z",
+      "2026-10-02T18:40:00.000Z",
+      "2026-10-02T21:30:00.000Z",
+      "2026-10-03T03:30:00.000Z",
+    ]);
   });
 
-  it("does not read twice for one tip-off", () => {
-    expect(lineupRoundsDue(at("2026-10-02T17:30:00Z"), round3, ran("2026-10-02T17:06:00Z"))).toEqual([]);
+  it("reads at once when no job has ever run", () => {
+    expect(basketNewsDue(at("2026-10-01T09:00:00Z"), windows, [])).toBe(true);
   });
+});
 
-  it("reads after each later tip-off of the day, up to the last", () => {
-    expect(lineupRoundsDue(at("2026-10-02T17:50:00Z"), round3, ran("2026-10-02T17:06:00Z"))).toEqual([3]);
-    expect(lineupRoundsDue(at("2026-10-02T18:35:00Z"), round3, ran("2026-10-02T18:21:00Z"))).toEqual([3]);
-    expect(lineupRoundsDue(at("2026-10-02T19:00:00Z"), round3, ran("2026-10-02T18:36:00Z"))).toEqual([]);
-  });
+describe("readDayAt", () => {
+  const window = roundWindows(fixtures).find((row) => row.round === 3);
 
-  it("leaves the night between game days to the hourly read", () => {
-    expect(lineupRoundsDue(at("2026-10-02T03:30:00Z"), round3, ran("2026-10-02T03:00:00Z"))).toEqual([]);
+  it("names the latest game day whose first tip-off is five minutes gone", () => {
+    expect(readDayAt(at("2026-10-01T15:00:00Z"), window)).toBeNull();
+    expect(readDayAt(at("2026-10-01T16:05:00Z"), window)).toBe("2026-10-01");
+    expect(readDayAt(at("2026-10-02T12:00:00Z"), window)).toBe("2026-10-01");
+    expect(readDayAt(at("2026-10-05T12:00:00Z"), window)).toBe("2026-10-02");
+    expect(readDayAt(at("2026-10-05T12:00:00Z"), undefined)).toBeNull();
   });
 });
