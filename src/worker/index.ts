@@ -48,6 +48,7 @@ import { upsertLiveSnapshot } from "@/lib/live/store";
 import { describeError } from "@/lib/drafts/pipeline";
 import { processBasketNewsJobs, queueBasketNewsLeagues } from "@/lib/basketnews/jobs";
 import { readBasketNewsPlayerPool, readBasketNewsTeamReference } from "@/lib/basketnews/client";
+import { basketNewsSource } from "@/lib/basketnews/sync";
 import { fetchPlayerPool } from "@/lib/fantasy/client";
 import { syncDueLeagues, syncDueLineups } from "@/lib/fantasy/store";
 import { readDuePositions, type PositionsReport } from "@/lib/source-positions/store";
@@ -842,7 +843,7 @@ function main(): void {
           await queueBasketNewsLeagues(pb, now);
           basketNewsLastQueued = now.getTime();
         }
-        const processed = await processBasketNewsJobs(pb, env.BASKETNEWS_COOKIE);
+        const processed = await processBasketNewsJobs(pb, env.BASKETNEWS_COOKIE, basketNewsSource, (message) => log(message, "warn"));
         if (processed) log(`BasketNews · processed ${processed} queued sync(s)`);
       } catch (error) {
         log(`BasketNews pass failed: ${describeError(error)}`, "error");

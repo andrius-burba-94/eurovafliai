@@ -3,6 +3,7 @@ import type { FantasyPlayer, FantasyTeam } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import type { LineupSlots } from "@/lib/lineups/lineup";
 import { normalizeName } from "@/lib/rosters/normalize";
+import { formatHundredths } from "@/lib/stats/scoring";
 import type { Position } from "@/lib/engine";
 
 import {
@@ -97,7 +98,11 @@ export function basketNewsResult(lineup: BasketNewsLineup, score: BasketNewsScor
   };
 }
 
-export type BasketNewsSyncOutcome = { status: "applied" | "blocked"; message: string; questions: readonly SyncQuestion[]; rounds: number };
+export type BasketNewsSyncOutcome = {
+  status: "applied" | "blocked"; message: string; questions: readonly SyncQuestion[]; rounds: number;
+  /** Final rounds whose lineup does not rebuild the official score; the official score is stored. */
+  warnings?: readonly string[];
+};
 
 /** Fetch and validate the entire source slice before writing any league data. */
 export async function syncBasketNews(
@@ -205,13 +210,18 @@ export async function syncBasketNews(
   if (questions.length) return { status: "blocked", message: `${questions.length} BasketNews player mapping question(s) need answers.`, questions, rounds: 0 };
   if (new Set(mapped.values()).size !== mapped.size) throw new Error("Two BasketNews players matched one local player; resolve their mappings before importing.");
 
+  // BasketNews scores each player in the slot he held when his game was
+  // played, but serves the lineup as it stands now, so a change made between a
+  // round's game days leaves a lineup that cannot rebuild its own score. The
+  // official score is the one the league plays for: keep it, and say so.
+  const warnings: string[] = [];
   for (const round of rounds) for (const [index, lineup] of round.lineups.entries()) {
     slotsFor(lineup, mapped);
     const score = round.scores[index];
     if (!score || !round.final) continue;
     const result = basketNewsResult(lineup, score, mapped);
     if (result.calculatedHundredths !== result.totalHundredths) {
-      throw new Error(`BasketNews round ${round.round} team ${teams[index]!.title} does not add up to its official score.`);
+      warnings.push(`Round ${round.round}: ${teams[index]!.title} adds up to ${formatHundredths(result.calculatedHundredths)} from its lineup, not the official ${formatHundredths(result.totalHundredths)}; the official score is kept.`);
     }
   }
 
@@ -245,5 +255,6 @@ export async function syncBasketNews(
     await repo.recompute(local.season, leagueId);
     if (round.final) await repo.progress(jobId, round.round + 1);
   }
-  return { status: "applied", message: `Mirrored ${teams.length} teams, ${picks.length} draft picks and ${rounds.length} round(s).`, questions: [], rounds: rounds.length };
+  const message = [`Mirrored ${teams.length} teams, ${picks.length} draft picks and ${rounds.length} round(s).`, ...warnings].join(" ");
+  return { status: "applied", message, questions: [], rounds: rounds.length, warnings };
 }

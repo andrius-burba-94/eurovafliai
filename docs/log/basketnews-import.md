@@ -83,3 +83,49 @@ Removing either the finality rule or the roster guard fails it. `queries.test.ts
   - Reading this endpoint would give the exact pairs, if that matters.
 
 **Production check.** Production's active rosters matched the league-wide lineups for all nine teams, player by player. So no transfer was missing at the time. The defect was the frozen round-4 score, and that a later transfer would only have arrived after its round's first scored game.
+
+## The official score wins, 16 October 2026
+
+**What production showed.** Read-only, on the VPS. Hostinger CA$HiorAI's last
+applied BasketNews job was 14 October at 20:46, with round 5 still in play.
+From 21:16 every pass failed with "BasketNews round 5 team Tinginiai does not add
+up to its official score", 99 times by 16 October. The sync validates every
+final round before it writes anything, so the whole pass was refused:
+- no roster or trade since round 5 opened;
+- no round 6 lineups;
+- round 5 stayed `final: false` for every team.
+
+The write-up pass (round summary and briefs) then refused round 5 with
+"BasketNews has not finalised round 5 for every team". EuroVafliai 26-27 uses the
+Fantasy Challenge sync, which has no such check, so it carried on.
+
+**The gap.** Re-reading round 5 on the VPS, eight teams rebuild their official
+score exactly. Tinginiai's lineup adds up to 127.25 against an official 141.00,
+a gap of 13.75. That is exactly Gach (16.5, now in an inactive slot) counting in
+full while Jones (5, bench half) and Luwawu-Cabarrot (0.5, bench half) do not.
+This fits a lineup change between round 5's game days. BasketNews scores each
+player in the slot he held when he played, but serves the lineup as it is now.
+Not proven: the per-round transfer and lineup history was not read.
+
+**The fix.** The check stays, but a mismatch in a final round is now a warning,
+not a throw. The stored result keeps both numbers, as it always did:
+`totalHundredths` (official, what standings read) and `calculatedHundredths`
+(from the lineup). The job message appends one line per mismatch, and
+`processBasketNewsJobs` hands each one to the worker's log as a warning. The
+round still becomes `final`, so the cursor moves past it and the warning is not
+repeated every pass.
+
+**Failure recovery.** Unchanged: rounds are written under the existing lineup
+and snapshot unique indexes, and the cursor only advances after a final round is
+written. A crash mid-pass leaves the next pass to start from the same round.
+
+**Test coverage.** `sync.test.ts` gives one team's round 2 an official score
+13.75 above its lineup. The job is applied, the message and the warning name
+the team and both figures, the stored total and the standings snapshot carry
+the official score, and the lineup's own total is kept beside it. Restoring the
+throw fails it.
+
+**Also seen, not changed.** Between 9 and 15 October, 81 passes failed with
+"BasketNews league lineups disagree on the round or are incomplete" while the
+league-wide read was mid-update. Those cleared themselves, so they are left as
+they are.
