@@ -53,6 +53,8 @@ change the name — not the list. Add a term here in the PR that introduces it.
 | **transaction** | A recorded trade, add or drop. Friends negotiate out loud; the app stores the result. No pending offers. `from_round` is the first night the new squad counts. | `transactions` |
 | **official game** / **Fantasy Challenge** | EuroLeague's own fantasy game, where this league makes its moves after drafting here. Its rosters are the authority; a **sync** copies them in as transactions. | `src/lib/fantasy/` |
 | **freeze** | A Euroleague round's locked spell in the official game: from the first tip-off until its games are done. Only a sync inside the freeze writes; outside it a sync **previews**. | `roundWindows()` |
+| **game day** | One calendar day, in league time, on which some of a Euroleague round's games tip off. A round is two or three. A sync reads once per game day, five minutes after its first tip-off. | `RoundWindow.days`, `gameDayOf()` |
+| **frozen role** | The role a player held when that game day's read ran: what he scored as, whatever the lineup says later. Never moved once written. | `round_lineups.roles`, `freezeRoles()` |
 | **sync run** | One read of the official rosters: preview, blocked (a **question** to answer), applying, applied or failed. The audit log and the repair key. | `fantasy_syncs` |
 | **impact / delta** | Fantasy tenths (and PIR) of players-in minus players-out from a deal's `from_round` onward. Live from box scores, not a stored cache. | `impactForMember()` |
 | **free agent** | A pool player owned by nobody after the draft. In a linked league he must also be in that game's own player pool, with that game's position stored: a player the game does not list cannot be signed there. | `readTransactionBoard().freeAgents` |
