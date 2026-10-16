@@ -140,7 +140,8 @@ const LIVE_EVERY_MS = 60_000;
 const LIVE_FIRST_AFTER_MS = 95_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
-const BASKETNEWS_QUEUE_EVERY_MS = 15 * 60_000;
+/** How often to ask whether a BasketNews read is due; `basketNewsDue` holds it to the game-day clock. */
+const BASKETNEWS_DUE_CHECK_EVERY_MS = 10 * 60_000;
 /** 7.2 D: how often to ask which linked league's game is due a positions read (each is read daily). */
 const POSITIONS_EVERY_MS = 15 * 60_000;
 const POSITIONS_FIRST_AFTER_MS = 180_000;
@@ -465,9 +466,9 @@ function main(): void {
   /**
    * The Fantasy Challenge roster sync, on a fourth guard: somebody else's API,
    * and a pick deadline must never wait on it. Every ten minutes it asks
-   * whether a pass is due — `syncDueLeagues` holds the schedule (hourly inside
-   * a round's freeze, a preview every six hours outside it) — so a pass lands
-   * within ten minutes of the five-minutes-after-tip-off mark. Lineups follow
+   * whether a pass is due — `syncDueLeagues` holds the schedule (once per game
+   * day inside a round's freeze, a preview every six hours outside it) — so a
+   * pass lands within ten minutes of the five-minutes-after-tip-off mark. Lineups follow
    * the rosters in the same pass, so a frozen round's lineups are checked
    * against the roster that was just synced; `syncDueLineups` holds their
    * schedule (`lineupRoundsDue`).
@@ -839,8 +840,9 @@ function main(): void {
       try {
         await ensureAuth(pb, env);
         const now = new Date();
-        if (now.getTime() - basketNewsLastQueued >= BASKETNEWS_QUEUE_EVERY_MS) {
-          await queueBasketNewsLeagues(pb, now);
+        if (now.getTime() - basketNewsLastQueued >= BASKETNEWS_DUE_CHECK_EVERY_MS) {
+          const queued = await queueBasketNewsLeagues(pb, env.EUROLEAGUE_SEASON, now);
+          if (queued) log(`BasketNews · ${queued} league(s) due a read`);
           basketNewsLastQueued = now.getTime();
         }
         const processed = await processBasketNewsJobs(pb, env.BASKETNEWS_COOKIE, basketNewsSource, (message) => log(message, "warn"));

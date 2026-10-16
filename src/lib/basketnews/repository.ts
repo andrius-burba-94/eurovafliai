@@ -5,14 +5,14 @@ import { isUniqueViolation } from "@/lib/drafts/unique";
 import type { SyncQuestion } from "@/lib/fantasy/match";
 import type { SyncSeat, SyncStep } from "@/lib/fantasy/plan";
 import type { Position } from "@/lib/engine";
-import type { LineupSlots } from "@/lib/lineups/lineup";
-import { writeLineup } from "@/lib/lineups/store";
+import type { FrozenRoles, LineupSlots } from "@/lib/lineups/lineup";
+import { readFrozenRoles, writeLineup } from "@/lib/lineups/store";
 import { applyTransaction, listActiveMemberships, materializeDraftMemberships } from "@/lib/memberships/store";
 import { newTeamSlug } from "@/lib/slugs/store";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import type { BasketNewsTeam } from "./client";
-import type { BasketNewsRepository, BasketNewsRoundResult } from "./sync";
+import type { BasketNewsRepository, BasketNewsRoundResult, RoundFreeze } from "./sync";
 
 type LeagueRow = { id: string; name: string; season: string; commissioner: string; basketnews_team_id: string };
 type MemberRow = { id: string; user: string; team_name: string; basketnews_team_id?: string };
@@ -105,8 +105,8 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
         fields: "round,basketnews_result", requestKey: null,
       }),
       this.pb.collection("league_members").getFullList<{ id: string }>({ filter: `league = '${leagueId}'`, fields: "id", requestKey: null }),
-      this.pb.collection("fixtures").getFullList<{ round: number; played: boolean }>({
-        filter: `season = "${season}"`, fields: "round,played", requestKey: null,
+      this.pb.collection("fixtures").getFullList<{ round: number; played: boolean; local_club?: string; road_club?: string; utc_date?: string }>({
+        filter: `season = "${season}"`, fields: "round,played,local_club,road_club,utc_date", requestKey: null,
       }),
     ]);
     const pool = players.map((row) => ({
@@ -125,7 +125,10 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
       name: league.name, season, commissioner: league.commissioner, sourceTeamId: league.basketnews_team_id,
       firstOpenRound: open ?? (stored.at(-1) ?? 0) + 1,
       latestStoredRound: stored.at(-1) ?? 0,
-      fixtures, pool,
+      fixtures: fixtures.map((row) => ({
+        round: row.round, played: row.played, localClub: row.local_club ?? "", roadClub: row.road_club ?? "", utcDate: row.utc_date || null,
+      })),
+      pool,
     };
   }
 
@@ -209,8 +212,12 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     for (const step of steps) await applyTransaction(this.pb, leagueId, step.plan, at, step.announcement, step.note);
   }
 
-  async writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null): Promise<void> {
-    await writeLineup(this.pb, { leagueId, memberId, season, round, slots, recordedBy: "", source: "synced", basketnewsResult: result });
+  async frozenRoles(leagueId: string, season: string, round: number): Promise<ReadonlyMap<string, FrozenRoles>> {
+    return readFrozenRoles(this.pb, { leagueId, season, round });
+  }
+
+  async writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null, freeze?: RoundFreeze): Promise<void> {
+    await writeLineup(this.pb, { leagueId, memberId, season, round, slots, recordedBy: "", source: "synced", basketnewsResult: result, ...(freeze ? { freeze } : {}) });
   }
 
   async recompute(season: string, leagueId: string): Promise<void> {
