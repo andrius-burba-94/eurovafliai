@@ -7,6 +7,7 @@ import {
   readLineupWeights,
   readRecordedLineups,
   readSquadForRound,
+  rolesFrom,
   slotsFrom,
   writeLineup,
 } from "./store";
@@ -107,6 +108,38 @@ describe("writeLineup", () => {
       }),
     ).toBe("updated");
     expect(pb.rows("round_lineups")).toHaveLength(1);
+  });
+});
+
+describe("frozen roles in the row", () => {
+  const base = { leagueId: "lg", memberId: "m1", season: "E2026", round: 3, recordedBy: "" };
+  const days = new Map([["cap", "2026-10-13"], ["s2", "2026-10-14"]]);
+
+  it("freezes on each sync read, keeps them through a hand-typed write, and weighs by them", async () => {
+    const pb = fakePb({ data: db() });
+    await writeLineup(pb.client, { ...base, slots: SLOTS, source: "synced", freeze: { gameDays: days, readDay: "2026-10-13", at: "t1" } });
+    const moved: LineupSlots = { ...SLOTS, captain: "s2" };
+    await writeLineup(pb.client, { ...base, slots: moved, source: "synced", freeze: { gameDays: days, readDay: "2026-10-14", at: "t2" } });
+    await writeLineup(pb.client, { ...base, slots: moved, recordedBy: "u1" });
+
+    expect(pb.rows("round_lineups")).toHaveLength(1);
+    expect(pb.rows("round_lineups")[0]!.roles).toEqual({
+      cap: { role: "captain", day: "2026-10-13", at: "t1" },
+      s2: { role: "captain", day: "2026-10-14", at: "t2" },
+    });
+    const [read] = await readRecordedLineups(pb.client, "lg", "E2026");
+    expect(read?.roles?.cap?.role).toBe("captain");
+    const weights = await readLineupWeights(pb.client, "lg", "E2026", [3], ["m1"]);
+    expect(weights.multiplierFor("m1", 3, "cap")).toBe(2);
+    expect(weights.multiplierFor("m1", 3, "s2")).toBe(2);
+  });
+
+  it("drops a stored role it cannot read rather than throwing", () => {
+    expect(rolesFrom({ a: { role: "captain", day: "d", at: "t" }, b: { role: "boss", day: "d", at: "t" }, c: 7 })).toEqual({
+      a: { role: "captain", day: "d", at: "t" },
+    });
+    expect(rolesFrom(null)).toEqual({});
+    expect(rolesFrom([])).toEqual({});
   });
 });
 

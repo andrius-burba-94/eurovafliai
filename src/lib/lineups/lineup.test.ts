@@ -7,6 +7,11 @@ import {
   DEFAULT_LINEUP_TEMPLATE,
   FORMATIONS,
   formationName,
+  effectiveCaptain,
+  effectiveRoles,
+  freezeRoles,
+  type FrozenRoles,
+  playerGameDays,
   isOfficialFormation,
   lineupSize,
   lineupWeights,
@@ -382,5 +387,86 @@ describe("lineupWeights", () => {
 
   it("scores a member with no lineups at all at 100%", () => {
     expect(weights.multiplierFor("m2", 2, "g1")).toBe(1);
+  });
+});
+
+describe("frozen roles", () => {
+  const AT = "2026-10-13T17:50:00.000Z";
+  // g1 and f1 play on Tuesday (one early, one late), c1 on Wednesday; g5 has no game.
+  const days = new Map([["g1", "2026-10-13"], ["f1", "2026-10-13"], ["c1", "2026-10-14"], ["g2", "2026-10-13"]]);
+
+  it("freezes everybody whose game is on the read's game day, early or late", () => {
+    const roles = freezeRoles({ previous: undefined, slots: legal(), gameDays: days, readDay: "2026-10-13", at: AT });
+    expect(roles).toEqual({
+      g1: { role: "captain", day: "2026-10-13", at: AT },
+      f1: { role: "starter", day: "2026-10-13", at: AT },
+      g2: { role: "starter", day: "2026-10-13", at: AT },
+    });
+  });
+
+  it("never moves a frozen role, and freezes the next day's players on their day", () => {
+    const tuesday = freezeRoles({ previous: undefined, slots: legal(), gameDays: days, readDay: "2026-10-13", at: AT });
+    // Wednesday: the captaincy moves from g1 (who already played) to c1.
+    const moved = legal({ captain: "c1" });
+    const wednesday = freezeRoles({ previous: tuesday, slots: moved, gameDays: days, readDay: "2026-10-14", at: "2026-10-14T16:05:00.000Z" });
+    expect(wednesday.g1?.role).toBe("captain");
+    expect(wednesday.c1).toEqual({ role: "captain", day: "2026-10-14", at: "2026-10-14T16:05:00.000Z" });
+  });
+
+  it("catches up a day whose read was missed", () => {
+    const roles = freezeRoles({ previous: undefined, slots: legal(), gameDays: days, readDay: "2026-10-14", at: AT });
+    expect(Object.keys(roles).sort()).toEqual(["c1", "f1", "g1", "g2"]);
+  });
+
+  it("leaves a player with no game this round, or not in the lineup, unfrozen", () => {
+    const roles = freezeRoles({ previous: undefined, slots: legal(), gameDays: new Map([["stranger", "2026-10-13"]]), readDay: "2026-10-13", at: AT });
+    expect(roles).toEqual({});
+  });
+
+  it("names the first captain to play as the round's captain", () => {
+    const roles: FrozenRoles = {
+      c1: { role: "captain", day: "2026-10-14", at: AT },
+      g1: { role: "captain", day: "2026-10-13", at: AT },
+    };
+    expect(effectiveCaptain(legal({ captain: "c1" }), roles)).toBe("g1");
+    expect(effectiveCaptain(legal({ captain: "c1" }), {})).toBe("c1");
+  });
+
+  it("reads a player's role from his frozen one first, then from the slots", () => {
+    const roles: FrozenRoles = { g1: { role: "bench", day: "2026-10-13", at: AT } };
+    const read = effectiveRoles(legal(), roles);
+    expect(read.get("g1")).toBe("bench");
+    expect(read.get("g2")).toBe("starter");
+    expect(read.has("nobody")).toBe(false);
+  });
+
+  it("weighs a recorded round by the frozen role, and never carries frozen roles forward", () => {
+    // Montero, round 3: captain on day 1, benched for day 2.
+    const roles: FrozenRoles = { g1: { role: "captain", day: "2026-10-13", at: AT } };
+    const benched = legal({ captain: "g2", starters: ["g2", "g4", "f1", "f2", "c1"], bench: ["g1", "f3", "f4", "c2"] });
+    const weights = lineupWeights(resolveLineups({
+      recorded: [{ memberId: "m1", round: 3, slots: benched, roles }],
+      rounds: [3, 4],
+      memberIds: ["m1"],
+    }));
+    expect(weights.multiplierFor("m1", 3, "g1")).toBe(2);
+    expect(weights.multiplierFor("m1", 3, "g2")).toBe(2);
+    expect(weights.multiplierFor("m1", 4, "g1")).toBe(0.5);
+  });
+});
+
+describe("playerGameDays", () => {
+  it("gives each player his club's game day this round, and nothing for a club without a game", () => {
+    const days = playerGameDays({
+      fixtures: [
+        { round: 5, localClub: "PAN", roadClub: "ZAL", utcDate: "2026-10-13T17:45:00Z" },
+        { round: 5, localClub: "RMB", roadClub: "BAR", utcDate: "2026-10-14T19:00:00Z" },
+        { round: 6, localClub: "OLY", roadClub: "PAN", utcDate: "2026-10-15T18:00:00Z" },
+        { round: 5, localClub: "OLY", roadClub: "MCO", utcDate: null },
+      ],
+      round: 5,
+      clubOf: new Map([["a", "ZAL"], ["b", "BAR"], ["c", "OLY"], ["d", "ASV"]]),
+    });
+    expect(days).toEqual(new Map([["a", "2026-10-13"], ["b", "2026-10-14"]]));
   });
 });

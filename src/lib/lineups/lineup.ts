@@ -1,4 +1,5 @@
 import type { Position } from "@/lib/engine";
+import { gameDayOf } from "@/lib/time/local";
 
 /**
  * Lineups, the captain, and what a night is actually worth — slice 9.3.
@@ -110,10 +111,29 @@ export type LineupSquadPlayer = {
 /** Where a round's lineup came from. `absent` is the provisional 100% round. */
 export type LineupSource = "recorded" | "carried" | "absent";
 
+/**
+ * A player's role as it stood on his own game day, read by the sync that day.
+ *
+ * The official games lock a player when his game tips off, but a manager can
+ * still move everybody else, and the captaincy, until the round's last game:
+ * day 1's captain benched for a day 2 player. `slots` keeps the lineup as it
+ * stands now; a frozen role is what that player actually scored as.
+ */
+export type FrozenRole = {
+  readonly role: LineupRole;
+  /** The game day it froze on, as `gameDayOf` writes it. */
+  readonly day: string;
+  /** When the read that froze it ran. */
+  readonly at: string;
+};
+
+export type FrozenRoles = Readonly<Record<string, FrozenRole>>;
+
 export type RecordedLineup = {
   readonly memberId: string;
   readonly round: number;
   readonly slots: LineupSlots;
+  readonly roles?: FrozenRoles;
 };
 
 export type ResolvedLineup = {
@@ -121,6 +141,8 @@ export type ResolvedLineup = {
   readonly round: number;
   readonly source: LineupSource;
   readonly slots: LineupSlots | null;
+  /** Only a recorded round has them: a carried lineup's roles froze in another round. */
+  readonly roles?: FrozenRoles;
 };
 
 export type LineupAssignment = {
@@ -329,11 +351,76 @@ export function validateLineup(input: {
   return { ok: true, slots };
 }
 
-/** Multiplier per player for one recorded lineup. */
-export function multipliersOf(slots: LineupSlots): Map<string, number> {
+/** Multiplier per player for one recorded lineup, frozen roles first. */
+export function multipliersOf(slots: LineupSlots, roles: FrozenRoles = {}): Map<string, number> {
   const out = new Map<string, number>();
-  for (const [id, role] of rolesFromSlots(slots)) {
-    out.set(id, ROLE_MULTIPLIERS[role]);
+  for (const [id, role] of effectiveRoles(slots, roles)) out.set(id, ROLE_MULTIPLIERS[role]);
+  return out;
+}
+
+/** Every player's role as he scored: the lineup now, with frozen roles laid over it. */
+export function effectiveRoles(slots: LineupSlots, roles: FrozenRoles = {}): Map<string, LineupRole> {
+  const out = rolesFromSlots(slots);
+  for (const [id, frozen] of Object.entries(roles)) out.set(id, frozen.role);
+  return out;
+}
+
+/**
+ * The captain who counted. Frozen roles can hold two — day 1's, then the one
+ * the captaincy moved to — and the first to play is the round's captain.
+ */
+export function effectiveCaptain(slots: LineupSlots, roles: FrozenRoles = {}): string {
+  const frozen = Object.entries(roles)
+    .filter(([, role]) => role.role === "captain")
+    .sort(([a, x], [b, y]) => x.day.localeCompare(y.day) || a.localeCompare(b));
+  return frozen[0]?.[0] ?? slots.captain;
+}
+
+/** Each player's game day this round, through his club's fixture; the earliest if it has two. */
+export function playerGameDays(input: {
+  readonly fixtures: readonly { readonly round: number; readonly localClub: string; readonly roadClub: string; readonly utcDate: string | null }[];
+  readonly round: number;
+  readonly clubOf: ReadonlyMap<string, string>;
+}): Map<string, string> {
+  const byClub = new Map<string, string>();
+  for (const game of input.fixtures) {
+    if (game.round !== input.round) continue;
+    const day = gameDayOf(game.utcDate);
+    if (!day) continue;
+    for (const club of [game.localClub, game.roadClub]) {
+      const known = byClub.get(club);
+      if (!known || day < known) byClub.set(club, day);
+    }
+  }
+  const out = new Map<string, string>();
+  for (const [playerId, club] of input.clubOf) {
+    const day = byClub.get(club);
+    if (day) out.set(playerId, day);
+  }
+  return out;
+}
+
+/**
+ * The roles a read freezes: every player in the lineup whose game is on the
+ * read's game day or earlier, unless one froze already. One read per game day
+ * is the schedule, so a late game freezes with the day's early ones; a day
+ * whose read was missed freezes at the next read, which is no worse than not
+ * freezing at all. A frozen role never moves.
+ */
+export function freezeRoles(input: {
+  readonly previous: FrozenRoles | undefined;
+  readonly slots: LineupSlots;
+  /** Each player's game day this round; a player with no game is absent. */
+  readonly gameDays: ReadonlyMap<string, string>;
+  readonly readDay: string;
+  readonly at: string;
+}): FrozenRoles {
+  const out: Record<string, FrozenRole> = { ...input.previous };
+  for (const [playerId, role] of rolesFromSlots(input.slots)) {
+    if (out[playerId]) continue;
+    const day = input.gameDays.get(playerId);
+    if (!day || day > input.readDay) continue;
+    out[playerId] = { role, day, at: input.at };
   }
   return out;
 }
@@ -360,7 +447,7 @@ export function resolveLineups(input: {
     for (const round of rounds) {
       const exact = mine.find((row) => row.round === round);
       if (exact) {
-        out.push({ memberId, round, source: "recorded", slots: exact.slots });
+        out.push({ memberId, round, source: "recorded", slots: exact.slots, ...(exact.roles ? { roles: exact.roles } : {}) });
         continue;
       }
       const carried = [...mine].reverse().find((row) => row.round < round);
@@ -403,7 +490,7 @@ export function lineupWeights(
   for (const row of resolved) {
     const key = `${row.memberId}|${row.round}`;
     byKey.set(key, row);
-    if (row.slots) multipliers.set(key, multipliersOf(row.slots));
+    if (row.slots) multipliers.set(key, multipliersOf(row.slots, row.roles));
   }
   return {
     multiplierFor: (memberId, round, playerId) =>
