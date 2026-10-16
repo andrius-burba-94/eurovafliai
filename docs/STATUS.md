@@ -291,6 +291,16 @@ synced since.
 
 Lineup, roster and trade writes stay BasketNews-owned. See the log for details.
 
+**The official score wins (16 October 2026).** A final round whose lineup does
+not rebuild its official score no longer stops the sync. The official score is
+stored and the ladder plays for it. The job's message says which team and round,
+and the worker logs a `BasketNews · league … · Round N: …` warning. Before this,
+one such team (Tinginiai, round 5: 127.25 from the lineup, 141 official) failed
+every pass from 14 October. So Hostinger CA$HiorAI got no rosters, no round 6
+lineups and no round 5 write-up or briefs. The likely cause is a lineup change
+between a round's game days: BasketNews scores the slot a player held when he
+played, but serves the lineup as it stands now.
+
 **Try it on localhost:**
 - Run `npm run dev` during a round with a BasketNews league in the local
   database.
@@ -299,6 +309,10 @@ Lineup, roster and trade writes stay BasketNews-owned. See the log for details.
   progress".
 - After the next worker pass, `/l/<league>/transactions` lists any transfer
   BasketNews has processed for the next round.
+- To see the official score kept, run `npx vitest run src/lib/basketnews -t "official score"`.
+  On production, after the deploy, the next BasketNews job's message ends with
+  the Tinginiai round 5 line. Recap for round 5 then gets its write-up within
+  the next write-up pass.
 
 ## Trades and rosters, 8 October 2026
 

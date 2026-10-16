@@ -6,7 +6,12 @@ import { basketNewsLeagueIds, markBasketNewsJob, PocketBaseBasketNewsRepository,
 import { basketNewsSource, syncBasketNews, type BasketNewsSource } from "./sync";
 
 /** A worker pass; running jobs are retried from their saved round after a restart. */
-export async function processBasketNewsJobs(pb: PocketBase, cookie: string | undefined, source: BasketNewsSource = basketNewsSource): Promise<number> {
+export async function processBasketNewsJobs(
+  pb: PocketBase,
+  cookie: string | undefined,
+  source: BasketNewsSource = basketNewsSource,
+  warn: (message: string) => void = () => {},
+): Promise<number> {
   const jobs = await queuedBasketNewsJobs(pb);
   const repository = new PocketBaseBasketNewsRepository(pb);
   for (const job of jobs) {
@@ -14,6 +19,7 @@ export async function processBasketNewsJobs(pb: PocketBase, cookie: string | und
     try {
       if (!cookie) throw new Error("BASKETNEWS_COOKIE is missing. Add the read-only BasketNews session to the worker environment.");
       const outcome = await syncBasketNews(repository, job.league, job.id, cookie, job.job_meta?.nextRound ?? 0, source);
+      for (const warning of outcome.warnings ?? []) warn(`BasketNews · league ${job.league} · ${warning}`);
       await markBasketNewsJob(pb, job.id, {
         status: outcome.status, message: outcome.message, questions: outcome.questions, round: outcome.rounds, active_league: "",
       });

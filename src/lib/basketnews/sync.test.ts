@@ -9,6 +9,7 @@ import { countByPosition, type Position } from "@/lib/engine";
 import { navFor } from "@/lib/nav/items";
 import { leaguePosition } from "@/lib/positions";
 import { normalizeName } from "@/lib/rosters/normalize";
+import { formatHundredths } from "@/lib/stats/scoring";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 
@@ -240,6 +241,33 @@ describe("BasketNews worker import", () => {
     expect(db.rows("round_lineups")).toHaveLength(27);
     expect(db.rows("standings_snapshots")).toHaveLength(3);
   });
+
+  it("keeps BasketNews's official score when a final round's lineup does not add up to it, and says so", async () => {
+    const db = fakePb({ data: leagueDb(), uniqueIndexes: unique });
+    const team = fixture.teams[6]!;
+    const score = fixture.scores[`${team.id}:1`]!;
+    const official = { ...score, pointsGained: score.pointsGained + 13.75 };
+    const warnings: string[] = [];
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { scores: { [`${team.id}:1`]: official } }), (message) => warnings.push(message));
+
+    const job = db.rows("fantasy_syncs")[0]!;
+    expect(job).toMatchObject({ status: "applied" });
+    const expected = `Round 2: ${team.title} adds up to ${formatHundredths(Math.round(score.pointsGained * 100))} from its lineup, not the official ${formatHundredths(Math.round(official.pointsGained * 100))}; the official score is kept.`;
+    expect(String(job.message)).toContain(expected);
+    expect(warnings).toEqual([`BasketNews · league ${LEAGUE} · ${expected}`]);
+    expect(db.rows("round_lineups")).toHaveLength(27);
+    expect(db.rows("standings_snapshots")).toHaveLength(3);
+
+    const member = db.rows("league_members").find((row) => row.basketnews_team_id === team.id)!;
+    const stored = db.rows("round_lineups").find((row) => row.member === member.id && row.round === 2)!
+      .basketnews_result as { totalHundredths: number; calculatedHundredths: number };
+    expect(stored.totalHundredths).toBe(Math.round(official.pointsGained * 100));
+    expect(stored.calculatedHundredths).toBe(Math.round(score.pointsGained * 100));
+    const snapshot = db.rows("standings_snapshots").find((row) => row.round === 2)!;
+    expect(snapshotRowsFrom(snapshot.table).find((row) => row.memberId === member.id)?.roundHundredths).toBe(stored.totalHundredths);
+  });
+
   it("mirrors an open round and a trade from the league-wide lineups, then corrects that round once its games are played", async () => {
     const data = leagueDb();
     const games = (round: number, played: boolean) => ({ id: `game${round}`, season: "E2026", round, game_code: round, played });
