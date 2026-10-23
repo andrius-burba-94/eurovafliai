@@ -1,0 +1,14 @@
+{
+  "id": "6ad4b3ef16f8030eda89f4c9",
+  "firstName": "Christian",
+  "middleName": null,
+  "lastName": "Koloko",
+  "team": {
+    "number": null,
+    "positions": ["center"],
+    "team": {
+      "id": "6a8c4949491e10f37dfb616d",
+      "translation": {"name": "Crvena Zvezda Meridianbet Belgrade"}
+    }
+  }
+}
