@@ -18,6 +18,7 @@ export type LeagueRecord = RecordModel & {
   positions_read_at?: string;
   basketnews_league_id?: string;
   basketnews_team_id?: string;
+  basketnews_roster_round?: number;
   /** Its address, /l/<slug>; empty until `ensureSlugs` reaches it (S28). */
   slug?: string;
 };
