@@ -204,7 +204,7 @@ export function diffRosters({
   }
 
   for (const player of current) {
-    if (matched.has(player.id) || player.status === "left") continue;
+    if (matched.has(player.id) || player.status === "left" || player.awaiting_registration) continue;
     if (player.manual_lock) {
       diff.blocked.push({
         id: player.id,

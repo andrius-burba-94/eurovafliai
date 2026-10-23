@@ -66,6 +66,7 @@ export type NormalizedPlayer = {
 /** A player as it exists in the table now, as much of it as the diff needs. */
 export type ExistingPlayer = NormalizedPlayer & {
   id: string;
+  awaiting_registration?: boolean;
   /** A commissioner's correction. Neither source may overwrite a locked row. */
   manual_lock: boolean;
 };
