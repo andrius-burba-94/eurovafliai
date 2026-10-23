@@ -43,6 +43,7 @@ type Move = {
   readonly kind: "add" | "drop";
   readonly ids: readonly string[];
   readonly time: number;
+  readonly sourceEvent: string | null;
 };
 
 function idsOf(raw: unknown, memberId: string): string[] | null {
@@ -75,7 +76,8 @@ function moveOf(row: HistoryRow, index: number): Move | null {
   const other = idsOf(blank, member);
   if (!ids || ids.length === 0 || !other || other.length > 0) return null;
   if (!emptyBut(filled, member) || !emptyBut(blank, member)) return null;
-  return { index, member, kind: row.type, ids, time };
+  const sourceEvent = /^BasketNews, round \d+, transfer ([a-z0-9]+)$/.exec(row.note)?.[1] ?? null;
+  return { index, member, kind: row.type, ids, time, sourceEvent };
 }
 
 const meets = (a: readonly string[], b: readonly string[]) => a.some((id) => b.includes(id));
@@ -88,7 +90,7 @@ const meets = (a: readonly string[], b: readonly string[]) => a.some((id) => b.i
 function swaps(rows: readonly HistoryRow[], moves: readonly (Move | null)[]): { indexes: number[]; swap: NonNullable<HistoryEvent<HistoryRow>["swap"]> }[] {
   const out: { indexes: number[]; swap: NonNullable<HistoryEvent<HistoryRow>["swap"]> }[] = [];
   const taken = new Set<number>();
-  const live = moves.filter((move): move is Move => move !== null);
+  const live = moves.filter((move): move is Move => move !== null && move.sourceEvent === null);
   for (const dropA of live) {
     if (dropA.kind !== "drop" || taken.has(dropA.index)) continue;
     const round = rows[dropA.index]!.from_round;
@@ -120,7 +122,7 @@ function exchanges(rows: readonly HistoryRow[], moves: readonly (Move | null)[],
   const byKey = new Map<string, Move[]>();
   for (const move of moves) {
     if (!move || taken.has(move.index)) continue;
-    const key = `${move.member}\u0000${rows[move.index]!.from_round}`;
+    const key = `${move.member}\u0000${rows[move.index]!.from_round}\u0000${move.sourceEvent ?? "legacy"}`;
     byKey.set(key, [...(byKey.get(key) ?? []), move]);
   }
   const out: { indexes: number[]; exchange: NonNullable<HistoryEvent<HistoryRow>["exchange"]> }[] = [];
@@ -129,7 +131,7 @@ function exchanges(rows: readonly HistoryRow[], moves: readonly (Move | null)[],
     const clusters: Move[][] = [];
     for (const move of sorted) {
       const last = clusters.at(-1);
-      if (last && move.time - last.at(-1)!.time <= SYNC_WINDOW_MS) last.push(move);
+      if (last && (move.sourceEvent !== null || move.time - last.at(-1)!.time <= SYNC_WINDOW_MS)) last.push(move);
       else clusters.push([move]);
     }
     for (const cluster of clusters) {

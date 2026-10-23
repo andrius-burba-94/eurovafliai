@@ -39,6 +39,15 @@ function row(id: string, type: "add" | "drop", member: string, players: string[]
 }
 
 describe("free-agent exchanges", () => {
+  it("keeps source transfer boundaries even when several moves land in the same sync", () => {
+    const rows = [
+      { ...add, id: "add2", players_in: { ausys: ["pons"] }, note: "BasketNews, round 2, transfer event2" },
+      { ...drop, id: "drop2", players_out: { ausys: ["ojeleye"] }, note: "BasketNews, round 2, transfer event2" },
+      { ...add, note: "BasketNews, round 2, transfer event1", date: "2026-10-01 14:07:00Z" },
+      { ...drop, note: "BasketNews, round 2, transfer event1" },
+    ];
+    expect(groupTransactionHistory(rows).map((event) => event.rows.map((row) => row.id))).toEqual([["add2", "drop2"], ["add", "drop"]]);
+  });
   it("shows one event for a drop and an add, preserving the acquired direction", () => {
     expect(groupTransactionHistory([add, drop])).toEqual([{
       rows: [add, drop],

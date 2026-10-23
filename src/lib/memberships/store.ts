@@ -155,6 +155,7 @@ async function findMatchingTransaction(
   pb: PocketBase,
   leagueId: string,
   plan: ApplyPlan,
+  provenance?: { provider: string; eventId: string; leg: string },
 ): Promise<StoredTransaction | undefined> {
   const rows = await pb.collection("transactions").getFullList<StoredTransaction>({
     filter: `league = '${leagueId}'`,
@@ -162,6 +163,11 @@ async function findMatchingTransaction(
   });
   return rows.find(
     (row) =>
+      (provenance
+        ? (row as StoredTransaction & { source_provider?: string; source_event_id?: string; source_leg?: string }).source_provider === provenance.provider &&
+          (row as StoredTransaction & { source_event_id?: string }).source_event_id === provenance.eventId &&
+          (row as StoredTransaction & { source_leg?: string }).source_leg === provenance.leg
+        : !(row as StoredTransaction & { source_event_id?: string }).source_event_id) &&
       row.type === plan.type &&
       row.from_round === plan.fromRound &&
       sameJson(row.members, [...plan.members]) &&
@@ -187,9 +193,10 @@ export async function applyTransaction(
   now: Date,
   announcement: string | null,
   note: string,
+  provenance?: { provider: string; eventId: string; leg: string },
 ): Promise<AppliedTransaction> {
   const stamp = asPbDate(now);
-  let stored = await findMatchingTransaction(pb, leagueId, plan);
+  let stored = await findMatchingTransaction(pb, leagueId, plan, provenance);
   let created = false;
   if (!stored) {
     stored = await pb.collection("transactions").create<StoredTransaction>(
@@ -202,6 +209,7 @@ export async function applyTransaction(
         players_in: plan.playersIn,
         players_out: plan.playersOut,
         note,
+        ...(provenance ? { source_provider: provenance.provider, source_event_id: provenance.eventId, source_leg: provenance.leg } : {}),
       },
       { requestKey: null },
     );
@@ -258,6 +266,6 @@ export async function applyTransaction(
     }
   }
 
-  if (announcement) await announce(pb, leagueId, announcement);
+  if (announcement && created) await announce(pb, leagueId, announcement);
   return { id: stored.id, created };
 }
