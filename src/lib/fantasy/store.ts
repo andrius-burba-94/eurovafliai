@@ -55,6 +55,7 @@ export type SyncRun = {
   readonly moves: readonly string[];
   readonly questions: readonly SyncQuestion[];
   readonly ran_at: string;
+  readonly diagnostics?: readonly string[];
 };
 
 type SyncRecord = SyncRun & { readonly steps?: readonly SyncStep[] | null };

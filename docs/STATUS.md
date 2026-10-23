@@ -21,6 +21,41 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## BasketNews roster and trade recovery, 23 October 2026
+
+**Implemented locally; not deployed.** Hostinger CA$HiorAI stopped on a
+player BasketNews listed before the official EuroLeague roster did: Christian
+Koloko. The sync now keeps durable source-player questions, offers managers
+**Approve source player**, and checks official registration every six hours.
+An approval keeps one player ID, no invented person code, and protection from
+a false departure until registration is confirmed. Pending questions survive
+later job failures; approval recovery remains pending until a job applies.
+
+Public roster reconciliation runs independently of historical private lineups
+and scores. Saved roster intents resume their original steps after failure,
+verify ownership, then advance a separate roster checkpoint. Historical reads
+cannot replay ownership backwards. Unchanged roster imports still retry
+missing game lines, unattached news and blocked external syncs.
+
+The official transfer log preserves source-event IDs and multi-player sides;
+an inconsistent log uses verified snapshots with an explicit history warning.
+`basketnews:repair` previews historical transaction corrections by default and
+requires `--write` to apply verified changes. It preserves roster windows and
+manual transactions. Migration `1791400000` is required. The existing game-day
+and six-hour schedule is unchanged. See
+[the recovery record](log/basketnews-recovery-2026-10-23.md).
+
+**Try it on localhost:**
+- Apply migrations, start the app and worker, and open a BasketNews league's
+  **Trades → BasketNews sync** page with a missing player.
+- A manager can map an existing player or **Approve source player**. The next
+  worker job recovers the roster. The registration status shows when the
+  official roster was last checked.
+- `npx vitest run src/lib/basketnews src/lib/rosters/auto-sync.test.ts` exercises
+  approval, official confirmation, interrupted writes and unchanged recovery.
+- `npm run basketnews:repair -- --league=<id> --rounds=4,5,6,7` previews history
+  repairs. A second successful apply must propose zero further changes.
+
 ## Game-day sync and frozen roles, October 2026
 
 **Both linked leagues read once per game day, and every player scores in the
@@ -384,8 +419,9 @@ from the difference as before and the report says so. `npm run moves:repair
 -- --rounds=…` (dry run unless `--write`) re-records rounds already stored,
 touching only the sync's own `transactions` rows. **Not yet run on
 production**, so round 4 still shows the old rows until it is.
-Debt: the BasketNews sync has the same blind spot. Its public
-`draftTransfersFromClient` log is described in research/basketnews-api.md.
+BasketNews now has the same source-log reconciliation, with multi-player
+event boundaries and a separate `basketnews:repair` dry-run door (23 October).
+It is not deployed yet.
 
 **Rosters sync by themselves.** EuroVafliai 26-27's round 4 was blocked on
 Cameron Payne, a new Efes signing missing from the pool (a production

@@ -10,9 +10,12 @@ import { readSyncRuns, type SyncRun, type SyncStatus } from "@/lib/fantasy/store
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { createUserClient } from "@/lib/pb/server";
+import { getSuperuserClient } from "@/lib/pb/superuser";
+import type { SourcePlayerQuestion } from "@/lib/basketnews/registrations";
+import type { SyncQuestion } from "@/lib/fantasy/match";
 import { formatTipOff } from "@/lib/time/local";
 
-import { LinkLeagueForm, QuestionForm, SyncNowForm } from "./sync-forms";
+import { LinkLeagueForm, QuestionForm, SourceApprovalForm, SyncNowForm } from "./sync-forms";
 
 const STATUS_WORD: Record<SyncStatus, string> = {
   preview: "Preview",
@@ -56,7 +59,17 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
   if (data.league.basketnews_team_id) {
     const runs = await readSyncRuns(createUserClient(session.token), id, 8);
     const latest = runs[0];
-    const questions = latest?.status === "blocked" ? latest.questions : [];
+    // The manager gate above also protects these superuser-only approval
+    // intents; a failed subsequent read must not hide an unanswered question.
+    const pb = await getSuperuserClient();
+    const registrations = (await pb.collection("source_player_questions").getFullList<SourcePlayerQuestion>({ filter: `season = 'E${data.league.season.slice(0, 4)}'`, requestKey: null })).filter((row) => row.leagues.includes(id));
+    const questions: SyncQuestion[] = [...(latest?.questions ?? [])];
+    for (const registration of registrations.filter((row) => row.status === "pending" && !row.player)) {
+      if (questions.some((row) => row.kind === "player" && row.fantasyPlayerId === registration.source_id)) continue;
+      const player = registration.details;
+      questions.push({ kind: "player", fantasyPlayerId: player.id, name: `${player.firstName} ${player.lastName}`, club: player.club.name, jersey: player.jersey, fantasyTeamName: "BasketNews", choices: [] });
+    }
+    const outstanding = questions.filter((question) => question.kind !== "player" || !registrations.some((row) => row.source_id === question.fantasyPlayerId && row.player));
     return (
       <AppShell current="trades" league={navLeagueFrom(data)} testId="fantasy-sync">
         <PageHeader eyebrow={`${data.league.name} · Import`} title="BasketNews sync"
@@ -67,13 +80,18 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
           <p className="mt-3 text-sm text-ink-soft">Sync now adds a worker job. The worker reads BasketNews once each game day, five minutes after its first tip-off, once more when the round has settled, and every six hours between rounds.</p>
           <div className="mt-3"><SyncNowForm leagueId={id} label="Sync now" pendingLabel="Queuing…" /></div>
         </Bank>
-        {questions.length ? <Bank framed label="Match BasketNews players" aside={`${questions.length} waiting`}>
-          <ul role="list" className="flex flex-col gap-4">{questions.map((question) => <li key={question.kind === "player" ? question.fantasyPlayerId : question.kind === "team" ? question.fantasyTeamId : question.memberId}><QuestionForm leagueId={id} question={question} /></li>)}</ul>
+        <Bank framed label="Roster progress" aside={data.league.basketnews_roster_round ? `Round ${data.league.basketnews_roster_round}` : "Waiting for verification"}>
+          <p className="text-sm text-ink-soft">{outstanding.length} player approval or mapping question(s) outstanding. Lineup failures are reported separately in Recent syncs.</p>
+          {registrations.filter((row) => row.status === "approved").map((row) => <p key={row.id} className="mt-2 text-sm">{row.details.firstName} {row.details.lastName}: approved, awaiting EuroLeague registration.{row.checked_at ? ` Last checked ${formatTipOff(row.checked_at.replace(" ", "T"))}.` : ""}</p>)}
+        </Bank>
+        {outstanding.length ? <Bank framed label="Match BasketNews players" aside={`${outstanding.length} waiting`}>
+          <ul role="list" className="flex flex-col gap-4">{outstanding.map((question) => <li key={question.kind === "player" ? question.fantasyPlayerId : question.kind === "team" ? question.fantasyTeamId : question.memberId}><QuestionForm leagueId={id} question={question} allowSourceApproval />{question.kind === "player" ? <SourceApprovalForm leagueId={id} sourceId={question.fantasyPlayerId} /> : null}</li>)}</ul>
         </Bank> : null}
         <Bank framed label="Recent syncs" aside={latest ? `Last ${ranAt(latest)}` : undefined}>
           {runs.length ? <ol className="flex flex-col gap-3" data-testid="fantasy-runs">{runs.map((run) => <li key={run.id} data-testid="fantasy-run" data-status={run.status} className="rounded-xl border border-panel-border bg-stock p-3">
             <p className="flex gap-2 text-xs text-ink-soft"><span className={`rounded-full px-2 py-0.5 font-bold ${STATUS_TONE[run.status]}`}>{STATUS_WORD[run.status]}</span><span>{ranAt(run)}</span></p>
             <p className="mt-2 text-sm">{run.message}</p>
+            {Array.isArray(run.diagnostics) && run.diagnostics.length ? <details className="mt-2 text-sm text-ink-soft"><summary>Lineup and history details</summary><ul className="mt-2 list-disc pl-5">{run.diagnostics.map((detail, index) => <li key={index}>{detail}</li>)}</ul></details> : null}
           </li>)}</ol> : <EmptyNotice>Waiting for the first worker pass.</EmptyNotice>}
         </Bank>
       </AppShell>

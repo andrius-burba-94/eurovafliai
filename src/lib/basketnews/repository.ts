@@ -1,9 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type PocketBase from "pocketbase";
 
 import { isUniqueViolation } from "@/lib/drafts/unique";
 import type { SyncQuestion } from "@/lib/fantasy/match";
-import type { SyncSeat, SyncStep } from "@/lib/fantasy/plan";
+import { rostersAgree, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
+import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import type { Position } from "@/lib/engine";
 import type { FrozenRoles, LineupSlots } from "@/lib/lineups/lineup";
 import { readFrozenRoles, writeLineup } from "@/lib/lineups/store";
@@ -13,13 +14,15 @@ import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import type { BasketNewsTeam } from "./client";
 import type { BasketNewsRepository, BasketNewsRoundResult, RoundFreeze } from "./sync";
+import { rememberSourcePlayers } from "./registrations";
 
-type LeagueRow = { id: string; name: string; season: string; commissioner: string; basketnews_team_id: string };
+type LeagueRow = { id: string; name: string; season: string; commissioner: string; basketnews_team_id: string; basketnews_roster_round?: number };
 type MemberRow = { id: string; user: string; team_name: string; basketnews_team_id?: string };
 type DraftRow = { id: string; status: string; order: unknown; rounds: number };
 type PickRow = { id: string; overall_no: number; member: string; player: string };
 type JobRow = { id: string; league: string; status: string; job_meta?: { nextRound?: number } };
 type PlayerRow = { id: string; name: string; name_normalized: string; club_code: string; club_name: string; fantasy_id?: string; basketnews_id?: string; basketnews_position?: Position; status?: string; dorsal?: string };
+type RosterBatch = { id: string; league: string; season: string; round: number; target: [string, string[]][]; steps: SyncStep[]; at: string; status: string };
 
 /** Stored source scores drive every BasketNews player view as well as the ladder. */
 export async function readBasketNewsPlayerRounds(pb: PocketBase, leagueId: string, season: string, memberId?: string) {
@@ -78,8 +81,10 @@ export async function markBasketNewsJob(pb: PocketBase, jobId: string, fields: {
   questions?: readonly SyncQuestion[];
   round?: number;
   active_league?: "";
+  diagnostics?: readonly string[];
 }): Promise<void> {
-  await pb.collection("fantasy_syncs").update(jobId, fields, { requestKey: null });
+  const message = fields.message.length > 500 ? `${fields.message.slice(0, 499)}…` : fields.message;
+  await pb.collection("fantasy_syncs").update(jobId, { ...fields, message }, { requestKey: null });
 }
 
 export async function basketNewsLeagueIds(pb: PocketBase): Promise<string[]> {
@@ -96,7 +101,7 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
   async load(leagueId: string) {
     const league = await this.pb.collection("leagues").getOne<LeagueRow>(leagueId, { requestKey: null });
     const season = `E${league.season.slice(0, 4)}`;
-    const [players, lineups, members, fixtures] = await Promise.all([
+    const [players, lineups, members, fixtures, memberships] = await Promise.all([
       this.pb.collection("players").getFullList<PlayerRow>({
         fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,basketnews_id,basketnews_position,status", requestKey: null,
       }),
@@ -108,6 +113,7 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
       this.pb.collection("fixtures").getFullList<{ round: number; played: boolean; local_club?: string; road_club?: string; utc_date?: string }>({
         filter: `season = "${season}"`, fields: "round,played,local_club,road_club,utc_date", requestKey: null,
       }),
+      this.pb.collection("roster_memberships").getFullList<{ from_round: number }>({ filter: `league = '${leagueId}'`, fields: "from_round", requestKey: null }),
     ]);
     const pool = players.map((row) => ({
       id: row.id, name: row.name, nameNormalized: row.name_normalized, clubCode: row.club_code,
@@ -120,11 +126,13 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
       finalCount.set(row.round, (finalCount.get(row.round) ?? 0) + (row.basketnews_result?.final === true ? 1 : 0));
     }
     const stored = [...finalCount.keys()].sort((a, b) => a - b);
-    const open = stored.find((round) => finalCount.get(round)! < members.length);
+    let open = 1;
+    while (members.length > 0 && finalCount.get(open) === members.length) open += 1;
     return {
       name: league.name, season, commissioner: league.commissioner, sourceTeamId: league.basketnews_team_id,
-      firstOpenRound: open ?? (stored.at(-1) ?? 0) + 1,
+      firstOpenRound: open,
       latestStoredRound: stored.at(-1) ?? 0,
+      rosterRound: league.basketnews_roster_round || Math.max(1, ...memberships.map((row) => row.from_round || 1)),
       fixtures: fixtures.map((row) => ({
         round: row.round, played: row.played, localClub: row.local_club ?? "", roadClub: row.road_club ?? "", utcDate: row.utc_date || null,
       })),
@@ -209,7 +217,48 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
   }
 
   async apply(leagueId: string, steps: readonly SyncStep[], at: Date): Promise<void> {
-    for (const step of steps) await applyTransaction(this.pb, leagueId, step.plan, at, step.announcement, step.note);
+    for (const step of steps) await applyTransaction(this.pb, leagueId, step.plan, at, step.announcement, step.note, step.provenance);
+  }
+
+  async rememberPlayers(leagueId: string, season: string, players: readonly FantasyPlayer[]): Promise<void> {
+    await rememberSourcePlayers(this.pb, leagueId, season, players);
+  }
+
+  async appliedEvents(leagueId: string, round: number): Promise<ReadonlySet<string>> {
+    const rows = await this.pb.collection("transactions").getFullList<{ source_event_id?: string }>({
+      filter: `league = '${leagueId}' && from_round = ${round} && source_provider = 'basketnews'`, fields: "source_event_id", requestKey: null,
+    });
+    return new Set(rows.flatMap((row) => row.source_event_id ? [row.source_event_id] : []));
+  }
+
+  async resume(leagueId: string): Promise<void> {
+    const batches = await this.pb.collection("basketnews_roster_batches").getFullList<RosterBatch>({
+      filter: `league = '${leagueId}' && status = 'applying'`, sort: "round", requestKey: null,
+    });
+    for (const batch of batches) await this.finishBatch(batch);
+  }
+
+  private async finishBatch(batch: RosterBatch): Promise<void> {
+    await this.apply(batch.league, batch.steps, new Date(batch.at));
+    if (!rostersAgree(await this.seats(batch.league), new Map(batch.target))) throw new Error(`BasketNews round ${batch.round}: roster writes are incomplete; the saved plan will retry.`);
+    // Checkpoint first, verdict last: a crash cannot leave an applied journal
+    // whose ownership checkpoint still invites an older roster replay.
+    await this.pb.collection("leagues").update(batch.league, { basketnews_roster_round: batch.round }, { requestKey: null });
+    await this.pb.collection("basketnews_roster_batches").update(batch.id, { status: "applied" }, { requestKey: null });
+  }
+
+  async reconcile(leagueId: string, season: string, round: number, target: ReadonlyMap<string, readonly string[]>, steps: readonly SyncStep[], at: Date): Promise<void> {
+    const serialized = [...target].map(([member, players]) => [member, [...players].sort()] as [string, string[]]).sort(([a], [b]) => a.localeCompare(b));
+    const hash = createHash("sha256").update(JSON.stringify(serialized)).digest("hex");
+    const [previous] = await this.pb.collection("basketnews_roster_batches").getFullList<RosterBatch>({
+      filter: `league = '${leagueId}' && season = '${season}' && round = ${round} && target_hash = '${hash}'`, requestKey: null,
+    });
+    if (previous?.status === "applied" && rostersAgree(await this.seats(leagueId), target)) return;
+    if (previous) { await this.finishBatch(previous); return; }
+    const batch = await this.pb.collection("basketnews_roster_batches").create<RosterBatch>({
+      league: leagueId, season, round, target_hash: hash, target: serialized, steps, at: at.toISOString(), status: "applying",
+    }, { requestKey: null });
+    await this.finishBatch(batch);
   }
 
   async frozenRoles(leagueId: string, season: string, round: number): Promise<ReadonlyMap<string, FrozenRoles>> {
@@ -217,7 +266,8 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
   }
 
   async writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null, freeze?: RoundFreeze): Promise<void> {
-    await writeLineup(this.pb, { leagueId, memberId, season, round, slots, recordedBy: "", source: "synced", basketnewsResult: result, ...(freeze ? { freeze } : {}) });
+    const existing = result ? [] : await this.pb.collection("round_lineups").getFullList<{ id: string }>({ filter: `league = '${leagueId}' && member = '${memberId}' && season = '${season}' && round = ${round}`, fields: "id", requestKey: null });
+    await writeLineup(this.pb, { leagueId, memberId, season, round, slots, recordedBy: "", source: "synced", ...(result || existing.length === 0 ? { basketnewsResult: result } : {}), ...(freeze ? { freeze } : {}) });
   }
 
   async recompute(season: string, leagueId: string): Promise<void> {

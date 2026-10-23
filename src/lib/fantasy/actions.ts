@@ -12,6 +12,9 @@ import { fetchLeagueRosters } from "./client";
 import { decideSync, runFantasySync, syncDueLineups } from "./store";
 import { revalidateLeague } from "@/lib/nav/revalidate";
 import { queueBasketNewsSync } from "@/lib/basketnews/repository";
+import { approveSourcePlayer, recoverSourcePlayers, type SourcePlayerQuestion } from "@/lib/basketnews/registrations";
+import { readBasketNewsPlayerPool, readBasketNewsTeamReference } from "@/lib/basketnews/client";
+import { getSafeActionError } from "@/lib/safe-error";
 
 /**
  * The commissioner's side of the Fantasy Challenge sync: link the league,
@@ -47,7 +50,27 @@ async function managedLeague(leagueId: string) {
     actorCanManage: Boolean(own?.can_manage),
     leagueStatus: league.status,
   });
-  return allowed ? { pb, league, members } : null;
+  return allowed ? { pb, league, members, userId: session.user.id } : null;
+}
+
+export async function approveBasketNewsPlayer(_previous: FantasyActionResult, formData: FormData): Promise<FantasyActionResult> {
+  const leagueId = String(formData.get("leagueId") ?? "");
+  const sourceId = String(formData.get("officialId") ?? "");
+  const managed = await managedLeague(leagueId);
+  if (!managed) return REFUSED;
+  if (!managed.league.basketnews_team_id || !/^[a-f0-9]{24}$/.test(sourceId)) return { error: "That player is not a BasketNews question.", done: null };
+  try {
+    const questions = await managed.pb.collection("source_player_questions").getFullList<SourcePlayerQuestion>({ filter: `provider = 'basketnews' && source_id = '${sourceId}' && season = 'E${managed.league.season.slice(0, 4)}'`, requestKey: null });
+    if (!questions.some((row) => row.leagues.includes(leagueId))) return { error: "That player is not a question for this league.", done: null };
+    const reference = await readBasketNewsTeamReference(managed.league.basketnews_team_id);
+    const freshPool = await readBasketNewsPlayerPool(reference.leagueId);
+    const id = await approveSourcePlayer(managed.pb, { leagueId, season: `E${managed.league.season.slice(0, 4)}`, userId: managed.userId, sourceId, freshPool });
+    revalidateLeague();
+    return { error: null, done: id };
+  } catch (error) {
+    console.error(`approveBasketNewsPlayer: ${describeError(error)}`);
+    return { error: getSafeActionError(error, "The player could not be approved. Sync again and retry."), done: null };
+  }
 }
 
 
@@ -91,6 +114,7 @@ export async function answerFantasyQuestion(
   const managed = await managedLeague(leagueId);
   if (!managed) return REFUSED;
   if (!officialId || !choice) return { error: "Choose one first.", done: null };
+  if (managed.league.basketnews_team_id && !/^[a-f0-9]{24}$/.test(officialId)) return { error: "That source id is not valid.", done: null };
 
   if (kind === "team") {
     const member = managed.members.find((row) => row.id === choice);
@@ -108,6 +132,12 @@ export async function answerFantasyQuestion(
   if (kind === "player") {
     try {
       await managed.pb.collection("players").update(choice, { [managed.league.basketnews_team_id ? "basketnews_id" : "fantasy_id"]: officialId }, { requestKey: null });
+      if (managed.league.basketnews_team_id) {
+        const questions = await managed.pb.collection("source_player_questions").getFullList<SourcePlayerQuestion>({ filter: `provider = 'basketnews' && source_id = '${officialId}' && season = 'E${managed.league.season.slice(0, 4)}'`, requestKey: null });
+        for (const question of questions.filter((row) => row.leagues.includes(leagueId))) await managed.pb.collection("source_player_questions").update(question.id, { player: choice, status: "approved", approved_by: managed.userId, recovery_pending: true, pending_leagues: question.leagues }, { requestKey: null });
+        await recoverSourcePlayers(managed.pb, `E${managed.league.season.slice(0, 4)}`);
+        await queueBasketNewsSync(managed.pb, leagueId, new Date());
+      }
     } catch (error) {
       console.error(`answerFantasyQuestion: ${describeError(error)}`);
       return { error: "That player is already linked to another official player.", done: null };

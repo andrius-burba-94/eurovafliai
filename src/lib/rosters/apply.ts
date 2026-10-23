@@ -53,6 +53,7 @@ type PlayerRecord = {
   person_code: string;
   source: ExistingPlayer["source"];
   manual_lock: boolean;
+  awaiting_registration?: boolean;
   dorsal: string;
   height?: number;
   weight?: number;
@@ -89,6 +90,7 @@ export async function readCurrentPlayers(
     person_code: record.person_code ? record.person_code : null,
     source: record.source,
     manual_lock: Boolean(record.manual_lock),
+    awaiting_registration: Boolean(record.awaiting_registration),
     dorsal: record.dorsal ?? "",
     // Read back so an unchanged bio is not a change. Without these, every sync
     // that read the feed's bios "changed" ~290 players to the values they held.
