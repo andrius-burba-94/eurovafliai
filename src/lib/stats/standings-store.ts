@@ -1,19 +1,21 @@
 import type PocketBase from "pocketbase";
 
 import { readPicks } from "@/lib/drafts/pipeline";
-import { isUniqueViolation } from "@/lib/drafts/unique";
 import { readLineupWeights } from "@/lib/lineups/store";
 import { isActiveMembership } from "@/lib/memberships/from";
 import { materializeDraftMemberships } from "@/lib/memberships/store";
 import { type Phase, PHASES } from "./csv";
+import { seasonCode } from "./seasons";
 import {
   computeStandings,
   phaseByRound,
+  type RoundSnapshot,
   snapshotsFromStandings,
   type SnapshotRow,
   type StandingLine,
   type StandingWindow,
 } from "./standings";
+import { createOrUpdate } from "./store";
 
 /**
  * Writing standings snapshots — the PocketBase half.
@@ -42,6 +44,11 @@ import {
  * Lineups (9.3) are read per league and applied here, so recording one is a
  * recompute rather than a rescore: box scores are app-global and never carry
  * a league's captain.
+ *
+ * Six callers recompute, in two processes, with no lock between them. A
+ * recompute that read the lines before an import landed must not write over
+ * one that read them after, so each league's write first checks the season's
+ * newest import batch is the one it started with, and re-runs once if not.
  */
 
 type DraftRef = {
@@ -82,10 +89,6 @@ export type StandingsRecompute = {
   readonly unchanged: number;
 };
 
-function seasonCode(season: string): string {
-  return season.replace(/[^A-Za-z0-9]/g, "");
-}
-
 function sameSnapshot(
   stored: SnapshotRecord,
   phase: Phase,
@@ -119,52 +122,61 @@ function expectedRosterRows(draft: DraftRef): number | null {
   return draft.order.length * draft.rounds;
 }
 
-async function upsertSnapshot(
-  pb: PocketBase,
-  existing: SnapshotRecord | undefined,
-  fields: {
-    league: string;
-    season: string;
-    round: number;
-    phase: Phase;
-    table: readonly SnapshotRow[];
-  },
-): Promise<"written" | "unchanged"> {
-  if (existing && sameSnapshot(existing, fields.phase, fields.table)) {
-    return "unchanged";
-  }
-  const body = {
-    league: fields.league,
-    season: fields.season,
-    round: fields.round,
-    phase: fields.phase,
-    table: fields.table,
-  };
-  if (existing) {
-    await pb.collection("standings_snapshots").update(existing.id, body, {
+/**
+ * Which lines a recompute is reading: the season's newest import batch. Every
+ * box-score write belongs to a batch recorded before it, whose counts are
+ * written once its rows land, so this changes whenever the lines may have.
+ */
+async function linesVersion(pb: PocketBase, code: string): Promise<string> {
+  const { items } = await pb
+    .collection("stat_imports")
+    .getList<{ id: string; updated?: string }>(1, 1, {
+      filter: `season = "${code}"`,
+      sort: "-created",
+      fields: "id,updated",
       requestKey: null,
     });
-    return "written";
-  }
-  try {
-    await pb.collection("standings_snapshots").create(body, { requestKey: null });
-    return "written";
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
-    const raced = await pb
-      .collection("standings_snapshots")
-      .getFullList<SnapshotRecord>({
-        filter: `league = '${fields.league}' && season = "${fields.season}" && round = ${fields.round}`,
-        requestKey: null,
-      });
-    const row = raced[0];
-    if (row) {
-      await pb.collection("standings_snapshots").update(row.id, body, {
-        requestKey: null,
-      });
+  return `${items[0]?.id ?? ""}|${items[0]?.updated ?? ""}`;
+}
+
+/** One league's snapshots, written — or `null` when the lines moved on (see header). */
+async function writeSnapshots(
+  pb: PocketBase,
+  league: string,
+  code: string,
+  snapshots: readonly RoundSnapshot[],
+  version: string | null,
+): Promise<{ written: number; unchanged: number } | null> {
+  const existing = await pb
+    .collection("standings_snapshots")
+    .getFullList<SnapshotRecord>({
+      filter: `league = '${league}' && season = "${code}"`,
+      requestKey: null,
+    });
+  if (version !== null && (await linesVersion(pb, code)) !== version) return null;
+  const byRound = new Map(existing.map((row) => [row.round, row]));
+  let written = 0;
+  let unchanged = 0;
+  for (const { round, phase, table } of snapshots) {
+    const stored = byRound.get(round);
+    const body = { league, season: code, round, phase, table };
+    if (stored && sameSnapshot(stored, phase, table)) {
+      unchanged += 1;
+      continue;
     }
-    return "written";
+    if (stored) {
+      await pb.collection("standings_snapshots").update(stored.id, body, { requestKey: null });
+    } else {
+      await createOrUpdate(
+        pb,
+        "standings_snapshots",
+        body,
+        `league = '${league}' && season = "${code}" && round = ${round}`,
+      );
+    }
+    written += 1;
   }
+  return { written, unchanged };
 }
 
 /**
@@ -177,6 +189,19 @@ export async function recomputeStandings(
   options?: { readonly leagueId?: string },
 ): Promise<StandingsRecompute> {
   const code = seasonCode(season);
+  for (let attempt = 0; ; attempt += 1) {
+    const version = attempt === 0 ? await linesVersion(pb, code) : null;
+    const report = await recomputeOnce(pb, code, options, version);
+    if (report) return report;
+  }
+}
+
+async function recomputeOnce(
+  pb: PocketBase,
+  code: string,
+  options: { readonly leagueId?: string } | undefined,
+  version: string | null,
+): Promise<StandingsRecompute | null> {
   const leagueFilter = options?.leagueId
     ? `status = 'season' && id = '${options.leagueId}'`
     : "status = 'season'";
@@ -206,13 +231,12 @@ export async function recomputeStandings(
 
   for (const league of leagues) {
     if (league.basketnews_league_id) {
-      const [members, lineups, existing] = await Promise.all([
+      const [members, lineups] = await Promise.all([
         pb.collection("league_members").getFullList<{ id: string }>({ filter: `league = '${league.id}'`, fields: "id", requestKey: null }),
         pb.collection("round_lineups").getFullList<{ member: string; round: number; basketnews_result?: { totalHundredths?: number; players?: { playerId: string; rawHundredths: number }[] } }>({
           filter: `league = '${league.id}' && season = "${code}"`,
           fields: "member,round,basketnews_result", requestKey: null,
         }),
-        pb.collection("standings_snapshots").getFullList<SnapshotRecord>({ filter: `league = '${league.id}' && season = "${code}"`, requestKey: null }),
       ]);
       const byRound = new Map<number, Map<string, number>>();
       const sourcePlayerPoints = new Map<string, number>();
@@ -252,12 +276,10 @@ export async function recomputeStandings(
       }));
       const phases = phaseByRound(standingLines);
       const snapshots = snapshotsFromStandings(rows, new Map(complete.map(([round]) => [round, phases.get(round) ?? "RS"])));
-      const stored = new Map(existing.map((row) => [row.round, row]));
-      for (const snap of snapshots) {
-        const result = await upsertSnapshot(pb, stored.get(snap.round), { league: league.id, season: code, round: snap.round, phase: snap.phase, table: snap.table });
-        if (result === "written") written += 1;
-        else unchanged += 1;
-      }
+      const result = await writeSnapshots(pb, league.id, code, snapshots, version);
+      if (!result) return null;
+      written += result.written;
+      unchanged += result.unchanged;
       scored += 1;
       continue;
     }
@@ -270,13 +292,13 @@ export async function recomputeStandings(
     const draft = drafts[0];
     if (!draft) continue;
 
-    const stored = await pb
-      .collection("roster_memberships")
-      .getFullList<MembershipRef>({
+    const readMemberships = () =>
+      pb.collection("roster_memberships").getFullList<MembershipRef>({
         filter: `league = '${league.id}'`,
         fields: "member,player,to_date,from_round,to_round",
         requestKey: null,
       });
+    const stored = await readMemberships();
     const hasClosed = stored.some((row) => !isActiveMembership(row.to_date));
     let memberships = stored;
     const open = stored.filter((row) => isActiveMembership(row.to_date));
@@ -289,13 +311,7 @@ export async function recomputeStandings(
         picks,
         fromDraftStamp(draft.updated),
       );
-      memberships = await pb
-        .collection("roster_memberships")
-        .getFullList<MembershipRef>({
-          filter: `league = '${league.id}'`,
-          fields: "member,player,to_date,from_round,to_round",
-          requestKey: null,
-        });
+      memberships = await readMemberships();
     }
 
     const windows = windowsFromMemberships(memberships);
@@ -321,25 +337,10 @@ export async function recomputeStandings(
       }
     }
     const snapshots = snapshotsFromStandings(table, scoredRounds);
-    const existing = await pb
-      .collection("standings_snapshots")
-      .getFullList<SnapshotRecord>({
-        filter: `league = '${league.id}' && season = "${code}"`,
-        requestKey: null,
-      });
-    const byRound = new Map(existing.map((row) => [row.round, row]));
-
-    for (const snap of snapshots) {
-      const result = await upsertSnapshot(pb, byRound.get(snap.round), {
-        league: league.id,
-        season: code,
-        round: snap.round,
-        phase: snap.phase,
-        table: snap.table,
-      });
-      if (result === "written") written += 1;
-      else unchanged += 1;
-    }
+    const result = await writeSnapshots(pb, league.id, code, snapshots, version);
+    if (!result) return null;
+    written += result.written;
+    unchanged += result.unchanged;
   }
 
   return { season: code, leagues: scored, written, unchanged };
