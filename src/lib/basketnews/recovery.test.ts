@@ -51,6 +51,12 @@ describe("saved BasketNews roster intent", () => {
     expect(db.rows("fantasy_syncs")[0]?.diagnostics).toEqual([warning]);
   });
 
+  it("refuses a roster read that came back empty rather than planning thirteen acquisitions", async () => {
+    const db = fakePb({ data: { leagues: [{ id: "league" }], roster_memberships: [], basketnews_roster_batches: [] } });
+    const repo = new PocketBaseBasketNewsRepository(db.client);
+    await expect(repo.seats("league")).rejects.toThrow("read back empty");
+  });
+
   it("does not mark a journal applied when the stored owner differs from its target", async () => {
     const db = fakePb({ data: { leagues: [{ id: "league" }], roster_memberships: seats.map((seat) => ({ ...seat, league: "league", to_date: "" })), basketnews_roster_batches: [] } });
     const repo = new PocketBaseBasketNewsRepository(db.client);

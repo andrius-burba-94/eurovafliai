@@ -4,6 +4,8 @@ import { isUniqueViolation } from "@/lib/drafts/unique";
 
 import { announce } from "@/lib/chat/store";
 
+import type { SyncSeat, SyncStep } from "@/lib/fantasy/plan";
+
 import { fromPicks, isActiveMembership } from "./from";
 import type { ApplyPlan } from "./plan";
 
@@ -54,6 +56,31 @@ export async function listActiveMemberships<
     requestKey: null,
   });
   return rows.filter((row) => isActiveMembership(row.to_date));
+}
+
+/**
+ * Who holds whom now, for a sync that has already drafted.
+ *
+ * Throws on none: a client that has lost its auth reads every list rule as an
+ * empty list, and "nobody holds anyone" would plan thirteen acquisitions per
+ * team. Every caller runs after the draft materialized its windows.
+ */
+export async function readSeats(pb: PocketBase, leagueId: string): Promise<SyncSeat[]> {
+  const rows = await listActiveMemberships<{ id: string; member: string; player: string; to_date?: string }>(pb, leagueId, {
+    fields: "id,member,player,to_date",
+  });
+  if (rows.length === 0) throw new Error("The league's rosters read back empty; refusing to sync against nobody.");
+  return rows.map(({ id, member, player }) => ({ id, member, player }));
+}
+
+/** A sync's planned steps, in order; each one is `applyTransaction`'s own repair. */
+export async function applySteps(pb: PocketBase, leagueId: string, steps: readonly SyncStep[], at: Date): Promise<void> {
+  for (const step of steps) await applyTransaction(pb, leagueId, step.plan, at, step.announcement, step.note, step.provenance);
+}
+
+/** PocketBase's 500-character message fields. */
+export function clip(text: string, max = 500): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
 export async function materializeDraftMemberships(
