@@ -21,6 +21,30 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Scripts cleanup, 26 October 2026
+
+**Done on its branch; not yet merged.** No behaviour change for the app, the
+worker or any npm script except one removal:
+
+- `npm run pb:verify` is table-driven: superuser-write rules, read rules,
+  index patterns and field shapes are tables walked by one loop each. Every
+  assertion it made before still runs (226 → 237 checks). New: every
+  non-system collection must be superuser-write unless allowlisted (`users`),
+  and list and view rules must agree on every collection. A new collection now
+  has to be added to `SUPERUSER_WRITE` in `scripts/pb-verify-rules.mjs`.
+- `scripts/lib/pb.mts` is the one setup for maintenance scripts: `env`,
+  `superuserFromEnv()`, `arg()`, `flag()` and `isLocalPocketBase()`. Import it
+  as `./lib/pb.mjs` (TypeScript maps the specifier to the `.mts` file).
+- `npm run slugs:backfill` is gone. The worker runs `ensureSlugs` at boot and
+  hourly.
+
+See [the audit log](log/sync-audit-2026-10-26.md#scripts-cleanup).
+
+**Try it on localhost:** with `npm run dev` up, `npm run pb:verify` should end
+with "All rule and index checks passed." and print 237 `PASS` lines.
+`npm run stats:sync -- --season=E2025 --max=1` still reads its flags and
+signs in as before.
+
 ## BasketNews roster and trade recovery, 23 October 2026
 
 **Implementation merged; rollout pending main CI.** [PR #211](https://github.com/andrius-burba-94/eurovafliai/pull/211)
