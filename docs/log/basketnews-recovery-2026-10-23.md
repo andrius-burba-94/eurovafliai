@@ -143,3 +143,12 @@ waits for the shell and labels each phase. Its original assertions and
 A refreshed production backup completed at 11:15 UTC on 26 October:
 `eurovafliai-20261026111500.zip` (14 archives retained). Production is still
 on its previous release while the main CI gate is resolved.
+
+The readiness change passed 20 repeated Chrome runs (ten desktop, ten Pixel 7),
+lint, typecheck, the application dead-code check and all 2,174 unit tests.
+PR #213 then reached seven green checks while the remaining runner stalled
+before tests on an Ubuntu font download. A fresh runner stalled on another
+font too. CI now bounds APT connection/data inactivity to 20 seconds, disables
+same-mirror retries and pipelining, and retains the runner's configured mirror
+failover and normal package verification. The browser jobs and deployment
+gate remain unchanged. This setting applies only to disposable CI runners.
