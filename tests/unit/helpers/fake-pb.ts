@@ -362,7 +362,7 @@ function matches(record: FakeRecord, filter?: string): boolean {
   // (`game_code = 1`, which PocketBase compares numerically) and a bare
   // boolean (`applied = true`, 7.1's correction check).
   const parsed =
-    /^(\w+)\s*(!=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+)|(true|false))$/.exec(text);
+    /^(\w+)\s*(!=|>=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+)|(true|false))$/.exec(text);
   if (!parsed) throw new Error(`fake-pb cannot parse filter: ${text}`);
   const [, field, operator] = parsed;
   const value = parsed[3] ?? parsed[4] ?? parsed[5] ?? parsed[6] ?? "";
@@ -371,6 +371,12 @@ function matches(record: FakeRecord, filter?: string): boolean {
     record[field] === undefined || record[field] === null
       ? ""
       : String(record[field]);
+  // `>=` as the sync's due checks write it: a quoted datetime, which compares
+  // as text because PocketBase stores it in one sortable format.
+  if (operator === ">=") {
+    if (parsed[5] !== undefined) return Number(actual) >= Number(value);
+    return actual >= value;
+  }
   return operator === "=" ? actual === value : actual !== value;
 }
 

@@ -15,7 +15,7 @@ import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueMoves, fetchLeagu
 import { matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
 import { linkSourcePlayers, resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
 import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncStep } from "./plan";
-import { lineupRoundsDue, readDayAt, roundWindows, syncDue, syncModeAt, type RoundWindow, type SyncDecision } from "./windows";
+import { lineupRoundsDue, readDayAt, roundWindows, syncDue, syncModeAt, type LineupRunRef, type RoundWindow, type SyncDecision } from "./windows";
 
 /**
  * Running a sync — the PocketBase half.
@@ -65,7 +65,7 @@ type SyncRecord = SyncRun & { readonly steps?: readonly SyncStep[] | null };
 type LeagueRow = { id: string; status: string; fantasy_league_id?: string; settings?: unknown };
 
 /** Roster runs written before `kind` existed have it empty. */
-const ROSTER_RUNS = "kind != 'lineups'";
+export const ROSTER_RUNS = "kind != 'lineups'";
 
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -92,6 +92,16 @@ export async function readSyncRuns(pb: PocketBase, leagueId: string, limit: numb
     moves: Array.isArray(row.moves) ? row.moves : [],
     questions: Array.isArray(row.questions) ? row.questions : [],
   }));
+}
+
+/** Only what a due check reads: when each matching run ran, and how it ended. */
+export async function readRunRefs(pb: PocketBase, filter: string): Promise<LineupRunRef[]> {
+  const rows = await pb.collection("fantasy_syncs").getFullList<{ round: number; ran_at: string; status: string }>({
+    filter,
+    fields: "round,ran_at,status",
+    requestKey: null,
+  });
+  return rows.map((run) => ({ round: run.round, ranAt: Date.parse(run.ran_at.replace(" ", "T")), status: run.status }));
 }
 
 async function lastRunAt(pb: PocketBase, filter: string): Promise<number | null> {
@@ -483,12 +493,12 @@ export async function syncDueLeagues(options: {
   const results: { leagueId: string; run?: SyncRun; error?: string }[] = [];
   for (const league of leagues) {
     try {
-      const lastApply =
+      const applies =
         decision.mode === "apply"
-          ? await lastRunAt(pb, `league = '${league.id}' && ${ROSTER_RUNS} && mode = 'apply' && round = ${decision.round}`)
-          : null;
+          ? await readRunRefs(pb, `league = '${league.id}' && ${ROSTER_RUNS} && mode = 'apply' && round = ${decision.round}`)
+          : [];
       const lastAny = await lastRunAt(pb, `league = '${league.id}' && ${ROSTER_RUNS}`);
-      if (!syncDue(now.getTime(), decision, windows, lastApply, lastAny)) continue;
+      if (!syncDue(now.getTime(), decision, windows, applies, lastAny)) continue;
       const run = await runFantasySync({ ...options, leagueId: league.id, decision });
       results.push({ leagueId: league.id, run });
     } catch (error) {
@@ -660,9 +670,12 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
         ? " Every round total matches the official one."
         : ` ${plural(differing, "round total")} ${differing === 1 ? "differs" : "differ"} from the official one.`;
   const asking = questions.length > 0 ? ` ${plural(questions.length, "player")} to place before the rest can sync.` : "";
+  // A team that could not be placed is named in `moves`, and does not hold
+  // back the ones that were: an unlinked member would otherwise re-read every
+  // settled round four times a day all season.
   return record(pb, leagueId, decision, now, {
     kind: "lineups",
-    status: questions.length > 0 ? "blocked" : refused.length > 0 ? "failed" : "applied",
+    status: questions.length > 0 ? "blocked" : written.length === 0 && refused.length > 0 ? "failed" : "applied",
     message: `${placed}${totals}${asking}${standingsNote}`,
     moves: [...refused, ...moves],
     questions,
@@ -690,17 +703,14 @@ export async function syncDueLineups(options: {
     requestKey: null,
   });
   if (leagues.length === 0) return [];
-  const fixtures = await readStoredFixtures(pb, options.season);
-  const windows = roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null })));
+  const windows = await readWindows(pb, options.season);
+  if (windows.length === 0) return [];
+  // Nothing before this season's first tip-off is about any of its rounds.
+  const since = asPbDate(new Date(windows[0]!.lockAt));
   const results: { leagueId: string; run?: SyncRun; error?: string }[] = [];
   for (const league of leagues) {
     try {
-      const runs = await pb.collection("fantasy_syncs").getFullList<{ round: number; ran_at: string; status: string }>({
-        filter: `league = '${league.id}' && kind = 'lineups'`,
-        fields: "round,ran_at,status",
-        requestKey: null,
-      });
-      const refs = runs.map((run) => ({ round: run.round, ranAt: Date.parse(run.ran_at.replace(" ", "T")), status: run.status }));
+      const refs = await readRunRefs(pb, `league = '${league.id}' && kind = 'lineups' && ran_at >= '${since}'`);
       for (const round of lineupRoundsDue(now.getTime(), windows, refs, options.force)) {
         const run = await syncRoundLineups({ ...options, leagueId: league.id, round });
         results.push({ leagueId: league.id, run });

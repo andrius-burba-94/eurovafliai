@@ -1,8 +1,9 @@
 import type PocketBase from "pocketbase";
 
 import { describeError } from "@/lib/drafts/pipeline";
-import { basketNewsDue, roundWindows } from "@/lib/fantasy/windows";
-import { readStoredFixtures } from "@/lib/fixtures/store";
+import { readRunRefs, readWindows } from "@/lib/fantasy/store";
+import { basketNewsDue } from "@/lib/fantasy/windows";
+import { asPbDate } from "@/lib/memberships/store";
 
 import { basketNewsLeagueIds, markBasketNewsJob, PocketBaseBasketNewsRepository, queueBasketNewsSync, queuedBasketNewsJobs } from "./repository";
 import { basketNewsSource, syncBasketNews, type BasketNewsSource } from "./sync";
@@ -49,14 +50,14 @@ export async function processBasketNewsJobs(
 export async function queueBasketNewsLeagues(pb: PocketBase, season: string, now: Date): Promise<number> {
   const leagueIds = await basketNewsLeagueIds(pb);
   if (leagueIds.length === 0) return 0;
-  const fixtures = await readStoredFixtures(pb, season);
-  const windows = roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null })));
+  const windows = await readWindows(pb, season);
+  // A job counts for every round, so nothing before the latest settled round
+  // can change the answer: that round is due unless a job has run since.
+  const settled = windows.filter((window) => window.settledAt <= now.getTime()).map((window) => window.settledAt);
+  const since = settled.length ? ` && ran_at >= '${asPbDate(new Date(Math.max(...settled)))}'` : "";
   let queued = 0;
   for (const leagueId of leagueIds) {
-    const runs = await pb.collection("fantasy_syncs").getFullList<{ ran_at: string; status: string }>({
-      filter: `league = '${leagueId}' && provider = 'basketnews'`, fields: "ran_at,status", requestKey: null,
-    });
-    const refs = runs.map((run) => ({ round: 0, ranAt: Date.parse(run.ran_at.replace(" ", "T")), status: run.status }));
+    const refs = await readRunRefs(pb, `league = '${leagueId}' && provider = 'basketnews'${since}`);
     if (!basketNewsDue(now.getTime(), windows, refs)) continue;
     await queueBasketNewsSync(pb, leagueId, now);
     queued += 1;
