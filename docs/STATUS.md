@@ -46,7 +46,8 @@ an inconsistent log uses verified snapshots with an explicit history warning.
 requires `--write` to apply verified changes. It preserves roster windows and
 manual transactions. Migration `1791400000` is required. The existing game-day
 and six-hour schedule is unchanged. See
-[the recovery record](log/basketnews-recovery-2026-10-23.md).
+[the recovery record](log/basketnews-recovery-2026-10-23.md), including the
+browser-readiness and CI mirror-download corrections needed for rollout.
 
 **Try it on localhost:**
 - Apply migrations, start the app and worker, and open a BasketNews league's
