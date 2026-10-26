@@ -12,27 +12,16 @@
  * `--dry` is here because this is the one importer whose source can change
  * shape without telling anybody. It prints what the pages say and what the
  * pass would do, and writes nothing.
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
- * rather than importing `src/lib/pb/superuser` — that module pulls in
- * `server-only`, which throws outside a React Server Component graph
- * (AGENTS.md).
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import { ingestNews, summariseNews } from "../src/lib/news/ingest";
 import { describeNewsPlan, planNewsImport } from "../src/lib/news/items";
 import { fetchRotowireNews } from "../src/lib/news/rotowire";
 import { readNewsPlayers, readStoredNews } from "../src/lib/news/store";
+import { flag, superuserFromEnv } from "./lib/pb.mjs";
 
-const env = parseServerEnv(process.env);
-const dry = process.argv.includes("--dry");
+const dry = flag("dry");
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 if (dry) {
   const { items, problems } = await fetchRotowireNews({
