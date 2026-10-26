@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { useStored, writeStored } from "@/lib/stored";
 import {
   CLOCK_TONE,
   CLOCK_VIBRATION,
@@ -40,34 +41,6 @@ import {
  * alarm — the cue's job is "it is you", not "something is wrong".
  */
 
-const listeners = new Set<() => void>();
-
-function subscribeCues(listener: () => void): () => void {
-  listeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-
-function readCues(): string | null {
-  try {
-    return window.localStorage.getItem(CUE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeCues(on: boolean): void {
-  try {
-    window.localStorage.setItem(CUE_KEY, on ? "on" : "off");
-  } catch {
-    // Storage denied. The toggle still works for this page's lifetime.
-  }
-  for (const listener of listeners) listener();
-}
-
 export function ClockCue({
   isYourTurn,
   overallNo,
@@ -78,18 +51,7 @@ export function ClockCue({
   overallNo: number | null;
   round: number | null;
 }) {
-  /**
-   * Read through `useSyncExternalStore`, which league chat established for
-   * exactly this: it takes a server snapshot so the toggle hydrates without a
-   * mismatch, and it is not a `setState` inside an effect, which this repo's
-   * lint rule refuses.
-   */
-  const stored = useSyncExternalStore(
-    subscribeCues,
-    () => readCues(),
-    () => null,
-  );
-  const enabled = cuesEnabled(stored);
+  const enabled = cuesEnabled(useStored(CUE_KEY));
 
   /**
    * What the live region is saying, adjusted **during render** rather than in an
@@ -186,7 +148,7 @@ export function ClockCue({
     <div className="flex flex-col items-start gap-2">
       <button
         type="button"
-        onClick={() => writeCues(!enabled)}
+        onClick={() => writeStored(CUE_KEY, enabled ? "off" : "on")}
         aria-pressed={enabled}
         data-testid="cue-toggle"
         data-enabled={enabled ? "true" : "false"}
