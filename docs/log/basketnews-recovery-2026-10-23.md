@@ -112,3 +112,34 @@ before the resumed rollout; the 23 October backup is no longer fresh.
 Koloko remains unapproved until the commissioner acts or an
 official roster read confirms him. Old frozen roles cannot be reconstructed;
 the stored official totals continue to rule.
+
+## 26 October rollout preflight
+
+The final revision passed all eight PR checks, including the complete browser
+shards. Two runners were retried after stalling on an Ubuntu font download;
+the fresh runners completed successfully. PR #211 was squash-merged as
+`5f36f38`; production waits for the green-main deployment pipeline.
+
+A new PocketBase backup completed successfully:
+`eurovafliai-20261026100323.zip` (14 archives retained). The production checkout
+was clean before rollout. A read-only comparison of all nine round-8 public
+BasketNews rosters found six matching and three behind, with 13 stored players
+per team. Saved lineups and official totals were complete for all nine teams
+through round 6; round 7 had nine non-final saved lineups.
+
+The official E2026 roster read returned 336 players, zero parsing problems,
+and no Christian Koloko. No approval was granted during preflight.
+
+## Main CI rollout gate
+
+The final PR passed all eight checks, but main CI then failed the unchanged
+theme reload test twice, including a failed-job retry. The local full shard
+reproduced the same 30-second timeout. Repeated traced runs identified the
+cause: `isVisible()` inspected the sidebar before the streamed shell arrived,
+returned false on desktop, and selected the hidden phone menu. The test now
+waits for the shell and labels each phase. Its original assertions and
+30-second timeout remain intact; no deployment check is bypassed.
+
+A refreshed production backup completed at 11:15 UTC on 26 October:
+`eurovafliai-20261026111500.zip` (14 archives retained). Production is still
+on its previous release while the main CI gate is resolved.
