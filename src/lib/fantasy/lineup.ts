@@ -8,7 +8,6 @@ import {
   validateLineup,
 } from "@/lib/lineups/lineup";
 
-import { matchPlayer, playerLabel, resolveClubs, type PoolPlayer, type SyncQuestion } from "./match";
 import { fantasyPlayerFrom, id, playerSchema, type FantasyPlayer } from "./parse";
 
 /**
@@ -70,60 +69,6 @@ export function parseRoundLineup(raw: unknown): OfficialLineup {
       }))
       .sort((a, b) => a.courtPosition - b.courtPosition),
   };
-}
-
-/**
- * Link the lineup players no roster sync has: a player traded away before the
- * first roster sync is on no official roster, only on the lineups he played.
- *
- * The roster sync's own matcher and its rule: a pool row claimed by exactly one
- * official player is linked, anything else is asked.
- */
-export function linkLineupPlayers(
-  entries: readonly { readonly player: FantasyPlayer; readonly teamName: string }[],
-  pool: readonly PoolPlayer[],
-): { links: { playerId: string; fantasyId: string }[]; questions: SyncQuestion[] } {
-  const linked = new Set(pool.filter((row) => row.fantasyId).map((row) => row.fantasyId));
-  const open = entries.filter(
-    (entry, index) =>
-      !linked.has(entry.player.id) && entries.findIndex((other) => other.player.id === entry.player.id) === index,
-  );
-  if (open.length === 0) return { links: [], questions: [] };
-
-  const clubs = resolveClubs([{ id: "lineups", name: "", manager: "", players: open.map((entry) => entry.player) }], pool);
-  const unlinkedPool = pool.filter((row) => !row.fantasyId);
-  const claims = new Map<string, string[]>();
-  const candidates = new Map<string, string>();
-  for (const { player } of open) {
-    const candidate = matchPlayer(player, clubs.get(player.club.id), unlinkedPool);
-    if (!candidate) continue;
-    candidates.set(player.id, candidate.id);
-    claims.set(candidate.id, [...(claims.get(candidate.id) ?? []), player.id]);
-  }
-
-  const links: { playerId: string; fantasyId: string }[] = [];
-  const questions: SyncQuestion[] = [];
-  for (const { player, teamName } of open) {
-    const poolId = candidates.get(player.id);
-    if (poolId && claims.get(poolId)?.length === 1) {
-      links.push({ playerId: poolId, fantasyId: player.id });
-      continue;
-    }
-    const clubCode = clubs.get(player.club.id);
-    questions.push({
-      kind: "player",
-      fantasyPlayerId: player.id,
-      name: `${player.firstName} ${player.lastName}`.trim(),
-      club: player.club.name,
-      jersey: player.jersey,
-      fantasyTeamName: teamName,
-      choices: unlinkedPool
-        .filter((row) => !clubCode || row.clubCode === clubCode)
-        .map((row) => ({ id: row.id, label: playerLabel(row) }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    });
-  }
-  return { links, questions };
 }
 
 const teamsSchema = z.object({

@@ -12,8 +12,8 @@ import { snapshotRowsFrom } from "@/lib/stats/standings";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueMoves, fetchLeagueRosters, fetchRoundLineup } from "./client";
-import { linkLineupPlayers, matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
-import { resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
+import { matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
+import { linkSourcePlayers, resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
 import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncStep } from "./plan";
 import { lineupRoundsDue, readDayAt, roundWindows, syncDue, syncModeAt, type RoundWindow, type SyncDecision } from "./windows";
 
@@ -273,7 +273,7 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
     await pb.collection("league_members").update(link.memberId, { fantasy_team_id: link.fantasyTeamId }, { requestKey: null });
   }
   for (const link of resolution.playerLinks) {
-    await pb.collection("players").update(link.playerId, { fantasy_id: link.fantasyId }, { requestKey: null });
+    await pb.collection("players").update(link.playerId, { fantasy_id: link.sourceId }, { requestKey: null });
   }
   if (resolution.questions.length > 0) {
     return record(pb, leagueId, decision, now, {
@@ -607,17 +607,16 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
     }
   }
 
-  const { links, questions } = linkLineupPlayers(
-    fetched.flatMap((entry) => entry.lineup.players.map((player) => ({ player: player.official, teamName: entry.team }))),
+  // A player traded away before the first roster sync is on no official
+  // roster, only on the lineups he played.
+  const { mapped: playerIdFor, links, questions } = linkSourcePlayers({
+    read: fetched.flatMap((entry) => entry.lineup.players.map((player) => ({ player: player.official, teamName: entry.team }))),
     pool,
-  );
+    idOf: (row) => row.fantasyId,
+  });
   for (const link of links) {
-    await pb.collection("players").update(link.playerId, { fantasy_id: link.fantasyId }, { requestKey: null });
+    await pb.collection("players").update(link.playerId, { fantasy_id: link.sourceId }, { requestKey: null });
   }
-  const playerIdFor = new Map([
-    ...pool.filter((row) => row.fantasyId).map((row) => [row.fantasyId, row.id] as const),
-    ...links.map((link) => [link.fantasyId, link.playerId] as const),
-  ]);
   const playerName = new Map(pool.map((row) => [row.id, displayName(row.name)]));
 
   const written: { memberId: string; team: string; summary: string; officialHundredths: number }[] = [];

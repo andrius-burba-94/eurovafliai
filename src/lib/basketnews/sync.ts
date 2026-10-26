@@ -1,4 +1,4 @@
-import { matchPlayer, playerLabel, resolveClubs, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
+import { linkSourcePlayers, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, playerGameDays, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
@@ -216,33 +216,27 @@ export async function syncBasketNews(
     try { extraMetadata = await source.playerPool(official.leagueId); }
     catch (error) { warnings.push(`Player metadata: ${(error as Error).message}`); }
   }
-  const asFantasy = [...sourcePlayers.values()].flatMap((player) => player.team ? [basketNewsPlayer(player)] : []);
-  const clubCodes = resolveClubs([{ id: official.id, name: official.title, manager: "", players: asFantasy }], local.pool);
-  const mapped = new Map<string, string>();
-  const links: { playerId: string; sourceId: string; position: Position; updateId: boolean; updatePosition: boolean }[] = [];
-  const questions: SyncQuestion[] = [];
-  const unresolved: FantasyPlayer[] = [];
+  const linkedRows = new Map(local.pool.filter((row) => row.basketnewsId).map((row) => [row.basketnewsId!, row]));
+  const teamOf = (sourceId: string) =>
+    teams.find((team, index) => rounds.some((round) => round.lineups[index]?.players.some((entry) => entry.playerId === sourceId)))?.title ?? "BasketNews";
+  const read: { player: FantasyPlayer; teamName: string }[] = [];
   for (const [sourceId, sourcePlayer] of sourcePlayers) {
-    const existing = local.pool.find((player) => player.basketnewsId === sourceId);
-    if (existing && !sourcePlayer.team) { mapped.set(sourceId, existing.id); continue; }
     const player = sourcePlayer.team ? basketNewsPlayer(sourcePlayer) : extraMetadata.find((row) => row.id === sourceId);
-    if (!player) { failures.push(`Player ${sourceId}: historical lineup has no club or position; current rosters continue independently.`); continue; }
-    const match = existing ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool.filter((row) => !row.basketnewsId));
-    if (match) {
-      mapped.set(sourceId, match.id);
-      const storedPosition = local.pool.find((row) => row.id === match.id)?.basketnewsPosition;
-      if (!existing || !storedPosition) links.push({ playerId: match.id, sourceId, position: player.position, updateId: !existing, updatePosition: !storedPosition });
-    } else {
-      unresolved.push(player);
-      const surname = normalizeName(player.lastName);
-      questions.push({ kind: "player", fantasyPlayerId: sourceId, name: `${player.firstName} ${player.lastName}`, club: player.club.name, jersey: player.jersey,
-        fantasyTeamName: teams.find((team, index) => rounds.some((round) => round.lineups[index]?.players.some((entry) => entry.playerId === sourceId)))?.title ?? "BasketNews",
-        choices: local.pool.filter((candidate) => candidate.nameNormalized.includes(surname)).slice(0, 20).map((candidate) => ({ id: candidate.id, label: playerLabel(candidate) })),
-      });
-    }
+    if (player) read.push({ player, teamName: teamOf(sourceId) });
+    else if (!linkedRows.has(sourceId)) failures.push(`Player ${sourceId}: historical lineup has no club or position; current rosters continue independently.`);
   }
-  await repo.rememberPlayers(leagueId, local.season, unresolved);
-  if (new Set(mapped.values()).size !== mapped.size) throw new Error("Two BasketNews players matched one local player; resolve their mappings before importing.");
+  const linking = linkSourcePlayers({ read, pool: local.pool, idOf: (row) => row.basketnewsId ?? "" });
+  const { mapped, questions } = linking;
+  for (const sourceId of sourcePlayers.keys()) if (linkedRows.has(sourceId)) mapped.set(sourceId, linkedRows.get(sourceId)!.id);
+  const fresh = new Set(linking.links.map((link) => link.sourceId));
+  const links = read.flatMap(({ player }) => {
+    const playerId = mapped.get(player.id);
+    const updatePosition = !local.pool.find((row) => row.id === playerId)?.basketnewsPosition;
+    return playerId && (fresh.has(player.id) || updatePosition)
+      ? [{ playerId, sourceId: player.id, position: player.position, updateId: fresh.has(player.id), updatePosition }]
+      : [];
+  });
+  await repo.rememberPlayers(leagueId, local.season, read.flatMap(({ player }) => mapped.has(player.id) ? [] : [player]));
   if (picks.some((pick) => !mapped.has(pick.playerId))) {
     return { status: "blocked", message: `${questions.length} BasketNews player mapping question(s) need answers.`, questions, rounds: 0, warnings: failures };
   }
@@ -287,10 +281,12 @@ export async function syncBasketNews(
           // them from the public pool before deciding whether the log is usable.
           if ([...eventIds].some((id) => !mapped.has(id)) && source.playerPool) {
             const pool = await source.playerPool(official.leagueId);
-            for (const player of pool.filter((row) => eventIds.has(row.id) && !mapped.has(row.id))) {
-              const existing = local.pool.find((row) => row.basketnewsId === player.id) ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool.filter((row) => !row.basketnewsId));
-              if (existing) mapped.set(player.id, existing.id);
-            }
+            const taken = new Set(mapped.values());
+            const between = linkSourcePlayers({
+              read: pool.filter((row) => eventIds.has(row.id) && !mapped.has(row.id)).map((player) => ({ player, teamName: "" })),
+              pool: local.pool.filter((row) => !taken.has(row.id)), idOf: (row) => row.basketnewsId ?? "",
+            });
+            for (const [sourceId, playerId] of between.mapped) mapped.set(sourceId, playerId);
           }
           const exact = planBasketNewsTransfers({ ...input, events, memberOf: new Map([...members].map(([sourceId, member]) => [sourceId, member.id])), playerOf: mapped, appliedIds: await repo.appliedEvents(leagueId, round.round) });
           if (exact) steps = exact;

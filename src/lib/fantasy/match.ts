@@ -56,6 +56,8 @@ export type SyncQuestion =
       readonly choices: readonly Choice[];
     };
 
+export type SourceLink = { readonly playerId: string; readonly sourceId: string };
+
 export type Resolution = {
   /** Official team id → our member id. */
   readonly teams: ReadonlyMap<string, string>;
@@ -63,7 +65,7 @@ export type Resolution = {
   readonly players: ReadonlyMap<string, string>;
   /** Links the heuristics found this run, to be stored. */
   readonly teamLinks: readonly { memberId: string; fantasyTeamId: string }[];
-  readonly playerLinks: readonly { playerId: string; fantasyId: string }[];
+  readonly playerLinks: readonly SourceLink[];
   readonly questions: readonly SyncQuestion[];
 };
 
@@ -251,55 +253,73 @@ export function resolveFantasy(
     }
   }
 
-  const clubs = resolveClubs(teams, pool);
-  const byFantasyId = new Map(pool.filter((row) => row.fantasyId).map((row) => [row.fantasyId, row]));
-  const playerMap = new Map<string, string>();
-  const claims = new Map<string, string[]>();
-  const pending: { player: FantasyPlayer; team: FantasyTeam }[] = [];
-  for (const team of teams) {
-    for (const player of team.players) {
-      const stored = byFantasyId.get(player.id);
-      if (stored) {
-        playerMap.set(player.id, stored.id);
-        continue;
-      }
-      const candidate = matchPlayer(
-        player,
-        clubs.get(player.club.id),
-        pool.filter((row) => !row.fantasyId),
-      );
-      if (candidate) claims.set(candidate.id, [...(claims.get(candidate.id) ?? []), player.id]);
-      pending.push({ player, team });
+  const players = linkSourcePlayers({
+    read: teams.flatMap((team) => team.players.map((player) => ({ player, teamName: team.name }))),
+    pool,
+    idOf: (row) => row.fantasyId,
+  });
+  questions.push(...players.questions);
+  return { teams: teamMap, players: players.mapped, teamLinks, playerLinks: players.links, questions };
+}
+
+/**
+ * One source's players against our pool: the roster sync, the lineup sync,
+ * BasketNews and a positions read all link through here.
+ *
+ * A stored link (`idOf`) always wins. Otherwise a pool row claimed by exactly
+ * one of the read players is linked, and anything else becomes a question,
+ * two of the source's players on one of ours included: neither is certain.
+ */
+export function linkSourcePlayers<P extends PoolPlayer>(input: {
+  readonly read: readonly { readonly player: FantasyPlayer; readonly teamName: string }[];
+  readonly pool: readonly P[];
+  /** The row's id in this source, or "" when never linked. */
+  readonly idOf: (row: P) => string;
+}): { mapped: Map<string, string>; links: SourceLink[]; questions: SyncQuestion[] } {
+  const { pool, idOf } = input;
+  const read = input.read.filter((entry, index, all) => all.findIndex((other) => other.player.id === entry.player.id) === index);
+  const stored = new Map(pool.filter((row) => idOf(row)).map((row) => [idOf(row), row.id]));
+  const clubs = resolveClubs([{ id: "read", name: "", manager: "", players: read.map((entry) => entry.player) }], pool);
+  const unlinked = pool.filter((row) => !idOf(row));
+
+  const mapped = new Map<string, string>();
+  const candidates = new Map<string, string>();
+  const claims = new Map<string, number>();
+  for (const { player } of read) {
+    const id = stored.get(player.id);
+    if (id) {
+      mapped.set(player.id, id);
+      continue;
     }
+    const candidate = matchPlayer(player, clubs.get(player.club.id), unlinked);
+    if (!candidate) continue;
+    candidates.set(player.id, candidate.id);
+    claims.set(candidate.id, (claims.get(candidate.id) ?? 0) + 1);
   }
 
-  const playerLinks: { playerId: string; fantasyId: string }[] = [];
-  const claimed = new Map<string, string>();
-  for (const [poolId, fantasyIds] of claims) {
-    if (fantasyIds.length === 1) claimed.set(fantasyIds[0]!, poolId);
-  }
-  for (const { player, team } of pending) {
-    const poolId = claimed.get(player.id);
-    if (poolId) {
-      playerMap.set(player.id, poolId);
-      playerLinks.push({ playerId: poolId, fantasyId: player.id });
+  const links: SourceLink[] = [];
+  const questions: SyncQuestion[] = [];
+  for (const { player, teamName } of read) {
+    if (mapped.has(player.id)) continue;
+    const playerId = candidates.get(player.id);
+    if (playerId && claims.get(playerId) === 1) {
+      mapped.set(player.id, playerId);
+      links.push({ playerId, sourceId: player.id });
       continue;
     }
     const clubCode = clubs.get(player.club.id);
-    const choices = pool
-      .filter((row) => !row.fantasyId && (!clubCode || row.clubCode === clubCode))
-      .map((row) => ({ id: row.id, label: playerLabel(row) }))
-      .sort(byLabel);
     questions.push({
       kind: "player",
       fantasyPlayerId: player.id,
       name: `${player.firstName} ${player.lastName}`.trim(),
       club: player.club.name,
       jersey: player.jersey,
-      fantasyTeamName: team.name,
-      choices,
+      fantasyTeamName: teamName,
+      choices: unlinked
+        .filter((row) => !clubCode || row.clubCode === clubCode)
+        .map((row) => ({ id: row.id, label: playerLabel(row) }))
+        .sort(byLabel),
     });
   }
-
-  return { teams: teamMap, players: playerMap, teamLinks, playerLinks, questions };
+  return { mapped, links, questions };
 }

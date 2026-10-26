@@ -6,12 +6,12 @@ import { DEFAULT_LINEUP_TEMPLATE, multipliersOf, type LineupSquadPlayer } from "
 import lineupsJson from "./fixtures/round-2-lineups.json";
 import teamsJson from "./fixtures/user-fantasy-teams.json";
 import {
-  linkLineupPlayers,
   matchdayIdForRound,
   parseCurrentMatchday,
   parseRoundLineup,
   slotsFromOfficial,
 } from "./lineup";
+import { linkSourcePlayers, type PoolPlayer } from "./match";
 
 type Golden = (typeof lineupsJson)[keyof typeof lineupsJson];
 
@@ -108,8 +108,9 @@ describe("slotsFromOfficial refuses rather than guesses", () => {
   });
 });
 
-describe("linkLineupPlayers", () => {
+describe("linkSourcePlayers, from a lineup", () => {
   const blazevic = parseRoundLineup(lineupsJson["2827842"]).players.find((player) => player.id === "4280")!.official;
+  const link = (read: { player: typeof blazevic; teamName: string }[], pool: PoolPlayer[]) => linkSourcePlayers({ read, pool, idOf: (row) => row.fantasyId });
   const row = (id: string, name: string, dorsal: string) => ({
     id,
     name,
@@ -122,14 +123,14 @@ describe("linkLineupPlayers", () => {
   });
 
   it("links a player traded away before any roster sync, from his lineup", () => {
-    const { links, questions } = linkLineupPlayers([{ player: blazevic, teamName: "Laurynas Birutis" }], [row("p_bl", "Blazevic, Marek", blazevic.jersey)]);
-    expect(links).toEqual([{ playerId: "p_bl", fantasyId: "4280" }]);
+    const { links, questions } = link([{ player: blazevic, teamName: "Laurynas Birutis" }], [row("p_bl", "Blazevic, Marek", blazevic.jersey)]);
+    expect(links).toEqual([{ playerId: "p_bl", sourceId: "4280" }]);
     expect(questions).toEqual([]);
   });
 
   it("asks when two official players would claim one pool row", () => {
     const twin = { ...blazevic, id: "9999" };
-    const { links, questions } = linkLineupPlayers(
+    const { links, questions } = link(
       [
         { player: blazevic, teamName: "Laurynas Birutis" },
         { player: twin, teamName: "Kalaškračiai" },
@@ -142,7 +143,7 @@ describe("linkLineupPlayers", () => {
 
   it("leaves a player alone who is already linked", () => {
     const linked = { ...row("p_bl", "Blazevic, Marek", blazevic.jersey), fantasyId: "4280" };
-    expect(linkLineupPlayers([{ player: blazevic, teamName: "Laurynas Birutis" }], [linked])).toEqual({ links: [], questions: [] });
+    expect(link([{ player: blazevic, teamName: "Laurynas Birutis" }], [linked])).toEqual({ mapped: new Map([["4280", "p_bl"]]), links: [], questions: [] });
   });
 });
 

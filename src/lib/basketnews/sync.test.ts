@@ -219,6 +219,20 @@ describe("BasketNews worker import", () => {
     expect(db.rows("league_members")).toHaveLength(1);
   });
 
+  it("asks about two BasketNews players who both match one of ours instead of failing the job", async () => {
+    const data = leagueDb();
+    data.players = data.players!.filter((row) => row.name !== "Ward, Tyson");
+    const vezenkov = data.players.find((row) => row.name === "Vezenkov, Alexanter")!;
+    Object.assign(vezenkov, { name: "Vezenkov Ward, Alexanter", name_normalized: normalizeName("Vezenkov Ward Alexanter") });
+    const db = fakePb({ data, uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+    const job = db.rows("fantasy_syncs")[0]!;
+    expect(job.status).toBe("blocked");
+    expect((job.questions as { name: string }[]).map((question) => question.name).sort()).toEqual(["Aleksandr Vezenkov", "Tyson Ward"]);
+    expect(db.rows("picks")).toHaveLength(0);
+  });
+
   it("continues after a partial write using the last completed round", async () => {
     let interrupt = true;
     const db = fakePb({

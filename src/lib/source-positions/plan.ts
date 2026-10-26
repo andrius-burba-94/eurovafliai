@@ -1,6 +1,6 @@
 import type { Position, RosterTemplate } from "@/lib/engine";
 import type { LeagueSource } from "@/lib/positions";
-import { matchPlayer, resolveClubs, type PoolPlayer } from "@/lib/fantasy/match";
+import { linkSourcePlayers, resolveClubs, type PoolPlayer } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 
 /**
@@ -41,36 +41,24 @@ export type PositionPlan = {
 };
 
 export function planPositionRead(read: readonly FantasyPlayer[], stored: readonly StoredPlayer[]): PositionPlan {
-  const bySourceId = new Map(stored.filter((player) => player.sourceId).map((player) => [player.sourceId, player]));
-  const clubs = resolveClubs([{ id: "pool", name: "", manager: "", players: [...read] }], stored);
+  // A link is never moved, and two of the game's players on one of ours are
+  // neither of them certain: both stay unmatched.
+  const { mapped, links } = linkSourcePlayers({ read: read.map((player) => ({ player, teamName: "" })), pool: stored, idOf: (player) => player.sourceId });
+  const byId = new Map(stored.map((player) => [player.id, player]));
 
-  const placed = new Map<string, { entry: FantasyPlayer; player: StoredPlayer; linked: boolean }[]>();
+  const additions: { playerId: string; position: Position }[] = [];
+  const questions: PositionQuestion[] = [];
   const unmatched: FantasyPlayer[] = [];
+  const listedNow = new Set<string>();
   for (const entry of read) {
-    const linked = bySourceId.get(entry.id);
-    const found = linked ?? matchPlayer(entry, clubs.get(entry.club.id), stored);
-    const player = found ? stored.find((candidate) => candidate.id === found.id)! : null;
-    // A link is never moved: a player already linked to another id is somebody's to look at.
-    if (!player || (!linked && player.sourceId !== "")) {
+    const playerId = mapped.get(entry.id);
+    if (!playerId) {
       unmatched.push(entry);
       continue;
     }
-    placed.set(player.id, [...(placed.get(player.id) ?? []), { entry, player, linked: Boolean(linked) }]);
-  }
-
-  const links: { playerId: string; sourceId: string }[] = [];
-  const additions: { playerId: string; position: Position }[] = [];
-  const questions: PositionQuestion[] = [];
-  const listedNow = new Set<string>();
-  for (const [playerId, hits] of placed) {
-    // Two of the game's players on one of ours: neither is certain.
-    if (hits.length > 1) {
-      unmatched.push(...hits.map((hit) => hit.entry));
-      continue;
-    }
-    const { entry, player, linked } = hits[0]!;
+    if (listedNow.has(playerId)) continue;
     listedNow.add(playerId);
-    if (!linked) links.push({ playerId, sourceId: entry.id });
+    const player = byId.get(playerId)!;
     if (player.position === null) additions.push({ playerId, position: entry.position });
     else if (player.position !== entry.position && !player.confirmed) {
       questions.push({ playerId, stored: player.position, read: entry.position });
@@ -79,7 +67,7 @@ export function planPositionRead(read: readonly FantasyPlayer[], stored: readonl
 
   // A club the read did not include says nothing about its players: a future
   // matchday leaves out clubs whose game is not yet placed (7.2 A).
-  const clubsRead = new Set([...clubs.values()]);
+  const clubsRead = new Set(resolveClubs([{ id: "pool", name: "", manager: "", players: [...read] }], stored).values());
   const listed: { playerId: string; listed: boolean }[] = [];
   for (const player of stored) {
     if (listedNow.has(player.id) && !player.listed) listed.push({ playerId: player.id, listed: true });
