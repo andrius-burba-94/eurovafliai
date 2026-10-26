@@ -76,13 +76,21 @@ failures at transaction creation, window close/open and journal verdict.
 Transfer tests include unequal sides, pass-through players, rejected or
 inconsistent logs and idempotent historical repair.
 
-The final unit run passed 154 files / 2,173 tests. Lint and typecheck passed;
+The 26 October review also covered a leave-and-return sequence whose final
+roster is unchanged. The sync reads its transfer log and journals the source
+event legs alongside the target, so a previously verified target cannot hide
+new history. Repeated reads record each leg once and create no scoring windows
+for that round trip.
+
+The final unit run passed 154 files / 2,174 tests. Lint and typecheck passed;
 lint retains existing warnings in local, untracked skill files. The normal
 dead-code command reports ten of those unrelated skill files; checking the
 application with those local-only directories excluded passes. The new
 migration and API rule/index checks passed against a fresh disposable
-PocketBase. Three focused Playwright tests passed in installed Google Chrome
-against that final schema. Webpack production compilation and prerendering
+PocketBase. Six focused Playwright checks passed in installed Google Chrome
+(three desktop, three at 375px) against that final schema on 26 October.
+The queue assertion now waits for the asynchronous server action to finish
+instead of racing its already-saved approval intent. Webpack production compilation and prerendering
 completed, but the final build command exited on Next's existing security
 advisory; the default Turbopack build also encountered local sandbox limits.
 CI must verify the production build before merging.
@@ -93,6 +101,14 @@ timer were healthy. A pre-rollout backup completed successfully at
 10:05 UTC: `eurovafliai-20261023100501.zip`, retaining 14 archives.
 
 Production rollout results must be recorded before claiming this is live.
+PR #211 was created through the personal GitHub session on 23 October. On
+26 October, Chrome's control connection was unavailable. Automatic approval
+review refused reconnection from the foreground Gmail inbox because private
+email is outside this task. The user was asked to switch to the personal
+GitHub tab and reconnect there; Chrome was available again later that day.
+The initial PR passed all eight CI checks before the additional
+leave-and-return correction. Take a new production backup
+before the resumed rollout; the 23 October backup is no longer fresh.
 Koloko remains unapproved until the commissioner acts or an
 official roster read confirms him. Old frozen roles cannot be reconstructed;
 the stored official totals continue to rule.
