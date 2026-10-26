@@ -249,7 +249,10 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
 
   async reconcile(leagueId: string, season: string, round: number, target: ReadonlyMap<string, readonly string[]>, steps: readonly SyncStep[], at: Date): Promise<void> {
     const serialized = [...target].map(([member, players]) => [member, [...players].sort()] as [string, string[]]).sort(([a], [b]) => a.localeCompare(b));
-    const hash = createHash("sha256").update(JSON.stringify(serialized)).digest("hex");
+    // A leave-and-return event changes history without changing ownership.
+    // Give its saved intent its own identity alongside the roster target.
+    const events = steps.flatMap((step) => step.provenance ? [step.provenance] : []);
+    const hash = createHash("sha256").update(JSON.stringify(events.length ? [serialized, events] : serialized)).digest("hex");
     const [previous] = await this.pb.collection("basketnews_roster_batches").getFullList<RosterBatch>({
       filter: `league = '${leagueId}' && season = '${season}' && round = ${round} && target_hash = '${hash}'`, requestKey: null,
     });

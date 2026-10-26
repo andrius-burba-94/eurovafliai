@@ -1,6 +1,6 @@
 import { matchPlayer, playerLabel, resolveClubs, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
-import { planSync, rostersAgree, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
+import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, playerGameDays, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
 import { readDayAt, roundWindows } from "@/lib/fantasy/windows";
 import { normalizeName } from "@/lib/rosters/normalize";
@@ -279,7 +279,7 @@ export async function syncBasketNews(
         teamName: (id: string) => [...members.values()].find((member) => member.id === id)?.name ?? id,
         playerName: (id: string) => local.pool.find((player) => player.id === id)?.name ?? id, source: "BasketNews" };
       let steps = planSync(input).steps;
-      if (!rostersAgree(seats, target) && source.transfers) {
+      if (source.transfers) {
         try {
           const events = await source.transfers(official.id, round.round - 1);
           const eventIds = new Set(events.flatMap((event) => [...event.offer.players, ...event.request.players].map((entry) => entry.playerId)));

@@ -423,6 +423,35 @@ describe("BasketNews sync and stored positions (7.2 D)", () => {
 describe("BasketNews registration and independent roster recovery", () => {
   const publicRound = () => fixture.teams.map((team) => ({ ...structuredClone(fixture.lineups[`${team.id}:2`]!), fantasyTeamId: team.id, fantasyRound: 3 }));
 
+  it("records a leave-and-return transfer sequence after an unchanged roster was already verified", async () => {
+    const db = fakePb({ data: leagueDb(), uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-20T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+    const league = publicRound();
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { league }));
+    const before = structuredClone(db.rows("roster_memberships"));
+    const held = new Set(before.filter((row) => !row.to_date).map((row) => row.player));
+    const free = db.rows("players").find((row) => row.basketnews_id && !held.has(row.id))!;
+    const own = league.find((row) => row.fantasyTeamId === OWN_TEAM)!;
+    const original = own.players[0]!.playerId;
+    const event = (id: string, out: string, into: string, at: string) => ({ id, type: "free_agent", status: "accepted", createdAt: at, updatedAt: at,
+      offer: { fantasyTeamId: OWN_TEAM, players: [{ playerId: out }] }, request: { fantasyTeamId: null, players: [{ playerId: into }] } });
+    const source: BasketNewsSource = { ...capturedSource(false, { league }),
+      transfers: async () => [event("roundtrip1", original, String(free.basketnews_id), "2026-10-21T10:01:00Z"), event("roundtrip2", String(free.basketnews_id), original, "2026-10-21T10:02:00Z")],
+      playerPool: async () => [{ id: String(free.basketnews_id), firstName: "Pass", lastName: "Through", jersey: "", position: "F", club: { id: "source-club", name: "Source club" } }],
+    };
+    const count = db.rows("transactions").length;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T11:00:00Z"));
+      await processBasketNewsJobs(db.client, "session=test", source);
+      expect(db.rows("fantasy_syncs").at(-1)?.status).toBe("applied");
+      expect(db.rows("transactions")).toHaveLength(count + 4);
+      expect(db.rows("roster_memberships")).toEqual(before);
+    }
+    expect(db.rows("transactions").slice(-4).map((row) => row.source_event_id)).toEqual(["roundtrip1", "roundtrip1", "roundtrip2", "roundtrip2"]);
+  });
+
   it("keeps an unknown player actionable until approved, then automatically recovers the complete roster batch", async () => {
     const { basketNewsPlayer } = await import("./client");
     const { approveSourcePlayer } = await import("./registrations");
