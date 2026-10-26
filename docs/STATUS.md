@@ -21,6 +21,22 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Feed client timeout and retry, 26 October 2026
+
+**Every Euroleague and news request now gives up after 15 s and retries a
+dropped connection** (sync audit S9; the story is in
+[the audit log](log/sync-audit-2026-10-26.md)). Before, `fetchWithRetry`
+passed no timeout, so a socket that never answered held the worker's live
+pass, or a server action such as mapping confirm, for Node's five minutes. A
+thrown network error skipped the retry loop, and a `Retry-After` had no
+ceiling. Now a timeout or a dropped connection is retried like a 503, and a
+`Retry-After` is capped at 30 s. `scripts/fetch-golden-boxscores.mts` uses the
+shared client instead of its own copy.
+
+**Try it on localhost:**
+- `npx vitest run src/lib/euroleague`: a dropped connection and a request
+  that never answers are both retried, and a `Retry-After: 3600` waits 30 s.
+
 ## BasketNews roster and trade recovery, 23 October 2026
 
 **Implementation merged; rollout pending main CI.** [PR #211](https://github.com/andrius-burba-94/eurovafliai/pull/211)
