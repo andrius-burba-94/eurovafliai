@@ -59,6 +59,7 @@ test("the waiver wire ranks free agents by outlook, filters by position, and lis
 
   await page.goto(`/l/${league.id}`);
   const sidebar = page.getByTestId("sidebar");
+  await expect(page.getByTestId("lobby")).toBeVisible();
   const sidebarVisible = await sidebar.isVisible();
   if (sidebarVisible) {
     const keys = await sidebar.getByTestId("nav-group-league").locator("..").getByRole("link").evaluateAll((links) =>
@@ -71,6 +72,7 @@ test("the waiver wire ranks free agents by outlook, filters by position, and lis
   }
 
   // On a phone the desk opens on Your moves; the wire is its other tab.
+  await expect(page.getByTestId("scout")).toBeVisible();
   if (await page.getByTestId("scout-tab-wire").isVisible()) await page.getByTestId("scout-tab-wire").click();
   await expect(page.getByTestId("waiver-wire")).toBeVisible();
   const rows = page.getByTestId("wire-row");
@@ -106,6 +108,7 @@ test("in a linked league, a player the game does not list is not on the wire", a
   await signIn(context, owner);
 
   await page.goto(`/l/${league.id}/scout`);
+  await expect(page.getByTestId("scout")).toBeVisible();
   if (await page.getByTestId("scout-tab-wire").isVisible()) await page.getByTestId("scout-tab-wire").click();
   const rows = page.getByTestId("wire-row");
   await expect(rows.filter({ hasText: shown(listed.name).toUpperCase() })).toHaveCount(1);
