@@ -161,11 +161,11 @@ export async function syncRostersFromFeed(options: {
   readonly fantasyToken?: string;
 }): Promise<RosterSyncReport> {
   const { pb, season, now } = options;
-  const { rows, problems } = await fetchSeasonRosters({ season, doFetch: options.doFetch, onProgress: options.log });
+  const { rows, problems, unread } = await fetchSeasonRosters({ season, doFetch: options.doFetch, onProgress: options.log });
   if (rows.length === 0) return { ...NOTHING, skipped: "the feed returned no players", problems };
 
   const current = await readCurrentPlayers(pb);
-  const diff = diffRosters({ current, incoming: rows });
+  const diff = diffRosters({ current, incoming: rows, unread });
   const departures = assessDepartures(diff, current.length);
   if (departures.alarming) {
     return {
@@ -175,7 +175,7 @@ export async function syncRostersFromFeed(options: {
     };
   }
   const unchanged = diff.adds.length + diff.changes.length + diff.leaving.length + diff.renames.length === 0;
-  const outcome = unchanged ? null : await runRosterImport({ pb, incoming: rows, source: "api", season, problems });
+  const outcome = unchanged ? null : await runRosterImport({ pb, incoming: rows, source: "api", season, problems, unread });
   const report = {
     ...NOTHING,
     skipped: unchanged ? "unchanged" : null,

@@ -160,6 +160,17 @@ describe("fetchSeasonRosters", () => {
     expect(out.problems.join(" ")).toMatch(/club/i);
   });
 
+  it("names a club whose roster came back empty, and the code of a row that would not read", async () => {
+    const out = await fetchSeasonRosters({
+      doFetch: serve([{ ...player, club: { code: "", name: "" } }], {
+        clubs: [{ code: "ZAL", name: "Zalgiris Kaunas" }, { code: "PAN", name: "Panathinaikos" }],
+      }),
+    });
+
+    expect(out.unread).toEqual({ clubs: ["ZAL", "PAN"], codes: ["1", "1"] });
+    expect(out.problems.join(" ")).toMatch(/PAN: the feed listed no players/);
+  });
+
   it("reports an unmapped position loudly and keeps the rest of the pool", async () => {
     // The design question this test settles. An unmapped position means the
     // feed's vocabulary changed, and `mapApiPosition` refuses to guess a bucket
