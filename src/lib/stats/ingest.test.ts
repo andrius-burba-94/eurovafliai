@@ -184,7 +184,7 @@ describe("ingestFinishedGames", () => {
     expect(db.player_game_stats).toHaveLength(168);
   });
 
-  it("caps a pass, and takes the oldest games first", async () => {
+  it("caps a pass, splitting it between the oldest games and the newest", async () => {
     const { client, db } = fakePb({ data: { players: poolFor(allCodes) } });
     const { doFetch } = feed();
 
@@ -196,11 +196,91 @@ describe("ingestFinishedGames", () => {
     });
 
     expect(report.attempted).toBe(3);
-    // Oldest first, so a half-done backfill leaves a prefix rather than a
-    // scatter with holes in it.
     expect([
       ...new Set(db.player_game_stats!.map((row) => row.game_code)),
-    ]).toEqual([1, 2, 3]);
+    ]).toEqual([1, 2, 300]);
+  });
+
+  it("does not let old games the feed never fills block tonight's", async () => {
+    const { client, db } = fakePb({ data: { players: poolFor(allCodes) } });
+    const { doFetch: served } = feed();
+    // Games 1–3 are played per the schedule, but their box scores never come.
+    const doFetch = (async (input: string | URL | Request) =>
+      /\/games\/[123]\/stats/.test(String(input))
+        ? new Response("nope", { status: 404 })
+        : served(input)) as typeof fetch;
+
+    for (let pass = 0; pass < 2; pass += 1) {
+      await ingestFinishedGames({ pb: client, season: "E2025", doFetch, maxGames: 2 });
+    }
+
+    expect([
+      ...new Set(db.player_game_stats!.map((row) => Number(row.game_code))),
+    ].sort((a, b) => a - b)).toEqual([200, 300]);
+  });
+
+  it("records a game nobody in the pool played in once, not on every pass", async () => {
+    const { client, db } = fakePb({ data: { players: [] } });
+    const { doFetch } = feed(scheduleBody().data.slice(0, 1));
+
+    const first = await ingestFinishedGames({ pb: client, season: "E2025", doFetch });
+    const second = await ingestFinishedGames({ pb: client, season: "E2025", doFetch });
+
+    expect(first.unmatched).toBe(24);
+    expect(second.unmatched).toBe(24);
+    expect(second.batchId).toBeNull();
+    expect(db.stat_imports).toHaveLength(1);
+  });
+
+  it("adds a newly mapped player's line without reverting a corrected one", async () => {
+    const late = games[0]!.rows[0]!.personCode;
+    const { client, db } = fakePb({
+      data: { players: poolFor(allCodes.filter((code) => code !== late)) },
+    });
+    const { doFetch } = feed(scheduleBody().data.slice(0, 1));
+    await ingestFinishedGames({ pb: client, season: "E2025", doFetch });
+
+    // A pasted correction to somebody else's line in the same game.
+    const corrected = db.player_game_stats![0]!;
+    corrected.points = 99;
+    db.players!.push({ id: "players_late", name: "Late", person_code: late });
+
+    const report = await ingestFinishedGames({
+      pb: client,
+      season: "E2025",
+      doFetch,
+      onlyGames: [1],
+      maxGames: 1,
+    });
+
+    expect(report.created).toBe(1);
+    expect(report.updated).toBe(0);
+    expect(db.player_game_stats).toHaveLength(24);
+    expect(db.player_game_stats!.find((row) => row.id === corrected.id)!.points).toBe(99);
+  });
+
+  it("rebuilds the caches on the next pass when they failed after the rows landed", async () => {
+    let refuse = true;
+    const { client, db } = fakePb({
+      data: { players: poolFor(allCodes) },
+      hooks: {
+        beforeUpdate(collection) {
+          if (collection === "players" && refuse) throw new Error("players down");
+        },
+      },
+    });
+    const { doFetch } = feed(scheduleBody().data.slice(0, 1));
+
+    const first = await ingestFinishedGames({ pb: client, season: "E2025", doFetch });
+    expect(first.created).toBe(24);
+    expect(first.problems.join("\n")).toContain("players down");
+    expect(db.stat_imports![0]).toMatchObject({ applied: false, created_rows: 24 });
+
+    refuse = false;
+    const second = await ingestFinishedGames({ pb: client, season: "E2025", doFetch });
+    expect(second.attempted).toBe(0);
+    expect(db.stat_imports![0]!.applied).toBe(true);
+    expect(db.players!.some((player) => Number(player.proj_last5_games) > 0)).toBe(true);
   });
 
   it("skips an unplayed game entirely, without asking for its box score", async () => {
