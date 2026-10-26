@@ -233,6 +233,41 @@ describe("BasketNews worker import", () => {
     expect(db.rows("picks")).toHaveLength(0);
   });
 
+  it("settles a round whose only unplayed game was postponed out of it", async () => {
+    const data = leagueDb();
+    data.fixtures = [
+      { id: "g1", season: "E2026", game_code: 1, round: 1, played: true, utc_date: "2026-09-30T18:00:00Z", local_club: "OLY", road_club: "PAN" },
+      { id: "g2", season: "E2026", game_code: 2, round: 1, played: false, utc_date: "2026-11-04T18:00:00Z", local_club: "MAD", road_club: "BAR" },
+    ];
+    const db = fakePb({ data, uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+    const roundOne = db.rows("round_lineups").filter((row) => row.round === 1);
+    expect(roundOne).toHaveLength(9);
+    expect(roundOne.every((row) => (row.basketnews_result as { final: boolean }).final)).toBe(true);
+  });
+
+  it("keeps an applied job applied when the source-player bookkeeping after it fails", async () => {
+    const db = fakePb({ data: { ...leagueDb(), source_player_questions: [] }, uniqueIndexes: unique, hooks: {
+      beforeList(collection, filter) { if (collection === "source_player_questions" && filter.includes("recovery_pending")) throw new Error("bookkeeping down"); },
+    } });
+    const warnings: string[] = [];
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(), (message) => warnings.push(message));
+    expect(db.rows("fantasy_syncs")[0]).toMatchObject({ status: "applied" });
+    expect(warnings.join(" ")).toMatch(/recovery is still pending: bookkeeping down/);
+  });
+
+  it("runs the rest of the queue when one job cannot even be marked", async () => {
+    const db = fakePb({ data: { ...leagueDb(), leagues: [...leagueDb().leagues!, { id: "other", name: "Other", season: "2026-27", basketnews_team_id: "x" }] }, uniqueIndexes: unique, hooks: {
+      beforeUpdate(collection, id) { if (collection === "fantasy_syncs" && id === stuck) throw new Error("storage down"); },
+    } });
+    const stuck = await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-04T12:00:00Z"));
+    await queueBasketNewsSync(db.client, "other", new Date("2026-10-04T12:00:01Z"));
+    await expect(processBasketNewsJobs(db.client, "session=test", capturedSource())).resolves.toBe(2);
+    expect(db.rows("fantasy_syncs").map((row) => [row.league, row.status])).toEqual([[LEAGUE, "queued"], ["other", "failed"]]);
+  });
+
   it("continues after a partial write using the last completed round", async () => {
     let interrupt = true;
     const db = fakePb({

@@ -21,7 +21,7 @@ export type SourcePlayerQuestion = {
 };
 
 /** One durable question per source identity, even when several leagues need it. */
-export async function rememberSourcePlayers(pb: PocketBase, leagueId: string, season: string, players: readonly FantasyPlayer[]): Promise<void> {
+export async function rememberSourcePlayers(pb: PocketBase, leagueId: string, season: string, players: readonly FantasyPlayer[], raced = false): Promise<void> {
   for (const player of players) {
     const filter = `provider = 'basketnews' && season = '${season}' && source_id = '${player.id}'`;
     const [existing] = await pb.collection("source_player_questions").getFullList<SourcePlayerQuestion>({ filter, requestKey: null });
@@ -32,9 +32,10 @@ export async function rememberSourcePlayers(pb: PocketBase, leagueId: string, se
     try {
       await pb.collection("source_player_questions").create({ provider: "basketnews", season, source_id: player.id, details: player, leagues: [leagueId], status: "pending" }, { requestKey: null });
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
-      // Re-read the winning identity so a second league is not lost in a race.
-      await rememberSourcePlayers(pb, leagueId, season, [player]);
+      // Re-read the winning identity so a second league is not lost in a race;
+      // a second violation is no race.
+      if (raced || !isUniqueViolation(error)) throw error;
+      await rememberSourcePlayers(pb, leagueId, season, [player], true);
     }
   }
 }

@@ -34,6 +34,12 @@ describe("source player registration", () => {
     expect(db.rows("players")).toHaveLength(1);
   });
 
+  it("gives up on a question that keeps colliding instead of retrying forever", async () => {
+    const collision = { status: 400, response: { data: { source_id: { code: "validation_not_unique", message: "not unique" } } } };
+    const db = fakePb({ data: { source_player_questions: [] }, hooks: { beforeCreate() { throw collision; } } });
+    await expect(rememberSourcePlayers(db.client, "league", "E2026", [player])).rejects.toBe(collision);
+  });
+
   it("approves the fresh listing without a jersey or invented code, and retries without duplicates", async () => {
     const db = database();
     const id = await approveSourcePlayer(db.client, approval);

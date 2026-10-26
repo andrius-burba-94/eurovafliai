@@ -20,21 +20,28 @@ export async function processBasketNewsJobs(
   const jobs = await queuedBasketNewsJobs(pb);
   const repository = new PocketBaseBasketNewsRepository(pb);
   for (const job of jobs) {
-    await markBasketNewsJob(pb, job.id, { status: "running", message: "Reading BasketNews." });
+    let outcome;
     try {
-      const outcome = await syncBasketNews(repository, job.league, job.id, cookie, job.job_meta?.nextRound ?? 0, source, now());
+      await markBasketNewsJob(pb, job.id, { status: "running", message: "Reading BasketNews." });
+      outcome = await syncBasketNews(repository, job.league, job.id, cookie, job.job_meta?.nextRound ?? 0, source, now());
       for (const warning of outcome.warnings ?? []) warn(`BasketNews · league ${job.league} · ${warning}`);
       await markBasketNewsJob(pb, job.id, {
         status: outcome.status, message: outcome.message, questions: outcome.questions, round: outcome.rounds, active_league: "", diagnostics: outcome.warnings ?? [],
       });
-      if (outcome.status === "applied") {
-        const league = await pb.collection("leagues").getOne<{ season: string }>(job.league, { fields: "season", requestKey: null });
-        await completeSourcePlayerRecovery(pb, `E${league.season.slice(0, 4)}`, job.league);
-      }
     } catch (error) {
-      await markBasketNewsJob(pb, job.id, {
-        status: "failed", message: describeError(error).slice(0, 500), active_league: "",
-      });
+      // A job that cannot even be marked stays running and is retried next
+      // pass; the rest of the queue still runs.
+      await markBasketNewsJob(pb, job.id, { status: "failed", message: describeError(error), active_league: "" })
+        .catch((marking: unknown) => warn(`BasketNews · league ${job.league} · could not mark the job failed: ${describeError(marking)}`));
+      continue;
+    }
+    // The job applied; a recovery bookkeeping failure must not overwrite that.
+    if (outcome.status !== "applied") continue;
+    try {
+      const league = await pb.collection("leagues").getOne<{ season: string }>(job.league, { fields: "season", requestKey: null });
+      await completeSourcePlayerRecovery(pb, `E${league.season.slice(0, 4)}`, job.league);
+    } catch (error) {
+      warn(`BasketNews · league ${job.league} · source-player recovery is still pending: ${describeError(error)}`);
     }
   }
   return jobs.length;

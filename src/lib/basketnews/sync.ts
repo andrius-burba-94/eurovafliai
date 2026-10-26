@@ -169,9 +169,12 @@ export async function syncBasketNews(
     }
   } catch (error) { failures.push(`Rosters: ${(error as Error).message}`); }
 
-  const gamesOf = (round: number) => local.fixtures.filter((game) => game.round === round);
-  const isFinal = (round: number) => gamesOf(round).every((game) => game.played);
-  const unplayed = local.fixtures.filter((game) => !game.played).map((game) => game.round);
+  // A game postponed out of its round's freeze is not the round's, as
+  // `roundWindows` already decides: it must not keep the round open for weeks.
+  const windows = roundWindows(local.fixtures);
+  const counted = local.fixtures.filter((game) => windows.find((window) => window.round === game.round)?.tips.includes(Date.parse(game.utcDate ?? "")) ?? true);
+  const isFinal = (round: number) => counted.every((game) => game.round !== round || game.played);
+  const unplayed = counted.filter((game) => !game.played).map((game) => game.round);
   const lastReadable = unplayed.length ? Math.min(...unplayed) : 0;
   const first = Math.max(1, startRound ? Math.min(startRound, local.firstOpenRound) : local.firstOpenRound);
   for (let round = first; round <= 40; round += 1) {
@@ -248,7 +251,6 @@ export async function syncBasketNews(
   const draftPicks = picks.map((pick) => ({ memberId: members.get(pick.fantasyTeamId)!.id, playerId: mapped.get(pick.playerId)! }));
   await repo.ensureDraft(leagueId, draftPicks, firstPickOrder.map((id) => members.get(id)!.id), new Date(official.draftDate ?? now));
 
-  const windows = roundWindows(local.fixtures);
   const clubOf = new Map(local.pool.map((player) => [player.id, player.clubCode]));
   let rosterRound = local.rosterRound;
   let completed = 0;
