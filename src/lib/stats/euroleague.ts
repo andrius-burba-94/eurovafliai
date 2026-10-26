@@ -33,7 +33,7 @@ import { z } from "zod";
 import { FEED_BASE, type FeedFetch, getFeedJson, sleep } from "@/lib/euroleague/http";
 
 import { type ParsedStatRow, type Phase, PHASES, phaseForRound } from "./csv";
-import { type BoxScore, scoreGame } from "./scoring";
+import { scoreGame } from "./scoring";
 import {
   type SeasonAverages,
   seasonAveragesFrom,
@@ -288,32 +288,12 @@ export async function fetchGameBoxScore({
         continue;
       }
 
-      const stats = entry.stats;
-      const box: BoxScore = {
-        timePlayed: stats.timePlayed,
-        points: stats.points,
-        fieldGoalsMade2: stats.fieldGoalsMade2,
-        fieldGoalsAttempted2: stats.fieldGoalsAttempted2,
-        fieldGoalsMade3: stats.fieldGoalsMade3,
-        fieldGoalsAttempted3: stats.fieldGoalsAttempted3,
-        freeThrowsMade: stats.freeThrowsMade,
-        freeThrowsAttempted: stats.freeThrowsAttempted,
-        offensiveRebounds: stats.offensiveRebounds,
-        defensiveRebounds: stats.defensiveRebounds,
-        totalRebounds: stats.totalRebounds,
-        assistances: stats.assistances,
-        steals: stats.steals,
-        turnovers: stats.turnovers,
-        blocksFavour: stats.blocksFavour,
-        blocksAgainst: stats.blocksAgainst,
-        foulsCommited: stats.foulsCommited,
-        foulsReceived: stats.foulsReceived,
-        plusMinus: stats.plusMinus,
-      };
+      // The schema names exactly the nineteen counted fields besides these two.
+      const { valuation, startFive, ...box } = entry.stats;
 
       const won = own > other;
-      if (stats.valuation !== null && stats.valuation !== undefined) {
-        const stated = Math.round(stats.valuation);
+      if (valuation !== null && valuation !== undefined) {
+        const stated = Math.round(valuation);
         const { base } = scoreGame(box, won);
         if (base !== stated) {
           // The feed brought its own PIR and it disagrees with the components
@@ -339,7 +319,7 @@ export async function fetchGameBoxScore({
         opponentScore: other,
         won,
         box,
-        ...(fiveListed ? { started: entry.stats.startFive === true } : {}),
+        ...(fiveListed ? { started: startFive === true } : {}),
         line: game.gameCode,
       });
     }
