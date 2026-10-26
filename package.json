@@ -43,7 +43,6 @@
     "lineups:sync": "tsx --env-file=.env scripts/sync-lineups.mts",
     "moves:repair": "tsx --env-file=.env scripts/repair-moves.mts",
     "basketnews:repair": "tsx --env-file=.env scripts/repair-basketnews.mts",
-    "slugs:backfill": "tsx --env-file=.env scripts/backfill-slugs.mts",
     "rehearsal": "tsx --env-file=.env scripts/rehearsal.mts"
   },
   "dependencies": {
