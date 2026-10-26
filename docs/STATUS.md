@@ -23,7 +23,9 @@ keeps the tables, the open debt, the next step and the current phase's
 
 ## BasketNews roster and trade recovery, 23 October 2026
 
-**Implemented locally; not deployed.** Hostinger CA$HiorAI stopped on a
+**Implementation ready; rollout pending.** [PR #211](https://github.com/andrius-burba-94/eurovafliai/pull/211)
+contains the recovery change, including the verified 26 October
+leave-and-return correction. Hostinger CA$HiorAI stopped on a
 player BasketNews listed before the official EuroLeague roster did: Christian
 Koloko. The sync now keeps durable source-player questions, offers managers
 **Approve source player**, and checks official registration every six hours.
@@ -37,7 +39,8 @@ verify ownership, then advance a separate roster checkpoint. Historical reads
 cannot replay ownership backwards. Unchanged roster imports still retry
 missing game lines, unattached news and blocked external syncs.
 
-The official transfer log preserves source-event IDs and multi-player sides;
+The official transfer log preserves source-event IDs and multi-player sides,
+including leave-and-return moves whose final ownership is unchanged;
 an inconsistent log uses verified snapshots with an explicit history warning.
 `basketnews:repair` previews historical transaction corrections by default and
 requires `--write` to apply verified changes. It preserves roster windows and
