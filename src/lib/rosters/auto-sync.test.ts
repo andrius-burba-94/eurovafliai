@@ -176,6 +176,24 @@ describe("readUnknownNames", () => {
 });
 
 describe("roster follow-ups after an unchanged read", () => {
+  it("chases a whole new season's codes, more than one filter can name", async () => {
+    const squad = Array.from({ length: 160 }, (_, i) => feedPlayer(String(100000 + i), `PLAYER, NUMBER${i}`, String(i)));
+    const fake = await poolFrom(squad);
+    fake.db.stat_imports = [
+      { id: "unmatched", season: "E2026", created: "2026-10-08 10:00:00Z", plan: { unmatched: squad.map((row, i) => ({ personCode: row.person.code, lines: [i % 2 ? 7 : 8] })) } },
+    ];
+    const reimported: number[][] = [];
+    const report = await syncRostersFromFeed({
+      pb: fake.client, season: "E2026", now: NOW, doFetch: serve(squad),
+      reimport: async (games) => {
+        reimported.push([...games].sort());
+        return games.length;
+      },
+    });
+    expect(report.problems).toEqual([]);
+    expect(reimported).toEqual([[7, 8]]);
+  });
+
   it("retries a failed game recovery after the code is already attached", async () => {
     const fake = await poolFrom([LOYD]);
     fake.db.stat_imports = [{ id: "unmatched", season: "E2026", created: "2026-10-08 10:00:00Z", plan: { unmatched: [{ personCode: "014213", lines: [44] }] } }];

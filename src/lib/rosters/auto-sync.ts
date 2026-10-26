@@ -206,11 +206,16 @@ export async function syncRostersFromFeed(options: {
     const player = known.get(code.personCode);
     return player ? [{ player, games: code.games }] : [];
   });
-  const stored = waiting.length === 0 ? [] : await pb.collection("player_game_stats").getFullList<{ player: string; game_code: number }>({
-    filter: `season = '${season}' && (${waiting.map(({ player }) => `player = '${player}'`).join(" || ")})`,
-    fields: "player,game_code",
-    requestKey: null,
-  });
+  // In slices: PocketBase refuses a filter naming much more than a hundred
+  // players, and a new season's first sync can leave several hundred waiting.
+  const stored: { player: string; game_code: number }[] = [];
+  for (let at = 0; at < waiting.length; at += 50) {
+    stored.push(...await pb.collection("player_game_stats").getFullList<{ player: string; game_code: number }>({
+      filter: `season = '${season}' && (${waiting.slice(at, at + 50).map(({ player }) => `player = '${player}'`).join(" || ")})`,
+      fields: "player,game_code",
+      requestKey: null,
+    }));
+  }
   const lines = new Set(stored.map((row) => `${row.player}:${row.game_code}`));
   const games = [...new Set(waiting.flatMap(({ player, games }) => games.filter((game) => !lines.has(`${player}:${game}`))))];
   if (games.length > 0 && options.reimport !== false) {

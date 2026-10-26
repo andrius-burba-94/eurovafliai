@@ -191,6 +191,9 @@ export function fakePb(options: {
       expand?: string;
     }) => {
       onlySupported(options, ["filter", "sort", "fields", "expand"]);
+      // PocketBase answers 400 past this, measured on 0.39: a read that builds
+      // one OR term per id stops working at roughly 130 ids.
+      if ((options?.filter ?? "").length > MAX_FILTER_LENGTH) throw new Error("max filter length limit reached");
       hooks.beforeList?.(collection, options?.filter ?? "");
       const found = rows(collection).filter((record) =>
         matches(record, options?.filter),
@@ -336,6 +339,8 @@ function splitTop(text: string, operator: "&&" | "||"): string[] {
   parts.push(text.slice(start));
   return parts.map((part) => part.trim()).filter(Boolean);
 }
+
+const MAX_FILTER_LENGTH = 3500;
 
 /**
  * The subset of PocketBase's filter syntax this repo actually writes.
