@@ -21,6 +21,36 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Sync audit: realtime refresh, 26 October 2026
+
+**Done on `fix/realtime`, not merged.** Findings R1–R8 of the sync audit. The
+page's one `PB_CONNECT` now lives in `src/lib/pb/browser.ts` and fans out to
+every surface, so a surface reached by a client-side navigation comes up at
+once instead of showing "Reconnecting" (R1). A first connect that fails is
+retried with backoff and on `online` / page shown (R2). Every live surface
+catches up once its own topics are posted and after every reconnect (R5),
+league chat included (R3). An expired token goes to sign-in (R6). Refreshes
+are coalesced and held while the tab is hidden (R7, R8). LiveDraft, LiveFeed,
+the write-up strip and the new fantasy sync status share one
+`useLiveRefresh`; the cue, chat-unread and moment stores share
+`src/lib/stored.ts`. The fantasy page now follows "Queued" → "Applied" live
+(R4); `fantasy_syncs`' list rule already admits its viewers, so no migration.
+
+**Deferred:** no Playwright spec for navigation without the banner; it could
+not run in this worktree (no PocketBase binary or `.env`, shared ports), so
+none was added. `pick-is-in.tsx` still reads the cue key directly, and the
+`pocketbase-patterns` skill still describes `onConnect` as reconnect-only.
+The shared stream now stays open for the page's life once any surface used it.
+
+**Try it on localhost:**
+- `npm run dev`, open a league in setup, then click through to the draft room
+  (a link, not a reload). No "Reconnecting" line appears after five seconds.
+- Matchday ↔ Lineup by the nav: the feed line keeps `data-live="true"`.
+- On a BasketNews league's sync page, press **Sync now**: the run goes from
+  Queued to Running to Applied without a reload.
+- `npx vitest run src/lib/pb src/lib/stored.test.ts` covers the link, retry,
+  token check, coalescing and hidden-tab rules.
+
 ## BasketNews roster and trade recovery, 23 October 2026
 
 **Implementation merged; rollout pending main CI.** [PR #211](https://github.com/andrius-burba-94/eurovafliai/pull/211)
