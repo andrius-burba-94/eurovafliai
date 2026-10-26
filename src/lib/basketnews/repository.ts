@@ -243,11 +243,15 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     // A leave-and-return event changes history without changing ownership.
     // Give its saved intent its own identity alongside the roster target.
     const events = steps.flatMap((step) => step.provenance ? [step.provenance] : []);
-    const hash = createHash("sha256").update(JSON.stringify(events.length ? [serialized, events] : serialized)).digest("hex");
+    // The windows it starts from too: a roster that goes A → B → A starts its
+    // second A from windows the first never saw, and must not find that batch.
+    const seats = await this.seats(leagueId);
+    const from = seats.map((seat) => seat.id).sort();
+    const hash = createHash("sha256").update(JSON.stringify([serialized, events, from])).digest("hex");
     const [previous] = await this.pb.collection("basketnews_roster_batches").getFullList<RosterBatch>({
       filter: `league = '${leagueId}' && season = '${season}' && round = ${round} && target_hash = '${hash}'`, requestKey: null,
     });
-    if (previous?.status === "applied" && rostersAgree(await this.seats(leagueId), target)) return;
+    if (previous?.status === "applied" && rostersAgree(seats, target)) return;
     if (previous) { await this.finishBatch(previous); return; }
     const batch = await this.pb.collection("basketnews_roster_batches").create<RosterBatch>({
       league: leagueId, season, round, target_hash: hash, target: serialized, steps, at: at.toISOString(), status: "applying",

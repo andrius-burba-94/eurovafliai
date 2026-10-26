@@ -55,6 +55,28 @@ describe("saved BasketNews roster intent", () => {
     const db = fakePb({ data: { leagues: [{ id: "league" }], roster_memberships: [], basketnews_roster_batches: [] } });
     const repo = new PocketBaseBasketNewsRepository(db.client);
     await expect(repo.seats("league")).rejects.toThrow("read back empty");
+    await expect(repo.reconcile("league", "E2026", 7, target, plan.steps, NOW)).rejects.toThrow("read back empty");
+    expect(db.rows("basketnews_roster_batches")).toEqual([]);
+  });
+
+  it("plans a roster that returns to an earlier target afresh instead of replaying the applied batch", async () => {
+    const db = fakePb({ data: {
+      leagues: [{ id: "league", basketnews_roster_round: 6 }],
+      roster_memberships: seats.map((seat) => ({ ...seat, league: "league", from_round: 1, to_date: "" })),
+      transactions: [], basketnews_roster_batches: [], chat_messages: [],
+    } });
+    const repo = new PocketBaseBasketNewsRepository(db.client);
+    const original = new Map([["a", ["x"]], ["b", ["y"]]]);
+    const step = async (to: Map<string, string[]>) => {
+      const from = await repo.seats("league");
+      const steps = planSync({ round: 7, seats: from, target: to, source: "BasketNews", teamName: (id) => id, playerName: (id) => id }).steps;
+      await repo.reconcile("league", "E2026", 7, to, steps, NOW);
+      expect(rostersAgree(await repo.seats("league"), to)).toBe(true);
+    };
+    await step(target);
+    await step(original);
+    await step(target);
+    expect(db.rows("basketnews_roster_batches").map((row) => row.status)).toEqual(["applied", "applied", "applied"]);
   });
 
   it("does not mark a journal applied when the stored owner differs from its target", async () => {
