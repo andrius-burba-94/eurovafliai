@@ -15,6 +15,7 @@ import type { SourcePlayerQuestion } from "@/lib/basketnews/registrations";
 import type { SyncQuestion } from "@/lib/fantasy/match";
 import { formatTipOff } from "@/lib/time/local";
 
+import { LiveSyncs } from "./live-syncs";
 import { LinkLeagueForm, QuestionForm, SourceApprovalForm, SyncNowForm } from "./sync-forms";
 
 const STATUS_WORD: Record<SyncStatus, string> = {
@@ -74,6 +75,7 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
       <AppShell current="trades" league={navLeagueFrom(data)} testId="fantasy-sync">
         <PageHeader eyebrow={`${data.league.name} · Import`} title="BasketNews sync"
           lead="BasketNews owns this league's draft, rosters, lineups and round points. The worker refreshes it automatically." />
+        <LiveSyncs leagueId={id} authToken={session.token} />
         <Bank framed label="Source league" aside={serverConfig().BASKETNEWS_COOKIE ? "Session set" : "Session needed"}>
           <p className="text-sm text-ink-soft">{data.league.name} · Your team: {data.members.find((member) => member.isYou)?.teamName ?? "Importing"}</p>
           {!serverConfig().BASKETNEWS_COOKIE ? <EmptyNotice>Set BASKETNEWS_COOKIE on the worker to import private lineups. The league data already stored here is preserved if the session expires.</EmptyNotice> : null}
@@ -124,6 +126,7 @@ export default async function FantasySyncPage({ params }: PageProps<"/l/[league]
         title="Fantasy Challenge sync"
         lead="Moves and lineups happen in the official game. Once a round tips off, its rosters and lineups are the ones playing, and this keeps the league's in step with them."
       />
+      <LiveSyncs leagueId={id} authToken={session.token} />
 
       <Bank framed label="Official league" aside={view.tokenSet ? "Token set" : "No token"}>
         {view.tokenSet ? null : (
