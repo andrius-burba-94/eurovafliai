@@ -82,3 +82,9 @@ worker, and UI behavior changes do.
 - **Assert computed styles with `expect.poll`**, not a single `evaluate`.
   Chromium can report a stale computed style in the same frame as the class
   change.
+
+- **Do not choose a responsive test path before the streamed shell appears.**
+  `isVisible()` does not wait: on a desktop it can see no sidebar yet and
+  choose the hidden phone menu, then spend the whole test waiting for it.
+  Assert the shell is visible before branching on its responsive controls.
+  Reproduced in the theme reload test under the full CI shard.

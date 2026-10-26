@@ -59,10 +59,15 @@ test("with no choice stored, the ground follows the device", async ({ page }) =>
 });
 
 test("a held ground survives a reload and ignores the device", async ({ page, context }) => {
-  const user = await createTestUser("theme");
-  await signIn(context, user);
-  await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/");
+  await test.step("Create and sign in the theme user", async () => {
+    const user = await createTestUser("theme");
+    await signIn(context, user);
+  });
+  await test.step("Open the signed-in shell on a dark device", async () => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    await expect(page.getByTestId("app-shell")).toBeVisible();
+  });
 
   // From `lg` the sidebar's one button opens System, Light and Dark upward;
   // below it the More sheet spells the three out. Each waits for the hydrated
@@ -86,22 +91,30 @@ test("a held ground survives a reload and ignores the device", async ({ page, co
       ? expect(page.getByTestId("theme-switch")).toHaveAttribute("data-choice", choice)
       : undefined;
 
-  await settled("system");
-  await choose("light");
-  await expect.poll(() => colorScheme(page)).toBe("light");
+  await test.step("Hold the light ground", async () => {
+    await settled("system");
+    await choose("light");
+    await expect.poll(() => colorScheme(page)).toBe("light");
+  });
 
   // Painted light before any script of ours hydrates: the head script read the cookie.
-  await page.reload();
-  expect(await page.locator("html").getAttribute("data-theme")).toBe("light");
-  await expect.poll(() => groundLuminance(page)).toBeGreaterThan(0.8);
+  await test.step("Keep the held ground after reload", async () => {
+    await page.reload();
+    expect(await page.locator("html").getAttribute("data-theme")).toBe("light");
+    await expect.poll(() => groundLuminance(page)).toBeGreaterThan(0.8);
+  });
 
-  await page.emulateMedia({ colorScheme: "light" });
-  await page.emulateMedia({ colorScheme: "dark" });
-  await expect.poll(() => colorScheme(page)).toBe("light");
+  await test.step("Ignore device changes while a ground is held", async () => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect.poll(() => colorScheme(page)).toBe("light");
+  });
 
-  await settled("light");
-  await choose("system");
-  await expect.poll(() => colorScheme(page)).toBe("dark");
+  await test.step("Follow the device again after choosing System", async () => {
+    await settled("light");
+    await choose("system");
+    await expect.poll(() => colorScheme(page)).toBe("dark");
+  });
 });
 
 test("the welcome headline uses the quieter display face", async ({ page }) => {

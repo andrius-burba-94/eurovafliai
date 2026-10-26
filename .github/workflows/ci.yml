@@ -198,6 +198,17 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Bound Ubuntu mirror stalls
+        # A mirror can accept a font download and stop sending bytes. Let apt
+        # fail over to the runner's other configured mirrors instead of spending
+        # the whole browser job retrying that same connection.
+        run: |
+          printf '%s\n' \
+            'Acquire::Retries "0";' \
+            'Acquire::http::Timeout "20";' \
+            'Acquire::https::Timeout "20";' \
+            'Acquire::http::Pipeline-Depth "0";' \
+            | sudo tee /etc/apt/apt.conf.d/99-playwright-network >/dev/null
       - name: Install Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
