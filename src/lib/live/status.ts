@@ -4,6 +4,38 @@ import type { LivePlayer } from "./boxscore";
 
 export type FeedStatus = { readonly label: string; readonly alert: boolean };
 
+const OPENS_BEFORE_TIP_MS = 5 * 60_000;
+const CLOSES_AFTER_TIP_MS = 4 * 60 * 60_000;
+
+/** Five minutes before tip-off until four hours after: when a game can have a live feed. */
+export function inLiveWindow(utcDate: string | null | undefined, now: number): boolean {
+  const tip = Date.parse(utcDate ?? "");
+  return Number.isFinite(tip) && now >= tip - OPENS_BEFORE_TIP_MS && now < tip + CLOSES_AFTER_TIP_MS;
+}
+
+/**
+ * The unplayed games whose day could put them in the window, for the worker's
+ * read; `inLiveWindow` then decides exactly. Whole days because `utc_date` is
+ * text, stored with a `T` or a space depending on who wrote it.
+ */
+export function liveWindowFilter(season: string, now: number): string {
+  const day = (at: number) => new Date(at).toISOString().slice(0, 10);
+  return `season = "${season}" && played = false && utc_date >= "${day(now - CLOSES_AFTER_TIP_MS)}" && utc_date < "${day(now + OPENS_BEFORE_TIP_MS + 86_400_000)}"`;
+}
+
+/**
+ * The checks a stale warning may be judged on. A game the stats pass recorded
+ * before the live pass saw its final whistle keeps a `live` snapshot forever,
+ * and it must not call the rest of the round's feed stale.
+ */
+export function liveCheckedAt(
+  snapshots: readonly { readonly game_code: number; readonly live: boolean; readonly checked_at: string }[],
+  fixtures: readonly { readonly game_code: number; readonly played?: boolean }[],
+): string[] {
+  const played = new Set(fixtures.filter((game) => game.played).map((game) => game.game_code));
+  return snapshots.filter((row) => row.live && !played.has(row.game_code)).map((row) => row.checked_at);
+}
+
 /** A displayed status must never imply finality from a provisional snapshot. */
 export function feedStatus(input: {
   readonly final: boolean;
@@ -26,10 +58,7 @@ export function feedStatus(input: {
     return { label: `Provisional feed updated ${formatClock(latest)}`, alert: false };
   }
   if (input.hasFullTime) return { label: "Full time · waiting for the official box score", alert: false };
-  const windowOpen = input.now > 0 ? input.gameTimes.some((stamp) => {
-    const tip = Date.parse(stamp);
-    return Number.isFinite(tip) && input.now >= tip - 5 * 60_000 && input.now < tip + 4 * 60 * 60_000;
-  }) : input.hasGameWindow;
+  const windowOpen = input.now > 0 ? input.gameTimes.some((stamp) => inLiveWindow(stamp, input.now)) : input.hasGameWindow;
   return { label: windowOpen ? "Live data unavailable — showing the latest final scores" : input.hasPlayedGames ? "Some games finished · awaiting remaining results" : "Games have not started", alert: false };
 }
 

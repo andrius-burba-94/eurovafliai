@@ -11,7 +11,7 @@ import { snapshotRowsFrom } from "@/lib/stats/standings";
 
 import { personCodeOf, type LivePlayer } from "./boxscore";
 import { provisionalRanks, type ProvisionalRank, type ScoredGameLine } from "./rank";
-import { playerRoundOf, type PlayerRound } from "./status";
+import { inLiveWindow, liveCheckedAt, playerRoundOf, type PlayerRound } from "./status";
 import { readLiveSnapshots, type LiveSnapshot } from "./store";
 
 export type MatchdayData = {
@@ -171,13 +171,10 @@ export async function readLineupLive(input: {
     byPlayer,
     underway: fixtures.some((game) => game.played || snapshots.has(game.game_code)),
     final: fixtures.length > 0 && fixtures.every((game) => game.played),
-    hasGameWindow: gameTimes.some((stamp) => {
-      const tip = Date.parse(stamp);
-      return Number.isFinite(tip) && now >= tip - 5 * 60_000 && now < tip + 4 * 60 * 60_000;
-    }),
+    hasGameWindow: gameTimes.some((stamp) => inLiveWindow(stamp, now)),
     hasPlayedGames: fixtures.some((game) => game.played),
     hasFullTime: fixtures.some((game) => !game.played && snapshots.get(game.game_code)?.live === false),
-    checkedAt: scores.snapshots.filter((row) => row.live).map((row) => row.checked_at),
+    checkedAt: liveCheckedAt(scores.snapshots, fixtures),
     gameTimes,
   };
 }
