@@ -1,15 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import type PocketBase from "pocketbase";
 
 import {
+  attachSurface,
   browserPb,
   onAuthenticationLost,
   onConnectionLost,
-  reportRealtimeError,
 } from "./browser";
+import { refresher, type Refresher } from "./refresher";
 
 /**
  * One realtime subscription lifecycle, shared by every live surface.
@@ -28,7 +29,7 @@ import {
  */
 
 /**
- * How long to wait for the first `PB_CONNECT` before admitting we are deaf.
+ * How long to wait for the stream to come up before admitting we are deaf.
  *
  * A surface opens claiming to be connected, because the server render *was*
  * current a moment ago and crying "reconnecting" on every page load would
@@ -44,7 +45,7 @@ const CONNECT_GRACE_MS = 5_000;
 export type LiveSubscription = {
   /** False once the stream has dropped, or never came up within the grace. */
   connected: boolean;
-  /** True from the first `PB_CONNECT` on — "are we subscribed yet". */
+  /** True once this surface's own topics are subscribed — "are we listening yet". */
   live: boolean;
 };
 
@@ -56,68 +57,90 @@ export function useLiveSubscription({
   authToken: string;
   subscribe: (pb: PocketBase) => Promise<Array<() => void>>;
   /**
-   * Runs on every `PB_CONNECT`. `reconnect` is false for the first one — the
-   * page was rendered a moment ago and has missed nothing — and true after a
-   * drop, when whatever happened while the socket was down was never
-   * delivered to anyone and the surface has to catch up by itself.
+   * Runs each time the surface is listening again: once its topics are up,
+   * and after every reconnect. Realtime does not replay, so whatever was
+   * written before that moment — between the server render and the
+   * subscription, or while a phone slept — reached nobody, and the surface
+   * has to catch up by itself.
    */
-  onConnect?: (info: { pb: PocketBase; reconnect: boolean }) => void;
+  onConnect?: (pb: PocketBase) => void;
 }): LiveSubscription {
   const router = useRouter();
   const [connected, setConnected] = useState(true);
   const [live, setLive] = useState(false);
 
   useEffect(() => {
-    const pb = browserPb(authToken);
-
-    let active = true;
-    let everConnected = false;
-    const unsubscribes: Array<() => void> = [];
-
-    const grace = setTimeout(() => {
-      if (active && !everConnected) setConnected(false);
-    }, CONNECT_GRACE_MS);
-
-    unsubscribes.push(
-      onConnectionLost(() => {
-        if (active) setConnected(false);
-      }),
-      onAuthenticationLost(() => {
-        if (active) router.replace("/login?error=unauthorized");
-      }),
+    const grace = setTimeout(() => setConnected(false), CONNECT_GRACE_MS);
+    const offLost = onConnectionLost(() => setConnected(false));
+    const offAuth = onAuthenticationLost(() =>
+      router.replace("/login?error=unauthorized"),
     );
-
-    void (async () => {
-      try {
-        unsubscribes.push(
-          await pb.realtime.subscribe("PB_CONNECT", () => {
-            if (!active) return;
-            clearTimeout(grace);
-            setConnected(true);
-            setLive(true);
-            onConnect?.({ pb, reconnect: everConnected });
-            everConnected = true;
-          }),
-        );
-        const own = await subscribe(pb);
-        if (!active) {
-          for (const unsubscribe of own) unsubscribe();
-          return;
-        }
-        unsubscribes.push(...own);
-      } catch (error) {
-        if (active) reportRealtimeError(error);
-      }
-    })();
-
+    const pb = browserPb(authToken);
+    const detach = attachSurface(pb, {
+      subscribe,
+      onUp: () => {
+        clearTimeout(grace);
+        setConnected(true);
+        setLive(true);
+        onConnect?.(pb);
+      },
+    });
     return () => {
-      active = false;
       clearTimeout(grace);
-      // Our own topics only: `pb.realtime.unsubscribe()` would close the
-      // shared connection and deafen every other live surface on the page.
-      for (const unsubscribe of unsubscribes) unsubscribe();
+      offLost();
+      offAuth();
+      detach();
     };
   }, [authToken, subscribe, onConnect, router]);
 
   return { connected, live };
+}
+
+/**
+ * A `refresher` that holds while its tab is hidden. `run` must be
+ * referentially stable (`useCallback`), as for `subscribe`.
+ */
+export function useRefresher(run: () => Promise<void> | void): Refresher {
+  const gate = useMemo(() => refresher({ run, hidden: () => document.visibilityState === "hidden" }), [run]);
+  useEffect(() => {
+    const shown = () => document.visibilityState === "visible" && gate.shown();
+    document.addEventListener("visibilitychange", shown);
+    return () => {
+      document.removeEventListener("visibilitychange", shown);
+      gate.dispose();
+    };
+  }, [gate]);
+  return gate;
+}
+
+export type LiveTopic = {
+  collection: string;
+  /** `*`, or one record's id. */
+  topic: string;
+  /** Single quotes: PocketBase rejects double-quoted filter values. */
+  filter?: string;
+};
+
+/**
+ * A server-rendered surface kept current: any event on `topics` re-renders
+ * the route, and so does every (re)connect. The surface holds no state of its
+ * own, so the server stays the only authority on what it shows.
+ */
+export function useLiveRefresh({ authToken, topics }: { authToken: string; topics: readonly LiveTopic[] }): LiveSubscription {
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const gate = useRefresher(useCallback(() => startRefresh(() => router.refresh()), [router]));
+  useEffect(() => {
+    if (!refreshing) gate.settled();
+  }, [refreshing, gate]);
+
+  // Keyed on content, so a caller can pass a fresh array every render.
+  const key = JSON.stringify(topics);
+  const subscribe = useCallback(
+    (pb: PocketBase) =>
+      Promise.all((JSON.parse(key) as LiveTopic[]).map(({ collection, topic, filter }) =>
+        pb.collection(collection).subscribe(topic, gate.request, filter ? { filter } : undefined))),
+    [key, gate],
+  );
+  return useLiveSubscription({ authToken, subscribe, onConnect: gate.request });
 }
