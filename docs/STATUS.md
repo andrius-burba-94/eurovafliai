@@ -23,7 +23,7 @@ keeps the tables, the open debt, the next step and the current phase's
 
 ## BasketNews roster and trade recovery, 23 October 2026
 
-**Implementation ready; rollout pending.** [PR #211](https://github.com/andrius-burba-94/eurovafliai/pull/211)
+**Implementation merged; rollout pending main CI.** [PR #211](https://github.com/andrius-burba-94/eurovafliai/pull/211)
 contains the recovery change, including the verified 26 October
 leave-and-return correction. Hostinger CA$HiorAI stopped on a
 player BasketNews listed before the official EuroLeague roster did: Christian
