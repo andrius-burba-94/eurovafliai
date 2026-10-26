@@ -56,6 +56,8 @@ const created = {
   fantasy_syncs: [],
   ai_writeups: [],
   position_questions: [],
+  source_player_questions: [],
+  basketnews_roster_batches: [],
 };
 
 const su = new PocketBase(url);
@@ -1814,7 +1816,30 @@ try {
     "a second outlook for the same season, ruleset and player is refused",
   );
 
+  const sourceQuestion = {
+    provider: "basketnews", season: "E2026", source_id: "6ad4b3ef16f8030eda89f4c9",
+    details: { firstName: "Christian", lastName: "Koloko" }, leagues: [league.id], status: "pending",
+  };
+  const sourceRow = await su.collection("source_player_questions").create(sourceQuestion, { requestKey: null });
+  created.source_player_questions.push(sourceRow.id);
+  check(await rejects(() => su.collection("source_player_questions").create(sourceQuestion, { requestKey: null })), "source identities are unique by provider, season and source id");
+  check(await rejects(() => aliceClient.collection("source_player_questions").getOne(sourceRow.id, { requestKey: null })), "source approval intents are server-only");
+  check(await rejects(() => aliceClient.collection("source_player_questions").create(sourceQuestion, { requestKey: null })), "a manager cannot bypass the source approval server action");
+  const rosterIntent = { league: league.id, season: "E2026", round: 7, target_hash: "verify-target", target: [[aliceMember.id, [playerOne.id]]], steps: [], status: "applying", at: new Date().toISOString() };
+  const rosterRow = await su.collection("basketnews_roster_batches").create(rosterIntent, { requestKey: null });
+  created.basketnews_roster_batches.push(rosterRow.id);
+  check(await rejects(() => su.collection("basketnews_roster_batches").create(rosterIntent, { requestKey: null })), "a roster target has only one durable journal");
+  check((await aliceClient.collection("basketnews_roster_batches").getOne(rosterRow.id, { requestKey: null })).id === rosterRow.id, "league members can read roster progress");
+  check(await rejects(() => carolClient.collection("basketnews_roster_batches").getOne(rosterRow.id, { requestKey: null })), "another league cannot read roster progress");
+  check(await rejects(() => aliceClient.collection("basketnews_roster_batches").update(rosterRow.id, { status: "applied" }, { requestKey: null })), "members cannot advance the roster journal");
+  const sourceTransaction = { league: league.id, type: "drop", from_round: 7, date: new Date().toISOString(), members: [aliceMember.id], players_in: {}, players_out: { [aliceMember.id]: [playerOne.id] }, note: "BasketNews verification", source_provider: "basketnews", source_event_id: "verify-event", source_leg: "drop" };
+  const sourceMove = await su.collection("transactions").create(sourceTransaction, { requestKey: null });
+  created.transactions.push(sourceMove.id);
+  check(await rejects(() => su.collection("transactions").create(sourceTransaction, { requestKey: null })), "a source transfer leg cannot be recorded twice");
+
 } finally {
+  for (const id of created.source_player_questions) await su.collection("source_player_questions").delete(id, { requestKey: null }).catch(() => {});
+  for (const id of created.basketnews_roster_batches) await su.collection("basketnews_roster_batches").delete(id, { requestKey: null }).catch(() => {});
   for (const id of created.position_questions)
     await su.collection("position_questions").delete(id, { requestKey: null }).catch(() => {});
   for (const id of created.ai_writeups)

@@ -83,6 +83,9 @@ const DEFAULT_UNIQUE: Record<string, UniqueIndex[]> = {
   // Partial unique `open_key` while set (7.2 D): one open question per player
   // or roster per league, even when two passes race.
   position_questions: [{ fields: ["open_key"], whereSet: "open_key" }],
+  source_player_questions: [["provider", "season", "source_id"]],
+  basketnews_roster_batches: [["league", "season", "round", "target_hash"]],
+  transactions: [{ fields: ["league", "source_provider", "source_event_id", "source_leg"], whereSet: "source_event_id" }],
   leagues: [{ fields: ["slug"], whereSet: "slug" }],
   league_members: [{ fields: ["league", "slug"], whereSet: "slug" }],
   // `unique(league, season, round, kind, member)` — 7.0's write-ups. An
@@ -111,6 +114,7 @@ export type FakeHooks = {
   beforeCreate?(collection: string, data: Record<string, unknown>): void;
   /** The same seam on the read side: throw to fail one collection's query. */
   beforeList?(collection: string, filter: string): void;
+  beforeUpdate?(collection: string, id: string, data: Record<string, unknown>): void;
 };
 
 export type FakePb = {
@@ -268,6 +272,7 @@ export function fakePb(options: {
         options?: object,
       ): Promise<T> {
         onlySupported(options, []);
+        hooks.beforeUpdate?.(collection, id, body);
         const found = rows(collection).find((record) => record.id === id);
         if (!found) throw notFound(collection, id);
         const merged = { ...found, ...body };

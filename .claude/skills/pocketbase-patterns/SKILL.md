@@ -152,6 +152,16 @@ exported `schema.json`, and not hand-clicked in the admin UI on the VPS.
 
 ## Known gotchas
 
+- **BasketNews approvals are durable intents.** `source_player_questions`
+  retains a source-only player until a manager approves or the authoritative
+  roster confirms him. `awaiting_registration` protects an approved player
+  from a false departure; it is not `manual_lock`. Queueing a recovery does
+  not complete it: only an applied job acknowledges its pending league.
+- **BasketNews roster progress is separate from lineups.** Replay an
+  `applying` roster batch's saved steps before reading the source. Advance
+  `basketnews_roster_round` only after `rostersAgree`; an old lineup read
+  cannot move this checkpoint or overwrite newer ownership.
+
 - **One PocketBase client per page, shared.** Each live surface used to create
   its own in its own effect. A second client makes the *first* hang:
   `await pb.realtime.subscribe(...)` never resolves and never throws. Use

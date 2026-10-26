@@ -33,6 +33,12 @@ const lineupPlayer = z.object({
 const lineup = z.object({ id: ID, fantasyRound: z.number(), players: z.array(lineupPlayer) });
 const leagueLineup = lineup.extend({ fantasyTeamId: ID });
 const score = z.object({ pointsTotal: z.number(), pointsGained: z.number() });
+const transferSide = z.object({ fantasyTeamId: ID.nullish(), players: z.array(z.object({ playerId: ID })) });
+const transfer = z.object({
+  id: ID, type: z.string(), status: z.string(), createdAt: z.string(), updatedAt: z.string(),
+  offer: transferSide, request: transferSide,
+});
+export type BasketNewsTransfer = z.infer<typeof transfer>;
 
 export type BasketNewsLeague = z.infer<typeof league>;
 export type BasketNewsSourcePlayer = z.infer<typeof sourcePlayer>;
@@ -81,6 +87,12 @@ const LEAGUE_LINEUPS = `query($id:String!,$league:String!,$round:Int!){draftLeag
 // early round answers `team: null` for a later signing.
 const POOL = `query($league:String!){playersSearchRecordsFromClient(leagueId:$league){records{id firstName middleName lastName team(leagueId:$league){number positions team{id translation(locale:"en"){name}}}}}}`;
 const SCORE = `query($team:String!,$round:Int!,$league:String!){fantasyTeamScoreRecordFromClient(leagueId:$league,fantasyTeamId:$team,fantasyRound:$round){pointsTotal pointsGained}}`;
+const TRANSFERS = `query($league:String!,$round:Int!){draftTransfersFromClient(fantasyLeagueId:$league,fantasyRound:$round){id type status createdAt updatedAt offer{fantasyTeamId players{playerId}} request{fantasyTeamId players{playerId}}}}`;
+
+/** The log's zero-based round is the round these processed rosters play in. */
+export async function readBasketNewsTransfers(fantasyLeagueId: string, roundIndex: number, doFetch: typeof fetch = fetch): Promise<BasketNewsTransfer[]> {
+  return query(TRANSFERS, { league: fantasyLeagueId, round: roundIndex }, z.array(transfer), "draftTransfersFromClient", undefined, doFetch);
+}
 
 export function basketNewsTeamId(url: string): string | null {
   try {

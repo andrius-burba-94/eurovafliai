@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import {
   answerFantasyQuestion,
+  approveBasketNewsPlayer,
   linkFantasyLeague,
   syncFantasyNow,
   type FantasyActionResult,
@@ -81,7 +82,18 @@ export function SyncNowForm({ leagueId, label, pendingLabel = "Reading the offic
   );
 }
 
-export function QuestionForm({ leagueId, question }: { leagueId: string; question: SyncQuestion }) {
+export function SourceApprovalForm({ leagueId, sourceId }: { leagueId: string; sourceId: string }) {
+  const [result, action] = useActionState(approveBasketNewsPlayer, IDLE);
+  return <form action={action} className="mt-2 flex flex-col gap-2" data-testid="source-player-approval">
+    <input type="hidden" name="leagueId" value={leagueId} />
+    <input type="hidden" name="officialId" value={sourceId} />
+    <p className="text-sm text-ink-soft">Use BasketNews’s listing while EuroLeague registration is pending. The official roster is checked every six hours.</p>
+    <SubmitButton compact disabled={Boolean(result.done)} pendingLabel="Approving…">{result.done ? "Approved" : "Approve source player"}</SubmitButton>
+    <Said result={result} testId="source-player-approval" />
+  </form>;
+}
+
+export function QuestionForm({ leagueId, question, allowSourceApproval = false }: { leagueId: string; question: SyncQuestion; allowSourceApproval?: boolean }) {
   const [result, action] = useActionState(answerFantasyQuestion, IDLE);
   const [choice, setChoice] = useState("");
   if (question.kind === "member") {
@@ -112,7 +124,7 @@ export function QuestionForm({ leagueId, question }: { leagueId: string; questio
       </p>
       {question.choices.length === 0 ? (
         <p className="text-sm text-ink-soft">
-          Nobody in the pool fits. Import the latest rosters first, then sync again.
+          {allowSourceApproval ? "No existing player matches. Await official registration or approve the source listing below." : "Nobody in the pool fits. Import the latest rosters first, then sync again."}
         </p>
       ) : (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

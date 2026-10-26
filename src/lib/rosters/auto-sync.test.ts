@@ -161,3 +161,26 @@ describe("readUnknownNames", () => {
     expect(await readUnknownNames(client, "E2026", NOW)).toEqual(["code:014213"]);
   });
 });
+
+describe("roster follow-ups after an unchanged read", () => {
+  it("retries a failed game recovery after the code is already attached", async () => {
+    const fake = await poolFrom([LOYD]);
+    fake.db.stat_imports = [{ id: "unmatched", season: "E2026", created: "2026-10-08 10:00:00Z", plan: { unmatched: [{ personCode: "014213", lines: [44] }] } }];
+    let attempts = 0;
+    const reimport = async (games: readonly number[]) => {
+      attempts += 1;
+      expect(games).toEqual([44]);
+      if (attempts === 1) throw new Error("temporary feed failure");
+      const player = fake.rows("players").find((row) => row.person_code === "014213")!;
+      await fake.client.collection("player_game_stats").create({ player: player.id, season: "E2026", game_code: 44 });
+      return 1;
+    };
+    const first = await syncRostersFromFeed({ pb: fake.client, season: "E2026", now: NOW, doFetch: serve([LOYD, PAYNE]), reimport });
+    expect(first.problems.join(" ")).toContain("temporary feed failure");
+    const second = await syncRostersFromFeed({ pb: fake.client, season: "E2026", now: NOW, doFetch: serve([LOYD, PAYNE]), reimport });
+    expect(second.reimportedLines).toBe(1);
+    expect(attempts).toBe(2);
+    await syncRostersFromFeed({ pb: fake.client, season: "E2026", now: NOW, doFetch: serve([LOYD, PAYNE]), reimport });
+    expect(attempts).toBe(2);
+  });
+});

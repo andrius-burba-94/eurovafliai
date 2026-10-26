@@ -27,6 +27,7 @@
  */
 import type PocketBase from "pocketbase";
 
+import { confirmSourcePlayers } from "@/lib/basketnews/registrations";
 import { queueBasketNewsSync } from "@/lib/basketnews/repository";
 import { describeError } from "@/lib/drafts/pipeline";
 import { decideSync, runFantasySync, syncDueLineups } from "@/lib/fantasy/store";
@@ -36,6 +37,7 @@ import {
   pendingCodes,
   pendingNewsNames,
   type NewsItemRow,
+  type CodeBatch,
   type PoolPlayerRow,
 } from "@/lib/mapping/queue";
 import { readCodeBatches } from "@/lib/mapping/store";
@@ -172,33 +174,40 @@ export async function syncRostersFromFeed(options: {
       problems,
     };
   }
-  if (diff.adds.length + diff.changes.length + diff.leaving.length + diff.renames.length === 0) {
-    return { ...NOTHING, skipped: "unchanged", problems };
-  }
-
-  const waiting = codesWorthChasing(pendingCodes(await readCodeBatches(pb, { season }), await readPool(pb)), season);
-  const outcome = await runRosterImport({ pb, incoming: rows, source: "api", season, problems });
+  const unchanged = diff.adds.length + diff.changes.length + diff.leaving.length + diff.renames.length === 0;
+  const outcome = unchanged ? null : await runRosterImport({ pb, incoming: rows, source: "api", season, problems });
   const report = {
     ...NOTHING,
-    skipped: null,
-    batchId: outcome.batchId,
-    applied: outcome.applied,
-    added: outcome.applied ? outcome.diff.adds.map((row) => row.name) : [],
-    codesFilled: outcome.applied ? outcome.diff.changes.filter((change) => "person_code" in change.fields).length : 0,
-    renamesHeld: outcome.diff.renames.length,
-    problems: [...outcome.failures, ...outcome.diff.problems],
+    skipped: unchanged ? "unchanged" : null,
+    batchId: outcome?.batchId ?? null,
+    applied: outcome?.applied ?? false,
+    added: outcome?.applied ? outcome.diff.adds.map((row) => row.name) : [],
+    codesFilled: outcome?.applied ? outcome.diff.changes.filter((change) => "person_code" in change.fields).length : 0,
+    renamesHeld: outcome?.diff.renames.length ?? 0,
+    problems: outcome ? [...outcome.failures, ...outcome.diff.problems] : problems,
   };
-  if (!outcome.applied || report.added.length + report.codesFilled === 0) return report;
-
   const followUps: string[] = [];
   let reimportedLines = 0;
   let newsAttached = 0;
   const requeued: string[] = [];
 
-  // Box-score lines refused before their player existed.
+  try {
+    followUps.push(...await confirmSourcePlayers(pb, season, rows, now));
+  } catch (error) {
+    followUps.push(`confirming source players failed: ${describeError(error)}`);
+  }
+
+  // Read unresolved import evidence without hiding codes that now have a
+  // player. Missing stored game lines, not this pass's adds, define recovery.
   const pool = await readPool(pb);
-  const known = new Set(pool.map((player) => player.person_code).filter(Boolean));
-  const games = [...new Set(waiting.filter((code) => known.has(code.personCode)).flatMap((code) => code.games))];
+  const known = new Map(pool.filter((player) => player.person_code).map((player) => [player.person_code, player.id]));
+  const evidence = await pb.collection("stat_imports").getFullList<CodeBatch>({ filter: `season = '${season}'`, fields: "season,plan", requestKey: null });
+  const waiting = codesWorthChasing(pendingCodes(evidence, []), season);
+  const stored = await pb.collection("player_game_stats").getFullList<{ player: string; game_code: number }>({ filter: `season = '${season}'`, fields: "player,game_code", requestKey: null });
+  const games = [...new Set(waiting.flatMap((code) => {
+    const player = known.get(code.personCode);
+    return player ? code.games.filter((game) => !stored.some((row) => row.player === player && row.game_code === game)) : [];
+  }))];
   if (games.length > 0 && options.reimport !== false) {
     const reimport =
       options.reimport ??
@@ -214,7 +223,7 @@ export async function syncRostersFromFeed(options: {
   // News names that now resolve to exactly one player.
   try {
     const players = await readNewsPlayers(pb);
-    for (const name of newsWorthChasing(pendingNewsNames(await readUnattachedNews(pb)), now)) {
+    for (const name of pendingNewsNames(await readUnattachedNews(pb))) {
       const match = matchPlayer({ slug: name.slug, name: name.name }, players, new Map());
       if (match.matched) newsAttached += await attachSlug(pb, name.slug, match.playerId);
     }
@@ -231,6 +240,8 @@ export async function syncRostersFromFeed(options: {
     });
     for (const league of leagues) {
       if (league.basketnews_team_id) {
+        const [latest] = (await pb.collection("fantasy_syncs").getList<{ status: string }>(1, 1, { filter: `league = '${league.id}'`, sort: "-ran_at", requestKey: null })).items;
+        if (latest && !["blocked", "failed"].includes(latest.status)) continue;
         await queueBasketNewsSync(pb, league.id, now);
         requeued.push(league.id);
       } else if (league.fantasy_league_id && options.fantasyToken) {
@@ -248,7 +259,7 @@ export async function syncRostersFromFeed(options: {
     followUps.push(`re-running external syncs failed: ${describeError(error)}`);
   }
 
-  return { ...report, reimportedLines, newsAttached, requeued, problems: [...report.problems, ...followUps] };
+  return { ...report, skipped: reimportedLines || newsAttached || requeued.length || followUps.length ? null : report.skipped, reimportedLines, newsAttached, requeued, problems: [...report.problems, ...followUps] };
 }
 
 /**

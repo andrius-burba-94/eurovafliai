@@ -25,6 +25,7 @@ export type SyncSeat = {
 };
 
 export type SyncStep = {
+  readonly provenance?: { provider: "basketnews"; eventId: string; leg: string };
   readonly plan: ApplyPlan;
   readonly note: string;
   /** Null for the second half of an exchange, which the first half announced. */

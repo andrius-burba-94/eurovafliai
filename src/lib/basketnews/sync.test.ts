@@ -419,3 +419,92 @@ describe("BasketNews sync and stored positions (7.2 D)", () => {
     expect(db.rows("players").filter((row) => row.basketnews_position === "C").length).toBeGreaterThan(20);
   });
 });
+
+describe("BasketNews registration and independent roster recovery", () => {
+  const publicRound = () => fixture.teams.map((team) => ({ ...structuredClone(fixture.lineups[`${team.id}:2`]!), fantasyTeamId: team.id, fantasyRound: 3 }));
+
+  it("records a leave-and-return transfer sequence after an unchanged roster was already verified", async () => {
+    const db = fakePb({ data: leagueDb(), uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-20T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+    const league = publicRound();
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { league }));
+    const before = structuredClone(db.rows("roster_memberships"));
+    const held = new Set(before.filter((row) => !row.to_date).map((row) => row.player));
+    const free = db.rows("players").find((row) => row.basketnews_id && !held.has(row.id))!;
+    const own = league.find((row) => row.fantasyTeamId === OWN_TEAM)!;
+    const original = own.players[0]!.playerId;
+    const event = (id: string, out: string, into: string, at: string) => ({ id, type: "free_agent", status: "accepted", createdAt: at, updatedAt: at,
+      offer: { fantasyTeamId: OWN_TEAM, players: [{ playerId: out }] }, request: { fantasyTeamId: null, players: [{ playerId: into }] } });
+    const source: BasketNewsSource = { ...capturedSource(false, { league }),
+      transfers: async () => [event("roundtrip1", original, String(free.basketnews_id), "2026-10-21T10:01:00Z"), event("roundtrip2", String(free.basketnews_id), original, "2026-10-21T10:02:00Z")],
+      playerPool: async () => [{ id: String(free.basketnews_id), firstName: "Pass", lastName: "Through", jersey: "", position: "F", club: { id: "source-club", name: "Source club" } }],
+    };
+    const count = db.rows("transactions").length;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T11:00:00Z"));
+      await processBasketNewsJobs(db.client, "session=test", source);
+      expect(db.rows("fantasy_syncs").at(-1)?.status).toBe("applied");
+      expect(db.rows("transactions")).toHaveLength(count + 4);
+      expect(db.rows("roster_memberships")).toEqual(before);
+    }
+    expect(db.rows("transactions").slice(-4).map((row) => row.source_event_id)).toEqual(["roundtrip1", "roundtrip1", "roundtrip2", "roundtrip2"]);
+  });
+
+  it("keeps an unknown player actionable until approved, then automatically recovers the complete roster batch", async () => {
+    const { basketNewsPlayer } = await import("./client");
+    const { approveSourcePlayer } = await import("./registrations");
+    const koloko = JSON.parse(readFileSync(new URL("../../../tests/fixtures/basketnews-koloko.json", import.meta.url), "utf8"));
+    const db = fakePb({ data: leagueDb(), uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-20T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+    const league = publicRound();
+    const own = league.find((row) => row.fantasyTeamId === OWN_TEAM)!;
+    const last = own.players.at(-1)!;
+    const departure = last.playerId;
+    own.players[own.players.length - 1] = { ...last, playerId: koloko.id, player: koloko };
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { league }));
+    expect(db.rows("fantasy_syncs").at(-1)?.status).toBe("blocked");
+    expect(db.rows("source_player_questions")).toHaveLength(1);
+    expect(db.rows("leagues")[0]?.basketnews_roster_round).toBe(3);
+    expect(db.rows("players").some((row) => row.basketnews_id === koloko.id)).toBe(false);
+    const playerId = await approveSourcePlayer(db.client, { leagueId: LEAGUE, season: "E2026", userId: "owner", sourceId: koloko.id, freshPool: [basketNewsPlayer(koloko)] });
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { league }));
+    expect(db.rows("fantasy_syncs").at(-1)?.status).toBe("applied");
+    expect(db.rows("leagues")[0]?.basketnews_roster_round).toBe(4);
+    const active = db.rows("roster_memberships").filter((row) => !row.to_date);
+    expect(active).toHaveLength(117);
+    expect(active.find((row) => row.player === playerId)).toMatchObject({ member: "ownmember", from_round: 4 });
+    const oldId = db.rows("players").find((row) => row.basketnews_id === departure)!.id;
+    expect(active.some((row) => row.player === oldId)).toBe(false);
+    const transactionCount = db.rows("transactions").length;
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T11:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource(false, { league }));
+    expect(db.rows("transactions")).toHaveLength(transactionCount);
+  });
+
+  it("applies public rosters despite a historical private-session failure and retains official scores", async () => {
+    const db = fakePb({ data: leagueDb(), uniqueIndexes: unique });
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-20T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "session=test", capturedSource());
+    const old = db.rows("round_lineups").find((row) => row.round === 3)!;
+    old.basketnews_result = { ...(old.basketnews_result as object), final: false };
+    const score = JSON.stringify(old.basketnews_result);
+    const league = publicRound();
+    const a = league[0]!.players.at(-1)!;
+    const b = league[1]!.players.at(-1)!;
+    league[0]!.players[12] = { ...a, playerId: b.playerId, player: b.player };
+    league[1]!.players[12] = { ...b, playerId: a.playerId, player: a.player };
+    await queueBasketNewsSync(db.client, LEAGUE, new Date("2026-10-21T10:00:00Z"));
+    await processBasketNewsJobs(db.client, "expired", capturedSource(true, { league }));
+    expect(db.rows("fantasy_syncs").at(-1)).toMatchObject({ status: "failed" });
+    expect(String(db.rows("fantasy_syncs").at(-1)?.message)).toContain("Rosters: through round 4");
+    expect(db.rows("leagues")[0]?.basketnews_roster_round).toBe(4);
+    expect(JSON.stringify(old.basketnews_result)).toBe(score);
+    const playerId = db.rows("players").find((row) => row.basketnews_id === a.playerId)!.id;
+    const member = db.rows("league_members").find((row) => row.basketnews_team_id === league[1]!.fantasyTeamId)!.id;
+    expect(db.rows("roster_memberships").find((row) => row.player === playerId && !row.to_date)?.member).toBe(member);
+  });
+});
