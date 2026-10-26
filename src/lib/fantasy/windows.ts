@@ -17,6 +17,7 @@
  * clock (`basketNewsDue`).
  */
 
+import { playerGameDays } from "@/lib/lineups/lineup";
 import { gameDayOf } from "@/lib/time/local";
 
 export type RoundWindow = {
@@ -191,4 +192,18 @@ export function basketNewsDue(now: number, windows: readonly RoundWindow[], runs
 export function readDayAt(now: number, window: RoundWindow | undefined): string | null {
   const begun = (window?.days ?? []).filter((day) => now >= day + APPLY_AFTER_LOCK_MS);
   return begun.length ? gameDayOf(begun.at(-1)!) : null;
+}
+
+/** What one read freezes: the players whose game day it reached (`freezeRoles`). */
+export type RoundFreeze = { readonly gameDays: ReadonlyMap<string, string>; readonly readDay: string; readonly at: string };
+
+/** A lineup read of `round` at `now`, for both linked games; nothing before the round's first game day. */
+export function roundFreeze(
+  now: Date,
+  round: number,
+  fixtures: readonly { readonly round: number; readonly localClub: string; readonly roadClub: string; readonly utcDate: string | null }[],
+  clubOf: ReadonlyMap<string, string>,
+): RoundFreeze | undefined {
+  const readDay = readDayAt(now.getTime(), roundWindows(fixtures).find((window) => window.round === round));
+  return readDay ? { gameDays: playerGameDays({ fixtures, round, clubOf }), readDay, at: now.toISOString() } : undefined;
 }

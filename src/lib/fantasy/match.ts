@@ -1,5 +1,6 @@
 import { displayName } from "@/lib/players/name";
 import { normalizeName } from "@/lib/rosters/normalize";
+import { withoutSuffixes } from "@/lib/rosters/rename";
 
 import type { FantasyPlayer, FantasyTeam } from "./parse";
 
@@ -69,16 +70,12 @@ export type Resolution = {
   readonly questions: readonly SyncQuestion[];
 };
 
-const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
-
 function tokens(value: string): string[] {
   return normalizeName(value).split(" ").filter(Boolean);
 }
 
 function surnameTokens(player: FantasyPlayer): string[] {
-  const all = tokens(player.lastName);
-  const kept = all.filter((token) => !SUFFIXES.has(token));
-  return kept.length > 0 ? kept : all;
+  return withoutSuffixes(tokens(player.lastName));
 }
 
 function holdsAll(pool: PoolPlayer, wanted: readonly string[]): boolean {

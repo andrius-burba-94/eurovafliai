@@ -14,7 +14,9 @@ import { newTeamSlug } from "@/lib/slugs/store";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import type { BasketNewsTeam } from "./client";
-import type { BasketNewsRepository, BasketNewsRoundResult, RoundFreeze } from "./sync";
+import type { RoundFreeze } from "@/lib/fantasy/windows";
+
+import type { BasketNewsRepository, BasketNewsRoundResult } from "./sync";
 import { rememberSourcePlayers } from "./registrations";
 
 type LeagueRow = { id: string; name: string; season: string; commissioner: string; basketnews_team_id: string; basketnews_roster_round?: number };

@@ -1,8 +1,8 @@
 import { linkSourcePlayers, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
-import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, playerGameDays, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
-import { readDayAt, roundWindows } from "@/lib/fantasy/windows";
+import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
+import { roundFreeze, roundWindows, type RoundFreeze } from "@/lib/fantasy/windows";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { formatHundredths } from "@/lib/stats/scoring";
 import type { Position } from "@/lib/engine";
@@ -45,9 +45,6 @@ export interface BasketNewsRepository {
   recompute(season: string, leagueId: string): Promise<void>;
   progress(jobId: string, nextRound: number): Promise<void>;
 }
-
-/** What one read freezes: the players whose game day it reached. */
-export type RoundFreeze = { readonly gameDays: ReadonlyMap<string, string>; readonly readDay: string; readonly at: string };
 
 export type BasketNewsRoundResult = {
   /** Every EuroLeague game of the round was played when this was read. */
@@ -301,8 +298,7 @@ export async function syncBasketNews(
   }
   for (const round of validRounds) {
     try {
-      const readDay = readDayAt(now.getTime(), windows.find((window) => window.round === round.round));
-      const freeze = readDay ? { gameDays: playerGameDays({ fixtures: local.fixtures, round: round.round, clubOf }), readDay, at: now.toISOString() } : undefined;
+      const freeze = roundFreeze(now, round.round, local.fixtures, clubOf);
       const stored = freeze ? await repo.frozenRoles(leagueId, local.season, round.round) : new Map<string, FrozenRoles>();
       for (const [index, lineup] of round.lineups.entries()) {
         const member = members.get(teams[index]!.id)!;
