@@ -49,8 +49,7 @@ test("an existing-player mapping queues recovery and resolves the approval quest
   await page.getByTestId("fantasy-question").getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(async () => (await pb.collection("players").getOne(player.id)).basketnews_id).toBe(sourceId);
   await expect.poll(async () => (await pb.collection("source_player_questions").getOne(question.id)).status).toBe("approved");
-  const jobs = await pb.collection("fantasy_syncs").getFullList({ filter: `league = '${league.id}' && status = 'queued'` });
-  expect(jobs).toHaveLength(1);
+  await expect.poll(async () => (await pb.collection("fantasy_syncs").getFullList({ filter: `league = '${league.id}' && status = 'queued'` })).length).toBe(1);
 });
 
 test("a league member without manage rights cannot access source approvals", async ({ page, context }) => {
