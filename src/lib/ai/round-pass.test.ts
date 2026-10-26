@@ -5,7 +5,7 @@ import { fakePb, type FakeDb, type FakeRecord } from "../../../tests/unit/helper
 import { GeminiQuota } from "./gemini";
 import type { RoundFacts } from "./round-facts";
 import { CALLS_PER_PASS, DAILY_MS, runRoundPass, writeRequestedRounds, type RoundPassDeps } from "./round-pass";
-import { STALE_AFTER_MS } from "./store";
+import { MAX_ATTEMPTS, STALE_AFTER_MS } from "./store";
 import type { SummaryResult } from "./summary";
 import type { RoundWriteup, Voice } from "./voice";
 
@@ -142,13 +142,31 @@ describe("runRoundPass — writing", () => {
     expect(calls.map((call) => call.round)).toEqual([3]);
   });
 
-  it("counts a round as written while it holds good prose, even after a failed rewrite", async () => {
+  it("leaves a round alone while another run writes it, or once its attempts are spent, without reading its sheet", async () => {
+    const reads: number[] = [];
     const { deps, calls } = harness(
-      { leagues: [league("L1")], ai_writeups: [readyRow("L1", 1, { status: "failed", attempts: 1, error: "swing: missing" })] },
-      { complete: { L1: [1] } },
+      {
+        leagues: [league("L1")],
+        ai_writeups: [
+          readyRow("L1", 1, { status: "pending", claimed_at: stamp(NOW - 60_000) }),
+          readyRow("L1", 2, { status: "failed", attempts: MAX_ATTEMPTS, error: "swing: missing" }),
+        ],
+      },
+      { complete: { L1: [1, 2] }, facts: (_league, round) => (reads.push(round), factsFor(round)) },
     );
     await runRoundPass(deps);
     expect(calls).toEqual([]);
+    expect(reads).toEqual([]);
+  });
+
+  it("takes over a round whose writer died mid-rewrite", async () => {
+    const { pb, deps, calls } = harness(
+      { leagues: [league("L1")], ai_writeups: [readyRow("L1", 1, { status: "pending", claimed_at: stamp(NOW - STALE_AFTER_MS - 1) })] },
+      { complete: { L1: [1] } },
+    );
+    expect(await runRoundPass(deps)).toMatchObject({ written: 1 });
+    expect(calls).toEqual([{ round: 1, voice: "analyst" }]);
+    expect(statuses(pb)).toEqual({ "L1:1": "ready" });
   });
 
   it("stores a guard refusal as failed and stops asking after three", async () => {
@@ -161,15 +179,15 @@ describe("runRoundPass — writing", () => {
     expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "failed", attempts: 3, error: "line 1: 9.9 is not in the facts" });
   });
 
-  it("ends the pass on a quota error, failing only the row it was writing", async () => {
+  it("ends the pass on a quota error, failing only the row it was writing, and spends none of its attempts", async () => {
     const { pb, deps, calls } = harness(
       { leagues: [league("L1")] },
       { answer: () => new GeminiQuota("quota exceeded") },
     );
-    const report = await runRoundPass(deps);
-    expect(calls).toHaveLength(1);
-    expect(report.stopped).toMatch(/quota/);
+    for (let pass = 0; pass < MAX_ATTEMPTS + 1; pass += 1) expect((await runRoundPass(deps)).stopped).toMatch(/quota/);
+    expect(calls).toHaveLength(MAX_ATTEMPTS + 1);
     expect(statuses(pb)).toEqual({ "L1:1": "failed" });
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ attempts: 0 });
   });
 });
 
@@ -230,6 +248,24 @@ describe("runRoundPass — re-guarding (ADR-0013)", () => {
       },
     );
     expect(await runRoundPass(corrected.deps)).toMatchObject({ rewritten: 1 });
+  });
+
+  it("stops asking once a rewrite of false prose is refused on the same sheet, and the commissioner can still force one", async () => {
+    const refusal: SummaryResult = {
+      ok: false, writeup: null, violations: ["line 1: 201.5 is not in the facts"], warnings: [], attempts: 2, usage: USAGE, model: "m", latencyMs: 1,
+    };
+    const { pb, deps, calls } = harness(
+      { leagues: [league("L1")], ai_writeups: [readyRow("L1", 1, checkedLongAgo)] },
+      { complete: { L1: [1] }, facts: (_league, round) => factsFor(round, { night: 199 }), answer: () => refusal },
+    );
+    for (let pass = 0; pass < 6; pass += 1) await runRoundPass({ ...deps, now: () => NOW + pass * 15 * 60_000 });
+    expect(calls).toHaveLength(MAX_ATTEMPTS);
+    // The last good prose stays on the page while the rewrite is refused.
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "failed", attempts: MAX_ATTEMPTS, output: writeupFor(1) });
+
+    pb.rows("ai_writeups")[0]!.rewrite_requested_at = stamp(NOW);
+    expect(await writeRequestedRounds({ ...deps, now: () => NOW + DAILY_MS })).toMatchObject({ refused: 1 });
+    expect(calls).toHaveLength(MAX_ATTEMPTS + 1);
   });
 
   it("writes missing rounds before spending the budget on rewrites", async () => {
