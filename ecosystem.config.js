@@ -81,6 +81,9 @@ module.exports = {
       script: "node_modules/tsx/dist/cli.mjs",
       args: "src/worker/index.ts",
       max_memory_restart: "300M",
+      // Above the worker's own 8s shutdown deadline (SHUTDOWN_DEADLINE_MS), so
+      // a reload lets passes in flight finish before PM2 escalates to SIGKILL.
+      kill_timeout: 10_000,
     },
   ],
 };

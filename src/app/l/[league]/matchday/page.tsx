@@ -23,7 +23,7 @@ import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { ROLE_MULTIPLIERS, ROLE_WORDS } from "@/lib/lineups/lineup";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readMatchdayData } from "@/lib/live/queries";
-import { gameStateOf, playerRoundOf, statLineOf, type GameState } from "@/lib/live/status";
+import { gameStateOf, inLiveWindow, liveCheckedAt, playerRoundOf, statLineOf, type GameState } from "@/lib/live/status";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { ordinal } from "@/lib/season/story";
 import { formatHundredths } from "@/lib/stats/scoring";
@@ -83,12 +83,10 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
   };
   const byGame = new Map(matchday.snapshots.map((row) => [row.game_code, row]));
   const now = Date.parse(matchday.fetchedAt);
-  const hasGameWindow = matchday.fixtures.some((game) => {
-    const tip = Date.parse(game.utc_date ?? "");
-    return Number.isFinite(tip) && now >= tip - 5 * 60_000 && now < tip + 4 * 60 * 60_000;
-  });
+  const hasGameWindow = matchday.fixtures.some((game) => inLiveWindow(game.utc_date, now));
+  const checkedAt = liveCheckedAt(matchday.snapshots, matchday.fixtures);
   const watchedRank = matchday.hasScoringBasis ? matchday.ranks.find((row) => row.memberId === watched.id) : undefined;
-  const hasLiveScores = matchday.snapshots.some((row) => row.live);
+  const hasLiveScores = checkedAt.length > 0;
   const hasRoundScores = matchday.ranks.some((row) => row.roundHundredths !== 0);
   const styles = stylesById(data.members);
   const watchedStyle = styles[watched.id];
@@ -180,7 +178,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
               authToken={session.token}
               season={season}
               round={matchday.round}
-              checkedAt={matchday.snapshots.filter((row) => row.live).map((row) => row.checked_at)}
+              checkedAt={checkedAt}
               final={matchday.final}
               hasGameWindow={hasGameWindow}
               gameTimes={matchday.fixtures.map((game) => game.utc_date ?? "")}

@@ -38,7 +38,11 @@ export async function readLiveSnapshots(pb: Pick<PocketBase, "collection">, seas
   return rows.map(asLiveSnapshot);
 }
 
-/** One upsert per game. Unchanged data gets a freshness heartbeat every 3 min. */
+/**
+ * One upsert per game. Unchanged data gets a freshness heartbeat every 3 min:
+ * a halftime changes nothing for fifteen, and without it `feedStatus` and
+ * `gameStateOf` would call a healthy feed stale after five.
+ */
 export async function upsertLiveSnapshot(pb: Pick<PocketBase, "collection">, input: {
   season: string;
   gameCode: number;
