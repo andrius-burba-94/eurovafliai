@@ -52,7 +52,10 @@ function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, br
       leagues: leagues.map((id) => ({ id, status: "season", settings: {} })),
       league_members: leagues.flatMap((id) => ["m1", "m2", "m3"].map((member) => ({ id: member, league: id }))),
     },
+    hooks: { beforeList: (collection) => void lists.push(collection) },
   });
+  const lists: string[] = [];
+  const completeReads: string[] = [];
   const order: string[] = [];
   const deps = () =>
     ({
@@ -61,7 +64,10 @@ function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, br
       apiKey: "k",
       model: "m",
       now: () => NOW,
-      readComplete: async () => [3],
+      readComplete: async (leagueId) => {
+        completeReads.push(leagueId);
+        return [3];
+      },
       readFacts: async (_league, round) => {
         if (roundBreaks) throw new Error("PocketBase went away");
         return facts(round);
@@ -110,7 +116,7 @@ function setup(leagues: string[], { scoutBreaks = false, briefsBreak = false, br
         };
       },
     }) satisfies Parameters<typeof runWriteupPass>[0];
-  return { pb, order, pass: () => runWriteupPass(deps()), requested: () => runRequestedRewrites(deps()) };
+  return { pb, order, lists, completeReads, pass: () => runWriteupPass(deps()), requested: () => runRequestedRewrites(deps()) };
 }
 
 describe("runWriteupPass", () => {
@@ -156,6 +162,35 @@ describe("runWriteupPass", () => {
     expect(order).toEqual(["round 3", "briefs"]);
   });
 
+  it("reads the leagues once a pass, and each league's finished rounds once", async () => {
+    const { pass, lists, completeReads } = setup(["L1", "L2"]);
+    await pass();
+    lists.length = 0;
+    completeReads.length = 0;
+    await pass();
+    expect(lists.filter((collection) => collection === "leagues")).toHaveLength(1);
+    expect(completeReads).toEqual(["L1", "L2"]);
+  });
+
+  it("puts back a row a dead writer left pending, in any round and of any kind", async () => {
+    const { pb, pass } = setup(["L1"]);
+    pb.db.ai_writeups!.push({
+      id: "stuck",
+      league: "L1",
+      season: "E2026",
+      round: 1,
+      kind: "round_brief",
+      member: "m1",
+      status: "pending",
+      attempts: 1,
+      claimed_at: "2026-10-09 11:00:00.000Z",
+      last_guarded_at: "2026-10-09 11:00:00.000Z",
+      output: { result: "A night.", standing: "A place.", next: "A run." },
+    });
+    await pass();
+    expect(pb.rows("ai_writeups").find((row) => row.id === "stuck")).toMatchObject({ status: "ready" });
+  });
+
   it("still writes the round and the briefs when the scout's read breaks", async () => {
     const { pass, order } = setup(["L1"], { scoutBreaks: true });
     await pass();
@@ -177,11 +212,13 @@ describe("runRequestedRewrites", () => {
     expect(pb.rows("ai_writeups").map((row) => row.rewrite_requested_at)).toEqual(["", "", "", ""]);
   });
 
-  it("asks nothing when nothing is requested", async () => {
-    const { pass, requested, order } = setup(["L1"]);
+  it("asks nothing, and reads only the requests, when nothing is requested", async () => {
+    const { pass, requested, order, lists } = setup(["L1"]);
     await pass();
     order.length = 0;
+    lists.length = 0;
     await requested();
     expect(order).toEqual([]);
+    expect(lists).toEqual(["ai_writeups"]);
   });
 });

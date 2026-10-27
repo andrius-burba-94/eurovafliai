@@ -1,11 +1,12 @@
 import type PocketBase from "pocketbase";
 
+import type { BriefPassReport } from "./brief-pass";
 import { inputHash } from "./facts";
-import { DAILY_MS, enabledLeagues, stopping } from "./round-pass";
+import { claimAndWrite, enabledLeagues, reguardDue, untilStopped, type League } from "./round-pass";
 import { buildScoutFacts, type ScoutFacts } from "./scout-facts";
 import type { ScoutFactsInput } from "./scout-facts-store";
 import { reasonsStillHold, SCOUT_PROMPT_VERSION, storedReasons, writeScoutReasons } from "./scout-reasons";
-import { claimWriteup, completeWriteup, failWriteup, instant, markGuarded, readMemberWriteups } from "./store";
+import { markGuarded, notDue, readMemberWriteups } from "./store";
 import type { TokenRef } from "./tokens";
 
 /**
@@ -39,18 +40,12 @@ export type ScoutPassDeps = {
   readonly readComplete: (leagueId: string) => Promise<readonly number[]>;
   readonly readInput: (leagueId: string) => Promise<ScoutFactsInput | null>;
   readonly write?: typeof writeScoutReasons;
+  /** Read once for the whole fifteen-minute pass by `runWriteupPass`. */
+  readonly leagues?: readonly League[];
 };
 
-export type ScoutPassReport = {
-  /** Member rows written for the first time this round. */
-  written: number;
-  rewritten: number;
-  refused: number;
-  guarded: number;
-  /** Leagues asked: what the pass spent of the shared budget. */
-  calls: number;
-  stopped: string | null;
-};
+/** Shaped as the briefs' report; `written` counts member rows written for the first time this round. */
+export type ScoutPassReport = BriefPassReport;
 
 /** Only the tokens in one member's section: their team and the players of their own moves. */
 function refsFor(facts: ScoutFacts, memberId: string): Record<string, TokenRef> {
@@ -73,97 +68,72 @@ export async function runScoutPass(deps: ScoutPassDeps): Promise<ScoutPassReport
   const report: ScoutPassReport = { written: 0, rewritten: 0, refused: 0, guarded: 0, calls: 0, stopped: null };
   if (!deps.apiKey) return { ...report, stopped: "no GEMINI_API_KEY" };
 
-  for (const league of await enabledLeagues(deps.pb)) {
-    if (report.calls >= deps.budget) break;
-    const round = (await deps.readComplete(league.id)).at(-1);
-    if (round === undefined) continue;
-    const input = await deps.readInput(league.id);
-    if (!input || input.members.length === 0) continue;
-    const facts = buildScoutFacts(input);
-    const now = deps.now();
-    const stored = new Map(
-      (await readMemberWriteups(deps.pb, { leagueId: league.id, season: deps.season, round, kind: KIND })).map((row) => [row.member, row]),
-    );
-
-    const due: { memberId: string; hash: string; rewrite: boolean }[] = [];
-    for (const { memberId } of input.members) {
-      const hash = hashFor(facts, memberId, deps.model);
-      const row = stored.get(memberId);
-      if (!row) {
-        due.push({ memberId, hash, rewrite: false });
-        continue;
-      }
-      if (row.status === "pending") continue;
-      // A failure is retried pass by pass; the claim stops at MAX_ATTEMPTS on one input.
-      if (row.status === "failed") {
-        due.push({ memberId, hash, rewrite: false });
-        continue;
-      }
-      if (row.input_hash === hash) continue;
-      const checked = instant(row.last_guarded_at) || instant(row.generated_at) || 0;
-      if (now - checked < DAILY_MS) continue;
-      const reasons = storedReasons(row.output);
-      if (reasons && reasonsStillHold(reasons, (row.refs ?? {}) as Record<string, TokenRef>, facts, memberId)) {
-        await markGuarded(deps.pb, row.id, now);
-        report.guarded += 1;
-        continue;
-      }
-      due.push({ memberId, hash, rewrite: true });
-    }
-    if (due.length === 0) continue;
-
-    const claimed: { memberId: string; id: string; rewrite: boolean }[] = [];
-    for (const entry of due) {
-      const claim = await claimWriteup(
-        deps.pb,
-        { leagueId: league.id, season: deps.season, round, kind: KIND, memberId: entry.memberId },
-        {
-          inputHash: entry.hash,
-          voice: VOICE,
-          model: deps.model,
-          promptVersion: SCOUT_PROMPT_VERSION,
-          facts: { version: facts.version, round, text: facts.sectionFor(entry.memberId) },
-          now,
-        },
+  return untilStopped(report, async () => {
+    for (const league of deps.leagues ?? (await enabledLeagues(deps.pb))) {
+      if (report.calls >= deps.budget) return;
+      const round = (await deps.readComplete(league.id)).at(-1);
+      if (round === undefined) continue;
+      const input = await deps.readInput(league.id);
+      if (!input || input.members.length === 0) continue;
+      const facts = buildScoutFacts(input);
+      const now = deps.now();
+      const stored = new Map(
+        (await readMemberWriteups(deps.pb, { leagueId: league.id, season: deps.season, round, kind: KIND })).map((row) => [row.member, row]),
       );
-      if (claim.outcome === "claimed") claimed.push({ memberId: entry.memberId, id: claim.id, rewrite: entry.rewrite });
-    }
-    if (claimed.length === 0) continue;
 
-    report.calls += 1;
-    const members = new Set(claimed.map((entry) => entry.memberId));
-    let result: Awaited<ReturnType<typeof writeScoutReasons>>;
-    try {
-      result = await (deps.write ?? writeScoutReasons)({
-        facts,
-        moves: facts.moves.filter((move) => members.has(move.memberId)),
-        model: deps.model,
-        apiKey: deps.apiKey,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      for (const entry of claimed) await failWriteup(deps.pb, entry.id, message);
-      if (stopping(error)) return { ...report, stopped: message };
-      throw error;
-    }
-
-    for (const entry of claimed) {
-      const outcome = result.byMember[entry.memberId];
-      if (!outcome || !outcome.ok) {
-        await failWriteup(deps.pb, entry.id, outcome ? outcome.violations.join("; ") : "no answer for this member", result.usage);
-        report.refused += 1;
-        continue;
+      const due: { memberId: string; hash: string }[] = [];
+      const rewrites = new Set<string>();
+      for (const { memberId } of input.members) {
+        const hash = hashFor(facts, memberId, deps.model);
+        const row = stored.get(memberId);
+        // A failure is retried pass by pass; the claim stops at MAX_ATTEMPTS on one input.
+        if (row?.status !== "ready") {
+          if (!row || !notDue(row, now)) due.push({ memberId, hash });
+          continue;
+        }
+        if (row.input_hash === hash || !reguardDue(row, now, 0)) continue;
+        const reasons = storedReasons(row.output);
+        if (reasons && reasonsStillHold(reasons, (row.refs ?? {}) as Record<string, TokenRef>, facts, memberId)) {
+          await markGuarded(deps.pb, row.id, now);
+          report.guarded += 1;
+          continue;
+        }
+        due.push({ memberId, hash });
+        rewrites.add(memberId);
       }
-      await completeWriteup(deps.pb, entry.id, {
-        writeup: { reasons: outcome.reasons },
-        refs: refsFor(facts, entry.memberId),
-        usage: result.usage,
-        model: result.model,
-        now: deps.now(),
+      if (due.length === 0) continue;
+
+      const requests = due.map(({ memberId, hash }) => ({
+        key: { leagueId: league.id, season: deps.season, round, kind: KIND, memberId },
+        inputHash: hash,
+        voice: VOICE,
+        promptVersion: SCOUT_PROMPT_VERSION,
+        facts: { version: facts.version, round, text: facts.sectionFor(memberId) },
+      }));
+      const outcome = await claimAndWrite(deps.pb, requests, { model: deps.model, now: deps.now, force: false }, async (claimed) => {
+        report.calls += 1;
+        const members = new Set(claimed);
+        const result = await (deps.write ?? writeScoutReasons)({
+          facts,
+          moves: facts.moves.filter((move) => members.has(move.memberId)),
+          model: deps.model,
+          apiKey: deps.apiKey,
+        });
+        return {
+          usage: result.usage,
+          model: result.model,
+          verdict: (memberId) => {
+            const answer = result.byMember[memberId];
+            return answer?.ok ? { ok: true, writeup: { reasons: answer.reasons }, refs: refsFor(facts, memberId) } : answer;
+          },
+        };
       });
-      if (entry.rewrite) report.rewritten += 1;
-      else report.written += 1;
+      if (!outcome) continue;
+      report.refused += outcome.refused.length;
+      for (const memberId of outcome.written) {
+        if (rewrites.has(memberId)) report.rewritten += 1;
+        else report.written += 1;
+      }
     }
-  }
-  return report;
+  });
 }
