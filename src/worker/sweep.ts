@@ -340,6 +340,10 @@ async function sweepDraft(
    * fill. `rollbackDraft` pauses *first* precisely to close this door; this is
    * the sweep checking that it is shut.
    *
+   * The due check runs again on the fresh row for the same reason: a
+   * commissioner who extends the clock (`setPickClock`) inside the window has
+   * given the member more time, and the stale deadline must not take it back.
+   *
    * It does not make the race impossible — PocketBase has no transactions —
    * but it shrinks the window from six queries to one, and the unique indexes
    * still refuse a double pick.
@@ -347,7 +351,11 @@ async function sweepDraft(
   const fresh = await pb
     .collection("drafts")
     .getOne<DraftRecord>(draft.id, { requestKey: null });
-  if (fresh.status !== "live" || fresh.current_pick !== draft.current_pick) {
+  if (
+    fresh.status !== "live" ||
+    fresh.current_pick !== draft.current_pick ||
+    (!armed && !isPickDue(fresh, clock(), graceMs))
+  ) {
     report.moved += 1;
     log(
       `draft ${draft.id} · moved under the sweep (${fresh.status}, pick ${fresh.current_pick}) — leaving it`,

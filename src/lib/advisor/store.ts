@@ -138,6 +138,11 @@ export async function refreshOutlooks(
     previous ? readSeason(pb, previous, true) : Promise.resolve({ lines: [], schedule: [] }),
   ]);
   const clubbed = players.flatMap((player) => (player.club_code ? [{ id: player.id, club: player.club_code }] : []));
+  // An empty read is an outage or a bad token, never a pool in which nobody has
+  // a figure; computing from it would delete every stored outlook.
+  if (clubbed.length === 0 || current.lines.length + last.lines.length === 0) {
+    return { rulesets, written: 0, unchanged: 0, removed: 0 };
+  }
 
   let written = 0;
   let unchanged = 0;
