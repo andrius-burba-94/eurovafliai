@@ -18,18 +18,15 @@
  * Refuses to run against anything but a local PocketBase. These are fake
  * accounts with a known password; they have no business on the VPS.
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import type { LeagueRecord, MemberRecord } from "../src/lib/leagues/types";
+import { env, isLocalPocketBase, superuserFromEnv } from "./lib/pb.mjs";
 
 const SEED_DOMAIN = "seed.invalid";
 const SEED_PASSWORD = "seeded-member-password";
 
-const env = parseServerEnv(process.env);
 const url = env.PB_INTERNAL_URL;
 
-if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)) {
+if (!isLocalPocketBase(url)) {
   console.error(
     `Refusing to seed against ${url}. This script creates fake accounts with a ` +
       "known password and is for a local database only.",
@@ -52,10 +49,7 @@ if (!undo && (!Number.isInteger(count) || count < 1 || count > 19)) {
   process.exit(1);
 }
 
-const pb = new PocketBase(url);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 /** By invite code first, since that is what is on screen; then by id. */
 async function findLeague(): Promise<LeagueRecord> {

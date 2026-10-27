@@ -22,7 +22,6 @@ import {
 } from "@playwright/test";
 import PocketBase from "pocketbase";
 
-import { parseServerEnv } from "../src/lib/config/schema";
 import { toState } from "../src/lib/drafts/pipeline";
 import type { DraftRecord, PickRecord } from "../src/lib/drafts/types";
 import {
@@ -43,6 +42,7 @@ import {
   superuser,
   type TestUser,
 } from "../tests/e2e/helpers/session";
+import { env, isLocalPocketBase } from "./lib/pb.mjs";
 
 const BASE = "http://localhost:3007";
 const OUT = ".impeccable/review/rehearsal";
@@ -51,8 +51,7 @@ const PHONES = 5;
 const TOTAL_PICKS = 8 * 13;
 const POOL = { G: 46, F: 46, C: 28 } as const;
 
-const env = parseServerEnv(process.env);
-if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(env.PB_INTERNAL_URL)) {
+if (!isLocalPocketBase(env.PB_INTERNAL_URL)) {
   console.error(
     `Refusing to rehearse against ${env.PB_INTERNAL_URL}. Local PocketBase only.`,
   );

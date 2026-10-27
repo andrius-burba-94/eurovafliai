@@ -10,19 +10,11 @@
  * to the team that traded him. This rewrites only the round's synced
  * `transactions` rows; roster windows are already right and are not touched.
  * Every linked league in season unless `--league` names one.
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
- * rather than importing `src/lib/pb/superuser` — that module pulls in
- * `server-only`.
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import { repairRoundMoves } from "../src/lib/fantasy/store";
+import { arg, env, flag, superuserFromEnv } from "./lib/pb.mjs";
 
-const env = parseServerEnv(process.env);
-const arg = (name: string) => process.argv.find((value) => value.startsWith(`--${name}=`))?.split("=")[1];
-const write = process.argv.includes("--write");
+const write = flag("write");
 
 const rounds = (arg("rounds") ?? "")
   .split(",")
@@ -38,10 +30,7 @@ if (!token) {
   process.exit(1);
 }
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 const only = arg("league");
 const leagues = await pb.collection("leagues").getFullList<{ id: string; name: string }>({

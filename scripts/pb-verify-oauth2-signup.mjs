@@ -45,12 +45,11 @@ import { join } from "node:path";
 
 import PocketBase from "pocketbase";
 
-import { parseServerEnv } from "../src/lib/config/schema.ts";
+import { env, isLocalPocketBase, superuserFromEnv } from "./lib/pb.mjs";
 
-const env = parseServerEnv(process.env);
 const url = env.PB_INTERNAL_URL;
 
-if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)) {
+if (!isLocalPocketBase(url)) {
   console.error(
     `Refusing to run: this script rewrites collection config, and PB_INTERNAL_URL is ${url}.\n` +
       "It is only for a local PocketBase.",
@@ -109,10 +108,7 @@ const issuer = createServer((req, res) => {
 await new Promise((resolve) => issuer.listen(0, "127.0.0.1", resolve));
 const issuerOrigin = `http://127.0.0.1:${issuer.address().port}`;
 
-const su = new PocketBase(url);
-await su
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const su = await superuserFromEnv();
 
 // Automigrate will write files here as a side effect of the API calls below.
 const MIGRATIONS_DIR = "pb/pb_migrations";

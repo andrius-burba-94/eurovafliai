@@ -147,8 +147,8 @@ function MemberAutodraft({
           testId={`autodraft-for-${member.id}`}
           ariaLabel={
             member.autodraftEnabled
-              ? `Stop autodrafting for ${member.name}`
-              : `Autodraft for ${member.name}`
+              ? `Hand it back, ${member.name}`
+              : `Draft for them, ${member.name}`
           }
           pendingLabel={member.autodraftEnabled ? "Handing back…" : "Arming…"}
         >
