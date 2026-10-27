@@ -17,6 +17,7 @@ import { readLeaguePlayerRounds } from "./player-rounds";
 import { last5SeriesOf } from "./project";
 import { groupTransactionHistory, type HistoryRow } from "@/lib/memberships/history";
 import { recapForRound, type Recap, type RecapGroup } from "./recap";
+import { seasonCode } from "./seasons";
 import { type RoundSnapshot, snapshotRowsFrom } from "./standings";
 
 /**
@@ -35,7 +36,7 @@ export async function readStandingsSnapshots(
   const session = await getSession();
   if (!session) return [];
 
-  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const code = seasonCode(season);
   const pb = createUserClient(session.token);
   const records = await pb
     .collection("standings_snapshots")
@@ -136,7 +137,7 @@ export async function readLeagueRecap(
   const snap = snapshots.find((row) => row.round === round);
   if (!snap) return null;
 
-  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const code = seasonCode(season);
   const pb = createUserClient(session.token);
   const [memberships, txRows, statRows] = await Promise.all([
     pb.collection("roster_memberships").getFullList<{

@@ -9,14 +9,9 @@ import { canManageRosters } from "@/lib/rosters/actions";
 
 import { CSV_TEMPLATE_HEADER, parseStatCsv } from "./csv";
 import { describeStatPlan, planStatImport, type StatPlan } from "./plan";
-import {
-  applyStatPlan,
-  markStatBatchApplied,
-  readExistingStats,
-  readStatPlayers,
-  recordStatBatch,
-} from "./store";
-import { refreshSeasonCaches } from "./ingest";
+import { readExistingStats, readStatPlayers } from "./store";
+import { importStatPlan, settleStatBatches } from "./ingest";
+import { seasonCode } from "./seasons";
 import { revalidateLeague } from "@/lib/nav/revalidate";
 
 /**
@@ -172,11 +167,13 @@ export async function submitStatCsv(
 
   if (!apply) return { error: null, csv, season, preview };
 
+  const currentSeason = serverConfig().EUROLEAGUE_SEASON;
   if (plan.creates.length === 0 && plan.updates.length === 0) {
     // Not an error: it is what re-running an already-imported round looks
     // like, and saying so is more useful than a batch record nobody asked for.
+    // It is also the repair for caches an earlier import failed to rebuild.
     return {
-      error: null,
+      error: await settleStatBatches(pb, season, currentSeason),
       csv,
       season,
       preview,
@@ -190,58 +187,39 @@ export async function submitStatCsv(
     };
   }
 
-  const log = [
-    describeStatPlan(plan),
-    `${rows.length} rows read, ${problems.length} refused by the parser.`,
-    checkedAgainstPir > 0
-      ? `${checkedAgainstPir} rows carried the official PIR and agreed with ours.`
-      : "The sheet carried no PIR column, so nothing self-checked.",
-    ...plan.unmatched.map(
-      (entry) =>
-        `No player with person code ${entry.personCode} (lines ${entry.lines.join(", ")}).`,
-    ),
-    ...problems,
-  ].join("\n");
-
-  // The batch first, unapplied — see the failure-recovery story in `store.ts`.
-  const batch = await recordStatBatch(pb, {
+  const { stale, ...result } = await importStatPlan(pb, {
     source: "csv",
     season,
     rows: rows.length,
     plan,
-    log,
-  });
-
-  const result = await applyStatPlan(pb, plan, batch.id);
-
-  if (result.created + result.updated > 0) {
-    await refreshSeasonCaches(pb, season, serverConfig().EUROLEAGUE_SEASON);
-  }
-
-  await markStatBatchApplied(
-    pb,
-    batch.id,
-    result,
-    [
-      log,
-      `Applied: ${result.created} created, ${result.updated} updated, ${result.unchanged} unchanged.`,
-      ...result.failures,
+    log: [
+      describeStatPlan(plan),
+      `${rows.length} rows read, ${problems.length} refused by the parser.`,
+      checkedAgainstPir > 0
+        ? `${checkedAgainstPir} rows carried the official PIR and agreed with ours.`
+        : "The sheet carried no PIR column, so nothing self-checked.",
+      ...plan.unmatched.map(
+        (entry) =>
+          `No player with person code ${entry.personCode} (lines ${entry.lines.join(", ")}).`,
+      ),
+      ...problems,
     ].join("\n"),
-  );
+  }, currentSeason);
 
   revalidatePath("/stats/import");
   revalidatePath("/players");
   revalidateLeague();
 
+  const refused =
+    result.failures.length > 0
+      ? `${result.failures.length} row${result.failures.length === 1 ? "" : "s"} could not be written. The rest landed; re-run the same sheet to retry them.`
+      : null;
   return {
-    error:
-      result.failures.length > 0
-        ? `${result.failures.length} row${result.failures.length === 1 ? "" : "s"} could not be written. The rest landed; re-run the same sheet to retry them.`
-        : null,
+    error: [refused, stale].filter(Boolean).join(" ") || null,
     csv,
     season,
     preview,
-    applied: { ...result, batchId: batch.id },
+    applied: result,
   };
 }
 
@@ -272,14 +250,11 @@ export async function readStatsOverview(
   season = serverConfig().EUROLEAGUE_SEASON,
 ): Promise<StatsOverview> {
   const pb = await getSuperuserClient();
+  const filter = `season = "${seasonCode(season)}"`;
 
   const rows = await pb.collection("player_game_stats").getFullList<{
     round: number;
-  }>({
-    filter: `season = "${season}"`,
-    fields: "round",
-    requestKey: null,
-  });
+  }>({ filter, fields: "round", requestKey: null });
 
   const batches = await pb.collection("stat_imports").getList<{
     id: string;
@@ -289,7 +264,7 @@ export async function readStatsOverview(
     rows: number;
     created_rows: number;
     updated_rows: number;
-  }>(1, 5, { sort: "-created", requestKey: null });
+  }>(1, 5, { filter, sort: "-created", requestKey: null });
 
   return {
     season,

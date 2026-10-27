@@ -249,6 +249,26 @@ describe("recomputeStandings", () => {
   });
 
 
+  it("re-reads the lines when an import lands while it computes", async () => {
+    let landed = false;
+    const fake = seed({}, {
+      beforeList(collection) {
+        if (collection !== "standings_snapshots" || landed) return;
+        landed = true;
+        fake.rows("stat_imports").push({
+          id: "batch-late",
+          season: SEASON,
+          created: "2026-10-26 20:00:00.000Z",
+        });
+        fake.rows("player_game_stats").find((row) => row.id === "s1")!.fantasy_pts = 200;
+      },
+    });
+    await recomputeStandings(fake.client, SEASON);
+    const rs = fake.rows("standings_snapshots").find((row) => row.round === 1);
+    const table = rs?.table as { memberId: string; roundHundredths: number }[];
+    expect(table[0]).toMatchObject({ memberId: "m-b", roundHundredths: 2000 });
+  });
+
   it("is a no-op on a second pass", async () => {
     const { client } = seed();
     await recomputeStandings(client, SEASON);

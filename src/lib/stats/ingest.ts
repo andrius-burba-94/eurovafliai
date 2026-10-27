@@ -1,25 +1,23 @@
 import type PocketBase from "pocketbase";
 
+import { describeError } from "@/lib/drafts/pipeline";
 import type { FeedFetch } from "@/lib/euroleague/http";
 
 import { upsertFixtures } from "@/lib/fixtures/store";
 
+import { fetchGameBoxScores, fetchSeasonSchedule } from "./euroleague";
+import { describeStatPlan, planStatImport, type StatPlan } from "./plan";
 import {
-  fetchGameBoxScores,
-  fetchSeasonSchedule,
-  type ScheduledGame,
-} from "./euroleague";
-import { describeStatPlan, planStatImport } from "./plan";
-import {
+  type ApplyResult,
   applyStatPlan,
-  markStatBatchApplied,
+  markStatBatch,
   readExistingStats,
   readStatPlayers,
   readStoredGameCodes,
   recordStatBatch,
   recomputeProjections,
 } from "./store";
-import { isPastSeason } from "./seasons";
+import { isPastSeason, seasonCode } from "./seasons";
 import { recomputeStandings } from "./standings-store";
 
 /**
@@ -53,36 +51,89 @@ import { recomputeStandings } from "./standings-store";
  * that never returns. Twelve at a time, every fifteen minutes, backfills a
  * whole season in about eight hours and needs nobody's attention.
  *
+ * Half the cap goes to the oldest outstanding games and half to the newest.
+ * A game the feed never fills — a forfeit, an empty box score, a game whose
+ * every player is unknown — stays outstanding for good, and with the cap
+ * spent oldest-first a dozen of those would starve every game after them.
+ *
  * ## Failure recovery
  *
- * Identical to the CSV door's, because it *is* the CSV door's: batch first
- * (unapplied), rows next, mark applied last, and `unique(player, season,
- * game_code)` makes a re-run plan exactly the remainder. A pass that dies
- * halfway leaves some games stored and an unapplied batch saying what it
- * meant to do — and the next pass, fifteen minutes later, finishes the job
- * without being told to. Projections recompute after any pass that wrote a
- * row; if that write dies, `npm run stats:project` is the repair.
+ * Identical to the CSV door's, because it *is* the CSV door's
+ * (`importStatPlan`): batch first (unapplied), rows next, counts, caches,
+ * applied last, and `unique(player, season, game_code)` makes a re-run plan
+ * exactly the remainder. A pass that dies halfway leaves some games stored and
+ * an unapplied batch saying what it meant to do — and the next pass, fifteen
+ * minutes later, finishes the job without being told to. A batch left
+ * unapplied because the caches failed is finished by the next pass too, even
+ * one with nothing to import (`settleStatBatches`).
  */
 
 /**
- * Rebuild the pool averages and standings after a write — never for a season
- * before the one being played.
+ * Rebuild the pool averages and standings while any batch of the season is
+ * unapplied, then mark those batches applied. Returns the problem when the
+ * rebuild fails.
  *
- * Both are caches of *this* season: `players` holds one set of averages per
- * person and every season league's table is this season's. Last season's lines
- * are loaded mid-season for the scout (7.2 B), and recomputing from them would
- * put May's form on every pool row until the next round landed, and write a
- * 2025 table for a league drafted in 2026. They are stored, and nothing else
- * moves.
+ * An unapplied batch is the only trace a failed rebuild leaves: its rows are
+ * stored, so neither the next pass nor a re-run of the sheet has anything left
+ * to write. `force` rebuilds with nothing waiting, because a concurrent settle
+ * may already have marked the batch an import has just written.
+ *
+ * Never rebuilt for a season before the one being played. Both are caches of
+ * *this* season: `players` holds one set of averages per person and every
+ * season league's table is this season's. Last season's lines are loaded
+ * mid-season for the scout (7.2 B), and recomputing from them would put May's
+ * form on every pool row until the next round landed, and write a 2025 table
+ * for a league drafted in 2026. They are stored, and nothing else moves.
  */
-export async function refreshSeasonCaches(
+export async function settleStatBatches(
   pb: PocketBase,
   season: string,
   currentSeason: string,
-): Promise<void> {
-  if (isPastSeason(season, currentSeason)) return;
-  await recomputeProjections(pb, season);
-  await recomputeStandings(pb, season);
+  force = false,
+): Promise<string | null> {
+  const waiting = await pb.collection("stat_imports").getFullList<{ id: string }>({
+    filter: `season = "${seasonCode(season)}" && applied = false`,
+    fields: "id",
+    requestKey: null,
+  });
+  if (waiting.length === 0 && !force) return null;
+  try {
+    if (!isPastSeason(season, currentSeason)) {
+      await recomputeProjections(pb, season);
+      await recomputeStandings(pb, season);
+    }
+  } catch (error) {
+    return `Pool averages and standings were not rebuilt (${describeError(error)}); the next pass retries.`;
+  }
+  for (const batch of waiting) {
+    await markStatBatch(pb, batch.id, { applied: true });
+  }
+  return null;
+}
+
+/**
+ * Record a batch, write its rows, rebuild the caches, mark it applied — the
+ * one sequence the fetcher and the CSV door share. The order is the
+ * failure-recovery story in `store.ts`.
+ */
+export async function importStatPlan(
+  pb: PocketBase,
+  batch: Parameters<typeof recordStatBatch>[1],
+  currentSeason: string,
+): Promise<ApplyResult & { batchId: string; stale: string | null }> {
+  const { id } = await recordStatBatch(pb, batch);
+  const result = await applyStatPlan(pb, batch.plan, id);
+  await markStatBatch(pb, id, {
+    applied: false,
+    result,
+    log: [
+      batch.log,
+      `Applied: ${result.created} created, ${result.updated} updated, ${result.unchanged} unchanged.`,
+      ...result.failures,
+    ].join("\n"),
+  });
+  const stale = await settleStatBatches(pb, batch.season, currentSeason, true);
+  return { ...result, batchId: id, stale };
 }
 
 export type IngestReport = {
@@ -141,6 +192,31 @@ export function summariseIngest(report: IngestReport): string {
   return `stats · ${report.season} · ${parts.join(", ")} · ${report.outstanding} outstanding`;
 }
 
+/**
+ * Whether the season's newest batch already names every unmatched line of a
+ * plan. A game whose every player is unknown stays outstanding until somebody
+ * maps a code, and recording it again each pass would add a `stat_imports`
+ * row every quarter of an hour that says nothing new.
+ */
+async function alreadyRecorded(
+  pb: PocketBase,
+  season: string,
+  plan: StatPlan,
+): Promise<boolean> {
+  const { items } = await pb
+    .collection("stat_imports")
+    .getList<{ plan?: Partial<StatPlan> | null }>(1, 1, {
+      filter: `season = "${seasonCode(season)}"`,
+      sort: "-created",
+      fields: "plan",
+      requestKey: null,
+    });
+  const keys = (unmatched: StatPlan["unmatched"]) =>
+    unmatched.flatMap((entry) => entry.lines.map((line) => `${entry.personCode}|${line}`));
+  const known = new Set(keys(items[0]?.plan?.unmatched ?? []));
+  return keys(plan.unmatched).every((key) => known.has(key));
+}
+
 export async function ingestFinishedGames({
   pb,
   season,
@@ -163,9 +239,9 @@ export async function ingestFinishedGames({
    * The one deliberate exception to "played and not stored", added by 4.2:
    * attaching a person code to a player does not bring back the lines that were
    * refused before it existed, because those games now count as imported. So
-   * confirming a mapping re-runs the games that mentioned the code, and the
-   * plan handles it from there — the rows that already exist come back as
-   * `unchanged`, and only the newly matchable ones are created.
+   * confirming a mapping re-runs the games that mentioned the code, and only
+   * the newly matchable lines are created. A line already stored is left as it
+   * is, even where the feed now says otherwise — it may be a pasted correction.
    */
   onlyGames?: readonly number[];
 }): Promise<IngestReport> {
@@ -188,25 +264,32 @@ export async function ingestFinishedGames({
 
   const forced = onlyGames ? new Set(onlyGames) : null;
   const stored = forced ? new Set<number>() : await readStoredGameCodes(pb, season);
-  const outstanding = played.filter((game) =>
-    forced ? forced.has(game.gameCode) : !stored.has(game.gameCode),
-  );
+  const outstanding = played
+    .filter((game) =>
+      forced ? forced.has(game.gameCode) : !stored.has(game.gameCode),
+    )
+    .sort((a, b) => a.gameCode - b.gameCode);
 
-  const report: IngestReport = {
+  const base: IngestReport = {
     ...EMPTY(season),
+    played: played.length,
+    outstanding: outstanding.length,
     fixturesCreated: fixtures.created,
     fixturesUpdated: fixtures.updated,
     problems: fixtures.failures,
   };
-  if (outstanding.length === 0) {
-    return { ...report, played: played.length };
-  }
+  // A pass that writes nothing still finishes a batch whose caches failed.
+  const quiet = async (report: IngestReport): Promise<IngestReport> => {
+    const stale = await settleStatBatches(pb, season, currentSeason);
+    return stale ? { ...report, problems: [...report.problems, stale] } : report;
+  };
+  if (outstanding.length === 0) return quiet(base);
 
-  // Oldest first, so a backfill fills the season in the order it was played
-  // and a half-done backfill leaves a prefix rather than a scatter.
-  const queue: ScheduledGame[] = [...outstanding]
-    .sort((a, b) => a.gameCode - b.gameCode)
-    .slice(0, maxGames);
+  const half = Math.ceil(maxGames / 2);
+  const queue = [
+    ...outstanding.slice(0, half),
+    ...outstanding.slice(Math.max(half, outstanding.length - (maxGames - half))),
+  ];
 
   const { fetched, failed } = await fetchGameBoxScores({
     season,
@@ -226,10 +309,8 @@ export async function ingestFinishedGames({
     0,
   );
 
-  const base = {
-    ...report,
-    played: played.length,
-    outstanding: outstanding.length,
+  const attempted = {
+    ...base,
     attempted: queue.length,
     checkedAgainstPir,
     problems,
@@ -240,7 +321,7 @@ export async function ingestFinishedGames({
     // fixtures that are simply not ready yet is the normal state of a season
     // between game nights, and a `stat_imports` row for each would bury the
     // ones that mean something.
-    return base;
+    return quiet(attempted);
   }
 
   const players = await readStatPlayers(pb);
@@ -249,53 +330,49 @@ export async function ingestFinishedGames({
     season,
     rows.map((row) => row.gameCode),
   );
-  const plan = planStatImport({ rows, players, existing, season });
+  const planned = planStatImport({ rows, players, existing, season });
+  const plan: StatPlan = forced
+    ? { ...planned, updates: [], unchanged: planned.unchanged + planned.updates.length }
+    : planned;
+  const report = {
+    ...attempted,
+    unchanged: plan.unchanged,
+    unmatched: plan.unmatched.length,
+  };
 
-  const log0 = [
-    describeStatPlan(plan),
-    `${rows.length} rows fetched from ${queue.length} game(s); ${outstanding.length} outstanding before this pass.`,
-    checkedAgainstPir > 0
-      ? `${checkedAgainstPir} rows carried the feed's own PIR and agreed with ours.`
-      : "No row carried a PIR, so nothing self-checked — worth investigating.",
-    ...plan.unmatched.map(
-      (entry) =>
-        `No player with person code ${entry.personCode} (game${entry.lines.length === 1 ? "" : "s"} ${entry.lines.join(", ")}).`,
-    ),
-    ...problems,
-  ].join("\n");
+  if (
+    plan.creates.length === 0 &&
+    plan.updates.length === 0 &&
+    (await alreadyRecorded(pb, season, plan))
+  ) {
+    return quiet(report);
+  }
 
-  const batch = await recordStatBatch(pb, {
+  const imported = await importStatPlan(pb, {
     source: "api",
     season,
     rows: rows.length,
     plan,
-    log: log0,
-  });
-
-  const applied = await applyStatPlan(pb, plan, batch.id);
-
-  if (applied.created + applied.updated > 0) {
-    await refreshSeasonCaches(pb, season, currentSeason);
-  }
-
-  await markStatBatchApplied(
-    pb,
-    batch.id,
-    applied,
-    [
-      log0,
-      `Applied: ${applied.created} created, ${applied.updated} updated, ${applied.unchanged} unchanged.`,
-      ...applied.failures,
+    log: [
+      describeStatPlan(plan),
+      `${rows.length} rows fetched from ${queue.length} game(s); ${outstanding.length} outstanding before this pass.`,
+      checkedAgainstPir > 0
+        ? `${checkedAgainstPir} rows carried the feed's own PIR and agreed with ours.`
+        : "No row carried a PIR, so nothing self-checked — worth investigating.",
+      ...plan.unmatched.map(
+        (entry) =>
+          `No player with person code ${entry.personCode} (game${entry.lines.length === 1 ? "" : "s"} ${entry.lines.join(", ")}).`,
+      ),
+      ...problems,
     ].join("\n"),
-  );
+  }, currentSeason);
 
   return {
-    ...base,
-    created: applied.created,
-    updated: applied.updated,
-    unchanged: applied.unchanged,
-    unmatched: plan.unmatched.length,
-    problems: [...problems, ...applied.failures],
-    batchId: batch.id,
+    ...report,
+    created: imported.created,
+    updated: imported.updated,
+    unchanged: imported.unchanged,
+    problems: [...problems, ...imported.failures, ...(imported.stale ? [imported.stale] : [])],
+    batchId: imported.batchId,
   };
 }

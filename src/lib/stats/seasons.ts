@@ -35,3 +35,8 @@ export function isPastSeason(season: string, current: string): boolean {
   const b = year(current);
   return a !== undefined && b !== undefined && Number(a) < Number(b);
 }
+
+/** A season code safe to put inside a filter's quotes: letters and digits only. */
+export function seasonCode(season: string): string {
+  return season.replace(/[^A-Za-z0-9]/g, "");
+}

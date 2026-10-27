@@ -28,6 +28,9 @@
 
 import type PocketBase from "pocketbase";
 
+import { describeError } from "@/lib/drafts/pipeline";
+import { createOrUpdate } from "@/lib/stats/store";
+
 import type { ScheduleRow } from "./schedule";
 
 export type FixturePb = Pick<PocketBase, "collection">;
@@ -138,40 +141,16 @@ export function sameFixture(
   );
 }
 
-function isUnique(error: unknown): boolean {
-  const data = (
-    error as { response?: { data?: Record<string, { code?: string }> } }
-  )?.response?.data;
-  return Object.values(data ?? {}).some(
-    (field) => field?.code === "validation_not_unique",
-  );
-}
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 /**
  * Store a season's schedule, writing only what changed.
  *
  * Oldest game first, so a pass that dies halfway leaves a prefix of the season
- * rather than a scatter through it — the same ordering argument the box-score
- * backfill makes.
+ * rather than a scatter through it.
  */
 export async function upsertFixtures(
   pb: FixturePb,
   season: string,
-  games: readonly {
-    gameCode: number;
-    round: number;
-    phase: string;
-    played: boolean;
-    localClub: string;
-    roadClub: string;
-    localScore: number;
-    roadScore: number;
-    utcDate: string | null;
-  }[],
+  games: readonly Parameters<typeof asFixtureFields>[1][],
 ): Promise<AppliedFixtures> {
   const applied: AppliedFixtures = {
     created: 0,
@@ -189,63 +168,32 @@ export async function upsertFixtures(
     const fields = asFixtureFields(season, game);
     const existing = byCode.get(game.gameCode);
 
-    if (existing) {
-      if (sameFixture(existing, fields)) {
-        applied.unchanged += 1;
-        continue;
-      }
-      try {
+    if (existing && sameFixture(existing, fields)) {
+      applied.unchanged += 1;
+      continue;
+    }
+    try {
+      if (existing) {
         await pb
           .collection("fixtures")
           .update(existing.id, fields, { requestKey: null });
         applied.updated += 1;
-      } catch (error) {
-        applied.failures.push(
-          `Could not update game ${game.gameCode}: ${describe(error)}`,
+      } else {
+        // Another pass may store this game between our read and our write; the
+        // raced row is corrected if it says something else.
+        const outcome = await createOrUpdate<FixtureRecord>(
+          pb,
+          "fixtures",
+          fields,
+          `season = "${season}" && game_code = ${game.gameCode}`,
+          (raced) => sameFixture(raced, fields),
         );
+        applied[outcome] += 1;
       }
-      continue;
-    }
-
-    try {
-      await pb.collection("fixtures").create(fields, { requestKey: null });
-      applied.created += 1;
     } catch (error) {
-      if (!isUnique(error)) {
-        applied.failures.push(
-          `Could not store game ${game.gameCode}: ${describe(error)}`,
-        );
-        continue;
-      }
-      // Another pass stored this game between our read and our write. Read it
-      // back and correct it if it says something else — the index did its job,
-      // and the row we wanted is there.
-      const [raced] = await pb
-        .collection("fixtures")
-        .getFullList<FixtureRecord>({
-          filter: `season = "${season}" && game_code = ${game.gameCode}`,
-          requestKey: null,
-        });
-      if (!raced) {
-        applied.failures.push(
-          `Game ${game.gameCode} was refused as a duplicate and then could not be found.`,
-        );
-        continue;
-      }
-      if (sameFixture(raced, fields)) {
-        applied.unchanged += 1;
-        continue;
-      }
-      try {
-        await pb
-          .collection("fixtures")
-          .update(raced.id, fields, { requestKey: null });
-        applied.updated += 1;
-      } catch (error) {
-        applied.failures.push(
-          `Could not update game ${game.gameCode} after a duplicate: ${describe(error)}`,
-        );
-      }
+      applied.failures.push(
+        `Could not store game ${game.gameCode}: ${describeError(error)}`,
+      );
     }
   }
 

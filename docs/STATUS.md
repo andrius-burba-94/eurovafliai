@@ -50,6 +50,33 @@ Deferred, and why:
 - `npx vitest run src/lib/rosters -t "could not see|came back empty"`: an empty club marks nobody left.
 - With `npm run dev` and `npm run worker:dev`, an expired BasketNews cookie on a game day shows a failed job, then a new one 30 minutes later.
 
+## Sync audit: stats import robustness, 26 October 2026
+
+**Merged (#221).** The worker pass and the CSV
+door now share one `importStatPlan` (record batch → rows → counts → caches →
+applied). A batch stays unapplied until pool averages and standings are
+rebuilt, and any later pass or no-op re-run of the sheet rebuilds them
+(`settleStatBatches`). Re-importing games after a person code is mapped only
+creates lines, so a pasted correction survives. A capped pass spends half its
+twelve games on the newest outstanding games, so a forfeit or empty box score
+cannot block tonight's round. An all-unmatched game is recorded once, not
+every 15 minutes. A standings recompute re-reads the lines once if an import
+batch landed while it computed. `applyPreviousSeason` now writes per-stat
+changes, and `/stats/import` shows only this season's batches. No migration.
+
+**Deferred:** `src/lib/live/store.ts` keeps its own create-then-update copy,
+and `seasonCode` is still hand-written in mapping, advisor, ai, memberships and
+slugs. Those files belong to other slices. `readStatsOverview` still reads every
+round number because the page lists the stored rounds. Projections have no
+version check, unlike standings. Story:
+[sync audit log](log/sync-audit-2026-10-26.md#stats-import-robustness).
+
+**Try it on localhost:**
+- `npx vitest run src/lib/stats src/lib/fixtures` covers each fix.
+- With `npm run dev` and `npm run worker:dev` running, paste a round at
+  `http://localhost:3007/stats/import` and apply it twice. The second apply
+  writes nothing, and **Last import** shows only this season's batches.
+
 ## Sync audit: realtime refresh, 26 October 2026
 
 **Merged (#220).** Findings R1–R8 of the sync audit. The
