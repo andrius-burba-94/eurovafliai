@@ -23,7 +23,7 @@ keeps the tables, the open debt, the next step and the current phase's
 
 ## Scripts cleanup, 26 October 2026
 
-**Done on its branch; not yet merged.** No behaviour change for the app, the
+**Merged (#217).** No behaviour change for the app, the
 worker or any npm script except one removal:
 
 - `npm run pb:verify` is table-driven: superuser-write rules, read rules,
@@ -44,6 +44,22 @@ See [the audit log](log/sync-audit-2026-10-26.md#scripts-cleanup).
 with "All rule and index checks passed." and print 237 `PASS` lines.
 `npm run stats:sync -- --season=E2025 --max=1` still reads its flags and
 signs in as before.
+
+## Feed client timeout and retry, 26 October 2026
+
+**Every Euroleague and news request now gives up after 15 s and retries a
+dropped connection** (sync audit S9; the story is in
+[the audit log](log/sync-audit-2026-10-26.md)). Before, `fetchWithRetry`
+passed no timeout, so a socket that never answered held the worker's live
+pass, or a server action such as mapping confirm, for Node's five minutes. A
+thrown network error skipped the retry loop, and a `Retry-After` had no
+ceiling. Now a timeout or a dropped connection is retried like a 503, and a
+`Retry-After` is capped at 30 s. `scripts/fetch-golden-boxscores.mts` uses the
+shared client instead of its own copy.
+
+**Try it on localhost:**
+- `npx vitest run src/lib/euroleague`: a dropped connection and a request
+  that never answers are both retried, and a `Retry-After: 3600` waits 30 s.
 
 ## BasketNews roster and trade recovery, 23 October 2026
 
@@ -70,7 +86,8 @@ an inconsistent log uses verified snapshots with an explicit history warning.
 requires `--write` to apply verified changes. It preserves roster windows and
 manual transactions. Migration `1791400000` is required. The existing game-day
 and six-hour schedule is unchanged. See
-[the recovery record](log/basketnews-recovery-2026-10-23.md).
+[the recovery record](log/basketnews-recovery-2026-10-23.md), including the
+browser-readiness and CI mirror-download corrections needed for rollout.
 
 **Try it on localhost:**
 - Apply migrations, start the app and worker, and open a BasketNews league's
@@ -522,7 +539,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 
 | Slice | State | What changed |
 |---|---|---|
-| S0 Concept gallery | Done | `/concepts` (development only, invented data): fonts, palettes in both grounds, crests, moments with replay, two variants of nine screens. |
+| S0 Concept gallery | Done, removed 26 October 2026 | `/concepts` (development only, invented data): fonts, palettes in both grounds, crests, moments with replay, two variants of nine screens. Deleted once the redesign shipped; it is in git history before the sync audit. |
 | S1 Foundation | Done | Two measured grounds, display face, restyled board vocabulary, `PageHeader`/`ScoreFigure`/`StatusBadge`/`RoundStepper`/`TeamCrest`/`Moment`, shell colours tokenised, the critique's six bugs fixed, season control hidden while there is one season. |
 | S2 Team identity | Done | Migration `1790100000` adds optional `team_color` / `team_crest` to `league_members`; a member who never chose gets a default from their place. `setTeamIdentity` (own team any time, managers anyone's). Picker in the lobby and on the team page; crests beside names in the lobby, chat, draft board and radar. |
 | S3 Shell and nav | Done | Phone tabs Home, Lineup, Live, Table, More in season (Home, Draft, Sheet, Players while drafting). One name per destination: "Live", "Standings". Cheat Sheet leaves the nav once the draft is done; Export leaves it (still reachable from League Home until S13). Manage shows how many mapping questions wait. Compact phone header, tokenised sidebar and panel toggle. |
@@ -559,8 +576,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S34 A podium that fits | Done | The top three stand on a low stage at the head of **The table**'s own panel, 2-1-3: crest, name, total (and the gap for second and third) over a step in its medal colour with the place as a display numeral. The leader's crest wears a crown that drops in once per viewer when the lead changes hands (`podium-crown:<league>:<member>`). 83px at 1440×900, where S30's removed podium was 130, so the whole table still ends above the fold (the eighth row ends at 697px). A screen reader hears first, second, third; each place links to its team. |
 | S35 Lineups read after every tip-off | Done | The lineup sync reads a frozen round again five minutes after each of its tip-offs (`RoundWindow.tips`, `lineupRoundsDue`), not only hourly, because a manager can move a starter or the captain between a round's game days. The lineup form follows a synced change when nothing is unsaved. See **Fantasy Challenge sync** for the round 3 evidence and the scoring debt it uncovered. |
 
-**Try it on localhost.** `npm run dev`, then open `/concepts` to compare the
-directions, and any signed-in page with the system in dark and then light mode:
+**Try it on localhost.** `npm run dev`, then open any signed-in page with the system in dark and then light mode:
 the ground, headlines and primary buttons change with it. On a lineup, the grid
 view shows each position in its own colour and the captain reads `C×2`. Open
 your team page, expand **Your crest**, pick a colour and a shape and save: the
