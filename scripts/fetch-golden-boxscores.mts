@@ -18,7 +18,8 @@
  */
 import { writeFileSync, readFileSync } from "node:fs";
 
-const BASE = "https://api-live.euroleague.net/v2/competitions/E/seasons";
+import { FEED_BASE as BASE, getFeedJson, sleep } from "../src/lib/euroleague/http";
+
 const SEASON = "E2025";
 const GAMES = [1, 2, 3, 50, 137, 200, 300];
 const OUT = new URL(
@@ -49,8 +50,6 @@ const FIELDS = [
   "plusMinus",
 ] as const;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * The feed's shape, as far as this script reads it — written out rather than
  * left as `any`, because these are the paths the fixture's correctness depends
@@ -74,33 +73,12 @@ type GameMeta = {
 };
 type GameStats = { local: Pick<Side, "players">; road: Pick<Side, "players"> };
 
-async function getJson<T>(url: string): Promise<T> {
-  // The feed rate-limits somewhere past ~100 requests in a few minutes (see
-  // docs/research/euroleague-api.md). Fourteen requests with a gap is nowhere
-  // near it, and the retry is here for a gateway blip rather than for volume.
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
-    const response = await fetch(url, {
-      headers: { accept: "application/json" },
-    });
-    if (response.ok) return (await response.json()) as T;
-    if (![429, 500, 502, 503, 504].includes(response.status) || attempt === 4) {
-      throw new Error(`${url} answered ${response.status}`);
-    }
-    const wait = 1000 * 2 ** (attempt - 1);
-    console.log(`  ${response.status} — waiting ${wait / 1000}s`);
-    await sleep(wait);
-  }
-  throw new Error("unreachable");
-}
-
 const games = [];
 
 for (const gameCode of GAMES) {
-  const meta = await getJson<GameMeta>(`${BASE}/${SEASON}/games/${gameCode}`);
+  const meta = (await getFeedJson(`${BASE}/${SEASON}/games/${gameCode}`)) as GameMeta;
   await sleep(200);
-  const box = await getJson<GameStats>(
-    `${BASE}/${SEASON}/games/${gameCode}/stats`,
-  );
+  const box = (await getFeedJson(`${BASE}/${SEASON}/games/${gameCode}/stats`)) as GameStats;
   await sleep(200);
 
   if (!meta.played) {
