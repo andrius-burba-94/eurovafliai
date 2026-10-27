@@ -15,6 +15,8 @@ import type PocketBase from "pocketbase";
 
 import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
 
+import { seasonCode } from "./seasons";
+
 export type PlayerRoundLine = {
   readonly player: string;
   readonly round: number;
@@ -78,7 +80,7 @@ export async function readLeaguePlayerRounds(
   },
 ): Promise<PlayerRoundLine[]> {
   if (players && players.length === 0) return [];
-  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const code = seasonCode(season);
   const filter = [
     `season = "${code}"`,
     ...(round === undefined ? [] : [`round = ${round}`]),

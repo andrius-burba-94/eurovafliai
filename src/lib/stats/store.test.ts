@@ -4,8 +4,9 @@ import { fakePb } from "../../../tests/unit/helpers/fake-pb";
 
 import type { StatPlan, StatRowFields } from "./plan";
 import {
+  applyPreviousSeason,
   applyStatPlan,
-  markStatBatchApplied,
+  markStatBatch,
   readExistingStats,
   readStatPlayers,
   readStoredGameCodes,
@@ -210,7 +211,7 @@ describe("applyStatPlan", () => {
   });
 });
 
-describe("recordStatBatch / markStatBatchApplied", () => {
+describe("recordStatBatch / markStatBatch", () => {
   it("stores the batch unapplied first and marks it applied last", async () => {
     const fake = fakePb({ data: { stat_imports: [] } });
 
@@ -232,12 +233,11 @@ describe("recordStatBatch / markStatBatchApplied", () => {
     // The log is bounded so a huge paste cannot grow the audit row without limit.
     expect((stored?.log as string).length).toBe(20_000);
 
-    await markStatBatchApplied(
-      fake.client,
-      batch.id,
-      { created: 2, updated: 1, unchanged: 0, failures: ["Line 4: nope"] },
-      "done",
-    );
+    await markStatBatch(fake.client, batch.id, {
+      applied: true,
+      result: { created: 2, updated: 1, unchanged: 0, failures: ["Line 4: nope"] },
+      log: "done",
+    });
     expect(fake.rows("stat_imports")[0]).toMatchObject({
       applied: true,
       created_rows: 2,
@@ -249,12 +249,7 @@ describe("recordStatBatch / markStatBatchApplied", () => {
   it("tolerates a batch that cannot be marked", async () => {
     const fake = fakePb({ data: { stat_imports: [] } });
     await expect(
-      markStatBatchApplied(
-        fake.client,
-        "gone",
-        { created: 0, updated: 0, unchanged: 0, failures: [] },
-        "",
-      ),
+      markStatBatch(fake.client, "gone", { applied: true }),
     ).resolves.toBeUndefined();
   });
 });
@@ -336,5 +331,36 @@ describe("recomputeProjections", () => {
       proj_season_fantasy: 0,
       proj_season_games: 0,
     });
+  });
+});
+
+describe("applyPreviousSeason", () => {
+  const average = {
+    personCode: "001",
+    name: "A",
+    games: 30,
+    pir: 150,
+    points: 120,
+    rebounds: 50,
+    assists: 30,
+    minutes: 250,
+    twoPointPct: "55.0%",
+    threePointPct: "38.0%",
+    freeThrowPct: "80.0%",
+  };
+
+  it("writes a change to the per-stat averages alone", async () => {
+    const fake = fakePb({
+      data: { players: [{ id: "p1", person_code: "001" }], player_game_stats: [] },
+    });
+    await applyPreviousSeason(fake.client, "E2025", [average]);
+    const second = await applyPreviousSeason(fake.client, "E2025", [average]);
+    expect(second.unchanged).toBe(1);
+
+    const corrected = await applyPreviousSeason(fake.client, "E2025", [
+      { ...average, points: 121 },
+    ]);
+    expect(corrected.updated).toBe(1);
+    expect(fake.rows("players")[0]!.prev_season_stats).toMatchObject({ points: 121 });
   });
 });

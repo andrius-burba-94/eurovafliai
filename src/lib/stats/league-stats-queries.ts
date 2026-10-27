@@ -13,6 +13,7 @@ import { leagueStats, type LeagueStats } from "./league-stats";
 import type { RoundSnapshot } from "./standings";
 import { readLeaguePlayerRounds } from "./player-rounds";
 import { readStandingsSnapshots } from "./queries";
+import { seasonCode } from "./seasons";
 
 export type StatsPlayer = { readonly name: string; readonly position: Position; readonly clubCode: string; readonly personCode?: string };
 
@@ -35,7 +36,7 @@ export async function readLeagueStats(leagueId: string, season: string, source: 
   const session = await getSession();
   if (!session) return null;
   const pb = createUserClient(session.token);
-  const code = season.replace(/[^A-Za-z0-9]/g, "");
+  const code = seasonCode(season);
 
   const [snapshots, windows, lines, drafts, pool, recorded] = await Promise.all([
     readStandingsSnapshots(leagueId, season),

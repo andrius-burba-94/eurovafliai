@@ -2,12 +2,7 @@ import type PocketBase from "pocketbase";
 
 import { describeError, isUniqueViolation } from "@/lib/drafts/pipeline";
 
-import type {
-  ExistingStatRow,
-  StatPlan,
-  StatPlayer,
-  StatRowFields,
-} from "./plan";
+import type { ExistingStatRow, StatPlan, StatPlayer } from "./plan";
 import {
   last5SeriesOf,
   projectPlayer,
@@ -15,6 +10,7 @@ import {
   type PlayerProjection,
 } from "./project";
 import { type SeasonAverages, storedStatsOf } from "./season-totals";
+import { seasonCode } from "./seasons";
 
 /**
  * Reading and writing box scores — the PocketBase half, and nothing else.
@@ -39,9 +35,10 @@ import { type SeasonAverages, storedStatsOf } from "./season-totals";
  *    and nothing inconsistent. `unique(player, season, game_code)` is the
  *    physical backstop, and a create that loses that race falls through to an
  *    update — the outcome both writers wanted.
- * 3. **Mark the batch applied last**, with the counts. A crash before this
- *    leaves `applied: false` over rows that did land: the pessimistic
- *    direction, and harmless, because
+ * 3. **Record the counts, rebuild the caches, mark the batch applied last.**
+ *    A crash or a failed rebuild before this leaves `applied: false` over rows
+ *    that did land: the pessimistic direction, and harmless, because the next
+ *    pass or a re-run rebuilds the caches for any unapplied batch, and
  * 4. **re-running is the repair.** `planStatImport` compares against what is
  *    actually stored, so a second run plans exactly the remainder and reports
  *    the rest as unchanged. Tested in `plan.test.ts` ("produces exactly the
@@ -57,10 +54,9 @@ import { type SeasonAverages, storedStatsOf } from "./season-totals";
  * After the rows land, `recomputeProjections` rewrites last-5 and season
  * averages on `players`, then `recomputeStandings` writes the per-round
  * table cache. Stats first, caches second: a crash between them leaves
- * stale numbers, and the next ingest or the repair scripts is the fix.
+ * stale numbers under an unapplied batch, and the next ingest pass, a re-run
+ * of the sheet or the repair scripts is the fix.
  */
-
-type StatRecord = ExistingStatRow;
 
 /** Every player the pool knows, in the shape the matcher needs. */
 export async function readStatPlayers(pb: PocketBase): Promise<StatPlayer[]> {
@@ -101,8 +97,8 @@ export async function readExistingStats(
 
   const records = await pb
     .collection("player_game_stats")
-    .getFullList<StatRecord>({
-      filter: `season = "${season.replace(/[^A-Za-z0-9]/g, "")}" && (${codes
+    .getFullList<ExistingStatRow>({
+      filter: `season = "${seasonCode(season)}" && (${codes
         .map((code) => `game_code = ${code}`)
         .join(" || ")})`,
       requestKey: null,
@@ -131,7 +127,7 @@ export async function readStoredGameCodes(
   const records = await pb
     .collection("player_game_stats")
     .getFullList<{ game_code: number }>({
-      filter: `season = "${season.replace(/[^A-Za-z0-9]/g, "")}"`,
+      filter: `season = "${seasonCode(season)}"`,
       fields: "game_code",
       requestKey: null,
     });
@@ -165,30 +161,21 @@ export async function applyStatPlan(
   let updated = 0;
   const failures: string[] = [];
 
-  for (const create of plan.creates) {
+  for (const { fields, line } of plan.creates) {
     try {
-      await pb
-        .collection("player_game_stats")
-        .create(stamp(create.fields), { requestKey: null });
-      created += 1;
+      // Somebody — another tab, the fetcher, or this import re-run — may have
+      // created this row between the plan and the write; the numbers we
+      // wanted are still the numbers we want.
+      const outcome = await createOrUpdate(
+        pb,
+        "player_game_stats",
+        stamp(fields),
+        `player = "${fields.player}" && season = "${fields.season}" && game_code = ${fields.game_code}`,
+      );
+      if (outcome === "created") created += 1;
+      else updated += 1;
     } catch (error) {
-      if (!isUniqueViolation(error)) {
-        failures.push(`Line ${create.line}: ${describeError(error)}`);
-        continue;
-      }
-      // Somebody — another tab, the fetcher, or this import re-run — created
-      // this row in the window between the plan and the write. The index said
-      // no; the numbers we wanted are still the numbers we want.
-      try {
-        const existing = await findRow(pb, create.fields);
-        if (!existing) throw error;
-        await pb
-          .collection("player_game_stats")
-          .update(existing.id, stamp(create.fields), { requestKey: null });
-        updated += 1;
-      } catch (retry) {
-        failures.push(`Line ${create.line}: ${describeError(retry)}`);
-      }
+      failures.push(`Line ${line}: ${describeError(error)}`);
     }
   }
 
@@ -206,17 +193,32 @@ export async function applyStatPlan(
   return { created, updated, unchanged: plan.unchanged, failures };
 }
 
-async function findRow(
-  pb: PocketBase,
-  fields: StatRowFields,
-): Promise<ExistingStatRow | null> {
-  const rows = await pb
-    .collection("player_game_stats")
-    .getFullList<StatRecord>({
-      filter: `player = "${fields.player}" && season = "${fields.season}" && game_code = ${fields.game_code}`,
-      requestKey: null,
-    });
-  return rows[0] ?? null;
+/**
+ * Create a row; when the unique index says a concurrent writer got there
+ * first, read that row back by `filter` (the index's own fields) and update
+ * it — the outcome both writers wanted. A refusal with nothing to read back
+ * is rethrown.
+ */
+export async function createOrUpdate<T extends { id: string }>(
+  pb: Pick<PocketBase, "collection">,
+  collection: string,
+  body: object,
+  filter: string,
+  same: (stored: T) => boolean = () => false,
+): Promise<"created" | "updated" | "unchanged"> {
+  try {
+    await pb.collection(collection).create(body, { requestKey: null });
+    return "created";
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const [raced] = await pb
+      .collection(collection)
+      .getFullList<T>({ filter, requestKey: null });
+    if (!raced) throw error;
+    if (same(raced)) return "unchanged";
+    await pb.collection(collection).update(raced.id, body, { requestKey: null });
+    return "updated";
+  }
 }
 
 export type StatBatch = {
@@ -259,28 +261,34 @@ export async function recordStatBatch(
 }
 
 /**
- * Mark a batch applied, last.
+ * Record what a batch did, and whether it is finished: `applied` means its
+ * rows were written *and* the caches rebuilt from them.
  *
  * Deliberately tolerant: a batch that cannot be marked is an audit record that
  * understates what happened, and throwing here would report an import as
  * failed after every row of it had landed. The rows are the product; the batch
  * is the story about them.
  */
-export async function markStatBatchApplied(
+export async function markStatBatch(
   pb: PocketBase,
   batchId: string,
-  result: ApplyResult,
-  log: string,
+  {
+    applied,
+    result,
+    log,
+  }: { applied: boolean; result?: ApplyResult; log?: string },
 ): Promise<void> {
   try {
     await pb.collection("stat_imports").update(
       batchId,
       {
-        applied: true,
-        created_rows: result.created,
-        updated_rows: result.updated,
-        unchanged_rows: result.unchanged,
-        log: log.slice(0, 20000),
+        applied,
+        ...(result && {
+          created_rows: result.created,
+          updated_rows: result.updated,
+          unchanged_rows: result.unchanged,
+        }),
+        ...(log !== undefined && { log: log.slice(0, 20000) }),
       },
       { requestKey: null },
     );
@@ -301,14 +309,37 @@ type ProjectionRecord = {
   proj_season_pir?: number;
 };
 
-type ProjectionLine = {
-  player: string;
-  round: number;
-  game_code: number;
-  time_played: number;
-  fantasy_pts: number;
-  pir: number;
-};
+/** A season's box-score lines, grouped by player in the shape `projectPlayer` reads. */
+async function readSeasonLines(
+  pb: PocketBase,
+  season: string,
+): Promise<Map<string, PlayerGameLine[]>> {
+  const lines = await pb.collection("player_game_stats").getFullList<{
+    player: string;
+    round: number;
+    game_code: number;
+    time_played: number;
+    fantasy_pts: number;
+    pir: number;
+  }>({
+    filter: `season = "${seasonCode(season)}"`,
+    fields: "player,round,game_code,time_played,fantasy_pts,pir",
+    requestKey: null,
+  });
+  const byPlayer = new Map<string, PlayerGameLine[]>();
+  for (const row of lines) {
+    const list = byPlayer.get(row.player) ?? [];
+    list.push({
+      round: row.round,
+      gameCode: row.game_code,
+      timePlayed: row.time_played,
+      fantasyTenths: row.fantasy_pts,
+      pir: row.pir ?? 0,
+    });
+    byPlayer.set(row.player, list);
+  }
+  return byPlayer;
+}
 
 export type ProjectionRecompute = {
   readonly season: string;
@@ -333,14 +364,12 @@ function sameProjection(
   record: ProjectionRecord,
   projection: PlayerProjection,
 ): boolean {
+  const { proj_last5_pirs, ...numbers } = asFields(projection);
   return (
-    (record.proj_last5_fantasy ?? 0) === projection.last5Fantasy &&
-    (record.proj_last5_games ?? 0) === projection.last5Games &&
-    (record.proj_last5_pir ?? 0) === projection.last5Pir &&
-    sameSeries(last5SeriesOf(record), projection.last5Pirs) &&
-    (record.proj_season_fantasy ?? 0) === projection.seasonFantasy &&
-    (record.proj_season_games ?? 0) === projection.seasonGames &&
-    (record.proj_season_pir ?? 0) === projection.seasonPir
+    sameSeries(last5SeriesOf(record), proj_last5_pirs) &&
+    Object.entries(numbers).every(
+      ([field, value]) => (record[field as keyof typeof numbers] ?? 0) === value,
+    )
   );
 }
 
@@ -371,32 +400,14 @@ export async function recomputeProjections(
   pb: PocketBase,
   season: string,
 ): Promise<ProjectionRecompute> {
-  const code = season.replace(/[^A-Za-z0-9]/g, "");
-  const [players, lines] = await Promise.all([
+  const [players, byPlayer] = await Promise.all([
     pb.collection("players").getFullList<ProjectionRecord>({
       fields:
         "id,proj_last5_fantasy,proj_last5_games,proj_last5_pir,proj_last5_pirs,proj_season_fantasy,proj_season_games,proj_season_pir",
       requestKey: null,
     }),
-    pb.collection("player_game_stats").getFullList<ProjectionLine>({
-      filter: `season = "${code}"`,
-      fields: "player,round,game_code,time_played,fantasy_pts,pir",
-      requestKey: null,
-    }),
+    readSeasonLines(pb, season),
   ]);
-
-  const byPlayer = new Map<string, PlayerGameLine[]>();
-  for (const row of lines) {
-    const list = byPlayer.get(row.player) ?? [];
-    list.push({
-      round: row.round,
-      gameCode: row.game_code,
-      timePlayed: row.time_played,
-      fantasyTenths: row.fantasy_pts,
-      pir: row.pir ?? 0,
-    });
-    byPlayer.set(row.player, list);
-  }
 
   let updated = 0;
   let unchanged = 0;
@@ -412,7 +423,7 @@ export async function recomputeProjections(
     updated += 1;
   }
 
-  return { season: code, players: players.length, updated, unchanged };
+  return { season: seasonCode(season), players: players.length, updated, unchanged };
 }
 
 type PreviousSeasonRecord = {
@@ -422,6 +433,7 @@ type PreviousSeasonRecord = {
   prev_season_games?: number;
   prev_season_pir?: number;
   prev_season_fantasy?: number;
+  prev_season_stats?: Record<string, unknown> | null;
 };
 
 export type PreviousSeasonResult = {
@@ -465,32 +477,15 @@ export async function applyPreviousSeason(
   /** Run the comparison and report, write nothing. */
   { dryRun = false }: { dryRun?: boolean } = {},
 ): Promise<PreviousSeasonResult> {
-  const code = season.replace(/[^A-Za-z0-9]/g, "");
-  const [players, lines] = await Promise.all([
+  const code = seasonCode(season);
+  const [players, ours] = await Promise.all([
     pb.collection("players").getFullList<PreviousSeasonRecord>({
       fields:
-        "id,person_code,prev_season_code,prev_season_games,prev_season_pir,prev_season_fantasy",
+        "id,person_code,prev_season_code,prev_season_games,prev_season_pir,prev_season_fantasy,prev_season_stats",
       requestKey: null,
     }),
-    pb.collection("player_game_stats").getFullList<ProjectionLine>({
-      filter: `season = "${code}"`,
-      fields: "player,round,game_code,time_played,fantasy_pts,pir",
-      requestKey: null,
-    }),
+    readSeasonLines(pb, season),
   ]);
-
-  const ours = new Map<string, PlayerGameLine[]>();
-  for (const row of lines) {
-    const list = ours.get(row.player) ?? [];
-    list.push({
-      round: row.round,
-      gameCode: row.game_code,
-      timePlayed: row.time_played,
-      fantasyTenths: row.fantasy_pts,
-      pir: row.pir ?? 0,
-    });
-    ours.set(row.player, list);
-  }
 
   const byCode = new Map<string, PreviousSeasonRecord>();
   for (const player of players) {
@@ -532,7 +527,10 @@ export async function applyPreviousSeason(
       (player.prev_season_code ?? "") === fields.prev_season_code &&
       (player.prev_season_games ?? 0) === fields.prev_season_games &&
       (player.prev_season_pir ?? 0) === fields.prev_season_pir &&
-      (player.prev_season_fantasy ?? 0) === fields.prev_season_fantasy
+      (player.prev_season_fantasy ?? 0) === fields.prev_season_fantasy &&
+      Object.entries(fields.prev_season_stats).every(
+        ([key, value]) => player.prev_season_stats?.[key] === value,
+      )
     ) {
       unchanged += 1;
       continue;
