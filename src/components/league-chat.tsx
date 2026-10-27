@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type PocketBase from "pocketbase";
 
 import { Bank, Correction, Slot, Slots, inputStyles } from "@/components/board";
 import { useLiveSubscription } from "@/lib/pb/use-live";
+import { useStored, writeStored } from "@/lib/stored";
 import { retractChatMessage, sendChatMessage } from "@/lib/chat/actions";
 import {
   CHAT_MAX_LENGTH,
@@ -22,6 +17,7 @@ import {
 } from "@/lib/chat/messages";
 import {
   parseChatRecord,
+  readMessages,
   toMessage,
   type ChatMessage,
 } from "@/lib/chat/store";
@@ -70,19 +66,6 @@ const seenKey = (leagueId: string, channel: "all" | "members") =>
   `eurovafliai:chat-seen:${leagueId}${channel === "members" ? ":members" : ""}`;
 
 /**
- * The last message this viewer has seen, kept in `localStorage`.
- *
- * Read through `useSyncExternalStore` rather than copied into state by an
- * effect, which is the primitive React provides for exactly this: it takes a
- * *server* snapshot (`null`, since a server has no storage), so the unread
- * count hydrates without a mismatch, and it is not a `setState` inside an
- * effect — which this repo's lint rule refuses, correctly.
- *
- * Writing needs its own notifier because the `storage` event does not fire in
- * the tab that did the writing. Subscribing to both means a member reading
- * chat in one tab clears the badge in the other, which is right and free.
- */
-/**
  * Union two lists of messages by id, oldest first.
  *
  * The server's copy wins on a collision, because it is the one that has been
@@ -97,36 +80,6 @@ function mergeById(
   for (const message of mine) byId.set(message.id, message);
   for (const message of theirs) byId.set(message.id, message);
   return [...byId.values()].sort((a, b) => a.created.localeCompare(b.created));
-}
-
-const seenListeners = new Set<() => void>();
-
-function subscribeSeen(listener: () => void): () => void {
-  seenListeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    seenListeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-
-function readSeen(leagueId: string, channel: "all" | "members"): string | null {
-  try {
-    return window.localStorage.getItem(seenKey(leagueId, channel));
-  } catch {
-    // Storage denied. Chat still works; the viewer simply always reads as
-    // caught up, which is the harmless direction to fail in.
-    return null;
-  }
-}
-
-function writeSeen(leagueId: string, channel: "all" | "members", id: string): void {
-  try {
-    window.localStorage.setItem(seenKey(leagueId, channel), id);
-  } catch {
-    // See `readSeen`.
-  }
-  for (const listener of seenListeners) listener();
 }
 
 export function LeagueChat({
@@ -187,11 +140,9 @@ export function LeagueChat({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const lastSeen = useSyncExternalStore(
-    subscribeSeen,
-    () => readSeen(leagueId, channel),
-    () => null,
-  );
+  // The last message this viewer has seen. Shared across tabs, so reading chat
+  // in one clears the badge in the other.
+  const lastSeen = useStored(seenKey(leagueId, channel));
 
   /**
    * The message just retracted, so it can be put back.
@@ -256,15 +207,22 @@ export function LeagueChat({
     ],
     [leagueId],
   );
+  // Every connect re-reads the transcript: lines sent while this phone slept
+  // were never delivered, and `revalidatePath` only re-renders the sender.
+  const onConnect = useCallback(
+    (pb: PocketBase) =>
+      void readMessages(pb, leagueId).then((fresh) => setMessages((current) => mergeById(current, fresh)), () => {}),
+    [leagueId],
+  );
   /**
-   * `live` — has the stream ever come up — is the fact a spec has to wait on:
-   * realtime does not replay, so anything written before the first
-   * `PB_CONNECT` is missed, and a direct database write does not
+   * `live` — are this surface's topics up yet — is the fact a spec has to wait
+   * on: realtime does not replay, so anything written before then is missed
+   * until the connect re-read, and a direct database write does not
    * `revalidatePath` to heal it. Surfaced as `data-live`, with no appearance —
    * the same trick as the board's `data-advanced` and the cheat sheet's
    * `data-pending`. Wait for a fact, not for a duration.
    */
-  const { connected, live } = useLiveSubscription({ authToken, subscribe });
+  const { connected, live } = useLiveSubscription({ authToken, subscribe, onConnect });
 
   const visibleMessages = channel === "members"
     ? messages.filter((message) => !message.system)
@@ -275,7 +233,7 @@ export function LeagueChat({
   // and notifies, so the lint rule that refuses state changes in effects has
   // nothing to object to and the badge clears in every open tab.
   useEffect(() => {
-    if (open && newest) writeSeen(leagueId, channel, newest.id);
+    if (open && newest) writeStored(seenKey(leagueId, channel), newest.id);
   }, [open, newest, leagueId, channel]);
 
   const unread = (() => {

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
+import { readStored, writeStored } from "@/lib/stored";
+
 export type MomentKind = "overtake" | "crown" | "sweep" | "stamp" | "spoon" | "badge" | "lower-third";
 
 const SEEN_KEY = "eurovafliai:moments";
@@ -9,8 +11,7 @@ const MAX_REMEMBERED = 200;
 
 function seen(): string[] {
   try {
-    const raw = window.localStorage.getItem(SEEN_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    const parsed: unknown = JSON.parse(readStored(SEEN_KEY) ?? "[]");
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
   } catch {
     return [];
@@ -18,12 +19,7 @@ function seen(): string[] {
 }
 
 function remember(id: string) {
-  try {
-    const next = [...seen().filter((item) => item !== id), id].slice(-MAX_REMEMBERED);
-    window.localStorage.setItem(SEEN_KEY, JSON.stringify(next));
-  } catch {
-    // Private mode or a full quota: the moment simply plays again next time.
-  }
+  writeStored(SEEN_KEY, JSON.stringify([...seen().filter((item) => item !== id), id].slice(-MAX_REMEMBERED)));
 }
 
 /**
