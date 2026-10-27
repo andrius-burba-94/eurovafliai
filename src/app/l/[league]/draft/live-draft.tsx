@@ -1,10 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
-import type PocketBase from "pocketbase";
-
-import { useLiveSubscription } from "@/lib/pb/use-live";
+import { useLiveRefresh } from "@/lib/pb/use-live";
 
 /**
  * The draft room, live — slice 3.2a.
@@ -42,13 +38,6 @@ import { useLiveSubscription } from "@/lib/pb/use-live";
  * read rules then scope the subscription to leagues this member belongs to, so
  * the SSE stream is authorised by the same rules as the page.
  */
-
-/**
- * A pick is two writes, so it arrives as two events. Coalescing them into one
- * re-render halves the round trips and stops the room flickering twice per pick.
- */
-const COALESCE_MS = 250;
-
 export function LiveDraft({
   draftId,
   authToken,
@@ -56,48 +45,15 @@ export function LiveDraft({
   draftId: string;
   authToken: string;
 }) {
-  const router = useRouter();
-  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const rerender = useCallback(() => {
-    if (pending.current) clearTimeout(pending.current);
-    pending.current = setTimeout(() => {
-      pending.current = null;
-      router.refresh();
-    }, COALESCE_MS);
-  }, [router]);
-
-  useEffect(
-    () => () => {
-      if (pending.current) clearTimeout(pending.current);
-    },
-    [],
-  );
-
-  const subscribe = useCallback(
-    async (pb: PocketBase) => [
-      await pb.collection("picks").subscribe("*", rerender, {
-        // Single quotes: PocketBase rejects double-quoted filter values.
-        filter: `draft = '${draftId}'`,
-      }),
+  const { connected } = useLiveRefresh({
+    authToken,
+    topics: [
+      { collection: "picks", topic: "*", filter: `draft = '${draftId}'` },
       // The record topic, not `*`: this is the only draft on screen, and a
       // sibling league's draft moving is none of this page's business.
-      await pb.collection("drafts").subscribe(draftId, rerender),
+      { collection: "drafts", topic: draftId },
     ],
-    [draftId, rerender],
-  );
-
-  // On a *re*connect, re-render rather than trust the gap. On the first
-  // connect nothing has been missed — the page was rendered a moment ago — so
-  // spare it the round trip.
-  const onConnect = useCallback(
-    ({ reconnect }: { pb: PocketBase; reconnect: boolean }) => {
-      if (reconnect) rerender();
-    },
-    [rerender],
-  );
-
-  const { connected } = useLiveSubscription({ authToken, subscribe, onConnect });
+  });
 
   if (connected) return null;
 

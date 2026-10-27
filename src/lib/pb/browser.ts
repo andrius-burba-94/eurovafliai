@@ -36,15 +36,17 @@ import { publicConfig } from "@/lib/config/public";
  * instances would also have fought over that — a second bug behind the first.
  */
 
-let cached: { url: string; token: string; pb: PocketBase } | null = null;
+let cached: { url: string; token: string; pb: PocketBase; stop: () => void } | null = null;
 const lostListeners = new Set<() => void>();
 const authLostListeners = new Set<() => void>();
+const upListeners = new Set<() => void>();
 
 export function browserPb(authToken: string): PocketBase {
   const url = publicConfig().NEXT_PUBLIC_PB_URL;
   if (cached && cached.url === url && cached.token === authToken) {
     return cached.pb;
   }
+  cached?.stop();
   const pb = new PocketBase(url, new BaseAuthStore());
   pb.authStore.save(authToken, null);
   // `activeSubscriptions.length > 0` distinguishes a dropped connection from a
@@ -54,8 +56,104 @@ export function browserPb(authToken: string): PocketBase {
       for (const listener of lostListeners) listener();
     }
   };
-  cached = { url, token: authToken, pb };
+  cached = { url, token: authToken, pb, stop: keepLinked(pb) };
   return pb;
+}
+
+/** Wait before the nth retry of a first connect: 1s, doubling, at most 30s. */
+export const retryDelay = (attempt: number) => Math.min(1_000 * 2 ** attempt, 30_000);
+
+/**
+ * Hold the page's one `PB_CONNECT` subscription and fan each connect out to
+ * `attachSurface`. Returns a stop that closes the stream.
+ *
+ * The SDK retries a dropped stream forever, but a *first* connect that fails
+ * (a bad signal, its 15s timeout) never, and leaves the failed listener
+ * registered: so it is cleared and retried here, with backoff and at once when
+ * the phone is back online or the page is shown. A refused token is never
+ * retried; an expired one goes to sign-in rather than to a stream whose read
+ * rules now filter out every event.
+ */
+export function keepLinked(pb: PocketBase): () => void {
+  let attempt = 0;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let stopped = false;
+
+  const connect = () => {
+    clearTimeout(retry);
+    retry = undefined;
+    pb.realtime
+      .subscribe("PB_CONNECT", () => {
+        attempt = 0;
+        for (const listener of upListeners) listener();
+      })
+      .catch(async (error: unknown) => {
+        if (reportRealtimeError(error) === "auth" || stopped) return;
+        await pb.realtime.unsubscribe("PB_CONNECT");
+        if (!stopped) retry = setTimeout(connect, retryDelay(attempt++));
+      });
+  };
+  const wake = () => {
+    if (document.visibilityState === "hidden" || tokenExpired(pb)) return;
+    if (retry !== undefined) connect();
+  };
+
+  connect();
+  window.addEventListener("online", wake);
+  document.addEventListener("visibilitychange", wake);
+  return () => {
+    stopped = true;
+    clearTimeout(retry);
+    window.removeEventListener("online", wake);
+    document.removeEventListener("visibilitychange", wake);
+    // A new token means a new client; nothing on the page reads this one now.
+    void pb.realtime.unsubscribe();
+  };
+}
+
+function tokenExpired(pb: PocketBase): boolean {
+  if (pb.authStore.isValid) return false;
+  for (const listener of authLostListeners) listener();
+  return true;
+}
+
+/**
+ * One live surface on the shared stream: opens its topics once the stream is
+ * up, then calls `onUp` after every (re)connect, since nothing written before
+ * that reached it. The first `onUp` waits for the surface's own topics, not
+ * for `PB_CONNECT`, which fires before they are posted.
+ */
+export function attachSurface(
+  pb: PocketBase,
+  { subscribe, onUp }: { subscribe: (pb: PocketBase) => Promise<Array<() => void>>; onUp: () => void },
+): () => void {
+  let active = true;
+  let opening: ReturnType<typeof subscribe> | null = null;
+
+  const up = async () => {
+    if (!active || tokenExpired(pb)) return;
+    try {
+      opening ??= subscribe(pb);
+      await opening;
+    } catch (error) {
+      opening = null;
+      if (active) reportRealtimeError(error);
+      return;
+    }
+    if (active) onUp();
+  };
+
+  upListeners.add(up);
+  // On a client-side navigation the old page's topics go and the new page's
+  // arrive in one tick: the SDK stays connected, so no `PB_CONNECT` is coming.
+  if (pb.realtime.isConnected) void up();
+  return () => {
+    active = false;
+    upListeners.delete(up);
+    // Our own topics only: `pb.realtime.unsubscribe()` would close the
+    // shared connection and deafen every other live surface on the page.
+    void opening?.then((offs) => offs.forEach((off) => off()), () => {});
+  };
 }
 
 /** Learn that the shared connection dropped. Returns an unsubscribe. */

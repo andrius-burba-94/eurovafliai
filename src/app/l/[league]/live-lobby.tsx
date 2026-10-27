@@ -22,7 +22,8 @@ import {
 import { TeamCrest } from "@/components/broadcast";
 import { SubmitButton } from "@/components/submit-button";
 import { TeamIdentityPicker } from "@/components/team-identity-picker";
-import { useLiveSubscription } from "@/lib/pb/use-live";
+import { browserPb } from "@/lib/pb/browser";
+import { useLiveSubscription, useRefresher } from "@/lib/pb/use-live";
 import { rollCeremony } from "@/lib/roll/ceremony";
 import {
   renameTeam,
@@ -105,40 +106,38 @@ export function LiveLobby({
     seed: positioned === members.length ? settings.roll_seed : "",
     slots: positioned,
   });
-  const refresh = useCallback(
-    async (pb: PocketBase) => {
-      try {
-        const records = await pb
-          .collection("league_members")
-          .getFullList<MemberRecord>(memberListQuery(leagueId));
-        if (records.length === 0) {
-          // Every membership at once means the league itself is gone — the
-          // commissioner deleted it, and the cascade took the rows with it.
-          // Nothing can be rendered from that, and an empty lobby that never
-          // corrects is worse than being told plainly, so hand it back to the
-          // server: the page finds no league and says so.
-          router.refresh();
-          return;
-        }
-        setMembers(
-          records.map((record, index) =>
-            toMember(record, { commissionerUserId, viewerUserId }, index),
-          ),
-        );
-      } catch {
-        // A failed refresh leaves the last good list on screen. Showing an
-        // empty lobby because one fetch lost a race would be worse than
-        // showing one that is a few seconds stale.
+  // Coalesced: a roll writes every member's position, one event each.
+  const reread = useRefresher(useCallback(async () => {
+    try {
+      const records = await browserPb(authToken)
+        .collection("league_members")
+        .getFullList<MemberRecord>(memberListQuery(leagueId));
+      if (records.length === 0) {
+        // Every membership at once means the league itself is gone — the
+        // commissioner deleted it, and the cascade took the rows with it.
+        // Nothing can be rendered from that, and an empty lobby that never
+        // corrects is worse than being told plainly, so hand it back to the
+        // server: the page finds no league and says so.
+        router.refresh();
+        return;
       }
-    },
-    [leagueId, commissionerUserId, viewerUserId, router],
-  );
+      setMembers(
+        records.map((record, index) =>
+          toMember(record, { commissionerUserId, viewerUserId }, index),
+        ),
+      );
+    } catch {
+      // A failed refresh leaves the last good list on screen. Showing an
+      // empty lobby because one fetch lost a race would be worse than
+      // showing one that is a few seconds stale.
+    }
+  }, [authToken, leagueId, commissionerUserId, viewerUserId, router]));
 
   const subscribe = useCallback(
     async (pb: PocketBase) => [
       await pb
         .collection("league_members")
-        .subscribe("*", () => void refresh(pb), {
+        .subscribe("*", reread.request, {
           // Single quotes: PocketBase rejects double-quoted filter values.
           filter: `league = '${leagueId}'`,
         }),
@@ -156,19 +155,13 @@ export function LiveLobby({
         .collection("leagues")
         .subscribe(leagueId, () => router.refresh()),
     ],
-    [leagueId, refresh, router],
-  );
-  // Every connect re-reads, first or not: the list is cheap, the roll reveal
-  // reads off it, and after a drop the gap was never delivered to anyone.
-  const onConnect = useCallback(
-    ({ pb }: { pb: PocketBase }) => void refresh(pb),
-    [refresh],
+    [leagueId, reread, router],
   );
 
   const { connected } = useLiveSubscription({
     authToken,
     subscribe,
-    onConnect,
+    onConnect: reread.request,
   });
 
   /**
