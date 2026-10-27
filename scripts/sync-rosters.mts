@@ -13,23 +13,13 @@
  * "who may sync" question to get wrong yet — running this needs the superuser
  * credentials from `.env`. The CSV front door does need that question answered,
  * which is why it is the next slice rather than this one.
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
- * rather than importing `src/lib/pb/superuser` — that module pulls in
- * `server-only`, which throws outside a React Server Component graph
- * (AGENTS.md).
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import { runRosterImport } from "../src/lib/rosters/apply";
 import { fetchSeasonRosters } from "../src/lib/rosters/euroleague";
+import { arg, flag, superuserFromEnv } from "./lib/pb.mjs";
 
-const dryRun = process.argv.includes("--dry-run");
-const seasonArg = process.argv.find((arg) => arg.startsWith("--season="));
-const season = seasonArg?.split("=")[1] ?? "E2026";
-
-const env = parseServerEnv(process.env);
+const dryRun = flag("dry-run");
+const season = arg("season") ?? "E2026";
 
 console.log(`Fetching ${season} rosters from the Euroleague API…`);
 const { rows, problems, clubs, seasonName } = await fetchSeasonRosters({
@@ -57,10 +47,7 @@ if (rows.length === 0) {
   process.exit(1);
 }
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 if (dryRun) {
   // Import the pure pieces directly so a dry run touches nothing at all.
@@ -86,7 +73,7 @@ const departures = assessDepartures(
   diffRosters({ current: currentPool, incoming: rows }),
   currentPool.length,
 );
-if (departures.alarming && !process.argv.includes("--allow-departures")) {
+if (departures.alarming && !flag("allow-departures")) {
   console.error(
     `\nRefusing: this would mark ${departures.count} of ${currentPool.length} players as left ` +
       `(${Math.round(departures.share * 100)}% of the pool).\n` +
