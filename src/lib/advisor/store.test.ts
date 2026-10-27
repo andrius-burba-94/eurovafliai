@@ -138,6 +138,21 @@ describe("refreshOutlooks", () => {
     expect(data.player_outlooks!.map((row) => row.player).sort()).toEqual(["a", "a"]);
   });
 
+  it("keeps every row when the pool or the season's lines come back empty", async () => {
+    for (const empty of [{ players: [] }, { player_game_stats: [] }]) {
+      const { client, db: data, writes } = fakePb({ data: db(), uniqueIndexes });
+      await refreshOutlooks(client, { season: "E2026", now: NOW });
+      const before = writes.length;
+      Object.assign(data, empty);
+
+      const report = await refreshOutlooks(client, { season: "E2026", now: NOW });
+
+      expect(report).toMatchObject({ written: 0, removed: 0 });
+      expect(data.player_outlooks).toHaveLength(4);
+      expect(writes.length).toBe(before);
+    }
+  });
+
   it("does nothing when no league is in season", async () => {
     const { client, writes } = fakePb({
       data: db({ leagues: [{ id: "old", status: "setup", basketnews_team_id: "" }] }),

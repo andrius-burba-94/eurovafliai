@@ -875,6 +875,20 @@ describe("races and failures", () => {
     expect(paused.log.join(" ")).toContain("moved under the sweep");
   });
 
+  it("does not override a pick clock the commissioner extended mid-tick", async () => {
+    const extended = world({ draft: { deadline: deadlineAt(-5_000) } });
+    const { report, db } = await extended.run({
+      hooks: (live) => ({
+        beforeList(collection) {
+          if (collection === "players") live.db.drafts[0].deadline = deadlineAt(60_000);
+        },
+      }),
+    });
+
+    expect(report).toMatchObject({ moved: 1, autopicked: 0 });
+    expect(db.picks).toEqual([]);
+  });
+
   it("keeps sweeping the other drafts when one throws", async () => {
     const two = world({ draft: { deadline: deadlineAt(-5_000) } });
     two.db.drafts.push({

@@ -33,16 +33,18 @@
  * the network and can take seconds, and no pick deadline may wait on that.
  * Standings recompute joins it in 4.5.
  *
- * **9.4 added the news pass**, hourly, on a third guard for the same reason —
+ * **9.4 added the news pass**, hourly, on its own guard for the same reason —
  * it reads two of somebody else's web pages, which is the slowest and least
  * predictable thing this process does, and neither a pick deadline nor a box
- * score may queue behind it.
+ * score may queue behind it. Every later pass follows the same rule through
+ * `./passes.ts`: one guard each, one shared superuser session.
  */
 import PocketBase from "pocketbase";
 
-import { parseServerEnv, type ServerEnv } from "@/lib/config/schema";
-import { readStoredFixtures } from "@/lib/fixtures/store";
+import { parseServerEnv } from "@/lib/config/schema";
+import type { FixtureRecord } from "@/lib/fixtures/store";
 import { fetchLiveBoxscore } from "@/lib/live/boxscore";
+import { inLiveWindow, liveWindowFilter } from "@/lib/live/status";
 import { upsertLiveSnapshot } from "@/lib/live/store";
 
 import { describeError } from "@/lib/drafts/pipeline";
@@ -70,13 +72,13 @@ import { applyPreviousSeason } from "@/lib/stats/store";
 
 import { buildBriefFacts } from "@/lib/ai/brief-facts";
 import { readBriefFactsInput } from "@/lib/ai/brief-facts-store";
-import type { BriefPassReport } from "@/lib/ai/brief-pass";
 import { readCompleteRounds, readRoundFactsInput } from "@/lib/ai/round-facts-store";
 import { buildRoundFacts } from "@/lib/ai/round-facts";
 import type { PassReport, RoundPassDeps } from "@/lib/ai/round-pass";
 import { readScoutFactsInput } from "@/lib/ai/scout-facts-store";
 import { runRequestedRewrites, runWriteupPass } from "@/lib/ai/writeup-pass";
 
+import { createPasses, superuserSession, type PassLock } from "./passes";
 import { eventCount, sweepOnce, type SweepReport } from "./sweep";
 
 /**
@@ -102,6 +104,12 @@ const HEARTBEAT_EVERY_TICKS = 300;
 const STALL_AFTER_MS = 30_000;
 /** A minute of consecutive failures between complaints — PocketBase being down should not fill the disk. */
 const FAILURE_LOG_EVERY = 60;
+/**
+ * How long shutdown waits for passes in flight. Under the worker's PM2
+ * `kill_timeout`, so the process exits on its own before SIGKILL; a pass cut
+ * off here is idempotent and the next boot finishes it.
+ */
+const SHUTDOWN_DEADLINE_MS = 8_000;
 /**
  * A quarter of an hour between stats passes.
  *
@@ -155,7 +163,8 @@ const SCOUT_FIRST_AFTER_MS = 120_000;
  */
 const ROSTER_CHECK_EVERY_MS = 15 * 60_000;
 const ROSTER_FIRST_AFTER_MS = 180_000;
-const BASKETNEWS_POLL_EVERY_MS = 5_000;
+/** Queued BasketNews syncs are a manager's button press; fifteen seconds is prompt enough for one. */
+const BASKETNEWS_POLL_EVERY_MS = 15_000;
 
 function log(message: string, level: "info" | "warn" | "error" = "info"): void {
   const line = JSON.stringify({
@@ -184,25 +193,31 @@ function summarise(report: SweepReport): string {
   return `tick · ${report.live} live · ${parts.join(", ")}`;
 }
 
-/**
- * Authenticate only when the token will not do.
- *
- * `authStore.isValid` reads the JWT's own expiry, so this re-authenticates
- * across a token lifetime without a timer of its own — and after a failed tick,
- * which clears the store precisely so that an expired token and a PocketBase
- * restart both heal the same way.
- */
-async function ensureAuth(pb: PocketBase, env: ServerEnv): Promise<void> {
-  if (pb.authStore.isValid) return;
-  await pb
-    .collection("_superusers")
-    .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
-  log("authenticated as superuser");
+/** Round write-ups, briefs and scout reasons all report the same four counts. */
+function logWriteReport(
+  label: string,
+  report: { written: number; rewritten: number; refused: number; guarded: number; stopped: string | null },
+): void {
+  const parts = [
+    report.written ? `${report.written} written` : "",
+    report.rewritten ? `${report.rewritten} rewritten` : "",
+    report.refused ? `${report.refused} refused by the guard` : "",
+    report.guarded ? `${report.guarded} re-guarded` : "",
+  ].filter(Boolean);
+  if (parts.length > 0) log(`${label} · ${parts.join(", ")}`);
+  if (report.stopped) log(`${label} stopped early: ${report.stopped}`, "warn");
 }
 
 function main(): void {
   const env = parseServerEnv(process.env);
   const pb = new PocketBase(env.PB_INTERNAL_URL);
+  const auth = superuserSession(
+    pb,
+    () => pb.collection("_superusers").authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD),
+    log,
+  );
+  const passes = createPasses({ log, auth });
+  const season = env.EUROLEAGUE_SEASON;
   log(`starting · PocketBase ${env.PB_INTERNAL_URL} · tick ${TICK_MS}ms`);
 
   /**
@@ -229,7 +244,7 @@ function main(): void {
 
   async function tick(): Promise<void> {
     try {
-      await ensureAuth(pb, env);
+      await auth.ensure();
       const report = await sweepOnce({
         pb,
         // The wall clock, asked for wherever the sweep needs it — not sampled
@@ -259,33 +274,27 @@ function main(): void {
           "error",
         );
       }
-      // Most whole-tick failures are PocketBase being unreachable or a token
-      // that has expired, and the two are indistinguishable from here. Dropping
-      // the auth makes the next tick re-authenticate, so both recover without a
-      // restart.
-      pb.authStore.clear();
+      // A rejected token marks the session stale, so the next tick logs in
+      // again; an unreachable PocketBase just fails until it is back.
+      auth.noteFailure(error);
     }
   }
 
   /**
-   * The stats pass, on its own guard.
-   *
-   * `statsInFlight` is deliberately not the sweep's `inFlight`: a pass that
-   * hangs on a slow feed response must not stop pick deadlines being enforced,
-   * and a sweep must not delay a pass. The two share only the PocketBase
-   * client and its auth.
+   * The stats pass. A pass that hangs on a slow feed response must not stop
+   * pick deadlines being enforced, and a sweep must not delay a pass. The two
+   * share only the PocketBase client and its auth.
    */
-  let statsInFlight: Promise<void> | null = null;
-  let statsFailures = 0;
-
-  async function statsPass(): Promise<void> {
-    try {
-      await ensureAuth(pb, env);
-      const report = await ingestFinishedGames({
-        pb,
-        season: env.EUROLEAGUE_SEASON,
-        log,
-      });
+  passes.schedule({
+    name: "stats pass",
+    firstAfterMs: STATS_FIRST_AFTER_MS,
+    everyMs: STATS_EVERY_MS,
+    off: env.STATS_FETCH === "off" && "stats fetch is off (STATS_FETCH=off) — box scores will not import",
+    on: `stats fetch on · ${season} · every ${STATS_EVERY_MS / 60_000}min`,
+    // A failed pass writes no batch record: `ingestFinishedGames` throws before
+    // it writes one, so nothing claims an import that never ran.
+    run: async () => {
+      const report = await ingestFinishedGames({ pb, season, log });
       // A pass with nothing to do says nothing. Through most of a week that is
       // every pass, and a line saying "0 games" four times an hour would make
       // the log useless for the thing it is for.
@@ -301,186 +310,107 @@ function main(): void {
           log(`stats · …and ${report.problems.length - 20} more problem(s)`);
         }
       }
-      if (statsFailures > 0) {
-        log(`stats recovered after ${statsFailures} failed pass(es)`);
-        statsFailures = 0;
-      }
-    } catch (error) {
-      statsFailures += 1;
-      // Every failure is logged, unlike the sweep's — a pass happens four times
-      // an hour rather than 3,600, so there is no flood to throttle, and the
-      // feed being down for a day is worth twenty-four lines. The batch record
-      // is deliberately absent here: `ingestFinishedGames` throws before it
-      // writes one, so nothing claims an import that never ran.
-      log(
-        `stats pass failed (${statsFailures} in a row): ${describeError(error)}`,
-        "error",
-      );
-      pb.authStore.clear();
-    }
-  }
-
-  function scheduleStats(): void {
-    if (env.STATS_FETCH === "off") {
-      log("stats fetch is off (STATS_FETCH=off) — box scores will not import");
-      return;
-    }
-    log(
-      `stats fetch on · ${env.EUROLEAGUE_SEASON} · every ${STATS_EVERY_MS / 60_000}min`,
-    );
-    const run = () => {
-      if (stopping || statsInFlight) return;
-      statsInFlight = statsPass().finally(() => {
-        statsInFlight = null;
-      });
-    };
-    setTimeout(() => {
-      run();
-      statsTimer = setInterval(run, STATS_EVERY_MS);
-    }, STATS_FIRST_AFTER_MS).unref?.();
-  }
+    },
+  });
 
   /**
-   * The news pass, on a third guard — see the header.
-   *
-   * It writes to `players.status`, which the draft pool renders, so a failure
-   * here is louder than it looks: no news is indistinguishable from no
-   * injuries. Every failed pass is therefore logged, as the stats pass's are.
+   * The news pass. It writes to `players.status`, which the draft pool
+   * renders, so a failure here is louder than it looks: no news is
+   * indistinguishable from no injuries.
    */
-  let newsInFlight: Promise<void> | null = null;
-  let newsFailures = 0;
-
-  async function newsPass(): Promise<void> {
-    try {
-      await ensureAuth(pb, env);
+  passes.schedule({
+    name: "news pass",
+    firstAfterMs: NEWS_FIRST_AFTER_MS,
+    everyMs: NEWS_EVERY_MS,
+    off: env.NEWS_FETCH === "off" && "news fetch is off (NEWS_FETCH=off) — injuries will not import",
+    on: `news fetch on · every ${NEWS_EVERY_MS / 60_000}min`,
+    run: async () => {
       const report = await ingestNews({ pb, log });
-      if (
-        report.created > 0 ||
-        report.updated > 0 ||
-        report.flagged > 0 ||
-        report.problems.length > 0
-      ) {
+      if (report.created > 0 || report.updated > 0 || report.flagged > 0 || report.problems.length > 0) {
         log(summariseNews(report));
         for (const problem of report.problems.slice(0, 10)) {
           log(`news · ${problem}`, "warn");
         }
       }
-      if (newsFailures > 0) {
-        log(`news recovered after ${newsFailures} failed pass(es)`);
-        newsFailures = 0;
-      }
-    } catch (error) {
-      newsFailures += 1;
-      log(
-        `news pass failed (${newsFailures} in a row): ${describeError(error)}`,
-        "error",
-      );
-      pb.authStore.clear();
-    }
-  }
+    },
+  });
 
-  function scheduleNews(): void {
-    if (env.NEWS_FETCH === "off") {
-      log("news fetch is off (NEWS_FETCH=off) — injuries will not import");
-      return;
-    }
-    log(`news fetch on · every ${NEWS_EVERY_MS / 60_000}min`);
-    const run = () => {
-      if (stopping || newsInFlight) return;
-      newsInFlight = newsPass().finally(() => {
-        newsInFlight = null;
-      });
-    };
-    setTimeout(() => {
-      run();
-      newsTimer = setInterval(run, NEWS_EVERY_MS);
-    }, NEWS_FIRST_AFTER_MS).unref?.();
-  }
-
-  let liveInFlight: Promise<void> | null = null;
-  let liveTimer: ReturnType<typeof setInterval> | null = null;
-  // A disagreement persists for the rest of the game, so each player is logged once.
-  const liveProblemsSeen = new Set<string>();
-
-  async function livePass(): Promise<void> {
-    try {
-      await ensureAuth(pb, env);
+  // Keys already logged, `game|person` for a disagreement and `game|failed`
+  // for a feed that will not answer: both persist for the rest of the game, so
+  // each is said once, and a game's keys go when it leaves the window.
+  const liveSeen = new Set<string>();
+  passes.schedule({
+    name: "live pass",
+    firstAfterMs: LIVE_FIRST_AFTER_MS,
+    everyMs: LIVE_EVERY_MS,
+    off: env.LIVE_FETCH === "off" && "live box-score polling is off (LIVE_FETCH=off)",
+    run: async () => {
       const now = Date.now();
-      const fixtures = await readStoredFixtures(pb, env.EUROLEAGUE_SEASON);
-      const candidates = fixtures.filter((fixture) => {
-        const tip = Date.parse(fixture.utc_date ?? "");
-        return !fixture.played && Number.isFinite(tip) && now >= tip - 5 * 60_000 && now <= tip + 4 * 60 * 60_000;
-      });
-      if (candidates.length === 0) return;
-      const previous = await pb.collection("live_game_snapshots").getFullList<{ game_code: number; live: boolean }>({
-        filter: `season = '${env.EUROLEAGUE_SEASON}'`,
-        fields: "game_code,live",
+      const nearby = await pb.collection("fixtures").getFullList<FixtureRecord>({
+        filter: liveWindowFilter(season, now),
         requestKey: null,
       });
-      const finished = new Set(previous.filter((row) => !row.live).map((row) => row.game_code));
+      const candidates = nearby.filter((fixture) => inLiveWindow(fixture.utc_date, now));
+      const open = new Set(candidates.map((fixture) => String(fixture.game_code)));
+      for (const key of liveSeen) if (!open.has(key.split("|")[0])) liveSeen.delete(key);
+      if (candidates.length === 0) return;
+      const finished = await pb.collection("live_game_snapshots").getFullList<{ game_code: number }>({
+        filter: `season = '${season}' && live = false && (${candidates.map((fixture) => `game_code = ${fixture.game_code}`).join(" || ")})`,
+        fields: "game_code",
+        requestKey: null,
+      });
+      const done = new Set(finished.map((row) => row.game_code));
       for (const fixture of candidates) {
-        if (finished.has(fixture.game_code)) continue;
+        if (done.has(fixture.game_code)) continue;
+        const failed = `${fixture.game_code}|failed`;
         try {
-          const parsed = await fetchLiveBoxscore(fixture.game_code, env.EUROLEAGUE_SEASON, fixture.local_club, fixture.road_club);
+          const parsed = await fetchLiveBoxscore(fixture.game_code, season, fixture.local_club, fixture.road_club);
           if (!parsed) continue;
           const { game } = parsed;
           for (const problem of parsed.problems) {
             const key = `${fixture.game_code}|${problem.personCode}`;
-            if (liveProblemsSeen.has(key)) continue;
-            liveProblemsSeen.add(key);
+            if (liveSeen.has(key)) continue;
+            liveSeen.add(key);
             log(`live · game ${fixture.game_code} · ${problem.message}`, "warn");
           }
           const outcome = await upsertLiveSnapshot(pb, {
-            season: env.EUROLEAGUE_SEASON,
+            season,
             gameCode: fixture.game_code,
             round: fixture.round,
             checkedAt: new Date().toISOString(),
             game,
           });
+          if (liveSeen.delete(failed)) log(`live · game ${fixture.game_code} recovered`);
           if (outcome !== "unchanged") log(`live · game ${fixture.game_code} · ${outcome} · ${game.live ? "provisional" : "finished"}`);
         } catch (error) {
-          log(`live · game ${fixture.game_code} failed: ${describeError(error)}`, "warn");
+          if (!liveSeen.has(failed)) log(`live · game ${fixture.game_code} failed: ${describeError(error)}`, "warn");
+          liveSeen.add(failed);
+          auth.noteFailure(error);
         }
       }
-    } catch (error) {
-      log(`live pass failed: ${describeError(error)}`, "error");
-      pb.authStore.clear();
-    }
-  }
-
-  function scheduleLive(): void {
-    if (env.LIVE_FETCH === "off") {
-      log("live box-score polling is off (LIVE_FETCH=off)");
-      return;
-    }
-    const run = () => {
-      if (stopping || liveInFlight) return;
-      liveInFlight = livePass().finally(() => { liveInFlight = null; });
-    };
-    setTimeout(() => {
-      run();
-      liveTimer = setInterval(run, LIVE_EVERY_MS);
-    }, LIVE_FIRST_AFTER_MS).unref?.();
-  }
+    },
+  });
 
   /**
-   * The Fantasy Challenge roster sync, on a fourth guard: somebody else's API,
-   * and a pick deadline must never wait on it. Every ten minutes it asks
-   * whether a pass is due — `syncDueLeagues` holds the schedule (once per game
-   * day inside a round's freeze, a preview every six hours outside it) — so a
-   * pass lands within ten minutes of the five-minutes-after-tip-off mark. Lineups follow
+   * The Fantasy Challenge roster sync: somebody else's API, and a pick
+   * deadline must never wait on it. Every ten minutes it asks whether a pass
+   * is due — `syncDueLeagues` holds the schedule (once per game day inside a
+   * round's freeze, a preview every six hours outside it) — so a pass lands
+   * within ten minutes of the five-minutes-after-tip-off mark. Lineups follow
    * the rosters in the same pass, so a frozen round's lineups are checked
    * against the roster that was just synced; `syncDueLineups` holds their
    * schedule (`lineupRoundsDue`).
    */
-  let fantasyInFlight: Promise<void> | null = null;
-  let fantasyTimer: ReturnType<typeof setInterval> | null = null;
-
-  async function fantasyPass(token: string): Promise<void> {
-    try {
-      await ensureAuth(pb, env);
-      const rosters = await syncDueLeagues({ pb, token, season: env.EUROLEAGUE_SEASON, now: new Date() });
-      const lineups = await syncDueLineups({ pb, token, season: env.EUROLEAGUE_SEASON, now: new Date() });
+  const fantasyToken = env.FANTASY_CHALLENGE_TOKEN ?? "";
+  passes.schedule({
+    name: "fantasy sync pass",
+    firstAfterMs: FANTASY_FIRST_AFTER_MS,
+    everyMs: FANTASY_EVERY_MS,
+    off: !fantasyToken && "fantasy roster and lineup sync is off (no FANTASY_CHALLENGE_TOKEN)",
+    on: `fantasy roster and lineup sync on · checks every ${FANTASY_EVERY_MS / 60_000}min`,
+    run: async () => {
+      const rosters = await syncDueLeagues({ pb, token: fantasyToken, season, now: new Date() });
+      const lineups = await syncDueLineups({ pb, token: fantasyToken, season, now: new Date() });
       for (const result of [...rosters, ...lineups]) {
         if (result.error) {
           log(`fantasy sync · league ${result.leagueId} failed: ${result.error}`, "error");
@@ -489,31 +419,9 @@ function main(): void {
           log(`fantasy sync · league ${result.leagueId} · ${kind} · ${mode} round ${round} · ${status} · ${message}`, status === "failed" ? "warn" : "info");
         }
       }
-    } catch (error) {
-      log(`fantasy sync pass failed: ${describeError(error)}`, "error");
-      pb.authStore.clear();
-    }
-  }
+    },
+  });
 
-  function scheduleFantasy(): void {
-    const token = env.FANTASY_CHALLENGE_TOKEN;
-    if (!token) {
-      log("fantasy roster and lineup sync is off (no FANTASY_CHALLENGE_TOKEN)");
-      return;
-    }
-    log(`fantasy roster and lineup sync on · checks every ${FANTASY_EVERY_MS / 60_000}min`);
-    const run = () => {
-      if (stopping || fantasyInFlight) return;
-      fantasyInFlight = fantasyPass(token).finally(() => { fantasyInFlight = null; });
-    };
-    setTimeout(() => {
-      run();
-      fantasyTimer = setInterval(run, FANTASY_EVERY_MS);
-    }, FANTASY_FIRST_AFTER_MS).unref?.();
-  }
-
-  let statsTimer: ReturnType<typeof setInterval> | null = null;
-  let newsTimer: ReturnType<typeof setInterval> | null = null;
   /**
    * Last season's averages, once, when the pool has none.
    *
@@ -537,34 +445,33 @@ function main(): void {
    *
    * Once per boot, deliberately: a pool that legitimately has no last season
    * (a brand-new competition, or a feed that has not published yet) must not
-   * be retried every fifteen minutes forever.
+   * be retried every fifteen minutes forever. A failure is never fatal: a
+   * draft with no averages is still perfectly playable, and
+   * `npm run stats:prev` remains the manual path.
    */
-  async function previousSeasonOnce(): Promise<void> {
-    if (env.STATS_FETCH === "off") return;
-    try {
-      await ensureAuth(pb, env);
-      const existing = await pb.collection("players").getList(1, 1, {
-        filter: "prev_season_games > 0",
-        fields: "id",
-        requestKey: null,
-      });
-      if (existing.totalItems > 0) return;
+  if (env.STATS_FETCH !== "off") {
+    passes.schedule({
+      name: "previous-season import",
+      firstAfterMs: 0,
+      everyMs: 0,
+      run: async () => {
+        const existing = await pb.collection("players").getList(1, 1, {
+          filter: "prev_season_games > 0",
+          fields: "id",
+          requestKey: null,
+        });
+        if (existing.totalItems > 0) return;
 
-      const season = previousSeasonOf(env.EUROLEAGUE_SEASON);
-      if (!season) return;
-      log(`no last-season averages in the pool — importing ${season}`);
-      const averages = await fetchSeasonAverages({ season });
-      const result = await applyPreviousSeason(pb, season, averages);
-      log(
-        `previous season · ${season} · ${result.fetched} in the feed · ${result.matched} matched · ${result.updated} written`,
-      );
-    } catch (error) {
-      // Never fatal. A draft with no averages is worse than one with them and
-      // still perfectly playable — the pool shows dashes and every pick is
-      // still legal. `npm run stats:prev` remains the manual path.
-      log(`previous-season import failed: ${describeError(error)}`, "error");
-      pb.authStore.clear();
-    }
+        const previous = previousSeasonOf(season);
+        if (!previous) return;
+        log(`no last-season averages in the pool — importing ${previous}`);
+        const averages = await fetchSeasonAverages({ season: previous });
+        const result = await applyPreviousSeason(pb, previous, averages);
+        log(
+          `previous season · ${previous} · ${result.fetched} in the feed · ${result.matched} matched · ${result.updated} written`,
+        );
+      },
+    });
   }
 
   /**
@@ -573,30 +480,17 @@ function main(): void {
    * until this reaches it its links use its id, which still resolves. Local
    * reads and single-field writes, so once at boot and hourly is plenty.
    */
-  let slugsInFlight: Promise<void> | null = null;
-  let slugsTimer: ReturnType<typeof setInterval> | null = null;
-  async function slugPass(): Promise<void> {
-    try {
-      await ensureAuth(pb, env);
+  passes.schedule({
+    name: "slug pass",
+    firstAfterMs: 5_000,
+    everyMs: 60 * 60_000,
+    run: async () => {
       const report = await ensureSlugs(pb);
       if (report.leagues + report.teams + report.players + report.failed > 0) {
         log(`slugs · ${report.leagues} league(s) · ${report.teams} team(s) · ${report.players} player(s) · ${report.failed} refused`);
       }
-    } catch (error) {
-      log(`slug pass failed: ${describeError(error)}`, "error");
-      pb.authStore.clear();
-    }
-  }
-  const runSlugs = () => {
-    if (stopping || slugsInFlight) return;
-    slugsInFlight = slugPass().finally(() => {
-      slugsInFlight = null;
-    });
-  };
-  setTimeout(() => {
-    runSlugs();
-    slugsTimer = setInterval(runSlugs, 60 * 60_000);
-  }, 5_000).unref?.();
+    },
+  });
 
   /**
    * The roster sync (8 October 2026): every six hours, and within the hour of
@@ -605,23 +499,24 @@ function main(): void {
    * remembered, so a player the feed does not list either cannot keep the
    * feed busy.
    */
-  let rostersInFlight: Promise<void> | null = null;
-  let rostersTimer: ReturnType<typeof setInterval> | null = null;
   let rostersLastRunAt: number | null = null;
   const rosterNamesSeen = new Set<string>();
-
-  async function rosterPass(): Promise<void> {
-    try {
-      await ensureAuth(pb, env);
+  passes.schedule({
+    name: "roster pass",
+    firstAfterMs: ROSTER_FIRST_AFTER_MS,
+    everyMs: ROSTER_CHECK_EVERY_MS,
+    off: env.ROSTER_FETCH === "off" && "roster sync is off (ROSTER_FETCH=off) — new signings wait for npm run rosters:sync",
+    on: `roster sync on · every ${ROSTER_SYNC_EVERY_MS / 3_600_000}h, or within the hour of a new unknown name`,
+    run: async () => {
       const now = new Date();
-      const unknown = await readUnknownNames(pb, env.EUROLEAGUE_SEASON, now);
+      const unknown = await readUnknownNames(pb, season, now);
       const decision = rosterSyncDue({ now: now.getTime(), lastRunAt: rostersLastRunAt, unknown, seen: rosterNamesSeen });
       if (!decision.due) return;
       rostersLastRunAt = now.getTime();
       for (const key of unknown) rosterNamesSeen.add(key);
       const report = await syncRostersFromFeed({
         pb,
-        season: env.EUROLEAGUE_SEASON,
+        season,
         now,
         ...(env.STATS_FETCH === "off" ? { reimport: false as const } : {}),
         fantasyToken: env.FANTASY_CHALLENGE_TOKEN,
@@ -629,29 +524,9 @@ function main(): void {
       const line = summariseRosterSync(report);
       if (line) log(`${line} · ${decision.reason}`, report.problems.length > 0 || report.skipped?.startsWith("refused") ? "warn" : "info");
       if (line) for (const problem of report.problems.slice(0, 10)) log(`rosters · ${problem}`, "warn");
-    } catch (error) {
-      log(`roster pass failed: ${describeError(error)}`, "error");
-      pb.authStore.clear();
-    }
-  }
+    },
+  });
 
-  function scheduleRosters(): void {
-    if (env.ROSTER_FETCH === "off") {
-      log("roster sync is off (ROSTER_FETCH=off) — new signings wait for npm run rosters:sync");
-      return;
-    }
-    log(`roster sync on · every ${ROSTER_SYNC_EVERY_MS / 3_600_000}h, or within the hour of a new unknown name`);
-    const run = () => {
-      if (stopping || rostersInFlight) return;
-      rostersInFlight = rosterPass().finally(() => { rostersInFlight = null; });
-    };
-    setTimeout(() => {
-      run();
-      rostersTimer = setInterval(run, ROSTER_CHECK_EVERY_MS);
-    }, ROSTER_FIRST_AFTER_MS).unref?.();
-  }
-
-  scheduleStats();
   /**
    * Write-ups: 7.1 round write-ups, 7.3 B briefs, 7.2 G reasons (ADR-0012,
    * ADR-0013). Its own in-flight guard, shared by the fifteen-minute pass and
@@ -660,33 +535,20 @@ function main(): void {
    * fairness-critical: a dead pass means no prose, and every page renders as
    * it did without it.
    */
-  let aiInFlight: Promise<void> | null = null;
-  let aiTimer: ReturnType<typeof setInterval> | null = null;
-  let aiRequestsTimer: ReturnType<typeof setInterval> | null = null;
   const aiDeps = (): RoundPassDeps => ({
     pb,
-    season: env.EUROLEAGUE_SEASON,
+    season,
     apiKey: env.GEMINI_API_KEY ?? "",
     model: env.GEMINI_MODEL,
     now: () => Date.now(),
-    readComplete: (leagueId) => readCompleteRounds(pb, { leagueId, season: env.EUROLEAGUE_SEASON, now: Date.now() }),
+    readComplete: (leagueId) => readCompleteRounds(pb, { leagueId, season, now: Date.now() }),
     readFacts: async (leagueId, round) => {
-      const read = await readRoundFactsInput(pb, { leagueId, season: env.EUROLEAGUE_SEASON, round, now: Date.now() });
+      const read = await readRoundFactsInput(pb, { leagueId, season, round, now: Date.now() });
       if (!read.ok) return null;
       const built = buildRoundFacts(read.input);
       return built.ok ? built.facts : null;
     },
   });
-  const aiSummary = (label: string, report: PassReport) => {
-    const parts = [
-      report.written ? `${report.written} written` : "",
-      report.rewritten ? `${report.rewritten} rewritten` : "",
-      report.refused ? `${report.refused} refused by the guard` : "",
-      report.guarded ? `${report.guarded} re-guarded` : "",
-    ].filter(Boolean);
-    if (parts.length > 0) log(`write-ups · ${label} · ${parts.join(", ")}`);
-    if (report.stopped) log(`write-ups · ${label} stopped early: ${report.stopped}`, "warn");
-  };
   const briefDeps = (deps: RoundPassDeps) => ({
     readBriefFacts: async (leagueId: string, round: number) => {
       const read = await readBriefFactsInput(pb, { leagueId, season: deps.season, round, now: deps.now() });
@@ -694,61 +556,38 @@ function main(): void {
       const built = buildBriefFacts(read.input);
       return built.ok ? built.facts : null;
     },
-    onBriefs: (briefs: BriefPassReport) => {
-      const parts = [
-        briefs.written ? `${briefs.written} written` : "",
-        briefs.rewritten ? `${briefs.rewritten} rewritten` : "",
-        briefs.refused ? `${briefs.refused} refused by the guard` : "",
-        briefs.guarded ? `${briefs.guarded} re-guarded` : "",
-      ].filter(Boolean);
-      if (parts.length > 0) log(`briefs · ${parts.join(", ")}`);
-      if (briefs.stopped) log(`briefs stopped early: ${briefs.stopped}`, "warn");
-    },
+    onBriefs: (briefs: Parameters<typeof logWriteReport>[1]) => logWriteReport("briefs", briefs),
     onBriefsError: (error: unknown) => log(`briefs failed: ${describeError(error)}`, "error"),
   });
-  const requestedRewrites = (deps: RoundPassDeps): Promise<PassReport> => runRequestedRewrites({ ...deps, ...briefDeps(deps) });
-  const writeupPass = (deps: RoundPassDeps): Promise<PassReport> =>
-    runWriteupPass({
-      ...deps,
-      ...briefDeps(deps),
-      readScoutInput: (leagueId) => readScoutFactsInput(pb, { leagueId, season: deps.season }),
-      onScout: (scout) => {
-        const parts = [
-          scout.written ? `${scout.written} written` : "",
-          scout.rewritten ? `${scout.rewritten} rewritten` : "",
-          scout.refused ? `${scout.refused} refused by the guard` : "",
-          scout.guarded ? `${scout.guarded} re-guarded` : "",
-        ].filter(Boolean);
-        if (parts.length > 0) log(`scout reasons · ${parts.join(", ")}`);
-        if (scout.stopped) log(`scout reasons stopped early: ${scout.stopped}`, "warn");
-      },
-      onScoutError: (error) => log(`scout reasons failed: ${describeError(error)}`, "error"),
+  const writeups = (label: string, run: (deps: RoundPassDeps) => Promise<PassReport>) => async () =>
+    logWriteReport(`write-ups · ${label}`, await run(aiDeps()));
+  if (env.GEMINI_API_KEY) {
+    const aiLock: PassLock = { current: null };
+    passes.schedule({
+      name: "write-ups · pass",
+      firstAfterMs: AI_FIRST_AFTER_MS,
+      everyMs: AI_EVERY_MS,
+      lock: aiLock,
+      on: `write-ups on · ${env.GEMINI_MODEL} · every ${AI_EVERY_MS / 60_000}min, Rewrite checked every minute`,
+      run: writeups("pass", (deps) =>
+        runWriteupPass({
+          ...deps,
+          ...briefDeps(deps),
+          readScoutInput: (leagueId) => readScoutFactsInput(pb, { leagueId, season: deps.season }),
+          onScout: (scout) => logWriteReport("scout reasons", scout),
+          onScoutError: (error) => log(`scout reasons failed: ${describeError(error)}`, "error"),
+        }),
+      ),
     });
-  function aiRun(label: string, run: (deps: RoundPassDeps) => Promise<PassReport>): void {
-    if (stopping || aiInFlight) return;
-    aiInFlight = (async () => {
-      try {
-        await ensureAuth(pb, env);
-        aiSummary(label, await run(aiDeps()));
-      } catch (error) {
-        log(`write-ups · ${label} failed: ${describeError(error)}`, "error");
-        pb.authStore.clear();
-      }
-    })().finally(() => {
-      aiInFlight = null;
+    passes.schedule({
+      name: "write-ups · rewrite",
+      firstAfterMs: AI_FIRST_AFTER_MS + AI_REQUESTS_EVERY_MS,
+      everyMs: AI_REQUESTS_EVERY_MS,
+      lock: aiLock,
+      run: writeups("rewrite", (deps) => runRequestedRewrites({ ...deps, ...briefDeps(deps) })),
     });
-  }
-  function scheduleWriteups(): void {
-    if (!env.GEMINI_API_KEY) {
-      log("write-ups off · GEMINI_API_KEY is not set");
-      return;
-    }
-    log(`write-ups on · ${env.GEMINI_MODEL} · every ${AI_EVERY_MS / 60_000}min, Rewrite checked every minute`);
-    setTimeout(() => {
-      aiRun("pass", writeupPass);
-      aiTimer = setInterval(() => aiRun("pass", writeupPass), AI_EVERY_MS);
-      aiRequestsTimer = setInterval(() => aiRun("rewrite", requestedRewrites), AI_REQUESTS_EVERY_MS);
-    }, AI_FIRST_AFTER_MS).unref?.();
+  } else {
+    log("write-ups off · GEMINI_API_KEY is not set");
   }
 
   /**
@@ -756,42 +595,27 @@ function main(): void {
    * the first pass after the league is created or linked, then daily. Without
    * a Fantasy Challenge token only BasketNews leagues are read; theirs is public.
    */
-  let positionsInFlight: Promise<void> | null = null;
-  let positionsTimer: ReturnType<typeof setInterval> | null = null;
   const positionsLine = (report: PositionsReport): string =>
     report.error
       ? `positions · league ${report.leagueId} · ${report.source} · read failed: ${report.error}`
       : `positions · league ${report.leagueId} · ${report.source} · ${report.additions} added, ${report.links} linked, ${report.questions} new question(s), ${report.unlisted} unlisted, ${report.unmatched} unplaced, ${report.rosterQuestions} roster question(s) open`;
-  function schedulePositions(): void {
-    const token = env.FANTASY_CHALLENGE_TOKEN;
-    log(`positions reads on · daily per linked league${token ? "" : " · BasketNews only (no FANTASY_CHALLENGE_TOKEN)"}`);
-    const run = () => {
-      if (stopping || positionsInFlight) return;
-      positionsInFlight = (async () => {
-        try {
-          await ensureAuth(pb, env);
-          const reports = await readDuePositions({
-            pb,
-            now: new Date(),
-            readers: {
-              fantasy: token ? () => fetchPlayerPool(token) : null,
-              basketnews: async (teamId) => readBasketNewsPlayerPool((await readBasketNewsTeamReference(teamId)).leagueId),
-            },
-          });
-          for (const report of reports) log(positionsLine(report), report.error ? "warn" : "info");
-        } catch (error) {
-          log(`positions pass failed: ${describeError(error)}`, "error");
-          pb.authStore.clear();
-        }
-      })().finally(() => {
-        positionsInFlight = null;
+  passes.schedule({
+    name: "positions pass",
+    firstAfterMs: POSITIONS_FIRST_AFTER_MS,
+    everyMs: POSITIONS_EVERY_MS,
+    on: `positions reads on · daily per linked league${fantasyToken ? "" : " · BasketNews only (no FANTASY_CHALLENGE_TOKEN)"}`,
+    run: async () => {
+      const reports = await readDuePositions({
+        pb,
+        now: new Date(),
+        readers: {
+          fantasy: fantasyToken ? () => fetchPlayerPool(fantasyToken) : null,
+          basketnews: async (teamId) => readBasketNewsPlayerPool((await readBasketNewsTeamReference(teamId)).leagueId),
+        },
       });
-    };
-    setTimeout(() => {
-      run();
-      positionsTimer = setInterval(run, POSITIONS_EVERY_MS);
-    }, POSITIONS_FIRST_AFTER_MS).unref?.();
-  }
+      for (const report of reports) log(positionsLine(report), report.error ? "warn" : "info");
+    },
+  });
 
   /**
    * 7.2 E: every player's outlook, per ruleset a league in season plays. Its
@@ -799,62 +623,34 @@ function main(): void {
    * league without write-ups still gets its waiver wire. Local reads and
    * changed-row writes only.
    */
-  let scoutInFlight: Promise<void> | null = null;
-  let scoutTimer: ReturnType<typeof setInterval> | null = null;
-  function scheduleScout(): void {
-    const run = () => {
-      if (stopping || scoutInFlight) return;
-      scoutInFlight = (async () => {
-        try {
-          await ensureAuth(pb, env);
-          const report = await refreshOutlooks(pb, { season: env.EUROLEAGUE_SEASON, now: new Date() });
-          if (report.written + report.removed > 0) {
-            log(`outlooks · ${report.rulesets.join(", ")} · ${report.written} written, ${report.removed} removed, ${report.unchanged} unchanged`);
-          }
-        } catch (error) {
-          log(`outlooks pass failed: ${describeError(error)}`, "error");
-          pb.authStore.clear();
-        }
-      })().finally(() => {
-        scoutInFlight = null;
-      });
-    };
-    setTimeout(() => {
-      run();
-      scoutTimer = setInterval(run, SCOUT_EVERY_MS);
-    }, SCOUT_FIRST_AFTER_MS).unref?.();
-  }
-
-  scheduleNews();
-  scheduleScout();
-  schedulePositions();
-  scheduleWriteups();
-  scheduleLive();
-  scheduleFantasy();
-  scheduleRosters();
-  let basketNewsInFlight: Promise<void> | null = null;
-  let basketNewsLastQueued = 0;
-  const basketNewsTimer = setInterval(() => {
-    if (stopping || basketNewsInFlight) return;
-    basketNewsInFlight = (async () => {
-      try {
-        await ensureAuth(pb, env);
-        const now = new Date();
-        if (now.getTime() - basketNewsLastQueued >= BASKETNEWS_DUE_CHECK_EVERY_MS) {
-          const queued = await queueBasketNewsLeagues(pb, env.EUROLEAGUE_SEASON, now);
-          if (queued) log(`BasketNews · ${queued} league(s) due a read`);
-          basketNewsLastQueued = now.getTime();
-        }
-        const processed = await processBasketNewsJobs(pb, env.BASKETNEWS_COOKIE, basketNewsSource, (message) => log(message, "warn"));
-        if (processed) log(`BasketNews · processed ${processed} queued sync(s)`);
-      } catch (error) {
-        log(`BasketNews pass failed: ${describeError(error)}`, "error");
-        pb.authStore.clear();
+  passes.schedule({
+    name: "outlooks pass",
+    firstAfterMs: SCOUT_FIRST_AFTER_MS,
+    everyMs: SCOUT_EVERY_MS,
+    run: async () => {
+      const report = await refreshOutlooks(pb, { season, now: new Date() });
+      if (report.written + report.removed > 0) {
+        log(`outlooks · ${report.rulesets.join(", ")} · ${report.written} written, ${report.removed} removed, ${report.unchanged} unchanged`);
       }
-    })().finally(() => { basketNewsInFlight = null; });
-  }, BASKETNEWS_POLL_EVERY_MS);
-  // After the schedulers, so a slow feed cannot delay the sweep starting.
-  void previousSeasonOnce();
+    },
+  });
+
+  let basketNewsLastQueued = 0;
+  passes.schedule({
+    name: "BasketNews pass",
+    firstAfterMs: BASKETNEWS_POLL_EVERY_MS,
+    everyMs: BASKETNEWS_POLL_EVERY_MS,
+    run: async () => {
+      const now = new Date();
+      if (now.getTime() - basketNewsLastQueued >= BASKETNEWS_DUE_CHECK_EVERY_MS) {
+        const queued = await queueBasketNewsLeagues(pb, season, now);
+        if (queued) log(`BasketNews · ${queued} league(s) due a read`);
+        basketNewsLastQueued = now.getTime();
+      }
+      const processed = await processBasketNewsJobs(pb, env.BASKETNEWS_COOKIE, basketNewsSource, (message) => log(message, "warn"));
+      if (processed) log(`BasketNews · processed ${processed} queued sync(s)`);
+    },
+  });
 
   const timer = setInterval(() => {
     if (stopping) return;
@@ -898,27 +694,12 @@ function main(): void {
     if (stopping) return;
     stopping = true;
     clearInterval(timer);
-    if (statsTimer) clearInterval(statsTimer);
-    if (newsTimer) clearInterval(newsTimer);
-    if (liveTimer) clearInterval(liveTimer);
-    if (fantasyTimer) clearInterval(fantasyTimer);
-    if (rostersTimer) clearInterval(rostersTimer);
-    clearInterval(basketNewsTimer);
-    if (slugsTimer) clearInterval(slugsTimer);
-    if (aiTimer) clearInterval(aiTimer);
-    if (aiRequestsTimer) clearInterval(aiRequestsTimer);
-    if (positionsTimer) clearInterval(positionsTimer);
-    if (scoutTimer) clearInterval(scoutTimer);
-    log(`${signal} received, finishing the tick in flight`);
-    // PM2 sends SIGTERM on reload and waits before escalating. A tick is a
-    // handful of local queries, so this returns immediately in practice — and
-    // if it does not, being killed mid-tick costs at most one repairable pick.
-    await inFlight?.catch(() => {});
-    // A stats pass mid-flight is abandoned rather than waited for: it can be
-    // several seconds of somebody else's network, PM2 escalates SIGTERM to
-    // SIGKILL, and dying mid-pass costs nothing — the games it did not reach
-    // are simply still outstanding on the next one.
-    log("stopped");
+    log(`${signal} received, finishing the work in flight`);
+    // PM2 sends SIGTERM on reload and waits `kill_timeout` before SIGKILL.
+    // Every pass is idempotent, so one cut off at the deadline costs nothing
+    // but a retry; waiting for it just avoids a half-written pass in the log.
+    const finished = await passes.drain(SHUTDOWN_DEADLINE_MS, [inFlight]);
+    log(finished ? "stopped" : `stopped with work still in flight after ${SHUTDOWN_DEADLINE_MS / 1000}s`);
     process.exit(0);
   }
 
