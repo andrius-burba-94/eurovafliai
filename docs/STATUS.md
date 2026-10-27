@@ -21,6 +21,40 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Sync audit — worker passes and auth, 26 October 2026
+
+**Merged (#218).** Findings W1, W3, W5, W7, S13
+and the live-pass load ([story](log/sync-audit-2026-10-26.md#worker-passes-and-auth)):
+
+- **W1** One superuser session (`src/worker/passes.ts`) shared by every pass:
+  never cleared, marked stale only on a PocketBase 401/403, one re-auth however
+  many passes ask, renewed ten minutes before expiry. Every pass but the sweep
+  runs through `createPasses().schedule`; `index.ts` 930 → 711 lines.
+- **W5** Shutdown drains every pass in flight (8s deadline); worker
+  `kill_timeout` is 10s.
+- **W3** `refreshOutlooks` writes nothing from an empty pool or empty stat read.
+- **W7** The sweep re-runs the due check on the fresh draft row before an
+  autopick, so an extended pick clock is not overridden.
+- **S13** `liveCheckedAt` ignores snapshots of games already recorded, so the
+  feed is not called stale for the rest of a round.
+- **Live pass** reads only fixtures whose day can be in the window and one
+  `inLiveWindow` (−5 min … +4 h) replaces four copies; per-game log lines are
+  said once and pruned. BasketNews jobs poll every 15s (was 5s).
+
+Deferred: the snapshot heartbeat in `src/lib/live/store.ts` stays — staleness
+detection depends on it (halftime changes nothing for fifteen minutes). Skipping
+outlook recomputation when inputs are unchanged was not done.
+
+**Try it on localhost:**
+
+```bash
+npm run dev & npm run worker:dev
+# Ctrl-C the worker: "SIGINT received, finishing the work in flight" then "stopped"
+```
+
+Stop PocketBase for a minute while the worker runs: each pass logs one
+`… failed (N in a row)` line a minute, then `… recovered after N failed pass(es)`.
+
 ## Scripts cleanup, 26 October 2026
 
 **Merged (#217).** No behaviour change for the app, the

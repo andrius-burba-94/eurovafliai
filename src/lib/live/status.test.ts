@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { feedStatus, gameStateOf, playerRoundOf, roundPointsOf, statLineOf } from "./status";
+import { feedStatus, gameStateOf, inLiveWindow, liveCheckedAt, liveWindowFilter, playerRoundOf, roundPointsOf, statLineOf } from "./status";
 
 const now = Date.parse("2026-09-29T18:00:00.000Z");
 const base = { final: false, connected: true, checkedAt: [] as string[], now, hasGameWindow: true, gameTimes: ["2026-09-29T17:55:00.000Z"], hasPlayedGames: false };
@@ -23,6 +23,39 @@ describe("matchday feed status", () => {
   });
   it("says full time rather than unavailable once the live feed has stopped", () => {
     expect(feedStatus({ ...base, hasFullTime: true }).label).toBe("Full time · waiting for the official box score");
+  });
+});
+
+describe("the live window", () => {
+  const tip = "2026-09-29T18:00:00.000Z";
+  const at = (iso: string) => inLiveWindow(tip, Date.parse(iso));
+  it("opens five minutes before tip-off and closes four hours after it", () => {
+    expect(at("2026-09-29T17:54:59.999Z")).toBe(false);
+    expect(at("2026-09-29T17:55:00.000Z")).toBe(true);
+    expect(at("2026-09-29T21:59:59.999Z")).toBe(true);
+    expect(at("2026-09-29T22:00:00.000Z")).toBe(false);
+  });
+  it("is shut for a game without a time", () => {
+    expect(inLiveWindow("", now)).toBe(false);
+    expect(inLiveWindow(undefined, now)).toBe(false);
+  });
+  it("asks PocketBase for whole days either side, whatever separator the stamp uses", () => {
+    expect(liveWindowFilter("E2026", Date.parse("2026-09-30T01:00:00.000Z"))).toBe(
+      'season = "E2026" && played = false && utc_date >= "2026-09-29" && utc_date < "2026-10-01"',
+    );
+  });
+});
+
+describe("feed checks worth judging", () => {
+  const fixtures = [{ game_code: 1, played: true }, { game_code: 2, played: false }];
+  it("ignores a live snapshot whose game has since been recorded", () => {
+    const snapshots = [
+      { game_code: 1, live: true, checked_at: "2026-09-29T16:00:00.000Z" },
+      { game_code: 2, live: true, checked_at: "2026-09-29T17:59:00.000Z" },
+      { game_code: 3, live: false, checked_at: "2026-09-29T17:59:00.000Z" },
+    ];
+    expect(liveCheckedAt(snapshots, fixtures)).toEqual(["2026-09-29T17:59:00.000Z"]);
+    expect(feedStatus({ ...base, checkedAt: liveCheckedAt(snapshots, fixtures) }).alert).toBe(false);
   });
 });
 
