@@ -225,6 +225,18 @@ describe("runFantasySync", () => {
     expect(run.message).toBe("The official rosters match the league's.");
   });
 
+  // A logged-out client reads every list rule as an empty list.
+  it("refuses to plan against rosters or a pool that read back empty", async () => {
+    const { doFetch } = fetchReturning(SWAPPED);
+    fake.rows("roster_memberships").length = 0;
+    await expect(runFantasySync({ pb: fake.client, leagueId: LEAGUE, token: "tok", season: SEASON, decision: APPLY, now: NOW, doFetch })).rejects.toThrow(/rosters read back empty/);
+    fake = league();
+    fake.rows("players").length = 0;
+    await expect(runFantasySync({ pb: fake.client, leagueId: LEAGUE, token: "tok", season: SEASON, decision: APPLY, now: NOW, doFetch })).rejects.toThrow(/pool read back empty/);
+    expect(fake.rows("transactions")).toEqual([]);
+    expect(fake.rows("chat_messages")).toEqual([]);
+  });
+
   it("refuses a league that is not linked", async () => {
     fake.rows("leagues")[0]!.fantasy_league_id = "";
     await expect(

@@ -1,19 +1,21 @@
 import { displayName } from "@/lib/players/name";
 import type PocketBase from "pocketbase";
 
+import { describeError } from "@/lib/drafts/pipeline";
+import type { Position } from "@/lib/engine";
 import { readStoredFixtures } from "@/lib/fixtures/store";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
-import { formationName, type LineupSlots, type LineupSquadPlayer, playerGameDays } from "@/lib/lineups/lineup";
+import { formationName, type LineupSlots, type LineupSquadPlayer } from "@/lib/lineups/lineup";
 import { readSquadWithPositions, writeLineup } from "@/lib/lineups/store";
-import { applyTransaction, asPbDate, listActiveMemberships } from "@/lib/memberships/store";
+import { applySteps, asPbDate, clip, readSeats } from "@/lib/memberships/store";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueMoves, fetchLeagueRosters, fetchRoundLineup } from "./client";
-import { linkLineupPlayers, matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
-import { resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
-import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncSeat, type SyncStep } from "./plan";
-import { lineupRoundsDue, readDayAt, roundWindows, syncDue, syncModeAt, type RoundWindow, type SyncDecision } from "./windows";
+import { matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
+import { linkSourcePlayers, resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
+import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncStep } from "./plan";
+import { lineupRoundsDue, roundFreeze, roundWindows, syncDue, syncModeAt, type LineupRunRef, type RoundWindow, type SyncDecision } from "./windows";
 
 /**
  * Running a sync — the PocketBase half.
@@ -63,23 +65,13 @@ type SyncRecord = SyncRun & { readonly steps?: readonly SyncStep[] | null };
 type LeagueRow = { id: string; status: string; fantasy_league_id?: string; settings?: unknown };
 
 /** Roster runs written before `kind` existed have it empty. */
-const ROSTER_RUNS = "kind != 'lineups'";
-
-const MESSAGE_MAX = 500;
-
-function clip(text: string): string {
-  return text.length > MESSAGE_MAX ? `${text.slice(0, MESSAGE_MAX - 1)}…` : text;
-}
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
+export const ROSTER_RUNS = "kind != 'lineups'";
 
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
-async function readWindows(pb: PocketBase, season: string): Promise<RoundWindow[]> {
+export async function readWindows(pb: PocketBase, season: string): Promise<RoundWindow[]> {
   const fixtures = await readStoredFixtures(pb, season);
   return roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null })));
 }
@@ -100,6 +92,16 @@ export async function readSyncRuns(pb: PocketBase, leagueId: string, limit: numb
     moves: Array.isArray(row.moves) ? row.moves : [],
     questions: Array.isArray(row.questions) ? row.questions : [],
   }));
+}
+
+/** Only what a due check reads: when each matching run ran, and how it ended. */
+export async function readRunRefs(pb: PocketBase, filter: string): Promise<LineupRunRef[]> {
+  const rows = await pb.collection("fantasy_syncs").getFullList<{ round: number; ran_at: string; status: string }>({
+    filter,
+    fields: "round,ran_at,status",
+    requestKey: null,
+  });
+  return rows.map((run) => ({ round: run.round, ranAt: Date.parse(run.ran_at.replace(" ", "T")), status: run.status }));
 }
 
 async function lastRunAt(pb: PocketBase, filter: string): Promise<number | null> {
@@ -144,12 +146,6 @@ async function record(
   );
 }
 
-async function applySteps(pb: PocketBase, leagueId: string, steps: readonly SyncStep[], now: Date): Promise<void> {
-  for (const step of steps) {
-    await applyTransaction(pb, leagueId, step.plan, now, step.announcement, step.note);
-  }
-}
-
 async function finishInterrupted(pb: PocketBase, leagueId: string, now: Date): Promise<number> {
   const open = await pb.collection("fantasy_syncs").getFullList<SyncRecord>({
     filter: `league = '${leagueId}' && status = 'applying'`,
@@ -166,15 +162,6 @@ async function finishInterrupted(pb: PocketBase, leagueId: string, now: Date): P
   return open.length;
 }
 
-async function readSeats(pb: PocketBase, leagueId: string): Promise<SyncSeat[]> {
-  const rows = await listActiveMemberships<{ id: string; member: string; player: string; to_date?: string }>(
-    pb,
-    leagueId,
-    { fields: "id,member,player,to_date" },
-  );
-  return rows.map(({ id, member, player }) => ({ id, member, player }));
-}
-
 async function readMembers(pb: PocketBase, leagueId: string): Promise<SyncMember[]> {
   const rows = await pb.collection("league_members").getFullList<{ id: string; team_name: string; fantasy_team_id?: string }>({
     filter: `league = '${leagueId}'`,
@@ -188,7 +175,13 @@ async function readMembers(pb: PocketBase, leagueId: string): Promise<SyncMember
   }));
 }
 
-async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
+export type SourcePoolPlayer = PoolPlayer & { readonly basketnewsId: string; readonly basketnewsPosition?: Position };
+
+/**
+ * The pool every source matcher reads, with each source's stored link. Throws
+ * on none, as `readSeats` does: an empty pool is a lost login, not a season.
+ */
+export async function readPool(pb: PocketBase): Promise<SourcePoolPlayer[]> {
   const rows = await pb.collection("players").getFullList<{
     id: string;
     name: string;
@@ -197,11 +190,14 @@ async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
     club_name: string;
     dorsal?: string;
     fantasy_id?: string;
+    basketnews_id?: string;
+    basketnews_position?: Position | "";
     status?: string;
   }>({
-    fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,status",
+    fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,basketnews_id,basketnews_position,status",
     requestKey: null,
   });
+  if (rows.length === 0) throw new Error("The player pool read back empty; refusing to match against nobody.");
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -210,6 +206,8 @@ async function readPool(pb: PocketBase): Promise<PoolPlayer[]> {
     clubName: row.club_name,
     dorsal: row.dorsal ?? "",
     fantasyId: row.fantasy_id ?? "",
+    basketnewsId: row.basketnews_id ?? "",
+    basketnewsPosition: row.basketnews_position || undefined,
     status: row.status ?? "",
   }));
 }
@@ -274,7 +272,7 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
   } catch (error) {
     return record(pb, leagueId, decision, now, {
       status: "failed",
-      message: error instanceof FantasyTokenRefused ? error.message : `Could not read the official rosters: ${describe(error)}`,
+      message: error instanceof FantasyTokenRefused ? error.message : `Could not read the official rosters: ${describeError(error)}`,
     });
   }
 
@@ -285,7 +283,7 @@ export async function runFantasySync(options: SyncOptions): Promise<SyncRun> {
     await pb.collection("league_members").update(link.memberId, { fantasy_team_id: link.fantasyTeamId }, { requestKey: null });
   }
   for (const link of resolution.playerLinks) {
-    await pb.collection("players").update(link.playerId, { fantasy_id: link.fantasyId }, { requestKey: null });
+    await pb.collection("players").update(link.playerId, { fantasy_id: link.sourceId }, { requestKey: null });
   }
   if (resolution.questions.length > 0) {
     return record(pb, leagueId, decision, now, {
@@ -495,16 +493,16 @@ export async function syncDueLeagues(options: {
   const results: { leagueId: string; run?: SyncRun; error?: string }[] = [];
   for (const league of leagues) {
     try {
-      const lastApply =
+      const applies =
         decision.mode === "apply"
-          ? await lastRunAt(pb, `league = '${league.id}' && ${ROSTER_RUNS} && mode = 'apply' && round = ${decision.round}`)
-          : null;
+          ? await readRunRefs(pb, `league = '${league.id}' && ${ROSTER_RUNS} && mode = 'apply' && round = ${decision.round}`)
+          : [];
       const lastAny = await lastRunAt(pb, `league = '${league.id}' && ${ROSTER_RUNS}`);
-      if (!syncDue(now.getTime(), decision, windows, lastApply, lastAny)) continue;
+      if (!syncDue(now.getTime(), decision, windows, applies, lastAny)) continue;
       const run = await runFantasySync({ ...options, leagueId: league.id, decision });
       results.push({ leagueId: league.id, run });
     } catch (error) {
-      results.push({ leagueId: league.id, error: describe(error) });
+      results.push({ leagueId: league.id, error: describeError(error) });
     }
   }
   return results;
@@ -583,21 +581,19 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
     return record(pb, leagueId, decision, now, {
       kind: "lineups",
       status: "failed",
-      message: error instanceof FantasyTokenRefused ? error.message : `Could not find round ${round} in the official game: ${describe(error)}`,
+      message: error instanceof FantasyTokenRefused ? error.message : `Could not find round ${round} in the official game: ${describeError(error)}`,
     });
   }
 
   const [members, pool, fixtures] = await Promise.all([readMembers(pb, leagueId), readPool(pb), readStoredFixtures(pb, season)]);
   const template = parseLeagueSettings(league.settings).lineup_template;
   // The day's players freeze in the roles this read finds them in.
-  const window = roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null }))).find((row) => row.round === round);
-  const readDay = readDayAt(now.getTime(), window);
-  const gameDays = playerGameDays({
-    fixtures: fixtures.map((row) => ({ round: row.round, localClub: row.local_club, roadClub: row.road_club, utcDate: row.utc_date || null })),
+  const freeze = roundFreeze(
+    now,
     round,
-    clubOf: new Map(pool.map((row) => [row.id, row.clubCode])),
-  });
-  const freeze = readDay ? { gameDays, readDay, at: now.toISOString() } : undefined;
+    fixtures.map((row) => ({ round: row.round, localClub: row.local_club, roadClub: row.road_club, utcDate: row.utc_date || null })),
+    new Map(pool.map((row) => [row.id, row.clubCode])),
+  );
 
   const refused: string[] = [];
   const fetched: { memberId: string; team: string; squad: LineupSquadPlayer[]; lineup: OfficialLineup }[] = [];
@@ -615,21 +611,20 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
       if (error instanceof FantasyTokenRefused) {
         return record(pb, leagueId, decision, now, { kind: "lineups", status: "failed", message: error.message });
       }
-      refused.push(`${member.teamName}: ${describe(error)}`);
+      refused.push(`${member.teamName}: ${describeError(error)}`);
     }
   }
 
-  const { links, questions } = linkLineupPlayers(
-    fetched.flatMap((entry) => entry.lineup.players.map((player) => ({ player: player.official, teamName: entry.team }))),
+  // A player traded away before the first roster sync is on no official
+  // roster, only on the lineups he played.
+  const { mapped: playerIdFor, links, questions } = linkSourcePlayers({
+    read: fetched.flatMap((entry) => entry.lineup.players.map((player) => ({ player: player.official, teamName: entry.team }))),
     pool,
-  );
+    idOf: (row) => row.fantasyId,
+  });
   for (const link of links) {
-    await pb.collection("players").update(link.playerId, { fantasy_id: link.fantasyId }, { requestKey: null });
+    await pb.collection("players").update(link.playerId, { fantasy_id: link.sourceId }, { requestKey: null });
   }
-  const playerIdFor = new Map([
-    ...pool.filter((row) => row.fantasyId).map((row) => [row.fantasyId, row.id] as const),
-    ...links.map((link) => [link.fantasyId, link.playerId] as const),
-  ]);
   const playerName = new Map(pool.map((row) => [row.id, displayName(row.name)]));
 
   const written: { memberId: string; team: string; summary: string; officialHundredths: number }[] = [];
@@ -673,9 +668,12 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
         ? " Every round total matches the official one."
         : ` ${plural(differing, "round total")} ${differing === 1 ? "differs" : "differ"} from the official one.`;
   const asking = questions.length > 0 ? ` ${plural(questions.length, "player")} to place before the rest can sync.` : "";
+  // A team that could not be placed is named in `moves`, and does not hold
+  // back the ones that were: an unlinked member would otherwise re-read every
+  // settled round four times a day all season.
   return record(pb, leagueId, decision, now, {
     kind: "lineups",
-    status: questions.length > 0 ? "blocked" : refused.length > 0 ? "failed" : "applied",
+    status: questions.length > 0 ? "blocked" : written.length === 0 && refused.length > 0 ? "failed" : "applied",
     message: `${placed}${totals}${asking}${standingsNote}`,
     moves: [...refused, ...moves],
     questions,
@@ -703,23 +701,20 @@ export async function syncDueLineups(options: {
     requestKey: null,
   });
   if (leagues.length === 0) return [];
-  const fixtures = await readStoredFixtures(pb, options.season);
-  const windows = roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null })));
+  const windows = await readWindows(pb, options.season);
+  if (windows.length === 0) return [];
+  // Nothing before this season's first tip-off is about any of its rounds.
+  const since = asPbDate(new Date(windows[0]!.lockAt));
   const results: { leagueId: string; run?: SyncRun; error?: string }[] = [];
   for (const league of leagues) {
     try {
-      const runs = await pb.collection("fantasy_syncs").getFullList<{ round: number; ran_at: string; status: string }>({
-        filter: `league = '${league.id}' && kind = 'lineups'`,
-        fields: "round,ran_at,status",
-        requestKey: null,
-      });
-      const refs = runs.map((run) => ({ round: run.round, ranAt: Date.parse(run.ran_at.replace(" ", "T")), status: run.status }));
+      const refs = await readRunRefs(pb, `league = '${league.id}' && kind = 'lineups' && ran_at >= '${since}'`);
       for (const round of lineupRoundsDue(now.getTime(), windows, refs, options.force)) {
         const run = await syncRoundLineups({ ...options, leagueId: league.id, round });
         results.push({ leagueId: league.id, run });
       }
     } catch (error) {
-      results.push({ leagueId: league.id, error: describe(error) });
+      results.push({ leagueId: league.id, error: describeError(error) });
     }
   }
   return results;

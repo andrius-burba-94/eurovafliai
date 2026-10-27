@@ -1,8 +1,9 @@
 import type PocketBase from "pocketbase";
 
 import { describeError } from "@/lib/drafts/pipeline";
-import { basketNewsDue, roundWindows } from "@/lib/fantasy/windows";
-import { readStoredFixtures } from "@/lib/fixtures/store";
+import { readRunRefs, readWindows } from "@/lib/fantasy/store";
+import { basketNewsDue } from "@/lib/fantasy/windows";
+import { asPbDate } from "@/lib/memberships/store";
 
 import { basketNewsLeagueIds, markBasketNewsJob, PocketBaseBasketNewsRepository, queueBasketNewsSync, queuedBasketNewsJobs } from "./repository";
 import { basketNewsSource, syncBasketNews, type BasketNewsSource } from "./sync";
@@ -19,21 +20,28 @@ export async function processBasketNewsJobs(
   const jobs = await queuedBasketNewsJobs(pb);
   const repository = new PocketBaseBasketNewsRepository(pb);
   for (const job of jobs) {
-    await markBasketNewsJob(pb, job.id, { status: "running", message: "Reading BasketNews." });
+    let outcome;
     try {
-      const outcome = await syncBasketNews(repository, job.league, job.id, cookie, job.job_meta?.nextRound ?? 0, source, now());
+      await markBasketNewsJob(pb, job.id, { status: "running", message: "Reading BasketNews." });
+      outcome = await syncBasketNews(repository, job.league, job.id, cookie, job.job_meta?.nextRound ?? 0, source, now());
       for (const warning of outcome.warnings ?? []) warn(`BasketNews · league ${job.league} · ${warning}`);
       await markBasketNewsJob(pb, job.id, {
         status: outcome.status, message: outcome.message, questions: outcome.questions, round: outcome.rounds, active_league: "", diagnostics: outcome.warnings ?? [],
       });
-      if (outcome.status === "applied") {
-        const league = await pb.collection("leagues").getOne<{ season: string }>(job.league, { fields: "season", requestKey: null });
-        await completeSourcePlayerRecovery(pb, `E${league.season.slice(0, 4)}`, job.league);
-      }
     } catch (error) {
-      await markBasketNewsJob(pb, job.id, {
-        status: "failed", message: describeError(error).slice(0, 500), active_league: "",
-      });
+      // A job that cannot even be marked stays running and is retried next
+      // pass; the rest of the queue still runs.
+      await markBasketNewsJob(pb, job.id, { status: "failed", message: describeError(error), active_league: "" })
+        .catch((marking: unknown) => warn(`BasketNews · league ${job.league} · could not mark the job failed: ${describeError(marking)}`));
+      continue;
+    }
+    // The job applied; a recovery bookkeeping failure must not overwrite that.
+    if (outcome.status !== "applied") continue;
+    try {
+      const league = await pb.collection("leagues").getOne<{ season: string }>(job.league, { fields: "season", requestKey: null });
+      await completeSourcePlayerRecovery(pb, `E${league.season.slice(0, 4)}`, job.league);
+    } catch (error) {
+      warn(`BasketNews · league ${job.league} · source-player recovery is still pending: ${describeError(error)}`);
     }
   }
   return jobs.length;
@@ -49,14 +57,14 @@ export async function processBasketNewsJobs(
 export async function queueBasketNewsLeagues(pb: PocketBase, season: string, now: Date): Promise<number> {
   const leagueIds = await basketNewsLeagueIds(pb);
   if (leagueIds.length === 0) return 0;
-  const fixtures = await readStoredFixtures(pb, season);
-  const windows = roundWindows(fixtures.map((row) => ({ round: row.round, utcDate: row.utc_date || null })));
+  const windows = await readWindows(pb, season);
+  // A job counts for every round, so nothing before the latest settled round
+  // can change the answer: that round is due unless a job has run since.
+  const settled = windows.filter((window) => window.settledAt <= now.getTime()).map((window) => window.settledAt);
+  const since = settled.length ? ` && ran_at >= '${asPbDate(new Date(Math.max(...settled)))}'` : "";
   let queued = 0;
   for (const leagueId of leagueIds) {
-    const runs = await pb.collection("fantasy_syncs").getFullList<{ ran_at: string; status: string }>({
-      filter: `league = '${leagueId}' && provider = 'basketnews'`, fields: "ran_at,status", requestKey: null,
-    });
-    const refs = runs.map((run) => ({ round: 0, ranAt: Date.parse(run.ran_at.replace(" ", "T")), status: run.status }));
+    const refs = await readRunRefs(pb, `league = '${leagueId}' && provider = 'basketnews'${since}`);
     if (!basketNewsDue(now.getTime(), windows, refs)) continue;
     await queueBasketNewsSync(pb, leagueId, now);
     queued += 1;

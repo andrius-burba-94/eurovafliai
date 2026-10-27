@@ -4,6 +4,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { describeError } from "@/lib/drafts/pipeline";
+import { isUniqueViolation } from "@/lib/drafts/unique";
 import { isManager } from "@/lib/leagues/lobby";
 import type { LeagueRecord, MemberRecord } from "@/lib/leagues/types";
 import { getSuperuserClient } from "@/lib/pb/superuser";
@@ -38,7 +39,7 @@ async function managedLeague(leagueId: string) {
   } catch {
     return null;
   }
-  const members = await pb.collection("league_members").getFullList<MemberRecord & { fantasy_team_id?: string }>({
+  const members = await pb.collection("league_members").getFullList<MemberRecord & { fantasy_team_id?: string; basketnews_team_id?: string }>({
     filter: `league = '${leagueId}'`,
     requestKey: null,
   });
@@ -116,15 +117,17 @@ export async function answerFantasyQuestion(
   if (!officialId || !choice) return { error: "Choose one first.", done: null };
   if (managed.league.basketnews_team_id && !/^[a-f0-9]{24}$/.test(officialId)) return { error: "That source id is not valid.", done: null };
 
+  // Each source keeps its own link, and BasketNews's is unique across leagues.
+  const teamLink = managed.league.basketnews_team_id ? "basketnews_team_id" : "fantasy_team_id";
   if (kind === "team") {
     const member = managed.members.find((row) => row.id === choice);
     if (!member) return { error: "That team is not in this league.", done: null };
     for (const other of managed.members) {
-      if (other.id !== member.id && other.fantasy_team_id === officialId) {
-        await managed.pb.collection("league_members").update(other.id, { fantasy_team_id: "" }, { requestKey: null });
+      if (other.id !== member.id && other[teamLink] === officialId) {
+        await managed.pb.collection("league_members").update(other.id, { [teamLink]: "" }, { requestKey: null });
       }
     }
-    await managed.pb.collection("league_members").update(member.id, { [managed.league.basketnews_team_id ? "basketnews_team_id" : "fantasy_team_id"]: officialId }, { requestKey: null });
+    await managed.pb.collection("league_members").update(member.id, { [teamLink]: officialId }, { requestKey: null });
     revalidateLeague();
     return { error: null, done: choice };
   }
@@ -140,7 +143,10 @@ export async function answerFantasyQuestion(
       }
     } catch (error) {
       console.error(`answerFantasyQuestion: ${describeError(error)}`);
-      return { error: "That player is already linked to another official player.", done: null };
+      return {
+        error: isUniqueViolation(error) ? "That player is already linked to another official player." : "The answer was not saved. Try again in a minute.",
+        done: null,
+      };
     }
     revalidateLeague();
     return { error: null, done: choice };

@@ -1,8 +1,8 @@
-import { matchPlayer, playerLabel, resolveClubs, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
+import { linkSourcePlayers, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
-import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, playerGameDays, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
-import { readDayAt, roundWindows } from "@/lib/fantasy/windows";
+import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
+import { roundFreeze, roundWindows, type RoundFreeze } from "@/lib/fantasy/windows";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { formatHundredths } from "@/lib/stats/scoring";
 import type { Position } from "@/lib/engine";
@@ -45,9 +45,6 @@ export interface BasketNewsRepository {
   recompute(season: string, leagueId: string): Promise<void>;
   progress(jobId: string, nextRound: number): Promise<void>;
 }
-
-/** What one read freezes: the players whose game day it reached. */
-export type RoundFreeze = { readonly gameDays: ReadonlyMap<string, string>; readonly readDay: string; readonly at: string };
 
 export type BasketNewsRoundResult = {
   /** Every EuroLeague game of the round was played when this was read. */
@@ -169,9 +166,12 @@ export async function syncBasketNews(
     }
   } catch (error) { failures.push(`Rosters: ${(error as Error).message}`); }
 
-  const gamesOf = (round: number) => local.fixtures.filter((game) => game.round === round);
-  const isFinal = (round: number) => gamesOf(round).every((game) => game.played);
-  const unplayed = local.fixtures.filter((game) => !game.played).map((game) => game.round);
+  // A game postponed out of its round's freeze is not the round's, as
+  // `roundWindows` already decides: it must not keep the round open for weeks.
+  const windows = roundWindows(local.fixtures);
+  const counted = local.fixtures.filter((game) => windows.find((window) => window.round === game.round)?.tips.includes(Date.parse(game.utcDate ?? "")) ?? true);
+  const isFinal = (round: number) => counted.every((game) => game.round !== round || game.played);
+  const unplayed = counted.filter((game) => !game.played).map((game) => game.round);
   const lastReadable = unplayed.length ? Math.min(...unplayed) : 0;
   const first = Math.max(1, startRound ? Math.min(startRound, local.firstOpenRound) : local.firstOpenRound);
   for (let round = first; round <= 40; round += 1) {
@@ -216,33 +216,27 @@ export async function syncBasketNews(
     try { extraMetadata = await source.playerPool(official.leagueId); }
     catch (error) { warnings.push(`Player metadata: ${(error as Error).message}`); }
   }
-  const asFantasy = [...sourcePlayers.values()].flatMap((player) => player.team ? [basketNewsPlayer(player)] : []);
-  const clubCodes = resolveClubs([{ id: official.id, name: official.title, manager: "", players: asFantasy }], local.pool);
-  const mapped = new Map<string, string>();
-  const links: { playerId: string; sourceId: string; position: Position; updateId: boolean; updatePosition: boolean }[] = [];
-  const questions: SyncQuestion[] = [];
-  const unresolved: FantasyPlayer[] = [];
+  const linkedRows = new Map(local.pool.filter((row) => row.basketnewsId).map((row) => [row.basketnewsId!, row]));
+  const teamOf = (sourceId: string) =>
+    teams.find((team, index) => rounds.some((round) => round.lineups[index]?.players.some((entry) => entry.playerId === sourceId)))?.title ?? "BasketNews";
+  const read: { player: FantasyPlayer; teamName: string }[] = [];
   for (const [sourceId, sourcePlayer] of sourcePlayers) {
-    const existing = local.pool.find((player) => player.basketnewsId === sourceId);
-    if (existing && !sourcePlayer.team) { mapped.set(sourceId, existing.id); continue; }
     const player = sourcePlayer.team ? basketNewsPlayer(sourcePlayer) : extraMetadata.find((row) => row.id === sourceId);
-    if (!player) { failures.push(`Player ${sourceId}: historical lineup has no club or position; current rosters continue independently.`); continue; }
-    const match = existing ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool.filter((row) => !row.basketnewsId));
-    if (match) {
-      mapped.set(sourceId, match.id);
-      const storedPosition = local.pool.find((row) => row.id === match.id)?.basketnewsPosition;
-      if (!existing || !storedPosition) links.push({ playerId: match.id, sourceId, position: player.position, updateId: !existing, updatePosition: !storedPosition });
-    } else {
-      unresolved.push(player);
-      const surname = normalizeName(player.lastName);
-      questions.push({ kind: "player", fantasyPlayerId: sourceId, name: `${player.firstName} ${player.lastName}`, club: player.club.name, jersey: player.jersey,
-        fantasyTeamName: teams.find((team, index) => rounds.some((round) => round.lineups[index]?.players.some((entry) => entry.playerId === sourceId)))?.title ?? "BasketNews",
-        choices: local.pool.filter((candidate) => candidate.nameNormalized.includes(surname)).slice(0, 20).map((candidate) => ({ id: candidate.id, label: playerLabel(candidate) })),
-      });
-    }
+    if (player) read.push({ player, teamName: teamOf(sourceId) });
+    else if (!linkedRows.has(sourceId)) failures.push(`Player ${sourceId}: historical lineup has no club or position; current rosters continue independently.`);
   }
-  await repo.rememberPlayers(leagueId, local.season, unresolved);
-  if (new Set(mapped.values()).size !== mapped.size) throw new Error("Two BasketNews players matched one local player; resolve their mappings before importing.");
+  const linking = linkSourcePlayers({ read, pool: local.pool, idOf: (row) => row.basketnewsId ?? "" });
+  const { mapped, questions } = linking;
+  for (const sourceId of sourcePlayers.keys()) if (linkedRows.has(sourceId)) mapped.set(sourceId, linkedRows.get(sourceId)!.id);
+  const fresh = new Set(linking.links.map((link) => link.sourceId));
+  const links = read.flatMap(({ player }) => {
+    const playerId = mapped.get(player.id);
+    const updatePosition = !local.pool.find((row) => row.id === playerId)?.basketnewsPosition;
+    return playerId && (fresh.has(player.id) || updatePosition)
+      ? [{ playerId, sourceId: player.id, position: player.position, updateId: fresh.has(player.id), updatePosition }]
+      : [];
+  });
+  await repo.rememberPlayers(leagueId, local.season, read.flatMap(({ player }) => mapped.has(player.id) ? [] : [player]));
   if (picks.some((pick) => !mapped.has(pick.playerId))) {
     return { status: "blocked", message: `${questions.length} BasketNews player mapping question(s) need answers.`, questions, rounds: 0, warnings: failures };
   }
@@ -254,7 +248,6 @@ export async function syncBasketNews(
   const draftPicks = picks.map((pick) => ({ memberId: members.get(pick.fantasyTeamId)!.id, playerId: mapped.get(pick.playerId)! }));
   await repo.ensureDraft(leagueId, draftPicks, firstPickOrder.map((id) => members.get(id)!.id), new Date(official.draftDate ?? now));
 
-  const windows = roundWindows(local.fixtures);
   const clubOf = new Map(local.pool.map((player) => [player.id, player.clubCode]));
   let rosterRound = local.rosterRound;
   let completed = 0;
@@ -287,10 +280,12 @@ export async function syncBasketNews(
           // them from the public pool before deciding whether the log is usable.
           if ([...eventIds].some((id) => !mapped.has(id)) && source.playerPool) {
             const pool = await source.playerPool(official.leagueId);
-            for (const player of pool.filter((row) => eventIds.has(row.id) && !mapped.has(row.id))) {
-              const existing = local.pool.find((row) => row.basketnewsId === player.id) ?? matchPlayer(player, clubCodes.get(player.club.id), local.pool.filter((row) => !row.basketnewsId));
-              if (existing) mapped.set(player.id, existing.id);
-            }
+            const taken = new Set(mapped.values());
+            const between = linkSourcePlayers({
+              read: pool.filter((row) => eventIds.has(row.id) && !mapped.has(row.id)).map((player) => ({ player, teamName: "" })),
+              pool: local.pool.filter((row) => !taken.has(row.id)), idOf: (row) => row.basketnewsId ?? "",
+            });
+            for (const [sourceId, playerId] of between.mapped) mapped.set(sourceId, playerId);
           }
           const exact = planBasketNewsTransfers({ ...input, events, memberOf: new Map([...members].map(([sourceId, member]) => [sourceId, member.id])), playerOf: mapped, appliedIds: await repo.appliedEvents(leagueId, round.round) });
           if (exact) steps = exact;
@@ -303,8 +298,7 @@ export async function syncBasketNews(
   }
   for (const round of validRounds) {
     try {
-      const readDay = readDayAt(now.getTime(), windows.find((window) => window.round === round.round));
-      const freeze = readDay ? { gameDays: playerGameDays({ fixtures: local.fixtures, round: round.round, clubOf }), readDay, at: now.toISOString() } : undefined;
+      const freeze = roundFreeze(now, round.round, local.fixtures, clubOf);
       const stored = freeze ? await repo.frozenRoles(leagueId, local.season, round.round) : new Map<string, FrozenRoles>();
       for (const [index, lineup] of round.lineups.entries()) {
         const member = members.get(teams[index]!.id)!;

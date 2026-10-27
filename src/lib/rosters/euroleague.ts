@@ -31,7 +31,7 @@ import {
 } from "@/lib/euroleague/http";
 
 import { normalizeApiRow } from "./normalize";
-import type { NormalizedPlayer } from "./types";
+import type { NormalizedPlayer, RosterGaps } from "./types";
 
 const BASE = FEED_BASE;
 
@@ -191,6 +191,7 @@ export async function fetchSeasonRosters({
   clubs: number;
   rows: NormalizedPlayer[];
   problems: string[];
+  unread: RosterGaps;
 }> {
   const clubs = unwrap(
     clubsResponseSchema.parse(
@@ -203,6 +204,7 @@ export async function fetchSeasonRosters({
 
   const rows: NormalizedPlayer[] = [];
   const problems: string[] = [];
+  const unread = { clubs: [] as string[], codes: [] as string[] };
   let seasonName: string | null = null;
 
   for (const club of clubs) {
@@ -217,6 +219,7 @@ export async function fetchSeasonRosters({
       ),
     );
 
+    const before = rows.length;
     for (const row of roster) {
       // Include players; never exclude coaches by their type code.
       if (row.type !== "J") continue;
@@ -236,9 +239,16 @@ export async function fetchSeasonRosters({
         problems.push(
           `${club.code} · ${row.person?.name ?? "(unnamed)"}: ${(error as Error).message}`,
         );
+        const code = row.person?.code?.trim();
+        if (code) unread.codes.push(code);
+        else unread.clubs.push(club.code);
       }
+    }
+    if (rows.length === before) {
+      unread.clubs.push(club.code);
+      problems.push(`${club.code}: the feed listed no players, so nobody there is marked as having left.`);
     }
   }
 
-  return { season, seasonName, clubs: clubs.length, rows, problems };
+  return { season, seasonName, clubs: clubs.length, rows, problems, unread };
 }

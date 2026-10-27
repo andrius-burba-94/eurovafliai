@@ -29,6 +29,7 @@ import type {
   PlayerChange,
   PlayerStatus,
   RosterDiff,
+  RosterGaps,
 } from "./types";
 
 /** Statuses that carry local knowledge an ingest cannot have. */
@@ -80,9 +81,12 @@ const nameClubKey = (row: { name_normalized: string; club_code: string }) =>
 export function diffRosters({
   current,
   incoming,
+  unread = { clubs: [], codes: [] },
 }: {
   current: ExistingPlayer[];
   incoming: NormalizedPlayer[];
+  /** The API read's blind spots: nobody in them is marked as having left. */
+  unread?: RosterGaps;
 }): RosterDiff {
   const byCode = new Map<string, ExistingPlayer>();
   const byNameClub = new Map<string, ExistingPlayer>();
@@ -203,8 +207,10 @@ export function diffRosters({
     diff.changes.push({ id: match.id, name: match.name, fields, before });
   }
 
+  const unseen = (player: ExistingPlayer) =>
+    unread.clubs.includes(player.club_code) || (player.person_code !== null && unread.codes.includes(player.person_code));
   for (const player of current) {
-    if (matched.has(player.id) || player.status === "left" || player.awaiting_registration) continue;
+    if (matched.has(player.id) || player.status === "left" || player.awaiting_registration || unseen(player)) continue;
     if (player.manual_lock) {
       diff.blocked.push({
         id: player.id,

@@ -21,6 +21,35 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Sync audit: roster and lineup sync safety, 26 October 2026
+
+**Merged (#222).** Both linked games' roster and lineup
+syncs no longer turn a bad read into roster writes (story:
+[sync audit log](log/sync-audit-2026-10-26.md)). No migration.
+
+| Change | Where |
+|---|---|
+| A seat or pool read that comes back empty throws (a logged-out client's list rules answer `[]`): no "acquired 13 players" | `readSeats` (`memberships/store.ts`), `readPool` (`fantasy/store.ts`) |
+| No departure for a club whose roster came back empty or a code whose row would not normalize | `fetchSeasonRosters` → `unread`, `diffRosters` |
+| Only a game-day read that got through counts; a failed or blocked one is retried after 30 minutes the same day | `dayUnread`, `RETRY_FAILED_MS` (`fantasy/windows.ts`) |
+| A BasketNews batch is identified by its target and the windows it starts from, so A → B → A plans afresh | `reconcile` (`basketnews/repository.ts`) |
+| One player linker with the claim check for all four sources; a BasketNews collision is a question | `linkSourcePlayers` (`fantasy/match.ts`) |
+| A lineup run that placed some teams is applied, with refusals in its moves; due checks read only the runs they need | `syncRoundLineups`, `readRunRefs` |
+| Smaller: roster-run filter for requeues, BasketNews team answers, bounded question retry, postponed games, repair date, the job queue's own failures, narrowed box-score read | see the log |
+
+Deferred, and why:
+- Fantasy Challenge syncs through the job queue (S2): the next slice, on this branch.
+- `scripts/sync-rosters.mts` does not pass `unread` yet (outside this slice's files), so the manual API import still marks an unread club's players left.
+- `rosters/auto-sync.ts` keeps its own narrow pool reader: the mapping queue wants snake-case rows with person codes.
+- A lineup run is now applied when an unlinked member is skipped, so linking that member later does not refill settled rounds; "Sync now" skips them too.
+- A BasketNews `applying` batch whose saved steps can never reach its target still fails every job at `resume` (unchanged).
+
+**Try it on localhost:**
+- `npx vitest run src/lib/fantasy/windows.test.ts -t "half an hour"`: a failed game-day read is due again 30 minutes later.
+- `npx vitest run src/lib/basketnews -t "earlier target|both match|postponed|came back empty"`: A → B → A, a collision question, a postponed game, an empty seat read.
+- `npx vitest run src/lib/rosters -t "could not see|came back empty"`: an empty club marks nobody left.
+- With `npm run dev` and `npm run worker:dev`, an expired BasketNews cookie on a game day shows a failed job, then a new one 30 minutes later.
+
 ## Sync audit: stats import robustness, 26 October 2026
 
 **Merged (#221).** The worker pass and the CSV

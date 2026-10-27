@@ -1,6 +1,7 @@
 import type PocketBase from "pocketbase";
 import { moveKey, type SyncSeat } from "@/lib/fantasy/plan";
 import { slotsFrom } from "@/lib/lineups/store";
+import { asPbDate } from "@/lib/memberships/store";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 import { readBasketNewsTransfers } from "./client";
 import { planBasketNewsTransfers } from "./transfers";
@@ -56,7 +57,7 @@ export async function repairBasketNewsMoves(input: {
   if (write) {
     for (const adoption of adoptions) await pb.collection("transactions").update(adoption.id, { source_provider: "basketnews", source_event_id: adoption.source_event_id, source_leg: adoption.source_leg, note: adoption.note }, { requestKey: null });
     for (const step of creates) await pb.collection("transactions").create({
-      league: leagueId, type: step.plan.type, from_round: round, date: new Date().toISOString(), members: [...step.plan.members],
+      league: leagueId, type: step.plan.type, from_round: round, date: asPbDate(new Date()), members: [...step.plan.members],
       players_in: step.plan.playersIn, players_out: step.plan.playersOut, note: step.note,
       source_provider: "basketnews", source_event_id: step.provenance!.eventId, source_leg: step.provenance!.leg,
     }, { requestKey: null });

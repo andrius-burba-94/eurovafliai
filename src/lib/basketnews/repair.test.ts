@@ -27,7 +27,7 @@ describe("historical BasketNews trade repair", () => {
     expect(await repairBasketNewsMoves({ ...input, write: true })).toMatchObject({ status: "verified" });
     expect(db.rows("transactions")).toHaveLength(2);
     expect(db.rows("transactions").some((row) => row.id === "manual")).toBe(true);
-    expect(db.rows("transactions").find((row) => row.source_event_id === "event")?.type).toBe("trade");
+    expect(db.rows("transactions").find((row) => row.source_event_id === "event")).toMatchObject({ type: "trade", date: expect.stringMatching(/^\d{4}-\d\d-\d\d \d/) });
     expect(db.writes.some((write) => write.includes("roster_memberships"))).toBe(false);
     expect(await repairBasketNewsMoves({ ...input, write: true })).toMatchObject({ create: 0, remove: 0 });
   });

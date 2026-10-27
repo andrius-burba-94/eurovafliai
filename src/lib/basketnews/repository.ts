@@ -7,13 +7,16 @@ import { rostersAgree, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import type { Position } from "@/lib/engine";
 import type { FrozenRoles, LineupSlots } from "@/lib/lineups/lineup";
+import { readPool } from "@/lib/fantasy/store";
 import { readFrozenRoles, writeLineup } from "@/lib/lineups/store";
-import { applyTransaction, listActiveMemberships, materializeDraftMemberships } from "@/lib/memberships/store";
+import { applySteps, clip, materializeDraftMemberships, readSeats } from "@/lib/memberships/store";
 import { newTeamSlug } from "@/lib/slugs/store";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import type { BasketNewsTeam } from "./client";
-import type { BasketNewsRepository, BasketNewsRoundResult, RoundFreeze } from "./sync";
+import type { RoundFreeze } from "@/lib/fantasy/windows";
+
+import type { BasketNewsRepository, BasketNewsRoundResult } from "./sync";
 import { rememberSourcePlayers } from "./registrations";
 
 type LeagueRow = { id: string; name: string; season: string; commissioner: string; basketnews_team_id: string; basketnews_roster_round?: number };
@@ -21,7 +24,6 @@ type MemberRow = { id: string; user: string; team_name: string; basketnews_team_
 type DraftRow = { id: string; status: string; order: unknown; rounds: number };
 type PickRow = { id: string; overall_no: number; member: string; player: string };
 type JobRow = { id: string; league: string; status: string; job_meta?: { nextRound?: number } };
-type PlayerRow = { id: string; name: string; name_normalized: string; club_code: string; club_name: string; fantasy_id?: string; basketnews_id?: string; basketnews_position?: Position; status?: string; dorsal?: string };
 type RosterBatch = { id: string; league: string; season: string; round: number; target: [string, string[]][]; steps: SyncStep[]; at: string; status: string };
 
 /** Stored source scores drive every BasketNews player view as well as the ladder. */
@@ -83,8 +85,7 @@ export async function markBasketNewsJob(pb: PocketBase, jobId: string, fields: {
   active_league?: "";
   diagnostics?: readonly string[];
 }): Promise<void> {
-  const message = fields.message.length > 500 ? `${fields.message.slice(0, 499)}…` : fields.message;
-  await pb.collection("fantasy_syncs").update(jobId, { ...fields, message }, { requestKey: null });
+  await pb.collection("fantasy_syncs").update(jobId, { ...fields, message: clip(fields.message) }, { requestKey: null });
 }
 
 export async function basketNewsLeagueIds(pb: PocketBase): Promise<string[]> {
@@ -101,10 +102,8 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
   async load(leagueId: string) {
     const league = await this.pb.collection("leagues").getOne<LeagueRow>(leagueId, { requestKey: null });
     const season = `E${league.season.slice(0, 4)}`;
-    const [players, lineups, members, fixtures, memberships] = await Promise.all([
-      this.pb.collection("players").getFullList<PlayerRow>({
-        fields: "id,name,name_normalized,club_code,club_name,dorsal,fantasy_id,basketnews_id,basketnews_position,status", requestKey: null,
-      }),
+    const [pool, lineups, members, fixtures, memberships] = await Promise.all([
+      readPool(this.pb),
       this.pb.collection("round_lineups").getFullList<{ round: number; basketnews_result?: { final?: boolean } | null }>({
         filter: `league = '${leagueId}' && season = "${season}"`,
         fields: "round,basketnews_result", requestKey: null,
@@ -115,11 +114,6 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
       }),
       this.pb.collection("roster_memberships").getFullList<{ from_round: number }>({ filter: `league = '${leagueId}'`, fields: "from_round", requestKey: null }),
     ]);
-    const pool = players.map((row) => ({
-      id: row.id, name: row.name, nameNormalized: row.name_normalized, clubCode: row.club_code,
-      clubName: row.club_name, dorsal: row.dorsal ?? "", fantasyId: row.fantasy_id ?? "",
-      status: row.status ?? "", basketnewsId: row.basketnews_id ?? "", basketnewsPosition: row.basketnews_position,
-    }));
     // A result stored before `final` existed is re-read once; replay is idempotent.
     const finalCount = new Map<number, number>();
     for (const row of lineups) {
@@ -212,12 +206,11 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
   }
 
   async seats(leagueId: string): Promise<SyncSeat[]> {
-    const rows = await listActiveMemberships<{ id: string; member: string; player: string; to_date?: string }>(this.pb, leagueId, { fields: "id,member,player,to_date" });
-    return rows.map((row) => ({ id: row.id, member: row.member, player: row.player }));
+    return readSeats(this.pb, leagueId);
   }
 
   async apply(leagueId: string, steps: readonly SyncStep[], at: Date): Promise<void> {
-    for (const step of steps) await applyTransaction(this.pb, leagueId, step.plan, at, step.announcement, step.note, step.provenance);
+    await applySteps(this.pb, leagueId, steps, at);
   }
 
   async rememberPlayers(leagueId: string, season: string, players: readonly FantasyPlayer[]): Promise<void> {
@@ -252,11 +245,15 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     // A leave-and-return event changes history without changing ownership.
     // Give its saved intent its own identity alongside the roster target.
     const events = steps.flatMap((step) => step.provenance ? [step.provenance] : []);
-    const hash = createHash("sha256").update(JSON.stringify(events.length ? [serialized, events] : serialized)).digest("hex");
+    // The windows it starts from too: a roster that goes A → B → A starts its
+    // second A from windows the first never saw, and must not find that batch.
+    const seats = await this.seats(leagueId);
+    const from = seats.map((seat) => seat.id).sort();
+    const hash = createHash("sha256").update(JSON.stringify([serialized, events, from])).digest("hex");
     const [previous] = await this.pb.collection("basketnews_roster_batches").getFullList<RosterBatch>({
       filter: `league = '${leagueId}' && season = '${season}' && round = ${round} && target_hash = '${hash}'`, requestKey: null,
     });
-    if (previous?.status === "applied" && rostersAgree(await this.seats(leagueId), target)) return;
+    if (previous?.status === "applied" && rostersAgree(seats, target)) return;
     if (previous) { await this.finishBatch(previous); return; }
     const batch = await this.pb.collection("basketnews_roster_batches").create<RosterBatch>({
       league: leagueId, season, round, target_hash: hash, target: serialized, steps, at: at.toISOString(), status: "applying",

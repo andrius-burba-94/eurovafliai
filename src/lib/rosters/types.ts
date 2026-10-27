@@ -71,6 +71,13 @@ export type ExistingPlayer = NormalizedPlayer & {
   manual_lock: boolean;
 };
 
+/**
+ * What a read could not see. A club whose roster came back empty, or a row
+ * that would not normalize, says nothing about who left: one bad response is
+ * about 5% of the pool, well under the departure alarm.
+ */
+export type RosterGaps = { readonly clubs: readonly string[]; readonly codes: readonly string[] };
+
 /** The fields an incoming row is allowed to change on an existing player. */
 export type PlayerChange = {
   id: string;

@@ -236,4 +236,15 @@ describe("syncDueLineups", () => {
     const again = await syncDueLineups({ pb: fake.client, token: "tok", season: SEASON, now: new Date(NOW.getTime() + 60_000), doFetch });
     expect(again).toEqual([]);
   });
+
+  it("keeps a round one unlinked member could not fill, instead of re-reading it all season", async () => {
+    const fake = league();
+    fake.rows("league_members")[1]!.fantasy_team_id = "";
+    const { doFetch } = officialGame();
+    const first = await syncDueLineups({ pb: fake.client, token: "tok", season: SEASON, now: NOW, doFetch });
+    expect(first.map((result) => result.run?.status)).toEqual(["applied"]);
+    expect(first[0]?.run?.moves[0]).toBe("Monikutės Naktys: not linked to an official team.");
+    const later = await syncDueLineups({ pb: fake.client, token: "tok", season: SEASON, now: new Date(NOW.getTime() + 7 * 60 * 60_000), doFetch });
+    expect(later).toEqual([]);
+  });
 });

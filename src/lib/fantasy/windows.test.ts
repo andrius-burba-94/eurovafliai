@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { basketNewsDue, lineupRoundsDue, readDayAt, PREVIEW_EVERY_MS, roundWindows, syncDue, syncModeAt } from "./windows";
+import { basketNewsDue, lineupRoundsDue, readDayAt, PREVIEW_EVERY_MS, RETRY_FAILED_MS, roundWindows, syncDue, syncModeAt } from "./windows";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -96,20 +96,29 @@ describe("syncDue", () => {
   const dayOne = at("2026-10-01T16:05:00Z");
   const dayTwo = at("2026-10-02T18:35:00Z");
 
+  const ran = (ranAt: number, status = "applied") => [{ round: 3, ranAt, status }];
+
   it("applies once per game day, five minutes after its first tip-off", () => {
-    expect(syncDue(dayOne, apply, windows, null, null)).toBe(true);
-    expect(syncDue(dayOne + 3_600_000, apply, windows, dayOne, null)).toBe(false);
-    expect(syncDue(at("2026-10-02T03:00:00Z"), apply, windows, dayOne, null)).toBe(false);
-    expect(syncDue(dayTwo - 60_000, apply, windows, dayOne, null)).toBe(false);
-    expect(syncDue(dayTwo, apply, windows, dayOne, null)).toBe(true);
-    expect(syncDue(dayTwo + 3_600_000, apply, windows, dayTwo, null)).toBe(false);
+    expect(syncDue(dayOne, apply, windows, [], null)).toBe(true);
+    expect(syncDue(dayOne + 3_600_000, apply, windows, ran(dayOne), null)).toBe(false);
+    expect(syncDue(at("2026-10-02T03:00:00Z"), apply, windows, ran(dayOne), null)).toBe(false);
+    expect(syncDue(dayTwo - 60_000, apply, windows, ran(dayOne), null)).toBe(false);
+    expect(syncDue(dayTwo, apply, windows, ran(dayOne), null)).toBe(true);
+    expect(syncDue(dayTwo + 3_600_000, apply, windows, ran(dayTwo), null)).toBe(false);
+  });
+
+  it("tries a failed or blocked game-day read again after half an hour, not the next game day", () => {
+    for (const status of ["failed", "blocked"]) {
+      expect(syncDue(dayOne + RETRY_FAILED_MS - 60_000, apply, windows, ran(dayOne, status), null)).toBe(false);
+      expect(syncDue(dayOne + RETRY_FAILED_MS, apply, windows, ran(dayOne, status), null)).toBe(true);
+    }
   });
 
   it("previews every six hours", () => {
     const now = at("2026-10-01T09:00:00Z");
-    expect(syncDue(now, preview, windows, null, now - PREVIEW_EVERY_MS + 60_000)).toBe(false);
-    expect(syncDue(now, preview, windows, null, now - PREVIEW_EVERY_MS)).toBe(true);
-    expect(syncDue(now, preview, windows, null, null)).toBe(true);
+    expect(syncDue(now, preview, windows, [], now - PREVIEW_EVERY_MS + 60_000)).toBe(false);
+    expect(syncDue(now, preview, windows, [], now - PREVIEW_EVERY_MS)).toBe(true);
+    expect(syncDue(now, preview, windows, [], null)).toBe(true);
   });
 });
 
@@ -215,6 +224,13 @@ describe("basketNewsDue", () => {
       "2026-10-02T21:30:00.000Z",
       "2026-10-03T03:30:00.000Z",
     ]);
+  });
+
+  it("retries a game day's failed job within the day", () => {
+    const failed = [job("2026-10-01T16:10:00Z", "failed")];
+    expect(basketNewsDue(at("2026-10-01T16:30:00Z"), windows, failed)).toBe(false);
+    expect(basketNewsDue(at("2026-10-01T16:40:00Z"), windows, failed)).toBe(true);
+    expect(basketNewsDue(at("2026-10-01T16:40:00Z"), windows, [...failed, job("2026-10-01T16:35:00Z", "queued")])).toBe(false);
   });
 
   it("reads at once when no job has ever run", () => {

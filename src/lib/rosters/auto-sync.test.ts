@@ -112,6 +112,19 @@ describe("syncRostersFromFeed", () => {
     expect(fake.rows("players").every((row) => row.status === "active")).toBe(true);
   });
 
+  it("re-runs a blocked roster sync even when a lineups run came after it", async () => {
+    const fake = await poolFrom([LOYD], {
+      leagues: [{ id: "fc", status: "season", fantasy_league_id: "147" }],
+      fantasy_syncs: [
+        { id: "r", league: "fc", kind: "rosters", status: "blocked", ran_at: "2026-10-08 10:00:00.000Z" },
+        { id: "l", league: "fc", kind: "lineups", status: "applied", ran_at: "2026-10-08 11:00:00.000Z" },
+      ],
+      fixtures: [],
+    });
+    const report = await syncRostersFromFeed({ pb: fake.client, season: "E2026", now: NOW, doFetch: serve([LOYD]), reimport: false, fantasyToken: "tok" });
+    expect(report.requeued).toEqual(["fc"]);
+  });
+
   it("only reports while the CSV holds authority", async () => {
     const fake = await poolFrom([LOYD]);
     fake.db.app_settings = [{ id: "s", roster_authority: "csv" }];
@@ -163,6 +176,24 @@ describe("readUnknownNames", () => {
 });
 
 describe("roster follow-ups after an unchanged read", () => {
+  it("chases a whole new season's codes, more than one filter can name", async () => {
+    const squad = Array.from({ length: 160 }, (_, i) => feedPlayer(String(100000 + i), `PLAYER, NUMBER${i}`, String(i)));
+    const fake = await poolFrom(squad);
+    fake.db.stat_imports = [
+      { id: "unmatched", season: "E2026", created: "2026-10-08 10:00:00Z", plan: { unmatched: squad.map((row, i) => ({ personCode: row.person.code, lines: [i % 2 ? 7 : 8] })) } },
+    ];
+    const reimported: number[][] = [];
+    const report = await syncRostersFromFeed({
+      pb: fake.client, season: "E2026", now: NOW, doFetch: serve(squad),
+      reimport: async (games) => {
+        reimported.push([...games].sort());
+        return games.length;
+      },
+    });
+    expect(report.problems).toEqual([]);
+    expect(reimported).toEqual([[7, 8]]);
+  });
+
   it("retries a failed game recovery after the code is already attached", async () => {
     const fake = await poolFrom([LOYD]);
     fake.db.stat_imports = [{ id: "unmatched", season: "E2026", created: "2026-10-08 10:00:00Z", plan: { unmatched: [{ personCode: "014213", lines: [44] }] } }];

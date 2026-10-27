@@ -4,6 +4,7 @@ import { isUniqueViolation } from "@/lib/drafts/unique";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import type { Position } from "@/lib/engine";
 import { resolveClubs } from "@/lib/fantasy/match";
+import { readPool } from "@/lib/fantasy/store";
 import { readCurrentPlayers } from "@/lib/rosters/apply";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { SafeActionError } from "@/lib/safe-error";
@@ -20,7 +21,7 @@ export type SourcePlayerQuestion = {
 };
 
 /** One durable question per source identity, even when several leagues need it. */
-export async function rememberSourcePlayers(pb: PocketBase, leagueId: string, season: string, players: readonly FantasyPlayer[]): Promise<void> {
+export async function rememberSourcePlayers(pb: PocketBase, leagueId: string, season: string, players: readonly FantasyPlayer[], raced = false): Promise<void> {
   for (const player of players) {
     const filter = `provider = 'basketnews' && season = '${season}' && source_id = '${player.id}'`;
     const [existing] = await pb.collection("source_player_questions").getFullList<SourcePlayerQuestion>({ filter, requestKey: null });
@@ -31,9 +32,10 @@ export async function rememberSourcePlayers(pb: PocketBase, leagueId: string, se
     try {
       await pb.collection("source_player_questions").create({ provider: "basketnews", season, source_id: player.id, details: player, leagues: [leagueId], status: "pending" }, { requestKey: null });
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
-      // Re-read the winning identity so a second league is not lost in a race.
-      await rememberSourcePlayers(pb, leagueId, season, [player]);
+      // Re-read the winning identity so a second league is not lost in a race;
+      // a second violation is no race.
+      if (raced || !isUniqueViolation(error)) throw error;
+      await rememberSourcePlayers(pb, leagueId, season, [player], true);
     }
   }
 }
@@ -51,15 +53,12 @@ export async function approveSourcePlayer(pb: PocketBase, input: {
   const linked = await pb.collection("players").getFullList<{ id: string }>({ filter: `basketnews_id = '${player.id}'`, fields: "id", requestKey: null });
   let id = linked[0]?.id;
   if (!id) {
-    const pool = await readCurrentPlayers(pb);
-    const clubs = resolveClubs([{ id: "pool", name: "BasketNews", manager: "", players: [...input.freshPool] }], pool.map((row) => ({
-      id: row.id, name: row.name, nameNormalized: row.name_normalized, clubCode: row.club_code,
-      clubName: row.club_name, dorsal: row.dorsal, fantasyId: "", status: row.status,
-    })));
+    const pool = await readPool(pb);
+    const clubs = resolveClubs([{ id: "pool", name: "BasketNews", manager: "", players: [...input.freshPool] }], pool);
     const clubCode = clubs.get(player.club.id);
     if (!clubCode) throw new SafeActionError("The source club needs a mapping before this player can be approved.");
     const surname = normalizeName(player.lastName).split(" ").filter(Boolean);
-    if (pool.some((row) => row.club_code === clubCode && surname.every((token) => row.name_normalized.split(" ").includes(token)))) {
+    if (pool.some((row) => row.clubCode === clubCode && surname.every((token) => row.nameNormalized.split(" ").includes(token)))) {
       throw new SafeActionError("A possible existing player needs mapping; approval cannot create a duplicate.");
     }
     // Approval intent precedes creation. If creation or queuing fails, retrying

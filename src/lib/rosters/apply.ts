@@ -39,6 +39,7 @@ import type {
   NormalizedPlayer,
   RosterAuthority,
   RosterDiff,
+  RosterGaps,
 } from "./types";
 
 /** The `players` fields this pipeline owns, as PocketBase stores them. */
@@ -135,6 +136,7 @@ export async function runRosterImport({
   season,
   problems = [],
   log = "",
+  unread,
 }: {
   pb: PocketBase;
   incoming: NormalizedPlayer[];
@@ -142,10 +144,11 @@ export async function runRosterImport({
   season: string;
   problems?: string[];
   log?: string;
+  unread?: RosterGaps;
 }): Promise<ImportOutcome> {
   const authority = await readRosterAuthority(pb);
   const current = await readCurrentPlayers(pb);
-  const diff = diffRosters({ current, incoming });
+  const diff = diffRosters({ current, incoming, unread });
   diff.problems.push(...problems);
 
   const applied = source === authority;

@@ -191,6 +191,9 @@ export function fakePb(options: {
       expand?: string;
     }) => {
       onlySupported(options, ["filter", "sort", "fields", "expand"]);
+      // PocketBase answers 400 past this, measured on 0.39: a read that builds
+      // one OR term per id stops working at roughly 130 ids.
+      if ((options?.filter ?? "").length > MAX_FILTER_LENGTH) throw new Error("max filter length limit reached");
       hooks.beforeList?.(collection, options?.filter ?? "");
       const found = rows(collection).filter((record) =>
         matches(record, options?.filter),
@@ -337,6 +340,8 @@ function splitTop(text: string, operator: "&&" | "||"): string[] {
   return parts.map((part) => part.trim()).filter(Boolean);
 }
 
+const MAX_FILTER_LENGTH = 3500;
+
 /**
  * The subset of PocketBase's filter syntax this repo actually writes.
  *
@@ -362,7 +367,7 @@ function matches(record: FakeRecord, filter?: string): boolean {
   // (`game_code = 1`, which PocketBase compares numerically) and a bare
   // boolean (`applied = true`, 7.1's correction check).
   const parsed =
-    /^(\w+)\s*(!=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+)|(true|false))$/.exec(text);
+    /^(\w+)\s*(!=|>=|=)\s*(?:'([^']*)'|"([^"]*)"|(-?\d+)|(true|false))$/.exec(text);
   if (!parsed) throw new Error(`fake-pb cannot parse filter: ${text}`);
   const [, field, operator] = parsed;
   const value = parsed[3] ?? parsed[4] ?? parsed[5] ?? parsed[6] ?? "";
@@ -371,6 +376,12 @@ function matches(record: FakeRecord, filter?: string): boolean {
     record[field] === undefined || record[field] === null
       ? ""
       : String(record[field]);
+  // `>=` as the sync's due checks write it: a quoted datetime, which compares
+  // as text because PocketBase stores it in one sortable format.
+  if (operator === ">=") {
+    if (parsed[5] !== undefined) return Number(actual) >= Number(value);
+    return actual >= value;
+  }
   return operator === "=" ? actual === value : actual !== value;
 }
 

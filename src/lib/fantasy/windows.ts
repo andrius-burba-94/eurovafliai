@@ -17,6 +17,7 @@
  * clock (`basketNewsDue`).
  */
 
+import { playerGameDays } from "@/lib/lineups/lineup";
 import { gameDayOf } from "@/lib/time/local";
 
 export type RoundWindow = {
@@ -53,6 +54,8 @@ const ROUND_SPAN_MS = 72 * 60 * 60_000;
 const SETTLE_AFTER_LAST_TIP_MS = 3 * 60 * 60_000;
 /** Outside one: a preview four times a day is plenty to see what is coming. */
 export const PREVIEW_EVERY_MS = 6 * 60 * 60_000;
+/** A game day's read that failed is tried again that day, no more often than this. */
+export const RETRY_FAILED_MS = 30 * 60_000;
 
 export function roundWindows(
   fixtures: readonly { readonly round: number; readonly utcDate: string | null }[],
@@ -84,9 +87,29 @@ export function syncModeAt(now: number, windows: readonly RoundWindow[]): SyncDe
   return { mode: "preview", round: next?.round ?? null };
 }
 
-/** A game day has begun (plus the settling five minutes) and no read has followed it. */
-function dayUnread(now: number, window: RoundWindow, last: number | null): boolean {
-  return window.days.some((day) => now >= day + APPLY_AFTER_LOCK_MS && (last === null || last < day + APPLY_AFTER_LOCK_MS));
+export type LineupRunRef = {
+  readonly round: number;
+  readonly ranAt: number;
+  readonly status: string;
+};
+
+function latest(runs: readonly LineupRunRef[]): number | null {
+  return runs.length ? Math.max(...runs.map((run) => run.ranAt)) : null;
+}
+
+/**
+ * A game day has begun (plus the settling five minutes) and no read has got
+ * through since. A failed or blocked try is no read: an expired session at
+ * tip-off would otherwise wait for the next game day. It is tried again after
+ * `RETRY_FAILED_MS`.
+ */
+function dayUnread(now: number, window: RoundWindow, runs: readonly LineupRunRef[]): boolean {
+  const day = window.days.filter((at) => now >= at + APPLY_AFTER_LOCK_MS).at(-1);
+  if (day === undefined) return false;
+  const since = runs.filter((run) => run.ranAt >= day + APPLY_AFTER_LOCK_MS);
+  if (since.some((run) => run.status !== "failed" && run.status !== "blocked")) return false;
+  const tried = latest(since);
+  return tried === null || now - tried >= RETRY_FAILED_MS;
 }
 
 /**
@@ -94,7 +117,7 @@ function dayUnread(now: number, window: RoundWindow, last: number | null): boole
  *
  * Inside a freeze, once per game day: rosters cannot change mid-round, but the
  * day's read is the one the lineups freeze from, so both run together.
- * `lastApplyAt` is the last apply for the decided round, so a new round's first
+ * `applyRuns` are the applies for the decided round, so a new round's first
  * game day reads at once however recently the previous round did. Outside a
  * freeze, a preview every six hours (`lastRunAt` is any run).
  */
@@ -102,27 +125,21 @@ export function syncDue(
   now: number,
   decision: SyncDecision,
   windows: readonly RoundWindow[],
-  lastApplyAt: number | null,
+  applyRuns: readonly LineupRunRef[],
   lastRunAt: number | null,
 ): boolean {
   if (decision.mode === "apply") {
     const window = windows.find((row) => row.round === decision.round);
-    return window ? dayUnread(now, window, lastApplyAt) : lastApplyAt === null;
+    return window ? dayUnread(now, window, applyRuns) : applyRuns.length === 0;
   }
   return lastRunAt === null || now - lastRunAt >= PREVIEW_EVERY_MS;
 }
 
-export type LineupRunRef = {
-  readonly round: number;
-  readonly ranAt: number;
-  readonly status: string;
-};
-
 /** One round, against the runs that count for it. */
 function roundDue(now: number, window: RoundWindow, runs: readonly LineupRunRef[], force: boolean): boolean {
   if (now < window.lockAt + APPLY_AFTER_LOCK_MS) return false;
-  const last = runs.length ? Math.max(...runs.map((run) => run.ranAt)) : null;
-  if (now <= window.closesAt) return force || dayUnread(now, window, last);
+  const last = latest(runs);
+  if (now <= window.closesAt) return force || dayUnread(now, window, runs);
   if (now < window.settledAt) return force;
   const sinceSettled = runs.filter((run) => run.ranAt >= window.settledAt);
   if (sinceSettled.length === 0) return true;
@@ -162,7 +179,7 @@ export function lineupRoundsDue(
  */
 export function basketNewsDue(now: number, windows: readonly RoundWindow[], runs: readonly LineupRunRef[]): boolean {
   if (windows.some((window) => roundDue(now, window, runs, false))) return true;
-  const last = runs.length ? Math.max(...runs.map((run) => run.ranAt)) : null;
+  const last = latest(runs);
   const inRound = windows.some((window) => now >= window.lockAt && now < window.settledAt);
   return !inRound && (last === null || now - last >= PREVIEW_EVERY_MS);
 }
@@ -175,4 +192,18 @@ export function basketNewsDue(now: number, windows: readonly RoundWindow[], runs
 export function readDayAt(now: number, window: RoundWindow | undefined): string | null {
   const begun = (window?.days ?? []).filter((day) => now >= day + APPLY_AFTER_LOCK_MS);
   return begun.length ? gameDayOf(begun.at(-1)!) : null;
+}
+
+/** What one read freezes: the players whose game day it reached (`freezeRoles`). */
+export type RoundFreeze = { readonly gameDays: ReadonlyMap<string, string>; readonly readDay: string; readonly at: string };
+
+/** A lineup read of `round` at `now`, for both linked games; nothing before the round's first game day. */
+export function roundFreeze(
+  now: Date,
+  round: number,
+  fixtures: readonly { readonly round: number; readonly localClub: string; readonly roadClub: string; readonly utcDate: string | null }[],
+  clubOf: ReadonlyMap<string, string>,
+): RoundFreeze | undefined {
+  const readDay = readDayAt(now.getTime(), roundWindows(fixtures).find((window) => window.round === round));
+  return readDay ? { gameDays: playerGameDays({ fixtures, round, clubOf }), readDay, at: now.toISOString() } : undefined;
 }

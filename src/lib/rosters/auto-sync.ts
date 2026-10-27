@@ -30,7 +30,7 @@ import type PocketBase from "pocketbase";
 import { confirmSourcePlayers } from "@/lib/basketnews/registrations";
 import { queueBasketNewsSync } from "@/lib/basketnews/repository";
 import { describeError } from "@/lib/drafts/pipeline";
-import { decideSync, runFantasySync, syncDueLineups } from "@/lib/fantasy/store";
+import { decideSync, ROSTER_RUNS, runFantasySync, syncDueLineups } from "@/lib/fantasy/store";
 import {
   codesWorthChasing,
   newsWorthChasing,
@@ -161,11 +161,11 @@ export async function syncRostersFromFeed(options: {
   readonly fantasyToken?: string;
 }): Promise<RosterSyncReport> {
   const { pb, season, now } = options;
-  const { rows, problems } = await fetchSeasonRosters({ season, doFetch: options.doFetch, onProgress: options.log });
+  const { rows, problems, unread } = await fetchSeasonRosters({ season, doFetch: options.doFetch, onProgress: options.log });
   if (rows.length === 0) return { ...NOTHING, skipped: "the feed returned no players", problems };
 
   const current = await readCurrentPlayers(pb);
-  const diff = diffRosters({ current, incoming: rows });
+  const diff = diffRosters({ current, incoming: rows, unread });
   const departures = assessDepartures(diff, current.length);
   if (departures.alarming) {
     return {
@@ -175,7 +175,7 @@ export async function syncRostersFromFeed(options: {
     };
   }
   const unchanged = diff.adds.length + diff.changes.length + diff.leaving.length + diff.renames.length === 0;
-  const outcome = unchanged ? null : await runRosterImport({ pb, incoming: rows, source: "api", season, problems });
+  const outcome = unchanged ? null : await runRosterImport({ pb, incoming: rows, source: "api", season, problems, unread });
   const report = {
     ...NOTHING,
     skipped: unchanged ? "unchanged" : null,
@@ -202,12 +202,22 @@ export async function syncRostersFromFeed(options: {
   const pool = await readPool(pb);
   const known = new Map(pool.filter((player) => player.person_code).map((player) => [player.person_code, player.id]));
   const evidence = await pb.collection("stat_imports").getFullList<CodeBatch>({ filter: `season = '${season}'`, fields: "season,plan", requestKey: null });
-  const waiting = codesWorthChasing(pendingCodes(evidence, []), season);
-  const stored = await pb.collection("player_game_stats").getFullList<{ player: string; game_code: number }>({ filter: `season = '${season}'`, fields: "player,game_code", requestKey: null });
-  const games = [...new Set(waiting.flatMap((code) => {
+  const waiting = codesWorthChasing(pendingCodes(evidence, []), season).flatMap((code) => {
     const player = known.get(code.personCode);
-    return player ? code.games.filter((game) => !stored.some((row) => row.player === player && row.game_code === game)) : [];
-  }))];
+    return player ? [{ player, games: code.games }] : [];
+  });
+  // In slices: PocketBase refuses a filter naming much more than a hundred
+  // players, and a new season's first sync can leave several hundred waiting.
+  const stored: { player: string; game_code: number }[] = [];
+  for (let at = 0; at < waiting.length; at += 50) {
+    stored.push(...await pb.collection("player_game_stats").getFullList<{ player: string; game_code: number }>({
+      filter: `season = '${season}' && (${waiting.slice(at, at + 50).map(({ player }) => `player = '${player}'`).join(" || ")})`,
+      fields: "player,game_code",
+      requestKey: null,
+    }));
+  }
+  const lines = new Set(stored.map((row) => `${row.player}:${row.game_code}`));
+  const games = [...new Set(waiting.flatMap(({ player, games }) => games.filter((game) => !lines.has(`${player}:${game}`))))];
   if (games.length > 0 && options.reimport !== false) {
     const reimport =
       options.reimport ??
@@ -239,15 +249,16 @@ export async function syncRostersFromFeed(options: {
       requestKey: null,
     });
     for (const league of leagues) {
+      if (!league.basketnews_team_id && !(league.fantasy_league_id && options.fantasyToken)) continue;
+      // A roster run's verdict: a lineups run after it says nothing about it.
+      const [latest] = (
+        await pb.collection("fantasy_syncs").getList<{ status: string }>(1, 1, { filter: `league = '${league.id}' && ${ROSTER_RUNS}`, sort: "-ran_at", requestKey: null })
+      ).items;
       if (league.basketnews_team_id) {
-        const [latest] = (await pb.collection("fantasy_syncs").getList<{ status: string }>(1, 1, { filter: `league = '${league.id}'`, sort: "-ran_at", requestKey: null })).items;
         if (latest && !["blocked", "failed"].includes(latest.status)) continue;
         await queueBasketNewsSync(pb, league.id, now);
         requeued.push(league.id);
-      } else if (league.fantasy_league_id && options.fantasyToken) {
-        const [latest] = (
-          await pb.collection("fantasy_syncs").getList<{ status: string }>(1, 1, { filter: `league = '${league.id}'`, sort: "-ran_at", requestKey: null })
-        ).items;
+      } else if (options.fantasyToken) {
         if (latest?.status !== "blocked") continue;
         const decision = await decideSync(pb, season, now);
         await runFantasySync({ pb, leagueId: league.id, token: options.fantasyToken, season, decision, now, doFetch: options.doFetch });

@@ -221,6 +221,20 @@ describe("diffRosters — departures and idempotency", () => {
     expect(diff.leaving.map((l) => l.id)).toEqual(["p1"]);
   });
 
+  it("marks nobody as leaving from a club the read could not see, nor a player whose row would not read", () => {
+    const diff = diffRosters({
+      current: [
+        existing({ id: "p1", name: "Silent, Sam", club_code: "PAN" }),
+        existing({ id: "p2", name: "Broken, Bo", person_code: "0099" }),
+        existing({ id: "p3", name: "Gone, Guy" }),
+      ],
+      incoming: [incoming({ name: "Stayed, Sam" })],
+      unread: { clubs: ["PAN"], codes: ["0099"] },
+    });
+
+    expect(diff.leaving.map((l) => l.id)).toEqual(["p3"]);
+  });
+
   it("does not re-mark someone who already left", () => {
     const diff = diffRosters({
       current: [existing({ id: "p1", name: "Gone, Guy", status: "left" })],

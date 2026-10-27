@@ -98,14 +98,16 @@ export function nameTokens(normalized: string): string[] {
     .filter((token) => token.length > 0);
 }
 
-/** The same tokens, without a generational suffix either side may carry. */
-function comparableTokens(normalized: string): string[] {
-  const tokens = nameTokens(normalized).filter(
-    (token) => !SUFFIXES.has(token),
-  );
+/** Tokens without a generational suffix either side may carry. */
+export function withoutSuffixes(tokens: readonly string[]): string[] {
+  const kept = tokens.filter((token) => !SUFFIXES.has(token));
   // A name that is *only* a suffix is not a name; keep the original rather
   // than compare an empty list against everything.
-  return tokens.length > 0 ? tokens : nameTokens(normalized);
+  return kept.length > 0 ? kept : [...tokens];
+}
+
+function comparableTokens(normalized: string): string[] {
+  return withoutSuffixes(nameTokens(normalized));
 }
 
 /**
