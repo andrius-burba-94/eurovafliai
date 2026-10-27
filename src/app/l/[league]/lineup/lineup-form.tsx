@@ -393,7 +393,6 @@ export function LineupForm({
           data-over={drag.over === key || undefined}
           data-dragging={drag.dragging === player.id || undefined}
           aria-haspopup="dialog"
-          aria-label={points ? `${displayName(player.name)}, ${points.spoken}` : displayName(player.name)}
           title={displayName(player.name)}
           onClick={(event) => openProfile(player.id, event.currentTarget)}
           {...drag.handle(player.id)}
@@ -401,15 +400,19 @@ export function LineupForm({
           className="lineup-card lineup-drag"
         >
           <PlayerPortrait personCode={player.personCode} name={player.name} />
+          {/* The button is named by what it shows, with the full name and spoken points in
+              place of the surname and the figures: an aria-label that hid the matchup and
+              the points failed axe's label-in-name rule. */}
+          <span className="sr-only">{displayName(player.name)}</span>
           {layout === "rows" ? (
             <span className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="min-w-0 truncate text-sm font-semibold">{surname(player.name)}</span>
+              <span className="min-w-0 truncate text-sm font-semibold" aria-hidden="true">{surname(player.name)}</span>
               <span className="lineup-card-position" aria-hidden="true">{player.position}</span>
               <span className="min-w-0 truncate text-xs text-ink-soft">{matchup}</span>
             </span>
           ) : (
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-sm leading-tight font-semibold">{surname(player.name)}</span>
+              <span className="truncate text-sm leading-tight font-semibold" aria-hidden="true">{surname(player.name)}</span>
               <span className="flex min-w-0 items-center gap-1 text-xs text-ink-soft">
                 <span className="lineup-card-position" aria-hidden="true">{player.position}</span>
                 <span className="truncate">{matchup}</span>
@@ -417,7 +420,10 @@ export function LineupForm({
             </span>
           )}
           {points ? (
-            <CardPoints points={points} stacked={layout === "cards"} />
+            <>
+              <span aria-hidden="true" className="contents"><CardPoints points={points} stacked={layout === "cards"} /></span>
+              <span className="sr-only">, {points.spoken}</span>
+            </>
           ) : player.estimateTenths !== null ? (
             <span className="stat shrink-0 text-xs text-ink-soft">~{(player.estimateTenths / 10).toFixed(1)}</span>
           ) : null}

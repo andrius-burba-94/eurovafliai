@@ -17,29 +17,15 @@
  *
  * A season other than `EUROLEAGUE_SEASON` is stored and nothing else: no pool
  * average and no standings table is rebuilt from it (7.2 B).
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
- * rather than importing `src/lib/pb/superuser` — that module pulls in
- * `server-only`, which throws outside a React Server Component graph
- * (AGENTS.md).
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import { ingestFinishedGames, summariseIngest } from "../src/lib/stats/ingest";
-
-const env = parseServerEnv(process.env);
-const arg = (name: string) =>
-  process.argv.find((value) => value.startsWith(`--${name}=`))?.split("=")[1];
+import { arg, env, flag, superuserFromEnv } from "./lib/pb.mjs";
 
 const season = arg("season") ?? env.EUROLEAGUE_SEASON;
 const max = Number(arg("max") ?? 12);
-const keepGoing = process.argv.includes("--all");
+const keepGoing = flag("all");
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 console.log(
   `Importing ${season} box scores · up to ${max} game(s) a pass${keepGoing ? " · until nothing is outstanding" : ""}`,
