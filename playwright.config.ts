@@ -28,6 +28,7 @@ const MOBILE_LAYOUT_SPECS = [
   "matchday.spec.ts",
   "panel.spec.ts",
   "season-dashboard.spec.ts",
+  "scout.spec.ts",
   "shell.spec.ts",
   "welcome.spec.ts",
 ].map((spec) => `**/${spec}`);
