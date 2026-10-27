@@ -39,6 +39,14 @@ export type FeedFetch = typeof fetch;
 /** Statuses worth a second attempt. Everything else will not fix itself. */
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 4;
+/**
+ * Long enough for the slowest honest answer, short enough that a socket that
+ * never answers cannot hold the worker's live pass or a server action for the
+ * five minutes Node would otherwise wait.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+/** A `Retry-After` past this is a feed having a bad day; the next pass is the better retry. */
+const MAX_WAIT_MS = 30_000;
 
 export const FEED_BASE =
   "https://api-live.euroleague.net/v2/competitions/E/seasons";
@@ -47,7 +55,8 @@ export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * GET one document, retrying the statuses that can pass.
+ * GET one document, retrying the statuses that can pass — and a connection
+ * that dropped or timed out, which passes just as often as a 503.
  *
  * Returns the `Response`, so a caller decides what the body is. 9.4's news
  * scraper reads HTML from a different publisher entirely and shares this
@@ -67,19 +76,30 @@ export async function fetchWithRetry(
     doFetch = fetch,
     accept = "application/json",
     onWait,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    pause = sleep,
   }: {
     doFetch?: FeedFetch;
     accept?: string;
     onWait?: (message: string) => void;
+    timeoutMs?: number;
+    pause?: (ms: number) => Promise<unknown>;
   } = {},
 ): Promise<Response> {
-  let lastStatus = 0;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const response = await doFetch(url, { headers: { accept } });
+  for (let attempt = 1; ; attempt += 1) {
+    let response: Response;
+    try {
+      // The signal also bounds reading the body, which a caller does after this returns.
+      response = await doFetch(url, { headers: { accept }, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (error) {
+      if (attempt === MAX_ATTEMPTS) {
+        throw new Error(`${url} did not answer after ${MAX_ATTEMPTS} attempts: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      await wait(1000 * 2 ** (attempt - 1), `no answer from ${url}`, attempt);
+      continue;
+    }
     if (response.ok) return response;
 
-    lastStatus = response.status;
     if (!RETRY_STATUSES.has(response.status) || attempt === MAX_ATTEMPTS) {
       throw new Error(
         `${url} answered ${response.status} ${response.statusText}` +
@@ -90,19 +110,19 @@ export async function fetchWithRetry(
     }
 
     const retryAfter = Number(response.headers.get("retry-after"));
-    const waitMs =
+    await wait(
       Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : 1000 * 2 ** (attempt - 1);
-    onWait?.(
-      `${response.status} from ${url} — waiting ${Math.round(waitMs / 1000)}s (retry ${attempt} of ${MAX_ATTEMPTS - 1})`,
+        ? Math.min(retryAfter * 1000, MAX_WAIT_MS)
+        : 1000 * 2 ** (attempt - 1),
+      `${response.status} from ${url}`,
+      attempt,
     );
-    await sleep(waitMs);
   }
 
-  throw new Error(
-    `${url} kept answering ${lastStatus} after ${MAX_ATTEMPTS} attempts.`,
-  );
+  async function wait(ms: number, why: string, attempt: number): Promise<void> {
+    onWait?.(`${why} — waiting ${Math.round(ms / 1000)}s (retry ${attempt} of ${MAX_ATTEMPTS - 1})`);
+    await pause(ms);
+  }
 }
 
 /** GET one JSON document, under the retry policy above. */

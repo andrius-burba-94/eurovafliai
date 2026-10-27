@@ -26,6 +26,7 @@ disagrees with STATUS.md, STATUS.md is right and the line is history.
 | [free-agent-scout-2026-10-10.md](free-agent-scout-2026-10-10.md) | 7.2, slice by slice: the research, positions per game, last season loaded without touching this season, the chosen page, outlooks, moves and their private reasons, and the production steps |
 | [your-round-2026-10-11.md](your-round-2026-10-11.md) | 7.3, slice by slice: the brief's fact sheet and the measurements it shares with the round sheet |
 | [game-day-sync-2026-10-16.md](game-day-sync-2026-10-16.md) | Why one read per game day, why roles freeze on the existing row, the Tinginiai and Montero cases, and what production showed |
+| [sync-audit-2026-10-26.md](sync-audit-2026-10-26.md) | The sync and automation audit of 26 October: what each fix slice changed in the worker, the feeds, the roster syncs, realtime and the code that was merged or deleted |
 
 Append to these when a slice's narrative would otherwise go into STATUS.md.
 The rule for what goes where: a **table row, a Next-up line, an open debt
