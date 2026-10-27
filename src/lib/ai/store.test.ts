@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 
-import { abandonClaim, claimWriteup, completeWriteup, failWriteup, readWriteup, requestRewrite, STALE_AFTER_MS, type WriteupKey } from "./store";
+import {
+  abandonClaim,
+  claimWriteup,
+  completeWriteup,
+  failWriteup,
+  readWriteup,
+  releaseStaleClaims,
+  requestRewrite,
+  STALE_AFTER_MS,
+  type WriteupKey,
+} from "./store";
 
 const NOW = Date.parse("2026-10-09T12:00:00Z");
 const HASH_A = "a".repeat(64);
@@ -92,20 +102,29 @@ describe("claimWriteup", () => {
     await completeWriteup(pb.client, id, { writeup: WRITEUP, refs: {}, usage: USAGE, model: "m", now: NOW });
     await requestRewrite(pb.client, id, NOW + 1000);
     const again = await claim(pb, { force: true, now: NOW + 2000 });
-    expect(again).toEqual({ outcome: "claimed", id, previous: "ready" });
+    expect(again).toEqual({ outcome: "claimed", id, previous: "ready", attempts: 2 });
     if (again.outcome !== "claimed") throw new Error("unreachable");
 
-    await abandonClaim(pb.client, again, "Gemini's quota is used up for now (daily).");
-    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", output: WRITEUP, error: "Gemini's quota is used up for now (daily)." });
+    await abandonClaim(pb.client, again, "Gemini's quota is used up for now (daily).", true);
+    // No verdict on the sheet, so no attempt spent: a day of quota errors must not use up a round.
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "ready", output: WRITEUP, attempts: 1, error: "Gemini's quota is used up for now (daily)." });
     expect(pb.rows("ai_writeups")[0]!.rewrite_requested_at).not.toBe("");
 
     // A row that never held a write-up has nothing to go back to: it is failed, and still asked for.
     const other = fresh();
     const first = await claim(other);
-    expect(first).toEqual({ outcome: "claimed", id: first.id, previous: null });
+    expect(first).toEqual({ outcome: "claimed", id: first.id, previous: null, attempts: 1 });
     if (first.outcome !== "claimed") throw new Error("unreachable");
-    await abandonClaim(other.client, first, "Gemini did not answer (503: overloaded).");
-    expect(other.rows("ai_writeups")[0]).toMatchObject({ status: "failed" });
+    await abandonClaim(other.client, first, "Gemini did not answer (503: overloaded).", true);
+    expect(other.rows("ai_writeups")[0]).toMatchObject({ status: "failed", attempts: 0 });
+  });
+
+  it("counts an attempt the model call broke for any other reason", async () => {
+    const pb = fresh();
+    const first = await claim(pb);
+    if (first.outcome !== "claimed") throw new Error("unreachable");
+    await abandonClaim(pb.client, first, "socket hang up", false);
+    expect(pb.rows("ai_writeups")[0]).toMatchObject({ status: "failed", attempts: 1 });
   });
 
   it("re-reads and decides when another run created the row first", async () => {
@@ -133,5 +152,23 @@ describe("claimWriteup", () => {
 
   it("refuses a key that could break out of its filter", async () => {
     await expect(claim(fresh(), {}, { ...KEY, leagueId: "L1' || 1=1" })).rejects.toThrow(/malformed key/);
+  });
+});
+
+describe("releaseStaleClaims", () => {
+  it("puts back rows a dead writer left pending: written prose stays written, a row with none is failed", async () => {
+    const at = (ms: number) => new Date(ms).toISOString().replace("T", " ");
+    const row = (id: string, claimedAt: number, output?: unknown) => ({
+      id, league: "L1", season: "E2026", round: 4, kind: "round_brief", member: id, status: "pending", attempts: 1, claimed_at: at(claimedAt), output: output ?? null,
+    });
+    const pb = fresh({
+      ai_writeups: [row("m1", NOW - STALE_AFTER_MS - 1, WRITEUP), row("m2", NOW - STALE_AFTER_MS - 1), row("m3", NOW - 60_000, WRITEUP)],
+    });
+    await releaseStaleClaims(pb.client, NOW);
+    expect(pb.rows("ai_writeups").map((entry) => [entry.member, entry.status])).toEqual([
+      ["m1", "ready"],
+      ["m2", "failed"],
+      ["m3", "pending"],
+    ]);
   });
 });
