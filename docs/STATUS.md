@@ -21,6 +21,26 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Sync audit: AI write-up passes, 26 October 2026
+
+**Merged (#219).** A round write-up whose re-guard failed was
+rewritten, forced and uncapped, every 15 minutes for good while the model kept
+refusing. Re-guards now look only at `ready` rows, and a refused rewrite is
+retried at most three times on one sheet; the commissioner's Rewrite stays
+uncapped. A row a dead worker left `pending` is put back at the start of each
+pass. An outage no longer hides a member's scout reasons, and no longer spends
+an attempt. The three passes write through one `claimAndWrite`. Leagues,
+finished rounds and Rewrite requests are read once per pass. No migration.
+Deferred: none. See [the audit log](log/sync-audit-2026-10-26.md).
+
+**Try it on localhost:**
+- `npx vitest run src/lib/ai` covers the capped loop, stale claims, the scout's
+  outage and the shared reads.
+- With `GEMINI_API_KEY` set, run `npm run dev` and `npm run worker:dev`. In
+  PocketBase admin, set an `ai_writeups` row to `pending` with `claimed_at`
+  11 minutes ago, then restart the worker. After its first pass the row reads
+  `ready`, or `failed` and retried if it held no prose.
+
 ## Sync audit — worker passes and auth, 26 October 2026
 
 **Merged (#218).** Findings W1, W3, W5, W7, S13

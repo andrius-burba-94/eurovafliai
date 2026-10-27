@@ -9,6 +9,7 @@ import { GeminiQuota } from "./gemini";
 import { runScoutPass, type ScoutPassDeps } from "./scout-pass";
 import type { ScoutFactsInput } from "./scout-facts-store";
 import type { ScoutReasonsResult } from "./scout-reasons";
+import { STALE_AFTER_MS } from "./store";
 
 const NOW = Date.parse("2026-10-09T12:00:00Z");
 const USAGE = { inputTokens: 10, outputTokens: 5, thinkingTokens: 0 };
@@ -168,6 +169,42 @@ describe("runScoutPass", () => {
     await runScoutPass(deps);
     expect(calls).toHaveLength(2);
     expect(pb.rows("ai_writeups").every((row) => row.status === "ready")).toBe(true);
+  });
+
+  const scoutRow = (member: string, over: Record<string, unknown>): FakeRecord => ({
+    id: `s-${member}`,
+    league: "L1",
+    season: "E2026",
+    round: 3,
+    kind: "scout_moves",
+    member,
+    voice: "analyst",
+    input_hash: "h".repeat(64),
+    attempts: 1,
+    ...over,
+  });
+
+  it("keeps written reasons on the page when Google does not answer their rewrite", async () => {
+    const false99 = { "d1|a1": "The added player has put up 99.9 a game of late, more than anyone. His calendar ahead looks kind." };
+    const { pb, deps } = harness(
+      { leagues: [league("L1")], ai_writeups: [scoutRow("m1", { status: "ready", output: { reasons: false99 }, generated_at: "2026-10-01 12:00:00.000Z" })] },
+      { answer: () => new GeminiQuota("429") },
+    );
+    expect((await runScoutPass(deps)).stopped).toContain("quota");
+    expect(pb.rows("ai_writeups").find((row) => row.member === "m1")).toMatchObject({ status: "ready", output: { reasons: false99 } });
+  });
+
+  it("leaves a fresh claim to its writer and takes over one whose writer died", async () => {
+    const claimedAt = (ms: number) => new Date(ms).toISOString().replace("T", " ");
+    const { deps, calls } = harness({
+      leagues: [league("L1")],
+      ai_writeups: [
+        scoutRow("m1", { status: "pending", claimed_at: claimedAt(NOW - 60_000) }),
+        scoutRow("m2", { status: "pending", claimed_at: claimedAt(NOW - STALE_AFTER_MS - 1) }),
+      ],
+    });
+    await runScoutPass(deps);
+    expect(calls).toEqual([["m2"]]);
   });
 
   it("re-guards a day later and keeps reasons the fresh sheet still supports", async () => {

@@ -20,7 +20,8 @@ import type { RoundWriteup, Voice } from "./voice";
  * 3. **Finish** — one update to `ready` (prose, refs, usage) or `failed`.
  *
  * A crash between 1 and 3 leaves `pending`; once it is older than
- * `STALE_AFTER_MS` the next run takes it over. Two runs at once share one row
+ * `STALE_AFTER_MS` the next run takes it over, and `releaseStaleClaims` puts
+ * back any that no pass would claim again. Two runs at once share one row
  * because of the unique index, so the worst case is one duplicate model call.
  * Three failures on the same input stop asking: a free quota is not a thing
  * to burn on a sheet the model cannot write.
@@ -63,6 +64,8 @@ export type Claim =
       readonly id: string;
       /** The row's status before this claim, null for a new row: what `abandonClaim` puts back. */
       readonly previous: WriteupRecord["status"] | null;
+      /** Attempts on this input, this claim's included. */
+      readonly attempts: number;
     }
   | { readonly outcome: "unchanged" | "busy" | "exhausted"; readonly id: string };
 
@@ -129,7 +132,7 @@ export async function claimWriteup(
         },
         { requestKey: null },
       );
-      return { outcome: "claimed", id: created.id, previous: null };
+      return { outcome: "claimed", id: created.id, previous: null, attempts: 1 };
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       existing = await readWriteup(pb, key);
@@ -146,18 +149,35 @@ export async function claimWriteup(
     }
   }
 
-  await pb.collection("ai_writeups").update(
-    existing.id,
-    { ...fields, attempts: sameInput ? (existing.attempts ?? 0) + 1 : 1 },
-    { requestKey: null },
-  );
-  return { outcome: "claimed", id: existing.id, previous: existing.status };
+  const attempts = sameInput ? (existing.attempts ?? 0) + 1 : 1;
+  await pb.collection("ai_writeups").update(existing.id, { ...fields, attempts }, { requestKey: null });
+  return { outcome: "claimed", id: existing.id, previous: existing.status, attempts };
 }
 
 /** Another run is writing this row now; a claim older than `STALE_AFTER_MS` is presumed dead. */
 export function isFreshClaim(row: Pick<WriteupRecord, "status" | "claimed_at">, now: number): boolean {
   const claimedAt = instant(row.claimed_at);
   return row.status === "pending" && Number.isFinite(claimedAt) && now - claimedAt < STALE_AFTER_MS;
+}
+
+/** Nothing for a pass to ask, and no sheet worth building: another run is writing it, or its attempts are spent. */
+export function notDue(row: Pick<WriteupRecord, "status" | "claimed_at" | "attempts">, now: number): boolean {
+  return isFreshClaim(row, now) || (row.status === "failed" && (row.attempts ?? 0) >= MAX_ATTEMPTS);
+}
+
+/**
+ * A dead writer's stale `pending` row goes back to what a reader can use:
+ * prose stays written (the re-guard checks it again), a row with none is
+ * failed and retried. Left pending, no pass would ever look at it again.
+ */
+export async function releaseStaleClaims(pb: PocketBase, now: number): Promise<void> {
+  const rows = await pb
+    .collection("ai_writeups")
+    .getFullList<WriteupRecord>({ filter: `status = 'pending'`, fields: "id,status,claimed_at,output", requestKey: null });
+  for (const row of rows) {
+    if (isFreshClaim(row, now)) continue;
+    await pb.collection("ai_writeups").update(row.id, { status: row.output ? "ready" : "failed" }, { requestKey: null });
+  }
 }
 
 /**
@@ -263,15 +283,14 @@ export async function failWriteup(pb: PocketBase, id: string, reason: string, us
 }
 
 /**
- * Google did not answer at all (the quota, the key, an outage, the network):
- * no verdict on the sheet. The row goes back to what it was — a written row
+ * The model call threw. The row goes back to what it was — a written row
  * stays written, so a member's brief does not vanish over an outage — and a
- * commissioner's request stands, so the next check asks again.
+ * commissioner's request stands, so the next check asks again. When Google
+ * did not answer at all (the quota, the key, an outage) there was no verdict
+ * on the sheet, so the attempt is given back: a day of quota errors must not
+ * use up a round's three.
  */
-export async function abandonClaim(pb: PocketBase, claim: { readonly id: string; readonly previous: WriteupRecord["status"] | null }, reason: string): Promise<void> {
-  await pb.collection("ai_writeups").update(
-    claim.id,
-    { status: claim.previous === "ready" ? "ready" : "failed", error: reason.slice(0, ERROR_LIMIT) },
-    { requestKey: null },
-  );
+export async function abandonClaim(pb: PocketBase, claim: Extract<Claim, { outcome: "claimed" }>, reason: string, outage: boolean): Promise<void> {
+  const back = { status: claim.previous === "ready" ? "ready" : "failed", error: reason.slice(0, ERROR_LIMIT) };
+  await pb.collection("ai_writeups").update(claim.id, outage ? { ...back, attempts: claim.attempts - 1 } : back, { requestKey: null });
 }
