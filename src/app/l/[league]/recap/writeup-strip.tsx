@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import type PocketBase from "pocketbase";
-import { useActionState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState } from "react";
 
 import { SubmitButton } from "@/components/submit-button";
 import { requestRoundRewrite, type RewriteResult } from "@/lib/ai/actions";
 import type { WriteupState } from "@/lib/ai/queries";
-import { useLiveSubscription } from "@/lib/pb/use-live";
+import { useLiveRefresh } from "@/lib/pb/use-live";
 
 const START: RewriteResult = { error: null };
 
@@ -48,21 +46,22 @@ export function WriteupStrip({
   /** The commissioner's count of the round's briefs; null for anyone else, or a round with none. */
   briefs?: { readonly written: number; readonly total: number; readonly rewriting: boolean } | null;
 }) {
-  const router = useRouter();
   const [result, action] = useActionState(requestRoundRewrite, START);
   // The action's answer says the request landed; the row's own change, below,
   // says the worker has it. Until then this round reads as rewriting.
   const asked = result.requested === round && result.error === null;
   const shown: WriteupState = asked && state !== "failed" ? "rewriting" : state;
 
-  const subscribe = useCallback(
-    async (pb: PocketBase) => [
-      // Single quotes: PocketBase rejects double-quoted filter values.
-      await pb.collection("ai_writeups").subscribe("*", () => router.refresh(), { filter: `league = '${leagueId}'` }),
-    ],
-    [leagueId, router],
-  );
-  useLiveSubscription({ authToken, subscribe });
+  // This round's write-up and briefs only: a scout's note or another round's
+  // claim is no reason to re-render the recap.
+  useLiveRefresh({
+    authToken,
+    topics: [{
+      collection: "ai_writeups",
+      topic: "*",
+      filter: `league = '${leagueId}' && season = '${season}' && round = ${round} && (kind = 'round_summary' || kind = 'round_brief')`,
+    }],
+  });
 
   const summary =
     shown === "written"
