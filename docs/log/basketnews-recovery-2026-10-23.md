@@ -152,3 +152,17 @@ font too. CI now bounds APT connection/data inactivity to 20 seconds, disables
 same-mirror retries and pipelining, and retains the runner's configured mirror
 failover and normal package verification. The browser jobs and deployment
 gate remain unchanged. This setting applies only to disposable CI runners.
+
+Main CI for the merged follow-up passed the formerly failing theme shard:
+155 tests passed. The mobile Scout wire spec then failed in both attempts
+because its immediate tab-visibility check ran before the streamed tab
+appeared, skipped the click, and found the wire hidden. Both wire reads now
+wait for the Scout shell to be visible before checking the tab; the sidebar
+navigation assertion also waits for the league shell. A local trace confirmed
+that attached tabs can still sit in Next’s hidden streaming container, so
+attachment alone is insufficient. `scout.spec.ts` is
+now part of PR mobile layout coverage, so this responsive branch is exercised
+before merging. No product assertion or timeout is relaxed.
+
+The visible-shell guard passed 20 repeated local Chrome wire checks (ten
+desktop, ten Pixel 7) against disposable PocketBase data.
