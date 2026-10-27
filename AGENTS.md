@@ -68,7 +68,7 @@ src/lib/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
 src/lib/nav/urls.ts  every league, team and player address (S28): /l/<league>,
                   /l/<league>/<team>. Never hand-build a league URL
 src/lib/slugs/    readable address segments: pure `slug.ts`, framework-free
-                  `store.ts` (`ensureSlugs`, worker + `npm run slugs:backfill`)
+                  `store.ts` (`ensureSlugs`, run by the worker at boot and hourly)
 src/lib/panel/    the side panel's one read (11.2): pool, a round's games, news
 src/lib/advisor/  the free-agent scout (7.2): pure `outlook.ts` (a player's next
                   5/10/15), `moves.ts` (moves worth making), `wire.ts`; `store.ts`
