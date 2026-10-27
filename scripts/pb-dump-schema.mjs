@@ -27,21 +27,14 @@
  */
 import { createHash } from "node:crypto";
 
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema.ts";
-
-const env = parseServerEnv(process.env);
+import { superuserFromEnv } from "./lib/pb.mjs";
 
 const fingerprint = (value) =>
   value
     ? `sha256:${createHash("sha256").update(String(value)).digest("hex").slice(0, 12)}`
     : null;
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 const collections = await pb.collections.getFullList({ requestKey: null });
 const nameById = new Map(collections.map((c) => [c.id, c.name]));

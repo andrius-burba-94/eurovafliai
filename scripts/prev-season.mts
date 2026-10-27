@@ -16,20 +16,13 @@
  * The feed is the source and our own E2025 backfill is the cross-check; a
  * disagreement is printed, never reconciled, for the reason `applyPreviousSeason`
  * gives. `--check` runs the comparison and skips the writes.
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
- * rather than importing `src/lib/pb/superuser` — that module pulls in
- * `server-only`.
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import { fetchSeasonAverages } from "../src/lib/stats/euroleague";
 import { previousSeasonOf } from "../src/lib/stats/seasons";
 import { applyPreviousSeason } from "../src/lib/stats/store";
+import { arg, env, flag, superuserFromEnv } from "./lib/pb.mjs";
 
-const env = parseServerEnv(process.env);
-const checkOnly = process.argv.includes("--check");
+const checkOnly = flag("check");
 
 /** The script refuses an unreadable code rather than guessing a year. */
 function previousSeason(code: string): string {
@@ -42,9 +35,7 @@ function previousSeason(code: string): string {
   return previous;
 }
 
-const season =
-  process.argv.find((value) => value.startsWith("--season="))?.split("=")[1] ??
-  previousSeason(env.EUROLEAGUE_SEASON);
+const season = arg("season") ?? previousSeason(env.EUROLEAGUE_SEASON);
 
 console.log(`Reading ${season} from the official stats table…`);
 const averages = await fetchSeasonAverages({
@@ -61,10 +52,7 @@ if (averages.length === 0) {
   process.exit(1);
 }
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 const report = await applyPreviousSeason(pb, season, averages, {
   dryRun: checkOnly,
