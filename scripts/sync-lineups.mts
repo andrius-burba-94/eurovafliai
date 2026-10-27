@@ -8,18 +8,9 @@
  * round closes. This is the repair: a round whose lineups changed after that
  * pass, or a local database brought in line with the official game. Every
  * linked league in season unless `--league` names one.
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`
- * rather than importing `src/lib/pb/superuser` — that module pulls in
- * `server-only`.
  */
-import PocketBase from "pocketbase";
-
-import { parseServerEnv } from "../src/lib/config/schema";
 import { syncRoundLineups } from "../src/lib/fantasy/store";
-
-const env = parseServerEnv(process.env);
-const arg = (name: string) => process.argv.find((value) => value.startsWith(`--${name}=`))?.split("=")[1];
+import { arg, env, superuserFromEnv } from "./lib/pb.mjs";
 
 const rounds = (arg("rounds") ?? "")
   .split(",")
@@ -35,10 +26,7 @@ if (!token) {
   process.exit(1);
 }
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb
-  .collection("_superusers")
-  .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 const only = arg("league");
 const leagues = await pb.collection("leagues").getFullList<{ id: string; name: string }>({

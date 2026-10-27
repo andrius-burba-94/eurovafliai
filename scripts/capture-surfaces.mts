@@ -38,13 +38,8 @@ try {
   const commissioner = await createTestUser("Rimas");
   const league = await createLeagueFor(commissioner, "Vafliai 2027");
 
-  const { default: PocketBase } = await import("pocketbase");
-  const { parseServerEnv } = await import("../src/lib/config/schema");
-  const env = parseServerEnv(process.env);
-  const pb = new PocketBase(env.PB_INTERNAL_URL);
-  await pb
-    .collection("_superusers")
-    .authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+  const { superuserFromEnv } = await import("./lib/pb.mjs");
+  const pb = await superuserFromEnv();
 
   // A lobby with one member reads as a bug rather than as a design; seed a
   // couple more so the empty bays and the taken ones are both on screen.

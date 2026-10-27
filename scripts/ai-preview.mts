@@ -19,11 +19,7 @@
  *
  * Exit codes: 0 done, 1 the model or the guard failed, 2 refused (no such
  * league, or a round that is not finished).
- *
- * Plain Node, so it builds its own PocketBase client from `parseServerEnv`.
  */
-import PocketBase from "pocketbase";
-
 import { buildBriefFacts } from "../src/lib/ai/brief-facts";
 import { readBriefFactsInput } from "../src/lib/ai/brief-facts-store";
 import { BRIEF_LINES, BRIEF_PROMPT_VERSION, briefInput, briefRefs, writeBriefs } from "../src/lib/ai/briefs";
@@ -38,17 +34,13 @@ import { readScoutFactsInput } from "../src/lib/ai/scout-facts-store";
 import { writeScoutReasons } from "../src/lib/ai/scout-reasons";
 import { renderPlain } from "../src/lib/ai/tokens";
 import { PROMPT_VERSION, VOICES, type Voice, writeupEntries } from "../src/lib/ai/voice";
-import { parseServerEnv } from "../src/lib/config/schema";
-
-const arg = (name: string) => process.argv.find((value) => value.startsWith(`--${name}=`))?.split("=")[1];
-const flag = (name: string) => process.argv.includes(`--${name}`);
+import { arg, env, flag, superuserFromEnv } from "./lib/pb.mjs";
 
 function refuse(message: string, code = 2): never {
   console.error(message);
   process.exit(code);
 }
 
-const env = parseServerEnv(process.env);
 const model = arg("model") ?? env.GEMINI_MODEL;
 if (!/^[a-z0-9][a-z0-9.-]*$/.test(model)) refuse(`--model must be a plain model id, not ${model}`);
 const voice = (arg("voice") ?? "analyst") as Voice;
@@ -70,8 +62,7 @@ const roundArg = arg("round");
 const round = roundArg === undefined ? undefined : Number(roundArg);
 if (round !== undefined && (!Number.isInteger(round) || round < 1)) refuse("--round must be a round number.");
 
-const pb = new PocketBase(env.PB_INTERNAL_URL);
-await pb.collection("_superusers").authWithPassword(env.PB_SUPERUSER_EMAIL, env.PB_SUPERUSER_PASSWORD);
+const pb = await superuserFromEnv();
 
 const league = await pb
   .collection("leagues")

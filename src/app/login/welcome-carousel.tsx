@@ -86,7 +86,7 @@ export function WelcomeCarousel() {
                   type="button"
                   className="welcome-bubble"
                   data-testid={`welcome-bubble-${index + 1}`}
-                  aria-label={`Show ${feature.title}`}
+                  aria-label={`${index + 1}: Show ${feature.title}`}
                   aria-pressed={active === index}
                   aria-controls="welcome-feature-panel"
                   onClick={() => {

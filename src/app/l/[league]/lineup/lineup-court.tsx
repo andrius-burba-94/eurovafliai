@@ -61,18 +61,23 @@ export function LineupCourt({
                   data-over={drag.over === `player:${player.id}` || undefined}
                   data-dragging={drag.dragging === player.id || undefined}
                   aria-haspopup="dialog"
-                  aria-label={`${displayName(player.name)}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}`}
                   onClick={(event) => onOpen(player.id, event.currentTarget)}
                   {...drag.handle(player.id)}
                   className="lineup-court-player lineup-drag"
                 >
+                  {/* Named by content, not aria-label: axe's label-in-name rule wants the
+                      visible surname and figures inside the name, so they are hidden and
+                      spoken here in full instead. */}
+                  <span className="sr-only">
+                    {`${displayName(player.name)}, ${WORDS[position].slice(0, -1)}, ${player.isCaptain ? "captain, " : ""}starter${player.points ? `, ${player.points.spoken}` : ""}`}
+                  </span>
                   <span className="lineup-court-disc">
                     <PlayerPortrait personCode={player.personCode} name={player.name} />
                     <span className="lineup-court-position" aria-hidden="true">{position}</span>
                     {player.isCaptain ? <span className="lineup-court-captain" aria-hidden="true">C&times;2</span> : null}
                   </span>
                   {player.points ? (
-                    <span className="lineup-court-plate" data-testid="court-points" data-live={player.points.live || undefined}>
+                    <span className="lineup-court-plate" data-testid="court-points" data-live={player.points.live || undefined} aria-hidden="true">
                       <strong title={displayName(player.name)}>{surname(player.name)}</strong>
                       <span className="lineup-court-score" data-kind={player.points.kind}>
                         {player.points.kind === "figure" ? (
@@ -86,7 +91,7 @@ export function LineupCourt({
                       </span>
                     </span>
                   ) : (
-                    <strong title={displayName(player.name)}>{surname(player.name)}</strong>
+                    <strong title={displayName(player.name)} aria-hidden="true">{surname(player.name)}</strong>
                   )}
                 </button>
               </li>
