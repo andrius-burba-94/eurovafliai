@@ -1,5 +1,5 @@
 import type { Position } from "@/lib/engine";
-import { DEFAULT_LINEUP_TEMPLATE, effectiveCaptain, type LineupTemplate, type LineupWeights, type ResolvedLineup } from "@/lib/lineups/lineup";
+import { DEFAULT_LINEUP_TEMPLATE, type LineupTemplate, type LineupWeights, type ResolvedLineup } from "@/lib/lineups/lineup";
 import { optimizeLineup } from "@/lib/lineups/optimize";
 import { coversRound } from "@/lib/memberships/from";
 import { memberHonours } from "@/lib/season/badges";
@@ -376,7 +376,7 @@ function captainRegret(input: StatsInput, rounds: readonly number[], points: Map
     if (lineup.source === "absent" || !lineup.slots?.captain || !counted.has(lineup.round)) continue;
     const owned = new Set(squadAt(input.windows, lineup.memberId, lineup.round));
     const starters = lineup.slots.starters.filter((id) => owned.has(id));
-    const captainId = effectiveCaptain(lineup.slots, lineup.roles);
+    const captainId = lineup.slots.captain;
     if (!owned.has(captainId) || starters.length === 0) continue;
     const night = points.get(lineup.round);
     const scored = (id: string) => night?.get(id) ?? 0;

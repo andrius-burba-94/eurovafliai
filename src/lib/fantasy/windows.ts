@@ -11,13 +11,12 @@
  * whose API exposes no deadline.
  *
  * A round is two or three game days. Inside its freeze a sync reads once per
- * game day, five minutes after that day's first tip-off, which is when the
- * day's players freeze in their roles (`freezeRoles`); once more when the round
- * has settled; and every six hours between rounds. BasketNews runs on the same
- * clock (`basketNewsDue`).
+ * game day, five minutes after that day's first tip-off, so the lineups on
+ * Matchday follow the official ones through the round; once more when the
+ * round has settled, which is the read its standings keep; and every six hours
+ * between rounds. BasketNews runs on the same clock (`basketNewsDue`).
  */
 
-import { playerGameDays } from "@/lib/lineups/lineup";
 import { gameDayOf } from "@/lib/time/local";
 
 export type RoundWindow = {
@@ -26,13 +25,7 @@ export type RoundWindow = {
   readonly lockAt: number;
   /** Writes stop: late enough to catch a correction, early enough that the next round's trades cannot have started. */
   readonly closesAt: number;
-  /**
-   * Every distinct tip-off in the round's freeze, first to last. The official
-   * game locks a player when his own game starts, so a manager may still
-   * swap a starter and move the captain until the round's last tip-off (day
-   * 1's captain benched for a day 2 player). Each is a moment the lineup can
-   * have changed for good.
-   */
+  /** Every distinct tip-off in the round's freeze, first to last; a postponed game is not one. */
   readonly tips: readonly number[];
   /** Each game day's first tip-off, first to last: the moments a sync reads. */
   readonly days: readonly number[];
@@ -116,7 +109,7 @@ function dayUnread(now: number, window: RoundWindow, runs: readonly LineupRunRef
  * Is a roster pass due?
  *
  * Inside a freeze, once per game day: rosters cannot change mid-round, but the
- * day's read is the one the lineups freeze from, so both run together.
+ * lineups are read on the same clock, so both run together.
  * `applyRuns` are the applies for the decided round, so a new round's first
  * game day reads at once however recently the previous round did. Outside a
  * freeze, a preview every six hours (`lastRunAt` is any run).
@@ -150,7 +143,7 @@ function roundDue(now: number, window: RoundWindow, runs: readonly LineupRunRef[
  * Which rounds' lineups to read from the official game now.
  *
  * A frozen round once per game day, five minutes after the day's first
- * tip-off: the read the day's players freeze from. A round once more after it
+ * tip-off. A round once more after it
  * has settled, which is the pass its standings keep, and which is also how a
  * round from before the lineup sync existed is filled in. A settled round none
  * of whose passes since applied is tried again four times a day, so a refused
@@ -182,28 +175,4 @@ export function basketNewsDue(now: number, windows: readonly RoundWindow[], runs
   const last = latest(runs);
   const inRound = windows.some((window) => now >= window.lockAt && now < window.settledAt);
   return !inRound && (last === null || now - last >= PREVIEW_EVERY_MS);
-}
-
-/**
- * The latest of a round's game days a read at `now` has reached: its first
- * tip-off five minutes gone. A "Sync now" pressed on a game-day morning reaches
- * only the days before, so it freezes nobody who has not played.
- */
-export function readDayAt(now: number, window: RoundWindow | undefined): string | null {
-  const begun = (window?.days ?? []).filter((day) => now >= day + APPLY_AFTER_LOCK_MS);
-  return begun.length ? gameDayOf(begun.at(-1)!) : null;
-}
-
-/** What one read freezes: the players whose game day it reached (`freezeRoles`). */
-export type RoundFreeze = { readonly gameDays: ReadonlyMap<string, string>; readonly readDay: string; readonly at: string };
-
-/** A lineup read of `round` at `now`, for both linked games; nothing before the round's first game day. */
-export function roundFreeze(
-  now: Date,
-  round: number,
-  fixtures: readonly { readonly round: number; readonly localClub: string; readonly roadClub: string; readonly utcDate: string | null }[],
-  clubOf: ReadonlyMap<string, string>,
-): RoundFreeze | undefined {
-  const readDay = readDayAt(now.getTime(), roundWindows(fixtures).find((window) => window.round === round));
-  return readDay ? { gameDays: playerGameDays({ fixtures, round, clubOf }), readDay, at: now.toISOString() } : undefined;
 }
