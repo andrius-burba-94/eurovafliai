@@ -15,7 +15,7 @@ import { FantasyTokenRefused, fetchCurrentMatchday, fetchLeagueMoves, fetchLeagu
 import { matchdayIdForRound, slotsFromOfficial, type OfficialLineup } from "./lineup";
 import { linkSourcePlayers, resolveFantasy, type PoolPlayer, type SyncMember, type SyncQuestion } from "./match";
 import { planFromLog, planSync, reconcileMoves, rostersAgree, type LoggedMove, type SyncPlan, type SyncPlanInput, type SyncStep } from "./plan";
-import { lineupRoundsDue, roundFreeze, roundWindows, syncDue, syncModeAt, type LineupRunRef, type RoundWindow, type SyncDecision } from "./windows";
+import { lineupRoundsDue, roundWindows, syncDue, syncModeAt, type LineupRunRef, type RoundWindow, type SyncDecision } from "./windows";
 
 /**
  * Running a sync — the PocketBase half.
@@ -585,15 +585,8 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
     });
   }
 
-  const [members, pool, fixtures] = await Promise.all([readMembers(pb, leagueId), readPool(pb), readStoredFixtures(pb, season)]);
+  const [members, pool] = await Promise.all([readMembers(pb, leagueId), readPool(pb)]);
   const template = parseLeagueSettings(league.settings).lineup_template;
-  // The day's players freeze in the roles this read finds them in.
-  const freeze = roundFreeze(
-    now,
-    round,
-    fixtures.map((row) => ({ round: row.round, localClub: row.local_club, roadClub: row.road_club, utcDate: row.utc_date || null })),
-    new Map(pool.map((row) => [row.id, row.clubCode])),
-  );
 
   const refused: string[] = [];
   const fetched: { memberId: string; team: string; squad: LineupSquadPlayer[]; lineup: OfficialLineup }[] = [];
@@ -634,7 +627,7 @@ export async function syncRoundLineups(options: LineupSyncOptions): Promise<Sync
       refused.push(`${team}: ${verdict.reason}`);
       continue;
     }
-    await writeLineup(pb, { leagueId, memberId, season, round, slots: verdict.slots, recordedBy: "", source: "synced", ...(freeze ? { freeze } : {}) });
+    await writeLineup(pb, { leagueId, memberId, season, round, slots: verdict.slots, recordedBy: "", source: "synced" });
     written.push({
       memberId,
       team,

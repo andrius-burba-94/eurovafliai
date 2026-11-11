@@ -1,7 +1,7 @@
 # ADR-0014: One read per game day, and a player scores in the role he played in
 
 Date: 2026-10-16
-Status: accepted
+Status: frozen roles superseded by [ADR-0015](ADR-0015-score-the-served-lineup.md) (2026-11-11); the one-read-per-game-day schedule stands
 
 ## Context
 

@@ -6,15 +6,14 @@ import type { SyncQuestion } from "@/lib/fantasy/match";
 import { rostersAgree, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import type { Position } from "@/lib/engine";
-import type { FrozenRoles, LineupSlots } from "@/lib/lineups/lineup";
+import type { LineupSlots } from "@/lib/lineups/lineup";
 import { readPool } from "@/lib/fantasy/store";
-import { readFrozenRoles, writeLineup } from "@/lib/lineups/store";
+import { writeLineup } from "@/lib/lineups/store";
 import { applySteps, clip, materializeDraftMemberships, readSeats } from "@/lib/memberships/store";
 import { newTeamSlug } from "@/lib/slugs/store";
 import { recomputeStandings } from "@/lib/stats/standings-store";
 
 import type { BasketNewsTeam } from "./client";
-import type { RoundFreeze } from "@/lib/fantasy/windows";
 
 import type { BasketNewsRepository, BasketNewsRoundResult } from "./sync";
 import { rememberSourcePlayers } from "./registrations";
@@ -261,13 +260,9 @@ export class PocketBaseBasketNewsRepository implements BasketNewsRepository {
     await this.finishBatch(batch);
   }
 
-  async frozenRoles(leagueId: string, season: string, round: number): Promise<ReadonlyMap<string, FrozenRoles>> {
-    return readFrozenRoles(this.pb, { leagueId, season, round });
-  }
-
-  async writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null, freeze?: RoundFreeze): Promise<void> {
+  async writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null): Promise<void> {
     const existing = result ? [] : await this.pb.collection("round_lineups").getFullList<{ id: string }>({ filter: `league = '${leagueId}' && member = '${memberId}' && season = '${season}' && round = ${round}`, fields: "id", requestKey: null });
-    await writeLineup(this.pb, { leagueId, memberId, season, round, slots, recordedBy: "", source: "synced", ...(result || existing.length === 0 ? { basketnewsResult: result } : {}), ...(freeze ? { freeze } : {}) });
+    await writeLineup(this.pb, { leagueId, memberId, season, round, slots, recordedBy: "", source: "synced", ...(result || existing.length === 0 ? { basketnewsResult: result } : {}) });
   }
 
   async recompute(season: string, leagueId: string): Promise<void> {

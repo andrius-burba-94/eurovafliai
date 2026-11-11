@@ -56,8 +56,8 @@ export function formatMonthDay(value: string | number | undefined | null): strin
 
 /**
  * The game day an instant falls on: "2026-10-13", the league-time calendar day.
- * A Euroleague round is two or three of these, and a lineup's roles freeze one
- * game day at a time. Sortable as a string.
+ * A Euroleague round is two or three of these, and a linked league's sync reads
+ * once on each. Sortable as a string.
  */
 export function gameDayOf(value: string | number | undefined | null): string | null {
   const time = typeof value === "number" ? value : Date.parse(value ?? "");

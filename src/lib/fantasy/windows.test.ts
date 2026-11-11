@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { basketNewsDue, lineupRoundsDue, readDayAt, PREVIEW_EVERY_MS, RETRY_FAILED_MS, roundWindows, syncDue, syncModeAt } from "./windows";
+import { basketNewsDue, lineupRoundsDue, PREVIEW_EVERY_MS, RETRY_FAILED_MS, roundWindows, syncDue, syncModeAt } from "./windows";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -235,17 +235,5 @@ describe("basketNewsDue", () => {
 
   it("reads at once when no job has ever run", () => {
     expect(basketNewsDue(at("2026-10-01T09:00:00Z"), windows, [])).toBe(true);
-  });
-});
-
-describe("readDayAt", () => {
-  const window = roundWindows(fixtures).find((row) => row.round === 3);
-
-  it("names the latest game day whose first tip-off is five minutes gone", () => {
-    expect(readDayAt(at("2026-10-01T15:00:00Z"), window)).toBeNull();
-    expect(readDayAt(at("2026-10-01T16:05:00Z"), window)).toBe("2026-10-01");
-    expect(readDayAt(at("2026-10-02T12:00:00Z"), window)).toBe("2026-10-01");
-    expect(readDayAt(at("2026-10-05T12:00:00Z"), window)).toBe("2026-10-02");
-    expect(readDayAt(at("2026-10-05T12:00:00Z"), undefined)).toBeNull();
   });
 });

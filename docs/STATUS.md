@@ -21,6 +21,45 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Standings score the served lineup, 11 November 2026
+
+**Fix for EuroVafliai 26-27's table (ADR-0015, superseding ADR-0014's frozen
+roles).** From round 7 the table overcounted every team, so its order was
+wrong (Monikutės Naktys showed 4th, officially 2nd). The cause was frozen
+roles: they froze a role at the game day's first read, before later lineup
+changes, and doubled every player who had ever held the armband. The stored
+lineups, scored as served, match the official round total in 80 of 80
+Fantasy Challenge team-rounds and 44 of 45 BasketNews team-rounds
+([story](log/served-lineup-2026-11-11.md)).
+
+| Change | Where |
+|---|---|
+| A round scores `slots` alone: one captain, no overlay | `multipliersOf`, `lineupWeights` (`lineups/lineup.ts`) |
+| Neither sync freezes or reads roles; BasketNews weighs its own cards | `syncRoundLineups` (`fantasy/store.ts`), `syncBasketNews` / `basketNewsResult` (`basketnews/sync.ts`) |
+| Round sheet and captain stats read the lineup's captain | `round-analysis.ts`, `league-stats.ts` |
+| `round_lineups.roles` dropped | migration `1791500000_drop_round_lineup_roles.js` |
+
+The one-read-per-game-day schedule is unchanged.
+
+**After the deploy:** run `npm run standings:recompute` on the box. The
+EuroVafliai 26-27 table should then read FBK KISIEL, Monikutės Naktys,
+Laurynas Birutis, Visi geri nėr ką išleist, Tabariškių Fūros, Ausys, Birka Ne
+Plugas, Kalaškračiai, as the official game does. Every team should be within
+about 2.5 points of its official season total.
+
+Deferred: our box scores differ from the official game's by up to 2.2 points
+in a few team-rounds (rounds 4–6), because the official game applied stat
+corrections that the feed did not. Standings still compute from our box
+scores; using the official round total, as BasketNews leagues do, would need
+a read after the official game has finished scoring, which happens later than
+our settled read.
+
+**Try it on localhost:**
+- `npx vitest run src/lib/lineups/lineup.test.ts -t "one captain"`: a moved
+  armband doubles only its last holder.
+- `npx vitest run src/lib/fantasy/lineup-sync.test.ts -t "more than one game day"`:
+  two reads of one round store the latest lineup, with no roles.
+
 ## Sync audit: roster and lineup sync safety, 26 October 2026
 
 **Merged (#222).** Both linked games' roster and lineup
@@ -241,6 +280,9 @@ browser-readiness and CI mirror-download corrections needed for rollout.
   repairs. A second successful apply must propose zero further changes.
 
 ## Game-day sync and frozen roles, October 2026
+
+> Frozen roles were removed on 11 November 2026 (ADR-0015, top of this file);
+> the one-read-per-game-day schedule below stands.
 
 **Both linked leagues read once per game day, and every player scores in the
 role he played in** (ADR-0014; vocabulary **game day** and **frozen role** in

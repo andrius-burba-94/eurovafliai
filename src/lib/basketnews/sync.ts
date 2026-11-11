@@ -1,8 +1,8 @@
 import { linkSourcePlayers, type PoolPlayer, type SyncQuestion } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
-import { freezeRoles, type FrozenRoles, type LineupRole, type LineupSlots, ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
-import { roundFreeze, roundWindows, type RoundFreeze } from "@/lib/fantasy/windows";
+import type { LineupSlots } from "@/lib/lineups/lineup";
+import { roundWindows } from "@/lib/fantasy/windows";
 import { normalizeName } from "@/lib/rosters/normalize";
 import { formatHundredths } from "@/lib/stats/scoring";
 import type { Position } from "@/lib/engine";
@@ -39,9 +39,7 @@ export interface BasketNewsRepository {
   ensureDraft(leagueId: string, picks: readonly { memberId: string; playerId: string }[], order: readonly string[], draftDate: Date): Promise<void>;
   seats(leagueId: string): Promise<SyncSeat[]>;
   apply(leagueId: string, steps: readonly SyncStep[], at: Date): Promise<void>;
-  /** Each member's frozen roles for a round, as stored. */
-  frozenRoles(leagueId: string, season: string, round: number): Promise<ReadonlyMap<string, FrozenRoles>>;
-  writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null, freeze?: RoundFreeze): Promise<void>;
+  writeRound(leagueId: string, season: string, round: number, memberId: string, slots: LineupSlots, result: BasketNewsRoundResult | null): Promise<void>;
   recompute(season: string, leagueId: string): Promise<void>;
   progress(jobId: string, nextRound: number): Promise<void>;
 }
@@ -94,21 +92,15 @@ function slotsFor(lineup: BasketNewsLineup, ids: ReadonlyMap<string, string>): L
   };
 }
 
-/**
- * The round as BasketNews scored it. A player whose game day a read has
- * reached is weighed by the role he froze in (`roleFor`); anyone else by his
- * card now.
- */
+/** The round as BasketNews scored it: each player weighed by his card in the lineup BasketNews serves. */
 export function basketNewsResult(
   lineup: BasketNewsLineup, score: BasketNewsScore, ids: ReadonlyMap<string, string>, final = true,
-  roleFor: (playerId: string) => LineupRole | null = () => null,
 ): BasketNewsRoundResult {
   const players = lineup.players.map((entry) => {
     const playerId = ids.get(entry.playerId);
     if (!playerId) throw new Error(`BasketNews player ${entry.playerId} has no mapping.`);
     const role = entry.cardIdentifier;
-    const frozen = roleFor(playerId);
-    const multiplier = frozen ? ROLE_MULTIPLIERS[frozen] : role.startsWith("i-") ? 0 : role === "b-1" ? 1 : role.startsWith("b-") ? 0.5 : entry.captain ? 2 : 1;
+    const multiplier = role.startsWith("i-") ? 0 : role === "b-1" ? 1 : role.startsWith("b-") ? 0.5 : entry.captain ? 2 : 1;
     const rawHundredths = Math.round((entry.player.fantasy_pts ?? 0) * 100);
     return { playerId, rawHundredths, weightedHundredths: Math.round(rawHundredths * multiplier), role };
   });
@@ -248,7 +240,6 @@ export async function syncBasketNews(
   const draftPicks = picks.map((pick) => ({ memberId: members.get(pick.fantasyTeamId)!.id, playerId: mapped.get(pick.playerId)! }));
   await repo.ensureDraft(leagueId, draftPicks, firstPickOrder.map((id) => members.get(id)!.id), new Date(official.draftDate ?? now));
 
-  const clubOf = new Map(local.pool.map((player) => [player.id, player.clubCode]));
   let rosterRound = local.rosterRound;
   let completed = 0;
   let historyGap = false;
@@ -298,16 +289,13 @@ export async function syncBasketNews(
   }
   for (const round of validRounds) {
     try {
-      const freeze = roundFreeze(now, round.round, local.fixtures, clubOf);
-      const stored = freeze ? await repo.frozenRoles(leagueId, local.season, round.round) : new Map<string, FrozenRoles>();
       for (const [index, lineup] of round.lineups.entries()) {
         const member = members.get(teams[index]!.id)!;
         const score = round.scores[index];
         const slots = slotsFor(lineup, mapped);
-        const roles = freeze ? freezeRoles({ previous: stored.get(member.id), slots, ...freeze }) : (stored.get(member.id) ?? {});
-        const result = score ? basketNewsResult(lineup, score, mapped, round.final, (playerId) => roles[playerId]?.role ?? null) : null;
+        const result = score ? basketNewsResult(lineup, score, mapped, round.final) : null;
         if (result && round.final && result.calculatedHundredths !== result.totalHundredths) warnings.push(`Round ${round.round}: ${teams[index]!.title} adds up to ${formatHundredths(result.calculatedHundredths)} from its lineup, not the official ${formatHundredths(result.totalHundredths)}; the official score is kept.`);
-        await repo.writeRound(leagueId, local.season, round.round, member.id, slots, result, freeze);
+        await repo.writeRound(leagueId, local.season, round.round, member.id, slots, result);
       }
       await repo.recompute(local.season, leagueId);
       if (round.final && !historyGap && round.round === nextRound) {
