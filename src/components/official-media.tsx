@@ -63,9 +63,10 @@ export function ClubCrest({
 }
 
 /**
- * A club's crest as a scoreboard's backdrop: large, decorative, and nothing at
- * all when the image is missing — a club code blown up to backdrop size would
- * read as a word, not a crest.
+ * A club's crest at scoreboard size, always whole (object-contain): several
+ * crests carry a sponsor's wordmark, and any crop of them reads as a fragment.
+ * Nothing at all when the image is missing — a club code blown up to this size
+ * reads as a word, not a crest, and the club's name sits beside it anyway.
  */
 export function ClubCrestMark({ clubCode, className = "" }: { clubCode?: string | null; className?: string }) {
   const [failed, setFailed] = useState(false);
