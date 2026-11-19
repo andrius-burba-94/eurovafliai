@@ -228,6 +228,10 @@ for a wider graphic silhouette, with Barlow Condensed retained for the app.
 - The board vocabulary — `Bank`, `Slot(s)`, `CardBlock(s)`, `Door`,
   `PositionPatch`, `FilterToggle` (a pill), `Field` + `inputStyles` (a boxed
   field), `Correction` (a loss-red "needs attention" note) — `src/components/board.tsx`.
+- `ClubCrestMark` — `src/components/official-media.tsx`: a club's crest at
+  scoreboard size in its medallion (`club-medallion`: a light roundel ringed in
+  the club's colour, the same in both themes, because official crests are drawn
+  for a white ground). Without an image it prints the club's code.
 - `InfoTip` — `src/components/info-tip.tsx`: a section's or a column's
   meaning behind a small "i" (hover, focus, tap), never a paragraph under a
   heading. `Bank` takes it as `info`. Club colours: `src/lib/clubs/colors.ts`,

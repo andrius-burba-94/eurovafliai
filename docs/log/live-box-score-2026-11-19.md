@@ -183,6 +183,21 @@ broadcast graphics carry sponsor logos. It is the same plate in both themes, and
 the plate overhangs the card as the crest did. Checked in both themes with
 stand-ins drawn in black ink. A missing image draws no plate.
 
+## Club medallions
+
+The square plates fixed the dark-ink crests but read as foreign objects:
+white tiles stuck over the band's edges, a shape the system uses nowhere.
+DESIGN.md already had the answer: marks are round. Each crest now sits in its
+club's medallion (`club-medallion`), a near-white roundel (`team-ink-light`,
+constant in both themes) ringed 3 px in the club's colour from
+`clubs/colors.ts`. The crest fills 70% of it, whole (`object-contain`), and
+the medallion stays inside the band. Sizes are 56 px on a phone, 72 at `sm`,
+88 at `lg` and 96 at `xl`. With no image it prints the club's broadcast code,
+as a member's crest prints its monogram, so a missing image (or a workstation,
+per ADR-0010) still reads as the club. Checked in dark and light at 390 and
+1440 px with stand-ins drawn in black ink, and with no image at all. At
+1440×900 the box score ends at 869 px, still above the fold.
+
 ## What was checked
 
 - Unit: 2261 pass, including the real in-play Boxscore and Header of game 122

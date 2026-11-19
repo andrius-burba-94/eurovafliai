@@ -152,20 +152,15 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-3 sm:gap-x-6 lg:grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)]">
           {sides.map((side, index) => (
-            // Each crest whole and large, on its club's outer side and breaking the card's edge: real crests
-            // carry sponsor wordmarks, so a cropped one reads as a fragment and a small one as a smudge.
+            // Each club's medallion on its own outer side, inside the band: a light roundel in the club's
+            // ring, because official crests are drawn for a white ground and some carry dark wordmarks.
             <div
               key={side.which}
-              className={`flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-4 ${
+              className={`flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-4 lg:gap-5 ${
                 index === 1 ? "col-start-3 row-start-1 sm:flex-row-reverse sm:text-right lg:col-start-4" : "sm:text-left"
               }`}
             >
-              <ClubCrestMark
-                clubCode={side.code}
-                className={`relative z-10 -mt-10 size-16 shrink-0 sm:-my-6 sm:size-24 lg:-my-10 lg:size-36 xl:-my-12 xl:size-40 ${
-                  index === 1 ? "lg:-mr-10" : "lg:-ml-10"
-                }`}
-              />
+              <ClubCrestMark clubCode={side.code} className="size-14 text-[0.75rem] sm:size-18 sm:text-[0.875rem] lg:size-22 lg:text-base xl:size-24" />
               <span className={`flex min-w-0 flex-1 flex-col items-center gap-1 ${index === 1 ? "sm:items-end" : "sm:items-start"}`}>
                 <span className="display line-clamp-2 w-full text-base break-words sm:text-2xl lg:text-xl xl:text-2xl" title={side.name}>
                   <span className="sm:hidden">{clubLabel(side.code)}</span>
