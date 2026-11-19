@@ -41,6 +41,7 @@ describe("taken slugs", () => {
   it("keeps a team off the league's own page names", () => {
     expect(teamSlug("Stats", none)).toBe("stats-team");
     expect(teamSlug("Standings", none)).toBe("standings-team");
+    expect(teamSlug("Games", none)).toBe("games-team");
     expect(teamSlug("Vaflių Fabrikas", new Set(["vafliu-fabrikas"]))).toBe("vafliu-fabrikas-2");
     expect(teamSlug("", none)).toBe("team");
   });

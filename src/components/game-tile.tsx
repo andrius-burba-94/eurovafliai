@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
 import { ClubCrest } from "@/components/official-media";
 import type { GameState } from "@/lib/live/status";
@@ -26,22 +28,27 @@ export function gameScores(input: {
   return { home: null, away: null };
 }
 
-/** One game as Live's Games panel draws it: its state, its tip-off, two clubs and the score. */
+/**
+ * One game as Live's Games panel draws it: its state, its tip-off, two clubs
+ * and the score. With `href` the whole tile opens the game's box score.
+ */
 export function GameTile({
   state,
   tipOff,
   home,
   away,
+  href,
   testId,
 }: {
   state: GameState;
   tipOff: string | null;
   home: Side;
   away: Side;
+  href?: string;
   testId?: string;
 }) {
-  return (
-    <li data-testid={testId} data-state={state} className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-panel-border bg-stock p-2.5">
+  const body = (
+    <>
       <span className="flex items-center justify-between gap-2">
         <StatusBadge kind={GAME_BADGE[state].kind}>{GAME_BADGE[state].word}</StatusBadge>
         {state === "scheduled" ? (
@@ -57,6 +64,27 @@ export function GameTile({
           <span className="stat shrink-0 text-sm font-bold">{side.score ?? ""}</span>
         </span>
       ))}
+    </>
+  );
+  const frame = "flex min-w-0 flex-col gap-1.5 rounded-lg border border-panel-border bg-stock p-2.5";
+  if (!href) {
+    return (
+      <li data-testid={testId} data-state={state} className={frame}>
+        {body}
+      </li>
+    );
+  }
+  const spoken = `${home.name ?? home.code} ${home.score ?? ""} against ${away.name ?? away.code} ${away.score ?? ""}, ${GAME_BADGE[state].word}. Box score`;
+  return (
+    <li data-testid={testId} data-state={state} className="flex min-w-0">
+      <Link
+        href={href}
+        aria-label={spoken.replace(/\s+/g, " ")}
+        data-testid={testId ? `${testId}-link` : undefined}
+        className={`${state === "live" ? frame.replace("border-panel-border", "border-on-air") : frame} w-full transition-colors hover:border-rule-strong hover:bg-stock-high focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live`}
+      >
+        {body}
+      </Link>
     </li>
   );
 }

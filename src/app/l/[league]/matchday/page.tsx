@@ -29,7 +29,7 @@ import { ordinal } from "@/lib/season/story";
 import { formatHundredths } from "@/lib/stats/scoring";
 import { stylesById } from "@/lib/teams/identity";
 import { formatClock } from "@/lib/time/local";
-import { leagueHref } from "@/lib/nav/urls";
+import { gameHref, leagueHref } from "@/lib/nav/urls";
 import { leagueSource } from "@/lib/positions";
 import { clubLabel } from "@/lib/clubs/labels";
 
@@ -256,7 +256,11 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                         </span>
                         <span className="flex items-center gap-1">
                           <ClubCrest clubCode={player.clubCode} />
-                          {fixture ? `${clubLabel(fixture.local_club)} v ${clubLabel(fixture.road_club)}` : "No game this round"}
+                          {fixture ? (
+                            <Link href={gameHref(fixture.game_code, data.league)} className="font-semibold text-ink-soft underline-offset-2 hover:text-live hover:underline">
+                              {clubLabel(fixture.local_club)} v {clubLabel(fixture.road_club)}
+                            </Link>
+                          ) : "No game this round"}
                         </span>
                         {state === "scheduled" && fixture?.utc_date ? <span>{formatClock(fixture.utc_date)}</span> : null}
                       </span>
@@ -315,6 +319,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                       tipOff={fixture.utc_date || null}
                       home={{ code: fixture.local_club, score: scores.home }}
                       away={{ code: fixture.road_club, score: scores.away }}
+                      href={gameHref(fixture.game_code, data.league)}
                     />
                   );
                 })}

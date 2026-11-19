@@ -10,6 +10,7 @@ import {
   PanelToggle,
 } from "@/components/shell-panel";
 import { LeagueLinksProvider } from "@/components/league-links";
+import { LiveTicker } from "@/components/live-ticker";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { logout } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/session";
@@ -127,6 +128,7 @@ export async function AppShell({
               </div>
             </div>
           </header>
+          {session ? <LiveTicker token={session.token} /> : null}
 
           <div className="flex min-w-0 flex-1">
             <main

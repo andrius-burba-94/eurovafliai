@@ -21,6 +21,49 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Live box score and the tonight strip, 19 November 2026
+
+**A game opens its own box score, live.** Tap a game on Live, in the side
+panel's schedule, on a player's "MTA v DUB" line, or in the new strip of
+tonight's games along the top of every page. The page leads with the score,
+the clock (`Q3 · 4:12`, `Half time`) and the line score, then every player's
+line: 19 sortable columns, both clubs or one, a fantasy-points column in the
+league's own scoring, the crest of whoever holds each player, and a shirt on
+every player you hold in any league. From 1440×900 up the whole game fits one
+screen's height: both clubs side by side on the 14 most read columns (each
+table scrolls sideways where they do not fit; from 1920 px they all show), one
+club alone on all 19 ([story](log/live-box-score-2026-11-19.md)).
+
+| Change | Where |
+|---|---|
+| Live reads every 20 s (was 60 s) and skips the feed's 60 s CDN cache | `LIVE_EVERY_MS`, `liveUrl` (`live/boxscore.ts`) |
+| A snapshot keeps the full line, the periods, the clock and the feed's club names | `parseLiveBoxscore`, `parseLiveHeader`, `withHeader`; migration `1791600000_live_snapshot_detail.js` |
+| The game page, in a league or outside one | `/games/[game]`, `/l/[league]/games/[game]`, `readGameBox` (`live/game.ts`), `BoxScore`, `GameFeed` |
+| Rows, sorting, totals, column highs, the clock label | `live/game-box.ts` (pure) |
+| Tonight's games across the top on a game day, with arrows at either end while there is more | `LiveTicker`, `LiveTickerStrip`, `live/ticker.ts` (pure) |
+| Scoreboard: half of each club's crest at its own edge | `ClubCrestMark` (`official-media.tsx`) |
+| Your players across every league, named on hover or tap | `readYourHoldings` (`live/game.ts`), `YoursMark` |
+| The club switch on the section's heading line | `Bank`'s `toolbar` |
+| Game tiles link to the box score; `games` is a reserved team slug | `GameTile`, `gameHref`, `useGameHref`, `RESERVED_TEAM_SLUGS` |
+
+A played game shows the recorded box score; until the stats pass has written
+it, the live feed's last snapshot, marked provisional.
+
+**After the deploy:** the migration adds one optional field, so nothing needs
+backfilling. On the next game night, open a live game and check that the clock
+moves within about 20 seconds of the TV and that the worker log shows no 429s
+from `live.euroleague.net`.
+
+**Try it on localhost** (on a game night, or plant a snapshot as
+`tests/e2e/game.spec.ts` does):
+- `npm run dev`, open `http://localhost:3007/games/<game code>` or tap a game
+  on Live.
+- Tap a column head twice, then pick one club: the sort stays when the next
+  snapshot lands, and the changed figures wash green once.
+- At 1440×900 or wider, both clubs sit side by side with no page scroll. Crests
+  show only where `/srv/eurovafliai-media` exists (ADR-0010), so locally they
+  fall back to the club code and the scoreboard has no half crests.
+
 ## Club codes read as broadcast, 19 November 2026
 
 **Fix.** Fenerbahce showed as ULK and every crest drew its fallback code

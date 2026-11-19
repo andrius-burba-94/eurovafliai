@@ -1,6 +1,6 @@
 import type PocketBase from "pocketbase";
 
-import type { LiveGame, LivePlayer } from "./boxscore";
+import type { LiveDetail, LiveGame, LivePlayer } from "./boxscore";
 
 export type LiveSnapshot = LiveGame & {
   readonly id: string;
@@ -10,10 +10,11 @@ export type LiveSnapshot = LiveGame & {
   readonly checked_at: string;
 };
 
-type StoredSnapshot = Omit<LiveSnapshot, "localScore" | "roadScore"> & {
+export type StoredSnapshot = Omit<LiveSnapshot, "localScore" | "roadScore"> & {
   readonly local_score: number;
   readonly road_score: number;
   readonly players: LivePlayer[];
+  readonly detail?: LiveDetail | null;
 };
 
 export function asLiveSnapshot(row: StoredSnapshot): LiveSnapshot {
@@ -27,7 +28,17 @@ export function asLiveSnapshot(row: StoredSnapshot): LiveSnapshot {
     localScore: row.local_score,
     roadScore: row.road_score,
     players: Array.isArray(row.players) ? row.players : [],
+    ...(row.detail && typeof row.detail === "object" ? { detail: row.detail } : {}),
   };
+}
+
+/** One game's snapshot, or null before the worker has published it. */
+export async function readLiveSnapshot(pb: Pick<PocketBase, "collection">, season: string, gameCode: number): Promise<LiveSnapshot | null> {
+  const rows = await pb.collection("live_game_snapshots").getFullList<StoredSnapshot>({
+    filter: `season = '${season}' && game_code = ${gameCode}`,
+    requestKey: null,
+  });
+  return rows[0] ? asLiveSnapshot(rows[0]) : null;
 }
 
 export async function readLiveSnapshots(pb: Pick<PocketBase, "collection">, season: string, round: number): Promise<LiveSnapshot[]> {
@@ -62,11 +73,13 @@ export async function upsertLiveSnapshot(pb: Pick<PocketBase, "collection">, inp
     local_score: input.game.localScore,
     road_score: input.game.roadScore,
     players: input.game.players,
+    detail: input.game.detail ?? null,
     checked_at: input.checkedAt,
   };
   if (current) {
     const same = current.live === body.live && current.local_score === body.local_score
-      && current.road_score === body.road_score && JSON.stringify(current.players) === JSON.stringify(body.players);
+      && current.road_score === body.road_score && JSON.stringify(current.players) === JSON.stringify(body.players)
+      && JSON.stringify(current.detail ?? null) === JSON.stringify(body.detail);
     const age = Date.parse(input.checkedAt) - Date.parse(current.checked_at);
     if (same && age >= 0 && age < 3 * 60_000) return "unchanged";
     await collection.update(current.id, body, { requestKey: null });

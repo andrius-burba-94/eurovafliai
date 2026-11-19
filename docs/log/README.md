@@ -27,6 +27,7 @@ disagrees with STATUS.md, STATUS.md is right and the line is history.
 | [your-round-2026-10-11.md](your-round-2026-10-11.md) | 7.3, slice by slice: the brief's fact sheet and the measurements it shares with the round sheet |
 | [game-day-sync-2026-10-16.md](game-day-sync-2026-10-16.md) | Why one read per game day, why roles freeze on the existing row, the Tinginiai and Montero cases, and what production showed |
 | [served-lineup-2026-11-11.md](served-lineup-2026-11-11.md) | Why frozen roles were removed: the production comparison against both official games, round by round |
+| [live-box-score-2026-11-19.md](live-box-score-2026-11-19.md) | The live box score and the tonight strip: which feed is truest to live, the cache-buster, the 20-second read, the page and the strip, and what was checked during round 13 |
 | [sync-audit-2026-10-26.md](sync-audit-2026-10-26.md) | The sync and automation audit of 26 October: what each fix slice changed in the worker, the feeds, the roster syncs, realtime and the code that was merged or deleted |
 
 Append to these when a slice's narrative would otherwise go into STATUS.md.

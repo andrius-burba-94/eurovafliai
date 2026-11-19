@@ -61,3 +61,25 @@ export function ClubCrest({
     </span>
   );
 }
+
+/**
+ * A club's crest as a scoreboard's backdrop: large, decorative, and nothing at
+ * all when the image is missing — a club code blown up to backdrop size would
+ * read as a word, not a crest.
+ */
+export function ClubCrestMark({ clubCode, className = "" }: { clubCode?: string | null; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!clubCode || !SAFE_CODE.test(clubCode) || failed) return null;
+  return (
+    <Image
+      src={`/media/E2026/clubs/${clubCode}.png`}
+      alt=""
+      aria-hidden="true"
+      width={256}
+      height={256}
+      unoptimized
+      onError={() => setFailed(true)}
+      className={`pointer-events-none object-contain select-none ${className}`}
+    />
+  );
+}
