@@ -232,6 +232,8 @@ for a wider graphic silhouette, with Barlow Condensed retained for the app.
   scoreboard size in its medallion (`club-medallion`: a light roundel ringed in
   the club's colour, the same in both themes, because official crests are drawn
   for a white ground). Without an image it prints the club's code.
+  `ClubCrest` is the same medallion at text size (28 px, 1.5 px ring) beside
+  a club's name everywhere else.
 - `InfoTip` — `src/components/info-tip.tsx`: a section's or a column's
   meaning behind a small "i" (hover, focus, tap), never a paragraph under a
   heading. `Bank` takes it as `info`. Club colours: `src/lib/clubs/colors.ts`,

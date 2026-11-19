@@ -397,17 +397,25 @@ body {
     object-fit: contain;
     object-position: center bottom;
   }
+  /* A club's crest at text size: the scoreboard's medallion in small. Official
+   * crests are drawn for a white ground, so on the dark theme their dark ink
+   * (ARMANI, tarfin) vanished and the rest read as a smudge; a light roundel
+   * in the club's ring (`--club`) reads the same in both themes. */
   .club-crest {
     position: relative;
     display: inline-grid;
-    width: 1.55rem;
-    height: 1.55rem;
+    width: 1.75rem;
+    height: 1.75rem;
     flex: none;
     place-items: center;
+    overflow: hidden;
+    border: 1.5px solid var(--club, var(--color-rule));
+    border-radius: 9999px;
+    background: var(--color-team-ink-light);
     vertical-align: middle;
   }
-  .club-crest-fallback { color: var(--color-ink-soft); font-size: 0.625rem; font-weight: 700; letter-spacing: -0.02em; }
-  .club-crest img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+  .club-crest-fallback { color: var(--color-team-ink-dark); font-size: 0.625rem; font-weight: 700; letter-spacing: -0.02em; }
+  .club-crest img { position: absolute; inset: 12%; display: block; width: 76%; height: 76%; object-fit: contain; }
 }
 .lineup-court-disc .player-portrait {
   width: 100%;
