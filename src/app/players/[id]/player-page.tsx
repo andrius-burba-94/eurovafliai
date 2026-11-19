@@ -21,6 +21,7 @@ import { readPlayerProfile } from "@/lib/stats/queries";
 import { playerHref, teamHref } from "@/lib/nav/urls";
 import { resolvePlayerId } from "@/lib/players/queries";
 import { leagueSource } from "@/lib/positions";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /**
  * One figure and its name, as a definition pair.
@@ -126,7 +127,7 @@ export async function PlayerProfilePage({
           <div className="relative flex min-w-0 flex-col gap-2 pb-1">
             <span className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
               <ClubCrest clubCode={player.clubCode} />
-              {player.clubName || player.clubCode}
+              {player.clubName || clubLabel(player.clubCode)}
             </span>
             <h1 className="display min-w-0 text-4xl break-words sm:text-5xl">{displayName(player.name)}</h1>
             <span className="flex flex-wrap items-center gap-2">
@@ -330,7 +331,7 @@ export async function PlayerProfilePage({
                         <span className="ml-2 text-xs font-normal text-ink-faint">{line.phase}</span>
                       </td>
                       <td className="py-2 pr-3">
-                        <span className="flex items-center gap-1.5 text-ink-soft"><ClubCrest clubCode={line.clubCode} />{line.clubCode}</span>
+                        <span className="flex items-center gap-1.5 text-ink-soft"><ClubCrest clubCode={line.clubCode} />{clubLabel(line.clubCode)}</span>
                       </td>
                       <td className="stat py-2 pr-3 text-right" data-testid="player-game-pir">{line.pir}</td>
                       <td className="stat py-2 text-right font-bold" data-testid="player-game-fantasy">

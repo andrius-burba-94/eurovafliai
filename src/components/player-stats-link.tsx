@@ -11,6 +11,7 @@ import { formatTipOff } from "@/lib/time/local";
 import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
 import { useLeagueSource, usePlayerHref } from "@/components/league-links";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
+import { clubLabel } from "@/lib/clubs/labels";
 
 type Profile = { player: PlayerProfile; log: GameLogLine[]; currentGame: CurrentGame | null };
 
@@ -113,7 +114,7 @@ export function PlayerStatsModal({
       </div>
       {profile!.currentGame ? <ThisRound game={profile!.currentGame} /> : null}
       <h3 className="mt-6 border-b border-panel-border pb-2 text-sm font-semibold">Recent games</h3>
-      {profile!.log.length ? <ol className="divide-y divide-panel-border text-sm">{[...profile!.log].reverse().slice(0, 5).map((game) => <li key={game.id} className="flex justify-between gap-3 py-2"><span>Round {game.round} · {game.clubCode}</span><span className="tabular-nums text-ink-soft">PIR {game.pir} · FP {formatTenths(game.fantasyTenths)}</span></li>)}</ol> : <p className="mt-3 text-sm text-ink-soft">No stored games this season.</p>}
+      {profile!.log.length ? <ol className="divide-y divide-panel-border text-sm">{[...profile!.log].reverse().slice(0, 5).map((game) => <li key={game.id} className="flex justify-between gap-3 py-2"><span>Round {game.round} · {clubLabel(game.clubCode)}</span><span className="tabular-nums text-ink-soft">PIR {game.pir} · FP {formatTenths(game.fantasyTenths)}</span></li>)}</ol> : <p className="mt-3 text-sm text-ink-soft">No stored games this season.</p>}
       <Link href={fullHref} className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-live underline underline-offset-4">Full profile and game log →</Link>
     </> : null}
   </dialog>;
@@ -128,7 +129,7 @@ function ThisRound({ game }: { game: CurrentGame }) {
         ? <StatusBadge kind={GAME_BADGE[game.state].kind}>{GAME_BADGE[game.state].word}</StatusBadge>
         : <span className="text-xs text-ink-soft">{formatTipOff(game.tipOff) ?? "Time to be confirmed"}</span>}
     </div>
-    <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold">{game.atHome ? "vs" : "at"} <ClubCrest clubCode={game.opponent} /> {game.opponent}</p>
+    <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold">{game.atHome ? "vs" : "at"} <ClubCrest clubCode={game.opponent} /> {clubLabel(game.opponent)}</p>
     {game.line ? <div className="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
       <p className="text-xs text-ink-soft tabular-nums" data-testid="profile-stat-line">{game.line.statLine}</p>
       <p className="flex items-baseline gap-3 tabular-nums">

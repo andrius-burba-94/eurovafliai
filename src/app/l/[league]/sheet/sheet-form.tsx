@@ -15,6 +15,7 @@ import {
   selectStyles,
 } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
+import { clubLabel } from "@/lib/clubs/labels";
 import {
   submitCheatSheet,
   type PlanRow,
@@ -334,7 +335,7 @@ export function SheetForm({
                             <option value="">Leave this line out</option>
                             {row.candidates.map((candidate) => (
                               <option key={candidate.id} value={candidate.id}>
-                                {displayName(candidate.name)} · {candidate.club} ·{" "}
+                                {displayName(candidate.name)} · {clubLabel(candidate.club)} ·{" "}
                                 {candidate.position}
                               </option>
                             ))}
@@ -397,7 +398,7 @@ export function SheetForm({
                       >
                         <CardName scale="slot">{row.player ? displayName(row.player.name) : null}</CardName>
                       </span>
-                      <span className="slot-label">{row.player?.club}</span>
+                      <span className="slot-label">{clubLabel(row.player?.club)}</span>
                       {row.player ? (
                         <PositionPatch position={row.player.position} />
                       ) : null}

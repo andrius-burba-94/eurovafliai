@@ -21,6 +21,18 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Club codes read as broadcast, 19 November 2026
+
+**Fix.** Fenerbahce showed as ULK and every crest drew its fallback code
+underneath, so transparent crests (ASVEL's) read as a crest over "ASV". Club
+codes on screen now print the feed's `tvCode` (FBT, EFS, RMB, PAO, MTA, …)
+through `clubLabel` (`lib/clubs/labels.ts`); the feed `code` stays the key for
+joins, crests and colours. The crest's fallback appears only when there is no
+image. Pool search takes either code ([story](log/slice-notes.md#club-codes-read-as-broadcast)).
+
+**Try it on localhost:** `npm run dev`, open `/l/<league>/matchday`: a
+Fenerbahce player reads "FBT", and no crest has letters behind it.
+
 ## Standings score the served lineup, 11 November 2026
 
 **Fix for EuroVafliai 26-27's table (ADR-0015, superseding ADR-0014's frozen

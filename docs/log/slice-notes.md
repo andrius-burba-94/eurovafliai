@@ -2677,3 +2677,20 @@ matchdays; the current one comes from the token owner's own team, and round
 *n* is the current id minus the rounds between. That held for 1528–1530 and is
 carried as a debt row, because a skipped id in a later phase would misalign
 every round after it.
+
+## Club codes read as broadcast
+
+The Euroleague feed gives each club two codes: `code`, which box scores,
+schedules and rosters carry (ULK for Fenerbahce, IST for Anadolu Efes), and
+`tvCode`, which broadcasts and the official site print (FBT, EFS). Eleven of
+the twenty E2026 clubs differ. Storing `tvCode` would mean rewriting every
+`club_code` and re-keying the joins, the crest files and the colours, so the
+stored key stays and only the printed word changes: `clubLabel` is a static
+table, like `CLUB_COLORS`, checked against
+`/v2/competitions/E/seasons/E2026/clubs` on 19 November 2026. Import warnings
+keep the feed code, since they are read against the feed.
+
+The crest drew its three-letter fallback under the image, always; an opaque
+crest hid it and a transparent one did not. The fallback now renders only
+when there is no image to draw.
+

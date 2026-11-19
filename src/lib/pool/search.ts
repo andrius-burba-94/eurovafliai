@@ -1,5 +1,6 @@
 import Fuse, { type IFuseOptions } from "fuse.js";
 
+import { clubLabel } from "@/lib/clubs/labels";
 import type { Position } from "@/lib/engine";
 import { MAX_POOL_QUERY_CHARS } from "@/lib/limits";
 import { displayName } from "@/lib/players/name";
@@ -301,9 +302,8 @@ export function selectPool({
   // matcher and the wrong answer to what was asked. Codes are unambiguous, so
   // honour them exactly and keep the pool's own order.
   const asClub = needle.toUpperCase();
-  if (rows.some((row) => row.club === asClub)) {
-    return rows.filter((row) => row.club === asClub);
-  }
+  const isClub = (row: PoolRow) => row.club === asClub || clubLabel(row.club) === asClub;
+  if (rows.some(isClub)) return rows.filter(isClub);
 
   // Searching the *filtered* set, so the index is rebuilt when a query is
   // present. At 324 rows that is cheap; the alternative — search the whole pool

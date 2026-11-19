@@ -38,6 +38,7 @@ import { ImpactList } from "./impact-list";
 import { TeamSwitcher } from "./team-switcher";
 import { leagueHref, playerHref, teamHref } from "@/lib/nav/urls";
 import { leagueSource } from "@/lib/positions";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /**
  * A team's own page (S31): the team first, then its squad. The hero is the
@@ -337,7 +338,7 @@ export default async function TeamPage({
                                   {badge ? <StatusBadge kind={badge.kind}>{badge.word}</StatusBadge> : null}
                                 </span>
                                 <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-soft [&_*]:text-xs">
-                                  <span className="stat">{player.clubCode}</span>
+                                  <span className="stat">{clubLabel(player.clubCode)}</span>
                                   <FixtureNote fixture={player.fixture} />
                                 </span>
                               </span>
@@ -490,7 +491,7 @@ function TeamClubs({
   clubNames: ReadonlyMap<string, string>;
 }) {
   const top = clubs.clubs.slice(0, 5);
-  const segments = clubShares(clubs.clubs, 5).map((share) => ({ ...share, name: clubNames.get(share.clubCode) ?? share.clubCode }));
+  const segments = clubShares(clubs.clubs, 5).map((share) => ({ ...share, name: clubNames.get(share.clubCode) ?? clubLabel(share.clubCode) }));
   return (
     <div className="flex flex-col gap-3" data-testid="team-clubs">
       <ClubBar segments={segments} testId="team-club-bar" />
@@ -498,7 +499,7 @@ function TeamClubs({
         {top.map((club) => (
           <li key={club.clubCode} className="flex items-center gap-2 text-sm">
             <ClubCrest clubCode={club.clubCode} />
-            <span className="min-w-0 flex-1 truncate text-ink-soft">{clubNames.get(club.clubCode) ?? club.clubCode}</span>
+            <span className="min-w-0 flex-1 truncate text-ink-soft">{clubNames.get(club.clubCode) ?? clubLabel(club.clubCode)}</span>
             <span className="stat font-semibold">{formatTenths(club.tenths)}</span>
           </li>
         ))}

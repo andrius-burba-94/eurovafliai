@@ -131,6 +131,7 @@ describe("selectPool — search", () => {
     // Three letters is a very loose fuzzy query — "PAN" genuinely scores a hit
     // on "Shane" — so a code is honoured exactly. Case does not matter.
     expect(ids(run("PAN")).sort()).toEqual(["nunn", "papagiannis"].sort());
+    expect(ids(run("pao")).sort()).toEqual(["nunn", "papagiannis"].sort());
     expect(ids(run("pan")).sort()).toEqual(["nunn", "papagiannis"].sort());
   });
 

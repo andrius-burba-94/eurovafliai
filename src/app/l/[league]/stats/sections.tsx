@@ -23,6 +23,7 @@ import type {
 } from "@/lib/stats/league-stats";
 import type { StatsPlayer } from "@/lib/stats/league-stats-queries";
 import { formatHundredths, formatTenths } from "@/lib/stats/scoring";
+import { clubLabel } from "@/lib/clubs/labels";
 
 import { MarginStrip } from "./margin-strip";
 
@@ -395,14 +396,14 @@ export function ClubLoyaltyView({ rows, clubNames, who }: { rows: readonly ClubL
         <ul role="list" className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" data-testid="stats-clubs">
           {rows.map((row) => {
             const top = row.clubs.slice(0, 4);
-            const segments = clubShares(row.clubs, 4).map((share) => ({ ...share, name: clubNames.get(share.clubCode) ?? share.clubCode }));
+            const segments = clubShares(row.clubs, 4).map((share) => ({ ...share, name: clubNames.get(share.clubCode) ?? clubLabel(share.clubCode) }));
             return (
               <li key={row.memberId} className="flex min-w-0 flex-col gap-2">
                 <TeamName memberId={row.memberId} who={who} className="text-sm font-semibold" />
                 <ClubBar segments={segments} />
                 <ol className="flex flex-wrap gap-x-2.5 gap-y-1">
                   {top.map((club) => {
-                    const name = clubNames.get(club.clubCode) ?? club.clubCode;
+                    const name = clubNames.get(club.clubCode) ?? clubLabel(club.clubCode);
                     return (
                       <li key={club.clubCode} className="flex items-center gap-1">
                         <InfoTip

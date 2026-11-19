@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { clubLabel } from "@/lib/clubs/labels";
+
 const SAFE_CODE = /^[A-Za-z0-9]{2,12}$/;
 
 export function PlayerPortrait({
@@ -45,7 +47,7 @@ export function ClubCrest({
   const available = clubCode && SAFE_CODE.test(clubCode) && !failed;
   return (
     <span className={`club-crest ${className}`} aria-hidden="true">
-      <span className="club-crest-fallback">{clubCode?.slice(0, 3) ?? ""}</span>
+      {available ? null : <span className="club-crest-fallback">{clubLabel(clubCode)?.slice(0, 3) ?? ""}</span>}
       {available ? (
         <Image
           src={`/media/E2026/clubs/${clubCode}.png`}

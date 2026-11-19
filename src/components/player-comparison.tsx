@@ -4,6 +4,7 @@ import { displayName } from "@/lib/players/name";
 import { useEffect, useRef, useState } from "react";
 
 import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
+import { clubLabel } from "@/lib/clubs/labels";
 
 export function PlayerComparison({ players, onClose }: {
   players: readonly ComparisonPlayer[];
@@ -45,8 +46,8 @@ export function PlayerComparison({ players, onClose }: {
       </div>)}</div>
       <h3 className="mt-7 text-sm font-semibold">Next five fixtures</h3>
       <div className="mt-2 grid grid-cols-2 gap-3">{[left, right].map((player, index) => <div key={index} className="rounded border border-panel-border bg-stock p-3">
-        <p className="mb-2 truncate text-xs font-semibold">{player?.clubCode ?? "—"}</p>
-        {player?.nextFive.length ? <ol className="space-y-1 text-xs">{player.nextFive.map((game) => <li key={game.round} className="flex justify-between gap-2"><span>R{game.round} · {game.opponent}</span><span className={game.difficulty === "easy" ? "text-gain" : game.difficulty === "hard" ? "text-loss" : "text-ink-soft"}>{game.difficulty ?? "Unrated"}</span></li>)}</ol> : <p className="text-xs text-ink-soft">Fixtures not published.</p>}
+        <p className="mb-2 truncate text-xs font-semibold">{clubLabel(player?.clubCode) ?? "—"}</p>
+        {player?.nextFive.length ? <ol className="space-y-1 text-xs">{player.nextFive.map((game) => <li key={game.round} className="flex justify-between gap-2"><span>R{game.round} · {clubLabel(game.opponent)}</span><span className={game.difficulty === "easy" ? "text-gain" : game.difficulty === "hard" ? "text-loss" : "text-ink-soft"}>{game.difficulty ?? "Unrated"}</span></li>)}</ol> : <p className="text-xs text-ink-soft">Fixtures not published.</p>}
       </div>)}</div>
     </dialog>
   );

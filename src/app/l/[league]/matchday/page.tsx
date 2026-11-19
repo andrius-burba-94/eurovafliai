@@ -31,6 +31,7 @@ import { stylesById } from "@/lib/teams/identity";
 import { formatClock } from "@/lib/time/local";
 import { leagueHref } from "@/lib/nav/urls";
 import { leagueSource } from "@/lib/positions";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /** The regular season's rounds; the stepper walks them. */
 const REGULAR_SEASON_ROUNDS = 38;
@@ -255,7 +256,7 @@ export default async function MatchdayPage({ params, searchParams }: PageProps<"
                         </span>
                         <span className="flex items-center gap-1">
                           <ClubCrest clubCode={player.clubCode} />
-                          {fixture ? `${fixture.local_club} v ${fixture.road_club}` : "No game this round"}
+                          {fixture ? `${clubLabel(fixture.local_club)} v ${clubLabel(fixture.road_club)}` : "No game this round"}
                         </span>
                         {state === "scheduled" && fixture?.utc_date ? <span>{formatClock(fixture.utc_date)}</span> : null}
                       </span>

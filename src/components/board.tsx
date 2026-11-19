@@ -21,6 +21,7 @@ import {
 } from "@/lib/charts/sparkline";
 import { InfoTip } from "@/components/info-tip";
 import type { PlayerFixture } from "@/lib/fixtures/types";
+import { clubLabel } from "@/lib/clubs/labels";
 
 type SlotState = "waiting" | "filled" | "live" | "correction" | "transit";
 
@@ -458,7 +459,7 @@ export function FixtureNote({
       {/* "vs" at home and "at" away, which is the shorter of the two ways to
           say it and the one the league says out loud. */}
       <span className="text-ink-soft">
-        {fixture.atHome ? "vs" : "at"} {fixture.nextOpponent}
+        {fixture.atHome ? "vs" : "at"} {clubLabel(fixture.nextOpponent)}
       </span>
       {fixture.difficulty ? (
         <span className="slot-label" data-testid="fixture-difficulty">
