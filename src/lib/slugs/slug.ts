@@ -35,6 +35,7 @@ export const RESERVED_TEAM_SLUGS: ReadonlySet<string> = new Set([
   "draft",
   "export",
   "fantasy",
+  "games",
   "lineup",
   "matchday",
   "order",

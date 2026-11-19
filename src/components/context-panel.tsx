@@ -7,6 +7,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 
 import { EmptyNotice, Slot, Slots } from "@/components/board";
 import { GameTile } from "@/components/game-tile";
+import { useGameHref } from "@/components/league-links";
 import { PlayerPoolList } from "@/components/player-pool-list";
 import type { PanelData } from "@/lib/panel/types";
 
@@ -130,6 +131,7 @@ export function ContextPanel({
 
 
 function Schedule({ schedule }: { schedule: PanelData["schedule"] }) {
+  const gameHref = useGameHref();
   if (!schedule || schedule.games.length === 0) {
     return (
       <EmptyNotice testId="panel-schedule-empty">
@@ -150,6 +152,7 @@ function Schedule({ schedule }: { schedule: PanelData["schedule"] }) {
             tipOff={game.tipOff}
             home={{ code: game.home, name: game.homeName, score: game.homeScore }}
             away={{ code: game.away, name: game.awayName, score: game.awayScore }}
+            href={gameHref(game.code)}
           />
         ))}
       </ul>

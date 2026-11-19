@@ -56,6 +56,8 @@ export const MEASURE = {
   column: "max-w-3xl",
   /** 48rem on phones, then up to 80rem for information-rich league views. */
   wide: "max-w-3xl lg:max-w-7xl",
+  /** As wide, then up to 110rem on a big monitor: a game's two box scores side by side. */
+  broad: "max-w-3xl lg:max-w-7xl 2xl:max-w-[110rem]",
 } as const;
 
 export type Measure = keyof typeof MEASURE;
@@ -202,6 +204,7 @@ export function Bank({
   framed = false,
   testId,
   info,
+  toolbar,
 }: {
   label: string;
   children: ReactNode;
@@ -210,6 +213,8 @@ export function Bank({
   testId?: string;
   /** What the section means, behind an "i" beside its heading rather than a paragraph under it. */
   info?: ReactNode;
+  /** Controls for the whole section, on the heading's line where there is room. */
+  toolbar?: ReactNode;
 }) {
   // A section with a heading it is not associated with is an unnamed region:
   // a screen reader lands in it and is told nothing, while the heading it
@@ -223,7 +228,7 @@ export function Bank({
       data-framed={framed ? "true" : undefined}
       className={`${framed ? "bank-framed" : ""} flex flex-col gap-3`}
     >
-      <div className="flex items-baseline justify-between gap-4">
+      <div className={`flex justify-between gap-4 ${toolbar ? "flex-wrap items-center gap-y-3" : "items-baseline"}`}>
         {info ? (
           <span className="flex items-center gap-2">
             <h2 id={headingId} className="display text-xl text-ink sm:text-2xl">
@@ -238,6 +243,7 @@ export function Bank({
             {label}
           </h2>
         )}
+        {toolbar ? <div className="order-last flex flex-1 basis-full flex-wrap items-center justify-between gap-3 sm:order-none sm:basis-auto">{toolbar}</div> : null}
         {aside ? <span className="text-sm text-ink-soft">{aside}</span> : null}
       </div>
       {children}

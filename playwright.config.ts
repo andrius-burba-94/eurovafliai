@@ -24,6 +24,7 @@ const MOBILE_LAYOUT_SPECS = [
   "cheat-sheet.spec.ts",
   "design.spec.ts",
   "draft-board.spec.ts",
+  "game.spec.ts",
   "lineup.spec.ts",
   "matchday.spec.ts",
   "panel.spec.ts",

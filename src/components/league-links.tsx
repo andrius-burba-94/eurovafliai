@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
+import { gameHref } from "@/lib/nav/urls";
 import type { LeagueSource } from "@/lib/positions";
 
 const LeagueContext = createContext<{ base: string | null; source: LeagueSource }>({ base: null, source: "euroleague" });
@@ -19,6 +20,12 @@ export function LeagueLinksProvider({ base, source = "euroleague", children }: {
 export function usePlayerHref(): (playerId: string) => string {
   const { base } = useContext(LeagueContext);
   return (playerId) => (base ? `${base}/players/${playerId}` : `/players/${playerId}`);
+}
+
+/** A game's box score address: under the page's league when it has one. */
+export function useGameHref(): (gameCode: number) => string {
+  const { base } = useContext(LeagueContext);
+  return (gameCode) => (base ? `${base}/games/${gameCode}` : gameHref(gameCode));
 }
 
 /** The game the page's league plays in: its scoring and its positions. */

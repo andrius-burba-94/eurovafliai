@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { leagueHref, leaguePaths, playerHref, teamHref } from "./urls";
+import { gameHref, leagueHref, leaguePaths, playerHref, teamHref } from "./urls";
 
 const league = { id: "s7bq8d0rndsrzx5", slug: "kavos-lyga" };
 const team = { id: "e5n7nn3xhghfv9c", slug: "monikutes-naktys" };
@@ -19,6 +19,11 @@ describe("addresses", () => {
   it("puts a player under the league when there is one", () => {
     expect(playerHref({ id: "p1", slug: "nikola-milutinov" }, league)).toBe("/l/kavos-lyga/players/nikola-milutinov");
     expect(playerHref({ id: "p1", slug: "nikola-milutinov" })).toBe("/players/nikola-milutinov");
+  });
+
+  it("puts a game's box score under the league when there is one", () => {
+    expect(gameHref(122, league)).toBe("/l/kavos-lyga/games/122");
+    expect(gameHref(122)).toBe("/games/122");
   });
 
   it("falls back to the id for a record that has no slug yet", () => {

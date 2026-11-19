@@ -25,6 +25,11 @@ export function playerHref(player: Ref | string, league?: Ref | string | null): 
   return league ? `/l/${segment(league)}/players/${segment(player)}` : `/players/${segment(player)}`;
 }
 
+/** A game's box score, inside a league when there is one. The code is the season's game code. */
+export function gameHref(gameCode: number, league?: Ref | string | null): string {
+  return league ? `/l/${segment(league)}/games/${gameCode}` : `/games/${gameCode}`;
+}
+
 /** What a league page hands its client components: its base and each team's address. */
 export type LeaguePaths = {
   readonly base: string;
