@@ -102,8 +102,8 @@ Five changes asked for on localhost, the same evening:
   refused by `depth-scale.test.ts` (ADR-0011).
 - **Crests, not codes.** The club switch shows the crest alone on a phone and
   crest and name from `sm`. The scoreboard drops the lattice and the small
-  crests above the names; half of each club's crest bleeds off its own edge
-  instead (`ClubCrestMark`), and draws nothing when the image is missing,
+  crests above the names; a larger crest sits beside each name instead
+  (`ClubCrestMark`, see below), and draws nothing when the image is missing,
   because a club code blown up to that size reads as a word.
 - **No score beside a club's table.** The scoreboard already says it.
 - **One screen on a desktop.** Measured with the real round-13 game at
@@ -136,6 +136,16 @@ Main switched on-screen club codes to the feed's `tvCode` through
 scoreboard's phone codes and line score, the strip's chips and their spoken
 labels, the Live line that links to a game, and the club-name fallback in
 `readGameBox`. Keys, crests and colours keep the feed code.
+
+## Whole crests, not halves
+
+The half crests bled off the scoreboard's edges were judged against stand-in
+crests, since none can be on a workstation. On the real ones they failed:
+Milan's and Fenerbahce's marks carry sponsor wordmarks (ARMANI, tarfin), so
+half a crest read as a fragment of a word. Each crest is now drawn whole
+(`object-contain`) beside its club's name, on the outer side: above the code
+on a phone, in a row from `sm`. The scoreboard keeps its height, so the
+one-screen fit at 1440×900 holds (box score ends at 861 px).
 
 ## What was checked
 

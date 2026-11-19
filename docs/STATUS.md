@@ -41,7 +41,7 @@ club alone on all 19 ([story](log/live-box-score-2026-11-19.md)).
 | The game page, in a league or outside one | `/games/[game]`, `/l/[league]/games/[game]`, `readGameBox` (`live/game.ts`), `BoxScore`, `GameFeed` |
 | Rows, sorting, totals, column highs, the clock label | `live/game-box.ts` (pure) |
 | Tonight's games across the top on a game day, with arrows at either end while there is more | `LiveTicker`, `LiveTickerStrip`, `live/ticker.ts` (pure) |
-| Scoreboard: half of each club's crest at its own edge | `ClubCrestMark` (`official-media.tsx`) |
+| Scoreboard: each club's crest whole, beside its name on the outer side | `ClubCrestMark` (`official-media.tsx`) |
 | Your players across every league, named on hover or tap | `readYourHoldings` (`live/game.ts`), `YoursMark` |
 | The club switch on the section's heading line | `Bank`'s `toolbar` |
 | Game tiles link to the box score; `games` is a reserved team slug | `GameTile`, `gameHref`, `useGameHref`, `RESERVED_TEAM_SLUGS` |
@@ -62,7 +62,7 @@ from `live.euroleague.net`.
   snapshot lands, and the changed figures wash green once.
 - At 1440×900 or wider, both clubs sit side by side with no page scroll. Crests
   show only where `/srv/eurovafliai-media` exists (ADR-0010), so locally they
-  fall back to the club code and the scoreboard has no half crests.
+  fall back to the club code and the scoreboard shows names alone.
 
 ## Club codes read as broadcast, 19 November 2026
 

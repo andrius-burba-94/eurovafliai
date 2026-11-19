@@ -144,30 +144,27 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
       aria-label="Scoreboard"
       data-testid="game-scoreboard"
       data-state={game.state}
-      className="club-split relative overflow-hidden rounded-card border border-panel-border px-4 py-4 sm:px-6 lg:py-3"
+      className="club-split rounded-card border border-panel-border px-4 py-4 sm:px-6 lg:py-3"
       style={style}
     >
-      {/* Half of each club's crest, bled off its own edge: the club, not a word, says whose side it is. */}
-      <ClubCrestMark
-        clubCode={fixture.local_club}
-        className="absolute top-1/2 left-0 size-32 -translate-x-1/2 -translate-y-1/2 opacity-30 sm:size-40 sm:opacity-60 lg:opacity-90"
-      />
-      <ClubCrestMark
-        clubCode={fixture.road_club}
-        className="absolute top-1/2 right-0 size-32 translate-x-1/2 -translate-y-1/2 opacity-30 sm:size-40 sm:opacity-60 lg:opacity-90"
-      />
-      <div className="relative flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-3 sm:gap-x-6 lg:grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)]">
           {sides.map((side, index) => (
+            // Each crest whole, on its club's outer side: real crests carry sponsor wordmarks, so a cropped one reads as a fragment.
             <div
               key={side.which}
-              className={`flex min-w-0 flex-col items-center gap-1 text-center ${index === 1 ? "col-start-3 row-start-1 sm:pr-16 lg:col-start-4" : "sm:pl-16"}`}
+              className={`flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-4 ${
+                index === 1 ? "col-start-3 row-start-1 sm:flex-row-reverse sm:text-right lg:col-start-4" : "sm:text-left"
+              }`}
             >
-              <span className="display line-clamp-2 w-full text-base break-words sm:text-2xl lg:text-xl xl:text-2xl" title={side.name}>
-                <span className="sm:hidden">{clubLabel(side.code)}</span>
-                <span className="hidden sm:inline">{side.name}</span>
+              <ClubCrestMark clubCode={side.code} className="size-10 shrink-0 sm:size-14 xl:size-16" />
+              <span className={`flex min-w-0 flex-1 flex-col items-center gap-1 ${index === 1 ? "sm:items-end" : "sm:items-start"}`}>
+                <span className="display line-clamp-2 w-full text-base break-words sm:text-2xl lg:text-xl xl:text-2xl" title={side.name}>
+                  <span className="sm:hidden">{clubLabel(side.code)}</span>
+                  <span className="hidden sm:inline">{side.name}</span>
+                </span>
+                <span className="slot-label">{side.word}</span>
               </span>
-              <span className="slot-label">{side.word}</span>
             </div>
           ))}
           <div className="col-start-2 row-start-1 flex flex-col items-center gap-1.5">
