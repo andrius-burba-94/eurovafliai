@@ -43,7 +43,7 @@ import PocketBase from "pocketbase";
 
 import { parseServerEnv } from "@/lib/config/schema";
 import type { FixtureRecord } from "@/lib/fixtures/store";
-import { fetchLiveBoxscore } from "@/lib/live/boxscore";
+import { fetchLiveBoxscore, fetchLiveHeader, withHeader } from "@/lib/live/boxscore";
 import { inLiveWindow, liveWindowFilter } from "@/lib/live/status";
 import { upsertLiveSnapshot } from "@/lib/live/store";
 
@@ -144,7 +144,12 @@ const AI_EVERY_MS = 15 * 60_000;
 const AI_FIRST_AFTER_MS = 150_000;
 const AI_REQUESTS_EVERY_MS = 60_000;
 const NEWS_FIRST_AFTER_MS = 90_000;
-const LIVE_EVERY_MS = 60_000;
+/**
+ * The live box score's read: two small requests per game in play (Boxscore,
+ * Header). Euroleague staggers tip-offs, so three overlapping games is the
+ * night's peak — 18 requests a minute, well inside what the feed has refused.
+ */
+const LIVE_EVERY_MS = 20_000;
 const LIVE_FIRST_AFTER_MS = 95_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
@@ -366,7 +371,9 @@ function main(): void {
         try {
           const parsed = await fetchLiveBoxscore(fixture.game_code, season, fixture.local_club, fixture.road_club);
           if (!parsed) continue;
-          const { game } = parsed;
+          // The clock is a nicety: a header that will not answer still publishes the score.
+          const header = await fetchLiveHeader(fixture.game_code, season).catch(() => null);
+          const game = parsed.game.detail ? { ...parsed.game, detail: withHeader(parsed.game.detail, header) } : parsed.game;
           for (const problem of parsed.problems) {
             const key = `${fixture.game_code}|${problem.personCode}`;
             if (liveSeen.has(key)) continue;

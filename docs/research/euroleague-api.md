@@ -389,6 +389,26 @@ at the end of a game-center URL (`…/E2026/19/`).
   after v2 publishes. Measure it on the next game night by polling
   `/v2/…/games/{code}` from the live feed's `Live: false`.
 
+### The CDN in front of it, and the clock — measured 2026-11-19
+
+Measured on E2026 game 122 (TEL–DUB) in the second quarter.
+
+- **Both `Boxscore` and `Header` are cached for 60 seconds** (`cache-control:
+  public, max-age=60`, with an `age` header). A query string the CDN has not
+  seen goes to the origin: read back to back, the cached Header said Q2 0:48
+  47–36 and the one with `&_=<ms>` said Q2 0:37 47–38. Every live read now
+  carries that parameter.
+- **`Header`** is 934 bytes: `Quarter` ("2"), `RemainingPartialTime`
+  ("00:37"), the score, team fouls and timeouts. **Between periods it blanks
+  `Quarter`** and stops the clock at `"00:00"` — seen at half time — so a
+  blank quarter with a stopped clock is a break, not a missing header.
+- `Boxscore` also carries `IsStarter`, `Dorsal`, each side's `Team` name,
+  `Stats[i].tmr` (team rebounds) and `totr` (the side's totals).
+- `PlaybyPlay` is `no-store` and current, but 58 KB at half time; it adds
+  nothing a box score needs.
+- euroleaguebasketball.net's game centre answered **429** to a plain request,
+  so it is not a source; it reads these same feeds.
+
 ## What this means for slice 2.1
 
 Both front doors, as the blueprint describes — one shared
