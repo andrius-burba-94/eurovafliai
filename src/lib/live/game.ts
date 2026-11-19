@@ -1,6 +1,8 @@
 import "server-only";
 
 import { clubLabel } from "@/lib/clubs/labels";
+import type { ClubStanding } from "@/lib/clubs/standings";
+import { readClubStandings } from "@/lib/clubs/standings-store";
 import type { FixtureRecord } from "@/lib/fixtures/store";
 import { coversRound } from "@/lib/memberships/from";
 import { createUserClient } from "@/lib/pb/server";
@@ -29,6 +31,8 @@ export type GameBox = {
   readonly players: Readonly<Record<string, { readonly id: string; readonly slug?: string }>>;
   /** Person code → the league member who holds the player this round. */
   readonly owners: Readonly<Record<string, string>>;
+  /** Each club's line in the official table, while one has been stored. */
+  readonly standings: { readonly home: ClubStanding | null; readonly away: ClubStanding | null };
 };
 
 type PlayerRow = { id: string; person_code?: string; name: string; slug?: string; club_code?: string; club_name?: string; dorsal?: string };
@@ -53,7 +57,7 @@ export async function readGameBox(input: {
   const fixture = fixtures[0];
   if (!fixture) return null;
 
-  const [snapshot, recorded, clubPlayers, memberships] = await Promise.all([
+  const [snapshot, recorded, clubPlayers, memberships, table] = await Promise.all([
     readLiveSnapshot(pb, input.season, input.gameCode),
     pb.collection("player_game_stats").getFullList<StoredBoxRow>({
       filter: `season = '${input.season}' && game_code = ${input.gameCode}`,
@@ -71,6 +75,8 @@ export async function readGameBox(input: {
         requestKey: null,
       })
       : Promise.resolve([]),
+    // The table is a nicety beside the score: no table, or no answer, shows none.
+    readClubStandings(pb, input.season).catch(() => new Map<string, ClubStanding>()),
   ]);
 
   // A recorded row can name a player who has since moved club; fetch those by id.
@@ -128,6 +134,7 @@ export async function readGameBox(input: {
     rows,
     players,
     owners,
+    standings: { home: table.get(fixture.local_club) ?? null, away: table.get(fixture.road_club) ?? null },
   };
 }
 
