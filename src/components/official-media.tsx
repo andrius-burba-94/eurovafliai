@@ -63,24 +63,26 @@ export function ClubCrest({
 }
 
 /**
- * A club's crest at scoreboard size, always whole (object-contain): several
- * crests carry a sponsor's wordmark, and any crop of them reads as a fragment.
- * Nothing at all when the image is missing — a club code blown up to this size
- * reads as a word, not a crest, and the club's name sits beside it anyway.
+ * A club's crest at scoreboard size, whole (object-contain) on its light plate
+ * (`crest-plate`): several crests carry a sponsor's wordmark, so any crop reads
+ * as a fragment, and some are drawn in dark ink that vanishes on the dark
+ * theme. Nothing at all when the image is missing — an empty plate, or a club
+ * code blown up to this size, reads as a mistake, and the name sits beside it.
  */
 export function ClubCrestMark({ clubCode, className = "" }: { clubCode?: string | null; className?: string }) {
   const [failed, setFailed] = useState(false);
   if (!clubCode || !SAFE_CODE.test(clubCode) || failed) return null;
   return (
-    <Image
-      src={`/media/E2026/clubs/${clubCode}.png`}
-      alt=""
-      aria-hidden="true"
-      width={256}
-      height={256}
-      unoptimized
-      onError={() => setFailed(true)}
-      className={`pointer-events-none object-contain select-none ${className}`}
-    />
+    <span aria-hidden="true" className={`crest-plate pointer-events-none grid place-items-center rounded-card p-2 select-none sm:p-2.5 ${className}`}>
+      <Image
+        src={`/media/E2026/clubs/${clubCode}.png`}
+        alt=""
+        width={256}
+        height={256}
+        unoptimized
+        onError={() => setFailed(true)}
+        className="size-full object-contain"
+      />
+    </span>
   );
 }

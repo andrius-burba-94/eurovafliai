@@ -199,6 +199,14 @@ body {
   );
 }
 
+/* A club crest's own ground: the light plate official marks are drawn for,
+ * the same in both themes. On the dark field a crest with dark ink (Milan's
+ * black ARMANI) vanished; on the plate every crest reads as its club prints it. */
+@utility crest-plate {
+  background-color: var(--color-team-ink-light);
+  border: 1px solid var(--color-panel-border);
+}
+
 /* The hardwood the lineup is set on: parquet strips over a warm field. */
 @utility hardwood {
   background-image:
