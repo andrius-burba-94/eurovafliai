@@ -25,6 +25,7 @@ import {
   type PoolPlayer,
 } from "@/lib/pool/search";
 import { formatTenths } from "@/lib/stats/scoring";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /**
  * The league's pool as a searchable list of player cards — the side panel's
@@ -151,7 +152,7 @@ export function PlayerPoolList({
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <CardName scale="slot">{displayName(player.name)}</CardName>
                   <span className="text-sm text-ink-soft">
-                    <ClubCrest clubCode={player.club} /> {player.club}
+                    <ClubCrest clubCode={player.club} /> {clubLabel(player.club)}
                     {player.status !== "active" ? ` · ${player.status}` : ""}
                   </span>
                 </span>

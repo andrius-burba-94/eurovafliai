@@ -24,7 +24,7 @@ keeps the tables, the open debt, the next step and the current phase's
 ## Live box score and the tonight strip, 19 November 2026
 
 **A game opens its own box score, live.** Tap a game on Live, in the side
-panel's schedule, on a player's "TEL v DUB" line, or in the new strip of
+panel's schedule, on a player's "MTA v DUB" line, or in the new strip of
 tonight's games along the top of every page. The page leads with the score,
 the clock (`Q3 · 4:12`, `Half time`) and the line score, then every player's
 line: 19 sortable columns, both clubs or one, a fantasy-points column in the
@@ -63,6 +63,18 @@ from `live.euroleague.net`.
 - At 1440×900 or wider, both clubs sit side by side with no page scroll. Crests
   show only where `/srv/eurovafliai-media` exists (ADR-0010), so locally they
   fall back to the club code and the scoreboard has no half crests.
+
+## Club codes read as broadcast, 19 November 2026
+
+**Fix.** Fenerbahce showed as ULK and every crest drew its fallback code
+underneath, so transparent crests (ASVEL's) read as a crest over "ASV". Club
+codes on screen now print the feed's `tvCode` (FBT, EFS, RMB, PAO, MTA, …)
+through `clubLabel` (`lib/clubs/labels.ts`); the feed `code` stays the key for
+joins, crests and colours. The crest's fallback appears only when there is no
+image. Pool search takes either code ([story](log/slice-notes.md#club-codes-read-as-broadcast)).
+
+**Try it on localhost:** `npm run dev`, open `/l/<league>/matchday`: a
+Fenerbahce player reads "FBT", and no crest has letters behind it.
 
 ## Standings score the served lineup, 11 November 2026
 

@@ -9,6 +9,7 @@ import { GAME_BADGE, ScoreFigure, StatusBadge } from "@/components/broadcast";
 import { GameFeed } from "@/components/game-feed";
 import { ClubCrestMark } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
+import { clubLabel } from "@/lib/clubs/labels";
 import { clubColor } from "@/lib/clubs/colors";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -163,7 +164,7 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
               className={`flex min-w-0 flex-col items-center gap-1 text-center ${index === 1 ? "col-start-3 row-start-1 sm:pr-16 lg:col-start-4" : "sm:pl-16"}`}
             >
               <span className="display line-clamp-2 w-full text-base break-words sm:text-2xl lg:text-xl xl:text-2xl" title={side.name}>
-                <span className="sm:hidden">{side.code}</span>
+                <span className="sm:hidden">{clubLabel(side.code)}</span>
                 <span className="hidden sm:inline">{side.name}</span>
               </span>
               <span className="slot-label">{side.word}</span>
@@ -211,7 +212,7 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
                     const points = side.which === "home" ? game.quarters!.local : game.quarters!.road;
                     return (
                       <tr key={side.which} className="border-t border-panel-border">
-                        <th scope="row" className="py-0.5 text-left font-semibold">{side.code}</th>
+                        <th scope="row" className="py-0.5 text-left font-semibold">{clubLabel(side.code)}</th>
                         {heads.map((head, index) => {
                           const reached = game.state === "final" || game.state === "fulltime" || game.period === null || index < game.period;
                           const current = (game.state === "live" || game.state === "stale") && game.period === index + 1;

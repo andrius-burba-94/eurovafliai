@@ -26,6 +26,7 @@ import {
   type TransactionResult,
 } from "@/lib/memberships/actions";
 import type { BoardSeat, FreeAgent } from "@/lib/memberships/board";
+import { clubLabel } from "@/lib/clubs/labels";
 import {
   NO_FILTERS,
   poolIndex,
@@ -402,7 +403,7 @@ export function TransactionBuilder({
                         <span className="flex min-w-0 flex-1 flex-col gap-1">
                           <CardName>{displayName(player.name)}</CardName>
                           <span className="text-sm text-ink-soft">
-                            {player.club}
+                            {clubLabel(player.club)}
                           </span>
                         </span>
                       </button>

@@ -7,6 +7,7 @@ import type PocketBase from "pocketbase";
 
 import { useGameHref } from "@/components/league-links";
 import { ClubCrest } from "@/components/official-media";
+import { clubLabel } from "@/lib/clubs/labels";
 import {
   newerSnapshot,
   tickerGame,
@@ -178,6 +179,8 @@ function ScrollArrow({ side, shown, onPress }: { side: "back" | "ahead"; shown: 
 function TickerChip({ game, href, current }: { game: TickerGame; href: string; current: boolean }) {
   const inPlay = game.state === "live" || game.state === "stale";
   const started = game.homeScore !== null && game.awayScore !== null;
+  const home = clubLabel(game.home);
+  const away = clubLabel(game.away);
   const lead = started && game.homeScore !== game.awayScore ? (game.homeScore! > game.awayScore! ? "home" : "away") : null;
   const status = inPlay
     ? game.clock ?? "Live"
@@ -187,8 +190,8 @@ function TickerChip({ game, href, current }: { game: TickerGame; href: string; c
         ? "Full time"
         : "Final";
   const spoken = started
-    ? `${game.home} ${game.homeScore}, ${game.away} ${game.awayScore}, ${inPlay ? `live, ${status}` : status}`
-    : `${game.home} against ${game.away}, tip-off ${status}`;
+    ? `${home} ${game.homeScore}, ${away} ${game.awayScore}, ${inPlay ? `live, ${status}` : status}`
+    : `${home} against ${away}, tip-off ${status}`;
   return (
     <Link
       href={href}
@@ -210,7 +213,7 @@ function TickerChip({ game, href, current }: { game: TickerGame; href: string; c
       </span>
       <span className="flex items-center gap-1.5" aria-hidden="true">
         <ClubCrest clubCode={game.home} />
-        <span className={`font-bold ${lead === "away" ? "text-ink-soft" : ""}`}>{game.home}</span>
+        <span className={`font-bold ${lead === "away" ? "text-ink-soft" : ""}`}>{home}</span>
         {started ? (
           <span className="stat font-bold">
             <span className={lead === "away" ? "text-ink-soft" : ""}>{game.homeScore}</span>
@@ -220,7 +223,7 @@ function TickerChip({ game, href, current }: { game: TickerGame; href: string; c
         ) : (
           <span className="text-ink-faint">v</span>
         )}
-        <span className={`font-bold ${lead === "home" ? "text-ink-soft" : ""}`}>{game.away}</span>
+        <span className={`font-bold ${lead === "home" ? "text-ink-soft" : ""}`}>{away}</span>
         <ClubCrest clubCode={game.away} />
       </span>
     </Link>

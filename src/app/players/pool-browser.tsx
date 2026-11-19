@@ -10,6 +10,7 @@ import { PlayerStatsLink } from "@/components/player-stats-link";
 import type { Position } from "@/lib/engine";
 import type { PoolPlayer } from "@/lib/rosters/queries";
 import { formatTenths } from "@/lib/stats/scoring";
+import { clubLabel } from "@/lib/clubs/labels";
 
 const PAGE_SIZE = 40;
 const nameKey = (name: string) => `${surname(name)}, ${displayName(name)}`;
@@ -35,7 +36,7 @@ export function PoolBrowser({ players, clubs }: {
       .filter((player) => (position === "all" || player.position === position)
         && (club === "all" || player.club_code === club)
         && (!hurtOnly || player.status === "injured" || player.status === "doubtful")
-        && (!term || `${player.name} ${displayName(player.name)} ${player.club_name} ${player.club_code}`.toLocaleLowerCase().includes(term)))
+        && (!term || `${player.name} ${displayName(player.name)} ${player.club_name} ${player.club_code} ${clubLabel(player.club_code)}`.toLocaleLowerCase().includes(term)))
       .sort((a, b) => sort === "name"
         ? nameKey(a.name).localeCompare(nameKey(b.name))
         : (b.pirTenths ?? -1) - (a.pirTenths ?? -1) || nameKey(a.name).localeCompare(nameKey(b.name)));
@@ -51,7 +52,7 @@ export function PoolBrowser({ players, clubs }: {
       <label className="flex flex-col gap-1.5 text-sm font-medium text-ink-soft">Club
         <select value={club} onChange={(event) => { setClub(event.target.value); reset(); }} className="block min-h-11 w-full appearance-none rounded-lg border border-rule bg-stock px-3 text-base text-ink focus:border-live focus:outline-2 focus:outline-live/40">
           <option value="all">All clubs</option>
-          {clubs.map((team) => <option key={team.code} value={team.code}>{team.name || team.code}</option>)}
+          {clubs.map((team) => <option key={team.code} value={team.code}>{team.name || clubLabel(team.code)}</option>)}
         </select>
       </label>
     </div>
@@ -85,7 +86,7 @@ export function PoolBrowser({ players, clubs }: {
             <PlayerStatsLink id={player.id} name={player.name} className="block truncate text-sm font-semibold text-ink hover:text-live focus-visible:outline-2 focus-visible:outline-live">{displayName(player.name)}</PlayerStatsLink>
             {badge ? <StatusBadge kind={badge.kind}>{player.status}</StatusBadge> : null}
           </span>
-          <p className="flex items-center gap-1 truncate text-xs text-ink-soft"><ClubCrest clubCode={player.club_code} />{player.club_name || player.club_code}<span className="text-ink-faint"> · {player.source}{player.manual_lock ? " · locked" : ""}{!player.person_code ? " · no code" : ""}</span></p>
+          <p className="flex items-center gap-1 truncate text-xs text-ink-soft"><ClubCrest clubCode={player.club_code} />{player.club_name || clubLabel(player.club_code)}<span className="text-ink-faint"> · {player.source}{player.manual_lock ? " · locked" : ""}{!player.person_code ? " · no code" : ""}</span></p>
         </div>
         <span className="flex w-14 shrink-0 flex-col items-end">
           <span className="stat text-sm font-bold">{player.pirTenths === undefined ? "—" : formatTenths(player.pirTenths)}</span>

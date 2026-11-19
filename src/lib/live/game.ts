@@ -1,5 +1,6 @@
 import "server-only";
 
+import { clubLabel } from "@/lib/clubs/labels";
 import type { FixtureRecord } from "@/lib/fixtures/store";
 import { coversRound } from "@/lib/memberships/from";
 import { createUserClient } from "@/lib/pb/server";
@@ -98,7 +99,7 @@ export async function readGameBox(input: {
   const fromFeed = snapshot && !played;
   const feedTeams = snapshot?.detail?.teams;
   const clubName = (code: string, fromFeed: string | undefined) =>
-    clubPlayers.find((player) => player.club_code === code && player.club_name)?.club_name ?? (fromFeed ? feedName(fromFeed) : code);
+    clubPlayers.find((player) => player.club_code === code && player.club_name)?.club_name ?? (fromFeed ? feedName(fromFeed) : clubLabel(code));
 
   const ownerOf = new Map<string, string>();
   for (const window of memberships) if (coversRound(window, fixture.round)) ownerOf.set(window.player, window.member);

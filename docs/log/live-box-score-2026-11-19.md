@@ -129,6 +129,14 @@ Five changes asked for on localhost, the same evening:
   league and team, the current league first. The league's own crest still
   marks other members' players; the row field still marks yours here.
 
+## Merged with the broadcast codes (#227)
+
+Main switched on-screen club codes to the feed's `tvCode` through
+`clubLabel` while this was open. The codes this slice prints follow it: the
+scoreboard's phone codes and line score, the strip's chips and their spoken
+labels, the Live line that links to a game, and the club-name fallback in
+`readGameBox`. Keys, crests and colours keep the feed code.
+
 ## What was checked
 
 - Unit: 2261 pass, including the real in-play Boxscore and Header of game 122

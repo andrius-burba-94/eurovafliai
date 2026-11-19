@@ -24,6 +24,7 @@ import { attachNewsName, type NewsResult } from "@/lib/news/actions";
 import { GAME_NAMES, POSITION_WORD, positionSentence } from "@/lib/positions";
 import { answerPositionQuestion } from "@/lib/source-positions/actions";
 import type { PositionQuestionView } from "@/lib/source-positions/queries";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /**
  * The mapping surface — slice 4.2.
@@ -344,7 +345,7 @@ function PositionRow({
         <span className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
           <span className="flex min-w-0 flex-col gap-0.5 text-sm">
             <span>
-              <strong>{player.name}</strong> <span className="text-ink-soft">{player.clubCode} · {question.leagueName}</span>
+              <strong>{player.name}</strong> <span className="text-ink-soft">{clubLabel(player.clubCode)} · {question.leagueName}</span>
             </span>
             <span className="text-xs text-ink-faint">
               {capitalized(GAME_NAMES[question.source])} now lists him as a {word(read)}; a {word(stored)} is stored.
@@ -472,7 +473,7 @@ function NewsRow({
             >
               {entry.candidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
-                  {candidate.name} ({candidate.clubCode})
+                  {candidate.name} ({clubLabel(candidate.clubCode)})
                 </option>
               ))}
             </select>
@@ -517,7 +518,7 @@ function RenameRow({
             <span aria-hidden="true" className="text-ink-faint">→</span>
             <span className="slot-label text-ink-faint">In the feed</span>
             <strong className="break-words">{rename.incomingName}</strong>
-            <span className="text-xs text-ink-soft">{rename.clubCode}</span>
+            <span className="text-xs text-ink-soft">{clubLabel(rename.clubCode)}</span>
           </span>
           <span className="text-xs text-ink-faint break-words">{rename.reason}</span>
         </span>
@@ -590,7 +591,7 @@ function CodeRow({
             <strong>{entry.name ?? "(no name in the import)"}</strong>{" "}
             <span className="text-ink-soft">
               code {entry.personCode}
-              {entry.clubCode ? ` · ${entry.clubCode}` : ""} · {entry.games.length} game{entry.games.length === 1 ? "" : "s"}
+              {entry.clubCode ? ` · ${clubLabel(entry.clubCode)}` : ""} · {entry.games.length} game{entry.games.length === 1 ? "" : "s"}
             </span>
           </span>
           {entry.candidates.length === 0 ? (
@@ -613,7 +614,7 @@ function CodeRow({
             >
               {entry.candidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
-                  {candidate.name} ({candidate.clubCode})
+                  {candidate.name} ({clubLabel(candidate.clubCode)})
                 </option>
               ))}
             </select>
