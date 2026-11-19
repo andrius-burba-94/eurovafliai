@@ -46,6 +46,8 @@ import type { FixtureRecord } from "@/lib/fixtures/store";
 import { fetchLiveBoxscore, fetchLiveHeader, withHeader } from "@/lib/live/boxscore";
 import { inLiveWindow, liveWindowFilter } from "@/lib/live/status";
 import { upsertLiveSnapshot } from "@/lib/live/store";
+import { fetchClubStandings, standingsRound } from "@/lib/clubs/standings";
+import { upsertClubStandings } from "@/lib/clubs/standings-store";
 
 import { describeError } from "@/lib/drafts/pipeline";
 import { processBasketNewsJobs, queueBasketNewsLeagues } from "@/lib/basketnews/jobs";
@@ -151,6 +153,13 @@ const NEWS_FIRST_AFTER_MS = 90_000;
  */
 const LIVE_EVERY_MS = 20_000;
 const LIVE_FIRST_AFTER_MS = 95_000;
+/**
+ * The official club table changes only when a game finishes, so ten minutes
+ * puts a result on the game page's scoreboard soon after the final whistle
+ * for 144 small requests a day.
+ */
+const CLUB_STANDINGS_EVERY_MS = 10 * 60_000;
+const CLUB_STANDINGS_FIRST_AFTER_MS = 100_000;
 const FANTASY_EVERY_MS = 10 * 60_000;
 const FANTASY_FIRST_AFTER_MS = 120_000;
 /** How often to ask whether a BasketNews read is due; `basketNewsDue` holds it to the game-day clock. */
@@ -395,6 +404,28 @@ function main(): void {
           auth.noteFailure(error);
         }
       }
+    },
+  });
+
+  passes.schedule({
+    name: "club standings pass",
+    firstAfterMs: CLUB_STANDINGS_FIRST_AFTER_MS,
+    everyMs: CLUB_STANDINGS_EVERY_MS,
+    off: env.STATS_FETCH === "off" && "club standings are off (STATS_FETCH=off)",
+    on: `club standings on · ${season} · every ${CLUB_STANDINGS_EVERY_MS / 60_000}min`,
+    run: async () => {
+      const fixtures = await pb.collection("fixtures").getFullList<FixtureRecord>({
+        filter: `season = '${season}'`,
+        fields: "round,utc_date",
+        requestKey: null,
+      });
+      const round = standingsRound(fixtures, Date.now());
+      if (round === null) return;
+      // A round with no table yet keeps the last one stored.
+      const clubs = await fetchClubStandings(season, round);
+      if (!clubs) return;
+      const outcome = await upsertClubStandings(pb, { season, round, clubs, checkedAt: new Date().toISOString() });
+      if (outcome !== "unchanged") log(`club standings · ${season} · round ${round} · ${outcome}`);
     },
   });
 
