@@ -170,6 +170,19 @@ finishes. A worker pass every 10 minutes writes one row per season to
 `pb:verify`). An unchanged table is not rewritten. A failed pass leaves the
 last table, and a missing table shows no line.
 
+## Crests on a light plate
+
+On the dark theme the large crests failed a different way: official marks are
+drawn for a white ground, and Milan's black ARMANI wordmark all but vanished
+on the dark scoreboard. Any crest in dark ink would do the same. A filter
+would change the club's colours, and a glow is refused by
+`depth-scale.test.ts`. So each scoreboard crest now sits on its own light plate
+(`crest-plate`: `team-ink-light`, the constant near-white the lineup court's
+score plates already use, with a panel-border edge, `rounded-card`), the way
+broadcast graphics carry sponsor logos. It is the same plate in both themes, and
+the plate overhangs the card as the crest did. Checked in both themes with
+stand-ins drawn in black ink. A missing image draws no plate.
+
 ## What was checked
 
 - Unit: 2261 pass, including the real in-play Boxscore and Header of game 122
