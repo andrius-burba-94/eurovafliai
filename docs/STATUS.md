@@ -41,7 +41,7 @@ club alone on all 19 ([story](log/live-box-score-2026-11-19.md)).
 | The game page, in a league or outside one | `/games/[game]`, `/l/[league]/games/[game]`, `readGameBox` (`live/game.ts`), `BoxScore`, `GameFeed` |
 | Rows, sorting, totals, column highs, the clock label | `live/game-box.ts` (pure) |
 | Tonight's games across the top on a game day, with arrows at either end while there is more | `LiveTicker`, `LiveTickerStrip`, `live/ticker.ts` (pure) |
-| Scoreboard: each club's crest whole and large on a light plate, on its outer side, breaking the card's edge | `ClubCrestMark` (`official-media.tsx`), `@utility crest-plate` |
+| Scoreboard: each club's crest in its medallion (a light roundel ringed in the club's colour), the code when there is no image | `ClubCrestMark` (`official-media.tsx`), `@utility club-medallion` |
 | Scoreboard: each club's place in the official table and its won–lost record | `club_standings` (migration `1791700000_created_club_standings.js`), `fetchClubStandings`, `standingsRound` (`clubs/standings.ts`), the worker's club standings pass |
 | Your players across every league, named on hover or tap | `readYourHoldings` (`live/game.ts`), `YoursMark` |
 | The club switch on the section's heading line | `Bank`'s `toolbar` |
@@ -66,7 +66,7 @@ about 20 seconds of the TV and that the worker log shows no 429s from
   snapshot lands, and the changed figures wash green once.
 - At 1440×900 or wider, both clubs sit side by side with no page scroll. Crests
   show only where `/srv/eurovafliai-media` exists (ADR-0010), so locally they
-  fall back to the club code and the scoreboard shows names alone.
+  fall back to the club code, and the scoreboard's medallions print it.
 
 ## Club codes read as broadcast, 19 November 2026
 

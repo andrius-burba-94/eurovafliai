@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
+import { clubColor } from "@/lib/clubs/colors";
 import { clubLabel } from "@/lib/clubs/labels";
 
 const SAFE_CODE = /^[A-Za-z0-9]{2,12}$/;
@@ -63,26 +64,34 @@ export function ClubCrest({
 }
 
 /**
- * A club's crest at scoreboard size, whole (object-contain) on its light plate
- * (`crest-plate`): several crests carry a sponsor's wordmark, so any crop reads
- * as a fragment, and some are drawn in dark ink that vanishes on the dark
- * theme. Nothing at all when the image is missing — an empty plate, or a club
- * code blown up to this size, reads as a mistake, and the name sits beside it.
+ * A club's crest at scoreboard size: whole (object-contain, never cropped, since
+ * several crests carry a sponsor's wordmark) inside the club's medallion, a
+ * light roundel ringed in the club's colour that reads the same in both themes.
+ * Without an image the medallion prints the club's code, as a member's crest
+ * prints its monogram.
  */
-export function ClubCrestMark({ clubCode, className = "" }: { clubCode?: string | null; className?: string }) {
+export function ClubCrestMark({ clubCode, className = "" }: { clubCode: string; className?: string }) {
   const [failed, setFailed] = useState(false);
-  if (!clubCode || !SAFE_CODE.test(clubCode) || failed) return null;
+  const available = SAFE_CODE.test(clubCode) && !failed;
   return (
-    <span aria-hidden="true" className={`crest-plate pointer-events-none grid place-items-center rounded-card p-2 select-none sm:p-2.5 ${className}`}>
-      <Image
-        src={`/media/E2026/clubs/${clubCode}.png`}
-        alt=""
-        width={256}
-        height={256}
-        unoptimized
-        onError={() => setFailed(true)}
-        className="size-full object-contain"
-      />
+    <span
+      aria-hidden="true"
+      className={`club-medallion pointer-events-none grid shrink-0 place-items-center overflow-hidden rounded-full select-none ${className}`}
+      style={{ "--club": clubColor(clubCode) } as CSSProperties}
+    >
+      {available ? (
+        <Image
+          src={`/media/E2026/clubs/${clubCode}.png`}
+          alt=""
+          width={192}
+          height={192}
+          unoptimized
+          onError={() => setFailed(true)}
+          className="size-[70%] object-contain"
+        />
+      ) : (
+        <span className="display text-[1.375em] leading-none">{clubLabel(clubCode)}</span>
+      )}
     </span>
   );
 }

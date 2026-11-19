@@ -199,12 +199,13 @@ body {
   );
 }
 
-/* A club crest's own ground: the light plate official marks are drawn for,
- * the same in both themes. On the dark field a crest with dark ink (Milan's
- * black ARMANI) vanished; on the plate every crest reads as its club prints it. */
-@utility crest-plate {
+/* A club's medallion: the light ground official crests are drawn for, the same
+ * in both themes (on the dark field Milan's black ARMANI vanished), ringed in
+ * the club's colour (`--club`). A round mark, as every mark in the system is. */
+@utility club-medallion {
+  border: 3px solid var(--club, var(--color-rule));
   background-color: var(--color-team-ink-light);
-  border: 1px solid var(--color-panel-border);
+  color: var(--color-team-ink-dark);
 }
 
 /* The hardwood the lineup is set on: parquet strips over a warm field. */
