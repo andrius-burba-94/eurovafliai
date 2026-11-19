@@ -198,6 +198,18 @@ per ADR-0010) still reads as the club. Checked in dark and light at 390 and
 1440 px with stand-ins drawn in black ink, and with no image at all. At
 1440×900 the box score ends at 869 px, still above the fold.
 
+## Small crests in the same medallion
+
+At text size (25 px, transparent) the crests in the strip, the box score's
+switch and headings, Live and the lineup read as smudges. Their detail and
+sponsor wordmarks blurred, and on the dark theme dark ink vanished as it had
+on the scoreboard. `.club-crest` is now the scoreboard's medallion in small:
+28 px, a light roundel with a 1.5 px ring in the club's colour, the crest
+whole at 76%. The fallback code prints in `team-ink-dark` on the roundel.
+It is one rule for all 18 places the crest appears. Checked on the game page
+and Live in dark and light at 390 and 1440 px; Live's 9 px overflow on a phone
+is the header's, noted earlier.
+
 ## What was checked
 
 - Unit: 2261 pass, including the real in-play Boxscore and Header of game 122

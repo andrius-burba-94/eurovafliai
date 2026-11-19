@@ -47,14 +47,14 @@ export function ClubCrest({
   const [failed, setFailed] = useState(false);
   const available = clubCode && SAFE_CODE.test(clubCode) && !failed;
   return (
-    <span className={`club-crest ${className}`} aria-hidden="true">
+    <span className={`club-crest ${className}`} aria-hidden="true" style={{ "--club": clubColor(clubCode) } as CSSProperties}>
       {available ? null : <span className="club-crest-fallback">{clubLabel(clubCode)?.slice(0, 3) ?? ""}</span>}
       {available ? (
         <Image
           src={`/media/E2026/clubs/${clubCode}.png`}
           alt=""
-          width={48}
-          height={48}
+          width={64}
+          height={64}
           unoptimized
           onError={() => setFailed(true)}
         />

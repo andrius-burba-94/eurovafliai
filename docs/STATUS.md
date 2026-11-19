@@ -42,6 +42,7 @@ club alone on all 19 ([story](log/live-box-score-2026-11-19.md)).
 | Rows, sorting, totals, column highs, the clock label | `live/game-box.ts` (pure) |
 | Tonight's games across the top on a game day, with arrows at either end while there is more | `LiveTicker`, `LiveTickerStrip`, `live/ticker.ts` (pure) |
 | Scoreboard: each club's crest in its medallion (a light roundel ringed in the club's colour), the code when there is no image | `ClubCrestMark` (`official-media.tsx`), `@utility club-medallion` |
+| Every small club crest (the strip, box score, Live, lineup, pool, draft, player pages) in the same medallion, at 28 px | `ClubCrest`, `.club-crest` |
 | Scoreboard: each club's place in the official table and its won–lost record | `club_standings` (migration `1791700000_created_club_standings.js`), `fetchClubStandings`, `standingsRound` (`clubs/standings.ts`), the worker's club standings pass |
 | Your players across every league, named on hover or tap | `readYourHoldings` (`live/game.ts`), `YoursMark` |
 | The club switch on the section's heading line | `Bank`'s `toolbar` |
