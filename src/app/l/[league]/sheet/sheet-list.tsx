@@ -26,6 +26,7 @@ import { editCheatSheet } from "@/lib/sheets/actions";
 import { tierOfRank } from "@/lib/sheets/ranking";
 import { applyOperation, type SheetOperation } from "@/lib/sheets/reorder";
 import type { CheatSheetView, SheetPlayerRow } from "@/lib/sheets/queries";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /**
  * The sheet as it stands — and, since 3.4b, the thing you edit by acting on it.
@@ -732,7 +733,7 @@ export function SheetList({
                         </span>
                         {row.club ? (
                           <span className="slot-label shrink-0">
-                            {row.club}
+                            {clubLabel(row.club)}
                           </span>
                         ) : null}
                         {row.missing ? null : (

@@ -39,6 +39,7 @@ import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 import { LineupCourt } from "./lineup-court";
 import { useDragToPlace, type DragState, type DropTarget } from "./lineup-drag";
 import { usePlayerHref } from "@/components/league-links";
+import { clubLabel } from "@/lib/clubs/labels";
 
 /**
  * Thirteen players, one role each — slice 9.3. The court draws the five and
@@ -382,7 +383,7 @@ export function LineupForm({
   function card(player: LineupPlayer, layout: "cards" | "rows") {
     const key = `player:${player.id}`;
     const points = pointsOf(player.id);
-    const matchup = player.fixture ? `${player.clubCode} ${player.fixture.atHome ? "vs" : "at"} ${player.fixture.nextOpponent}` : player.clubCode;
+    const matchup = player.fixture ? `${clubLabel(player.clubCode)} ${player.fixture.atHome ? "vs" : "at"} ${clubLabel(player.fixture.nextOpponent)}` : clubLabel(player.clubCode);
     return (
       <li key={player.id} className="min-w-0">
         <button

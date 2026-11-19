@@ -22,6 +22,7 @@ import type { DraftView } from "@/lib/drafts/queries";
 import type { Position } from "@/lib/engine";
 import { useHydrated } from "@/lib/hydrated";
 import { formatTenths } from "@/lib/stats/scoring";
+import { clubLabel } from "@/lib/clubs/labels";
 import {
   NO_FILTERS,
   clubsIn,
@@ -600,7 +601,7 @@ export function PickForm({
                     <span className="min-w-0 truncate" title={displayName(player.name)}>
                       <CardName scale="slot">{displayName(player.name)}</CardName>
                     </span>
-                    <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
+                    <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{clubLabel(player.club)}</span>
                     <PositionPatch position={player.position} />
                   </span>
                   {canPick ? (
@@ -955,7 +956,7 @@ export function PickForm({
                   <CardName scale="slot">{displayName(player.name)}</CardName>
                 </span>
                 <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
-                <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{player.club}</span>
+                <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{clubLabel(player.club)}</span>
                 {/* Fantasy points are what the standings actually sum, so they
                     stay on the row rather than being hidden — named, quiet,
                     and behind PIR. Held back on a narrow row because it cannot

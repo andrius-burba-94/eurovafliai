@@ -9,6 +9,7 @@ import type { Confidence, Run } from "@/lib/advisor/outlook";
 import { formatOutlook, type WireRow } from "@/lib/advisor/wire";
 import type { Position } from "@/lib/engine";
 import { displayName } from "@/lib/players/name";
+import { clubLabel } from "@/lib/clubs/labels";
 
 const SHOWN = 30;
 const MORE = 20;
@@ -74,7 +75,7 @@ export function PlayerCell({ row, verb, rated = true }: { row: WireRow; verb?: "
           </PlayerStatsLink>
         </span>
         <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-ink-soft">
-          {row.clubCode}
+          {clubLabel(row.clubCode)}
           {note ? ` · ${note}` : ""}
           {badge ? <StatusBadge kind={badge.kind}>{badge.word}</StatusBadge> : null}
         </span>

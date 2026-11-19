@@ -4,6 +4,7 @@ import { Bank, CardBlock, CardBlocks, EmptyNotice } from "@/components/board";
 import type { Confidence } from "@/lib/advisor/outlook";
 import { pairKey, type ScoutMove } from "@/lib/advisor/scout";
 import { formatOutlook } from "@/lib/advisor/wire";
+import { clubLabel } from "@/lib/clubs/labels";
 
 import { CONFIDENCE_WORD, PlayerCell, RunWord, Triplet, TripletHead } from "./waiver-wire";
 
@@ -52,7 +53,7 @@ function MoveCard({ move, unit, reason, promiseReasons }: { move: ScoutMove; uni
         </span>
         {run ? (
           <span className="text-sm text-ink-soft">
-            {move.add.clubCode} next 5: <RunWord run={run} />
+            {clubLabel(move.add.clubCode)} next 5: <RunWord run={run} />
           </span>
         ) : null}
       </div>

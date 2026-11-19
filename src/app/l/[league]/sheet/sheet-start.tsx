@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Correction, PositionPatch } from "@/components/board";
 import { editCheatSheet, startSheetFromRanking } from "@/lib/sheets/actions";
 import type { PoolPlayer } from "@/lib/sheets/store";
+import { clubLabel } from "@/lib/clubs/labels";
 
 const pir = (tenths: number | null) => (tenths === null ? "—" : (tenths / 10).toFixed(1));
 
@@ -76,7 +77,7 @@ export function SheetSuggestions({
           <li key={player.id} className="flex min-h-12 items-center gap-3 px-3 py-1.5">
             <PositionPatch position={player.position} />
             <span className="min-w-0 flex-1 truncate font-semibold">{displayName(player.name)}</span>
-            <span className="slot-label hidden text-ink-soft sm:inline">{player.club}</span>
+            <span className="slot-label hidden text-ink-soft sm:inline">{clubLabel(player.club)}</span>
             <span className="stat w-10 text-right text-sm tabular-nums">{pir(player.tenths)}</span>
             <button
               type="button"

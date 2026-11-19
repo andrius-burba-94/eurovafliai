@@ -2,6 +2,7 @@ import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
 import { ClubCrest } from "@/components/official-media";
 import type { GameState } from "@/lib/live/status";
 import { formatTipOff } from "@/lib/time/local";
+import { clubLabel } from "@/lib/clubs/labels";
 
 type Side = {
   readonly code: string;
@@ -51,7 +52,7 @@ export function GameTile({
         <span key={index} className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold">
             <ClubCrest clubCode={side.code} />
-            <span className="truncate" title={side.name ?? side.code}>{side.name ?? side.code}</span>
+            <span className="truncate" title={side.name ?? clubLabel(side.code)}>{side.name ?? clubLabel(side.code)}</span>
           </span>
           <span className="stat shrink-0 text-sm font-bold">{side.score ?? ""}</span>
         </span>
