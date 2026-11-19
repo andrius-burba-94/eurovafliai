@@ -10,6 +10,7 @@ import { GameFeed } from "@/components/game-feed";
 import { ClubCrestMark } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { clubLabel } from "@/lib/clubs/labels";
+import type { ClubStanding } from "@/lib/clubs/standings";
 import { clubColor } from "@/lib/clubs/colors";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
@@ -17,6 +18,7 @@ import { clockLabel, periodHeads } from "@/lib/live/game-box";
 import { readGameBox, readYourHoldings, type GameBox } from "@/lib/live/game";
 import { navLeagueFrom } from "@/lib/nav/items";
 import { leagueHref, playerHref } from "@/lib/nav/urls";
+import { ordinal } from "@/lib/season/story";
 import { formatTipOff } from "@/lib/time/local";
 
 /** A game code as a URL carries it: a positive whole number. */
@@ -135,8 +137,8 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
   const heads = game.quarters ? periodHeads(game.quarters.local, game.quarters.road, game.period) : [];
   const style = { "--home": clubColor(fixture.local_club), "--away": clubColor(fixture.road_club) } as CSSProperties;
   const sides = [
-    { code: fixture.local_club, name: game.homeName, score: game.homeScore, which: "home" as const, word: "Home" },
-    { code: fixture.road_club, name: game.awayName, score: game.awayScore, which: "away" as const, word: "Away" },
+    { code: fixture.local_club, name: game.homeName, score: game.homeScore, standing: game.standings.home, which: "home" as const, word: "Home" },
+    { code: fixture.road_club, name: game.awayName, score: game.awayScore, standing: game.standings.away, which: "away" as const, word: "Away" },
   ];
 
   return (
@@ -150,20 +152,29 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-3 sm:gap-x-6 lg:grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)]">
           {sides.map((side, index) => (
-            // Each crest whole, on its club's outer side: real crests carry sponsor wordmarks, so a cropped one reads as a fragment.
+            // Each crest whole and large, on its club's outer side and breaking the card's edge: real crests
+            // carry sponsor wordmarks, so a cropped one reads as a fragment and a small one as a smudge.
             <div
               key={side.which}
               className={`flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-4 ${
                 index === 1 ? "col-start-3 row-start-1 sm:flex-row-reverse sm:text-right lg:col-start-4" : "sm:text-left"
               }`}
             >
-              <ClubCrestMark clubCode={side.code} className="size-10 shrink-0 sm:size-14 xl:size-16" />
+              <ClubCrestMark
+                clubCode={side.code}
+                className={`relative z-10 -mt-10 size-16 shrink-0 sm:-my-6 sm:size-24 lg:-my-10 lg:size-36 xl:-my-12 xl:size-40 ${
+                  index === 1 ? "lg:-mr-10" : "lg:-ml-10"
+                }`}
+              />
               <span className={`flex min-w-0 flex-1 flex-col items-center gap-1 ${index === 1 ? "sm:items-end" : "sm:items-start"}`}>
                 <span className="display line-clamp-2 w-full text-base break-words sm:text-2xl lg:text-xl xl:text-2xl" title={side.name}>
                   <span className="sm:hidden">{clubLabel(side.code)}</span>
                   <span className="hidden sm:inline">{side.name}</span>
                 </span>
-                <span className="slot-label">{side.word}</span>
+                <span className={`flex flex-col items-center gap-x-2 gap-y-0.5 sm:flex-row sm:flex-wrap sm:items-baseline ${index === 1 ? "sm:justify-end" : "sm:justify-start"}`}>
+                  <span className="slot-label">{side.word}</span>
+                  {side.standing ? <Standing standing={side.standing} testId={`game-standing-${side.which}`} /> : null}
+                </span>
               </span>
             </div>
           ))}
@@ -234,5 +245,19 @@ function Scoreboard({ game, authToken, season }: { game: GameBox; authToken: str
         </div>
       </div>
     </section>
+  );
+}
+
+/** A club's place in the official table and its season so far. */
+function Standing({ standing, testId }: { standing: ClubStanding; testId: string }) {
+  return (
+    <span className="stat text-xs font-semibold whitespace-nowrap text-ink-soft sm:text-sm" data-testid={testId}>
+      <span aria-hidden="true">
+        {ordinal(standing.position)} · {standing.won}–{standing.lost}
+      </span>
+      <span className="sr-only">
+        {`${ordinal(standing.position)} in the Euroleague, ${standing.won} won, ${standing.lost} lost`}
+      </span>
+    </span>
   );
 }

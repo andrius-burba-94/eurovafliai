@@ -59,6 +59,7 @@ const SUPERUSER_WRITE = {
   player_news: "",
   fixtures: "",
   live_game_snapshots: "the worker writes them",
+  club_standings: "the worker writes them",
   fantasy_syncs: "the worker writes them",
   position_questions: "only the worker and the answer action write them",
   ai_writeups: "the worker writes them",
@@ -190,6 +191,7 @@ const INDEXES = [
     "the (season, round) index is NOT unique — a round holds ten games",
   ],
   ["live_game_snapshots", /UNIQUE.*idx_live_game/, "live snapshots have a unique season/game index"],
+  ["club_standings", /UNIQUE.*idx_club_standings_season/, "one official club table per season"],
   [
     "position_questions",
     /UNIQUE.*`open_key`.*WHERE.*`open_key` != ''/,
@@ -272,6 +274,7 @@ const CLEANUP_ORDER = [
   "ai_writeups",
   "player_outlooks",
   "fantasy_syncs",
+  "club_standings",
   "live_game_snapshots",
   "fixtures",
   "player_news",
@@ -1158,6 +1161,26 @@ try {
   check(
     await rejects(() => make("live_game_snapshots", liveSnapshot)),
     "a duplicate season/game snapshot is refused",
+  );
+
+  const clubTable = {
+    season: verifySeason,
+    round: 1,
+    clubs: [{ code: "MIL", position: 1, played: 1, won: 1, lost: 0 }],
+    checked_at: new Date().toISOString(),
+  };
+  await make("club_standings", clubTable);
+  check(
+    (await aliceClient.collection("club_standings").getFullList({ filter: `season = '${clubTable.season}'` })).length === 1,
+    "a signed-in member reads the club table",
+  );
+  check(
+    await rejects(() => make("club_standings", { ...clubTable, season: `${clubTable.season}x` }, aliceClient)),
+    "a signed-in member cannot write a club table",
+  );
+  check(
+    await rejects(() => make("club_standings", { ...clubTable, round: 2 })),
+    "a second table for the same season is refused",
   );
 
   // --- 5.5 Fantasy Challenge sync -------------------------------------------

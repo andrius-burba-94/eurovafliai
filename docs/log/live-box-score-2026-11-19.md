@@ -147,6 +147,29 @@ half a crest read as a fragment of a word. Each crest is now drawn whole
 on a phone, in a row from `sm`. The scoreboard keeps its height, so the
 one-screen fit at 1440×900 holds (box score ends at 861 px).
 
+## Bigger crests, and the clubs' table
+
+Whole crests at 40–64 px read as small on the real scoreboard. They are now
+64 px on a phone, 96 at `sm`, 112 at `lg` and 128 at `xl`, with negative
+margins so they break the card's top and bottom edge without making the
+scoreboard taller: the box score still ends at the same height at 1440×900.
+
+Under each club's name the scoreboard prints its place in the official table
+and its record, "19th · 2–10". The source is `basicstandings` on the feed's
+**v3** API; the v2 path answers 405. It returns the official position, so
+head-to-head tiebreaks are the league's rather than ours. Round 13 was checked
+on 2026-11-19: twenty clubs, every won + lost equal to played. A round that has
+not started answers with no teams, so the worker asks for the latest round
+with a game already tipped off (`standingsRound`). It keeps the last table
+when the answer is empty.
+
+It follows the live snapshot's pattern, not a read at render: the page
+re-renders every 20 s during play and the table changes only when a game
+finishes. A worker pass every 10 minutes writes one row per season to
+`club_standings` (unique `season`, signed-in read, worker write; covered by
+`pb:verify`). An unchanged table is not rewritten. A failed pass leaves the
+last table, and a missing table shows no line.
+
 ## What was checked
 
 - Unit: 2261 pass, including the real in-play Boxscore and Header of game 122

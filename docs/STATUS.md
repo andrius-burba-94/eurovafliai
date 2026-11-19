@@ -41,7 +41,8 @@ club alone on all 19 ([story](log/live-box-score-2026-11-19.md)).
 | The game page, in a league or outside one | `/games/[game]`, `/l/[league]/games/[game]`, `readGameBox` (`live/game.ts`), `BoxScore`, `GameFeed` |
 | Rows, sorting, totals, column highs, the clock label | `live/game-box.ts` (pure) |
 | Tonight's games across the top on a game day, with arrows at either end while there is more | `LiveTicker`, `LiveTickerStrip`, `live/ticker.ts` (pure) |
-| Scoreboard: each club's crest whole, beside its name on the outer side | `ClubCrestMark` (`official-media.tsx`) |
+| Scoreboard: each club's crest whole and large, on its outer side, breaking the card's edge | `ClubCrestMark` (`official-media.tsx`) |
+| Scoreboard: each club's place in the official table and its won–lost record | `club_standings` (migration `1791700000_created_club_standings.js`), `fetchClubStandings`, `standingsRound` (`clubs/standings.ts`), the worker's club standings pass |
 | Your players across every league, named on hover or tap | `readYourHoldings` (`live/game.ts`), `YoursMark` |
 | The club switch on the section's heading line | `Bank`'s `toolbar` |
 | Game tiles link to the box score; `games` is a reserved team slug | `GameTile`, `gameHref`, `useGameHref`, `RESERVED_TEAM_SLUGS` |
@@ -49,10 +50,13 @@ club alone on all 19 ([story](log/live-box-score-2026-11-19.md)).
 A played game shows the recorded box score; until the stats pass has written
 it, the live feed's last snapshot, marked provisional.
 
-**After the deploy:** the migration adds one optional field, so nothing needs
-backfilling. On the next game night, open a live game and check that the clock
-moves within about 20 seconds of the TV and that the worker log shows no 429s
-from `live.euroleague.net`.
+**After the deploy:** the migrations add one optional field and one derived
+collection (`club_standings`), so nothing needs backfilling. Restart the worker
+on the new code: it writes the clock, the line score and the club table. Within
+about two minutes the log says `club standings · E2026 · round N · created`. On
+the next game night, open a live game and check that the clock moves within
+about 20 seconds of the TV and that the worker log shows no 429s from
+`live.euroleague.net`.
 
 **Try it on localhost** (on a game night, or plant a snapshot as
 `tests/e2e/game.spec.ts` does):
