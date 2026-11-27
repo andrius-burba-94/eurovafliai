@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { whoIsOnClock } from "../../src/lib/engine";
+import { whoIsOnClock } from "@eurovafliai/core/engine";
 import {
   commitPick,
   findUnfinishedDraft,
@@ -25,7 +25,7 @@ import {
  * The draft board — slice 3.1.
  *
  * The engine's own tests prove the layout arithmetic for every format and
- * member count (`src/lib/engine/board.test.ts`). What only a browser can prove
+ * member count (`packages/core/src/engine/board.test.ts`). What only a browser can prove
  * is the wiring: that a pick appears in *its own member's column* rather than
  * in draft order, that the marker rule sits on the slot the server says is on
  * the clock, and that the second motion event fires for somebody who was

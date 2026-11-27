@@ -1,4 +1,4 @@
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import type { RoundPoints } from "@/lib/live/status";
 import { PlayerPortrait } from "@/components/official-media";
 import { displayName, surname } from "@/lib/players/name";

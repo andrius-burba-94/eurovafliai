@@ -1,17 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  type BoxScore,
-  OFFICIAL_WEIGHTS,
-  formatHundredths,
-  formatSignedHundredths,
-  formatTenths,
-  hundredthsToTenths,
-  scaleTenths,
-  scoreGame,
-  sumTenths,
-  weighHundredths,
-} from "./scoring";
+import { type BoxScore, OFFICIAL_WEIGHTS, hundredthsToTenths, scaleTenths, scoreGame, sumTenths, weighHundredths } from "./scoring";
+import { formatHundredths, formatSignedHundredths, formatTenths } from "@eurovafliai/core/tenths";
 
 /**
  * The constructed half of the scoring tests. `scoring.golden.test.ts` proves

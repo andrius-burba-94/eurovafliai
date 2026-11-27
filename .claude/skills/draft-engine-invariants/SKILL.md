@@ -1,10 +1,10 @@
 ---
 name: draft-engine-invariants
-description: The non-negotiable rules of the Eurovafliai draft engine — server-authoritative draft state, a pure TypeScript engine library with zero PocketBase imports, pick-then-advance write order with idempotent repair, never trusting client clocks, and mandatory order-generation tests for every format change. Use when working on src/lib/engine/, the worker, draft server actions, pick timers, autodraft, rollback, or any draft-room UI that renders draft state.
+description: The non-negotiable rules of the Eurovafliai draft engine — server-authoritative draft state, a pure TypeScript engine library with zero PocketBase imports, pick-then-advance write order with idempotent repair, never trusting client clocks, and mandatory order-generation tests for every format change. Use when working on packages/core/src/engine/, the worker, draft server actions, pick timers, autodraft, rollback, or any draft-room UI that renders draft state.
 paths:
-  - "src/lib/engine/**"
+  - "packages/core/src/engine/**"
   - "src/lib/drafts/**"
-  - "src/lib/cues/**"
+  - "packages/core/src/cues.ts"
   - "src/worker/**"
   - "src/lib/stats/**"
   - "src/lib/sheets/**"
@@ -29,7 +29,7 @@ The `drafts` record is the single source of truth: `current_pick`, `deadline`,
 
 ## 2. The engine library stays pure
 
-`src/lib/engine/` is pure TypeScript: **zero PocketBase imports, zero I/O, zero
+`packages/core/src/engine/` is pure TypeScript: **zero PocketBase imports, zero I/O, zero
 `Date.now()` reached for implicitly** — time comes in as an argument. It is
 consumed by both the server actions and the worker, which is exactly why it may
 not know about either.

@@ -32,7 +32,7 @@ import {
 import type { LineupPlayer } from "@/lib/lineups/queries";
 import { optimizeLineup, type Optimization } from "@/lib/lineups/optimize";
 import { roundPointsOf, type PlayerRound, type RoundPoints } from "@/lib/live/status";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { displayName, surname } from "@/lib/players/name";
 import type { ComparisonPlayer } from "@/lib/stats/comparison-queries";
 

@@ -1,6 +1,6 @@
 import type PocketBase from "pocketbase";
 
-import { leagueHref } from "@/lib/nav/urls";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 import { displayName } from "@/lib/players/name";
 
 import { leagueSlug, playerSlug, teamSlug } from "./slug";

@@ -11,7 +11,7 @@ import {
   type SheetPlaces,
 } from "./search";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { MAX_POOL_QUERY_CHARS } from "@/lib/limits";
 
 /**

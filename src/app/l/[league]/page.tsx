@@ -20,12 +20,12 @@ import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueSentence } from "@/lib/mapping/queue";
 import { createUserClient } from "@/lib/pb/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readNews } from "@/lib/news/queries";
 import { readPanel } from "@/lib/panel/queries";
 import { readRecentTransactions } from "@/lib/memberships/queries";
 import { serverConfig } from "@/lib/config/server";
-import { stylesById } from "@/lib/teams/identity";
+import { stylesById } from "@eurovafliai/core/teams/identity";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
 import { readRoundWriteup } from "@/lib/ai/queries";
 import { readScout } from "@/lib/advisor/read";
@@ -39,8 +39,8 @@ import { liveRecap } from "@/lib/season/story";
 import { SeasonDashboard } from "./season-dashboard";
 import { rosterSize } from "@/lib/leagues/settings";
 import { LiveLobby } from "./live-lobby";
-import { leagueHref, leaguePaths } from "@/lib/nav/urls";
-import { leagueSource } from "@/lib/positions";
+import { leagueHref, leaguePaths } from "@eurovafliai/core/nav/urls";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 /**
  * The lobby: who is in, and the code that lets the rest in.

@@ -13,13 +13,13 @@ import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readProvisionalRounds } from "@/lib/lineups/queries";
 import { readStandingsSnapshots } from "@/lib/stats/queries";
-import { stylesById } from "@/lib/teams/identity";
+import { stylesById } from "@eurovafliai/core/teams/identity";
 
 import { StandingsTable } from "./standings-table";
-import { leagueHref, leaguePaths } from "@/lib/nav/urls";
+import { leagueHref, leaguePaths } from "@eurovafliai/core/nav/urls";
 import { InfoTip } from "@/components/info-tip";
 
 /**

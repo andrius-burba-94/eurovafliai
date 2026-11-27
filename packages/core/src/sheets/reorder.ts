@@ -10,7 +10,7 @@ import type { SheetRanking } from "./ranking";
  * function, so the two cannot diverge — the discipline `commitPick` established
  * for a human pick and an autodraft.
  *
- * It lives here rather than in `src/lib/engine/` deliberately. The engine is the
+ * It lives here rather than in `packages/core/src/engine/` deliberately. The engine is the
  * draft's referee and its purity is enforced because a draft's fairness depends
  * on it; a cheat sheet is one member's private preference and no rule of the
  * draft reads this file. Putting it in the engine would widen what "the engine"

@@ -16,8 +16,8 @@ import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { clockLabel, periodHeads } from "@/lib/live/game-box";
 import { readGameBox, readYourHoldings, type GameBox } from "@/lib/live/game";
-import { navLeagueFrom } from "@/lib/nav/items";
-import { leagueHref, playerHref } from "@/lib/nav/urls";
+import { navLeagueFrom } from "@/lib/nav/league";
+import { leagueHref, playerHref } from "@eurovafliai/core/nav/urls";
 import { ordinal } from "@/lib/season/story";
 import { formatTipOff } from "@/lib/time/local";
 

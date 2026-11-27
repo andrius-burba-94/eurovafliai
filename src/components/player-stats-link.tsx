@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "re
 
 import type { CurrentGame } from "@/lib/live/current-game";
 import type { PlayerProfile, GameLogLine } from "@/lib/stats/queries";
-import { formatTenths } from "@/lib/stats/scoring";
+import { formatTenths } from "@eurovafliai/core/tenths";
 import { formatTipOff } from "@/lib/time/local";
 import { GAME_BADGE, StatusBadge } from "@/components/broadcast";
 import { useLeagueSource, usePlayerHref } from "@/components/league-links";

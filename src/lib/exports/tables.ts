@@ -11,7 +11,7 @@
  * picked where, and the pool they picked from.
  */
 import type { BoardPick } from "@/lib/drafts/types";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 
 import type { CsvValue } from "@/lib/csv/write";
 

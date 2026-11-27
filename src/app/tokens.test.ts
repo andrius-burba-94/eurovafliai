@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { TEAM_COLORS, TEAM_INK } from "@/lib/teams/identity";
+import { TEAM_COLORS, TEAM_INK } from "@eurovafliai/core/teams/identity";
 
 /**
  * The design tokens have to clear WCAG AA on BOTH grounds, and that is checked

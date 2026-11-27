@@ -3,11 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { serverRollCeremony } from "@/lib/roll/snapshot";
 
 import { RollCeremony } from "./roll-ceremony";
-import { leagueHref } from "@/lib/nav/urls";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 
 /**
  * The roll — the one ceremonial surface in this app.

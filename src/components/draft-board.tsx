@@ -1,10 +1,10 @@
-import type { BoardShape, Position } from "@/lib/engine";
+import type { BoardShape, Position } from "@eurovafliai/core/engine";
 
 import { CardName } from "./board";
 import { BoardScroll } from "./board-scroll";
 import { TeamCrest, teamFieldStyle } from "@/components/broadcast";
 import { displayName, surname } from "@/lib/players/name";
-import type { TeamStyle } from "@/lib/teams/identity";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
 
 /**
  * The draft board — slice 3.1, and the surface this whole app is named after.

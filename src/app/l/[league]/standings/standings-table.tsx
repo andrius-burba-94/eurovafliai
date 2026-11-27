@@ -11,17 +11,17 @@ import { HONOURS } from "@/components/honour-chip";
 import { InfoTip } from "@/components/info-tip";
 import { Moment } from "@/components/moment";
 import { completedOnly } from "@/lib/fixtures/progress";
-import type { LeaguePaths } from "@/lib/nav/urls";
+import type { LeaguePaths } from "@eurovafliai/core/nav/urls";
 import { badgesFrom, honoursByRound, type Badge } from "@/lib/season/badges";
 import { nightPlace, placeTint } from "@/lib/season/tint";
-import { formatHundredths } from "@/lib/stats/scoring";
+import { formatHundredths } from "@eurovafliai/core/tenths";
 import {
   PHASES,
   tableFromSnapshots,
   type Phase,
   type RoundSnapshot,
 } from "@/lib/stats/standings";
-import type { TeamStyle } from "@/lib/teams/identity";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
 
 const PHASE_LABEL: Record<Phase, string> = {
   RS: "Regular season",

@@ -6,7 +6,7 @@ import { TeamCrest } from "@/components/broadcast";
 import { Correction } from "@/components/board";
 import { SubmitButton } from "@/components/submit-button";
 import { setTeamIdentity, type LobbyResult } from "@/lib/leagues/actions";
-import { CREST_SHAPES, TEAM_COLORS, type CrestShape, type TeamColor } from "@/lib/teams/identity";
+import { CREST_SHAPES, TEAM_COLORS, type CrestShape, type TeamColor } from "@eurovafliai/core/teams/identity";
 
 const START: LobbyResult = { error: null };
 

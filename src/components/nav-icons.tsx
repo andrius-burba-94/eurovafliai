@@ -1,4 +1,4 @@
-import type { NavIconName } from "@/lib/nav/items";
+import type { NavIconName } from "@eurovafliai/core/nav/items";
 
 /**
  * The shell's marks, drawn in the recipe DESIGN.md's Shapes section records:

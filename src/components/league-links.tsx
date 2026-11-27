@@ -2,8 +2,8 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
-import { gameHref } from "@/lib/nav/urls";
-import type { LeagueSource } from "@/lib/positions";
+import { gameHref } from "@eurovafliai/core/nav/urls";
+import type { LeagueSource } from "@eurovafliai/core/positions";
 
 const LeagueContext = createContext<{ base: string | null; source: LeagueSource }>({ base: null, source: "euroleague" });
 

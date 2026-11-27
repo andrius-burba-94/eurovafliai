@@ -17,15 +17,8 @@ import { getSession } from "@/lib/auth/session";
 import { readShellLeagues, type LeagueLink } from "@/lib/leagues/queries";
 import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
-import {
-  navFor,
-  tabsFor,
-  type NavGroup,
-  type NavItem,
-  type NavKey,
-  type NavLeague,
-} from "@/lib/nav/items";
-import { leagueHref } from "@/lib/nav/urls";
+import { navFor, tabsFor, type NavGroup, type NavItem, type NavKey, type NavLeague } from "@eurovafliai/core/nav/items";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 /**
  * The app shell — slice 11.1, ADR-0008.
  *

@@ -1,4 +1,4 @@
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 
 import type { Confidence, Ruleset } from "./outlook";
 import type { WireOutlook } from "./wire";

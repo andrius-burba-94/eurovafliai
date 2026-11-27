@@ -10,8 +10,8 @@ import {
 } from "@/lib/chat/messages";
 import { getSession } from "@/lib/auth/session";
 import { readBasketNewsPlayerRounds } from "@/lib/basketnews/repository";
-import type { Position } from "@/lib/engine";
-import { leaguePosition, type LeagueSource } from "@/lib/positions";
+import type { Position } from "@eurovafliai/core/engine";
+import { leaguePosition, type LeagueSource } from "@eurovafliai/core/positions";
 import { readNextFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { createUserClient } from "@/lib/pb/server";

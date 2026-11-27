@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { basketNewsPlayer, type BasketNewsSourcePlayer } from "@/lib/basketnews/client";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import fantasyCapture from "@/lib/fantasy/fixtures/player-pool-api.json";
 import { parsePlayerPoolPage, type FantasyPlayer } from "@/lib/fantasy/parse";
 

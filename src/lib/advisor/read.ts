@@ -1,8 +1,8 @@
 import type PocketBase from "pocketbase";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { readBoard } from "@/lib/memberships/board";
-import type { LeagueSource } from "@/lib/positions";
+import type { LeagueSource } from "@eurovafliai/core/positions";
 
 import type { Ruleset } from "./outlook";
 import { scoutFor, type ScoutMove, type ScoutView } from "./scout";

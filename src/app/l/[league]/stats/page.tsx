@@ -11,15 +11,15 @@ import { MarketBars } from "@/components/market-bars";
 import { PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { readLeagueDeals } from "@/lib/memberships/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { badgesFrom } from "@/lib/season/badges";
 import { headToHead, type PlayerLeader } from "@/lib/stats/league-stats";
 import { readLeagueStats } from "@/lib/stats/league-stats-queries";
-import { formatHundredths, formatTenths } from "@/lib/stats/scoring";
-import { stylesById } from "@/lib/teams/identity";
+import { formatHundredths, formatTenths } from "@eurovafliai/core/tenths";
+import { stylesById } from "@eurovafliai/core/teams/identity";
 
 import {
   CaptainRegretView,
@@ -34,8 +34,8 @@ import {
   WaffleBoardView,
   type Who,
 } from "./sections";
-import { leagueHref, leaguePaths } from "@/lib/nav/urls";
-import { leagueSource } from "@/lib/positions";
+import { leagueHref, leaguePaths } from "@eurovafliai/core/nav/urls";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 const TOPICS = [
   ["records", "Records"],

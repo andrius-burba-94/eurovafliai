@@ -11,17 +11,12 @@ import type { ProvisionalRank } from "@/lib/live/rank";
 import type { PanelData } from "@/lib/panel/types";
 import { dashboardStandings, seasonLabel } from "@/lib/season/dashboard";
 import { movementOf, ordinal, roundStory } from "@/lib/season/story";
-import {
-  formatHundredths,
-  formatSignedHundredths,
-  formatSignedTenths,
-  formatTenths,
-} from "@/lib/stats/scoring";
+import { formatHundredths, formatSignedHundredths, formatSignedTenths, formatTenths } from "@eurovafliai/core/tenths";
 import type { Recap, RecapBestNight } from "@/lib/stats/recap";
 import type { RoundSnapshot } from "@/lib/stats/standings";
-import type { TeamStyle } from "@/lib/teams/identity";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
 import { formatTipOff } from "@/lib/time/local";
-import type { LeaguePaths } from "@/lib/nav/urls";
+import type { LeaguePaths } from "@eurovafliai/core/nav/urls";
 
 /**
  * League Home in season (ADR-0011): your team as the scoreboard's hero, the

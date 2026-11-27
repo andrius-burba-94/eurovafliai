@@ -14,13 +14,13 @@ import { AppShell } from "@/components/app-shell";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readNewsFor } from "@/lib/news/queries";
-import { formatTenths } from "@/lib/stats/scoring";
+import { formatTenths } from "@eurovafliai/core/tenths";
 import { readPlayerProfile } from "@/lib/stats/queries";
-import { playerHref, teamHref } from "@/lib/nav/urls";
+import { playerHref, teamHref } from "@eurovafliai/core/nav/urls";
 import { resolvePlayerId } from "@/lib/players/queries";
-import { leagueSource } from "@/lib/positions";
+import { leagueSource } from "@eurovafliai/core/positions";
 import { clubLabel } from "@/lib/clubs/labels";
 
 /**

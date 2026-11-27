@@ -1,10 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "src/lib/engine/index.ts",
-    "scripts/*.{mts,mjs,ts}",
-    "tests/e2e/**/*.spec.ts"
-  ],
-  "ignore": ["pb/pb_migrations/**", "ecosystem.config.js"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.{mts,mjs,ts}", "tests/e2e/**/*.spec.ts"],
+      "ignore": ["pb/pb_migrations/**", "ecosystem.config.js"]
+    },
+    "packages/core": {}
+  },
   "ignoreExportsUsedInFile": true
 }

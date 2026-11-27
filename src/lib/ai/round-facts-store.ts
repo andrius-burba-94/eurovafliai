@@ -1,12 +1,12 @@
 import type PocketBase from "pocketbase";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { roundProgress } from "@/lib/fixtures/progress";
 import { readStoredFixtures, scheduleRowsFrom } from "@/lib/fixtures/store";
 import { readRecordedLineups } from "@/lib/lineups/store";
 import type { HistoryRow } from "@/lib/memberships/history";
 import { PHASES, snapshotRowsFrom, type Phase, type RoundSnapshot } from "@/lib/stats/standings";
-import { leaguePosition, leagueSource } from "@/lib/positions";
+import { leaguePosition, leagueSource } from "@eurovafliai/core/positions";
 
 import type { FactsGame, FactsOfficialRound, RoundFactsInput } from "./round-facts";
 

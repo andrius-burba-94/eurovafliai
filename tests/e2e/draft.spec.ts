@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { whoIsOnClock } from "../../src/lib/engine";
+import { whoIsOnClock } from "@eurovafliai/core/engine";
 import {
   commitPick,
   findUnfinishedDraft,
@@ -797,7 +797,7 @@ test("a league whose reset lost its second write repairs itself", async ({
 
 /* ── slice 3.7: pick confirmation, and the clock you can hear ────────────────
  *
- * `src/lib/cues/cues.test.ts` owns the cue's decision — that it fires on the
+ * `packages/core/src/cues.test.ts` owns the cue's decision — that it fires on the
  * transition into your turn and never on a re-render, and that the toggle
  * governs the noise but never the announcement. What only a browser can answer
  * is that a tap now arms rather than picks, that the gesture the confirmation

@@ -1,5 +1,5 @@
-import type { Position, RosterTemplate } from "@/lib/engine";
-import type { LeagueSource } from "@/lib/positions";
+import type { Position, RosterTemplate } from "@eurovafliai/core/engine";
+import type { LeagueSource } from "@eurovafliai/core/positions";
 import { linkSourcePlayers, resolveClubs, type PoolPlayer } from "@/lib/fantasy/match";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 

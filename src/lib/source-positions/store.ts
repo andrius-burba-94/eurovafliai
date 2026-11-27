@@ -1,11 +1,11 @@
 import type PocketBase from "pocketbase";
 
 import { isUniqueViolation } from "@/lib/drafts/unique";
-import type { Position, RosterTemplate } from "@/lib/engine";
+import type { Position, RosterTemplate } from "@eurovafliai/core/engine";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { asPbDate, listActiveMemberships } from "@/lib/memberships/store";
-import { leagueSource } from "@/lib/positions";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 import { countsTemplate, planPositionRead, type PositionSource, type StoredPlayer } from "./plan";
 

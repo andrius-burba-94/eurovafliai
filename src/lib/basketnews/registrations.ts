@@ -2,7 +2,7 @@ import type PocketBase from "pocketbase";
 
 import { isUniqueViolation } from "@/lib/drafts/unique";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { resolveClubs } from "@/lib/fantasy/match";
 import { readPool } from "@/lib/fantasy/store";
 import { readCurrentPlayers } from "@/lib/rosters/apply";

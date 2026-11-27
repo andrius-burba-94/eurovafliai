@@ -8,7 +8,7 @@ import { serverConfig } from "@/lib/config/server";
 import { readFantasySyncView } from "@/lib/fantasy/queries";
 import { readSyncRuns, type SyncRun, type SyncStatus } from "@/lib/fantasy/store";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { createUserClient } from "@/lib/pb/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import type { SourcePlayerQuestion } from "@/lib/basketnews/registrations";

@@ -4,7 +4,7 @@ import { createUserClient } from "@/lib/pb/server";
 import { getSession } from "@/lib/auth/session";
 import { memberListQuery, toMember } from "./lobby";
 import { reconcileLeagueStatus } from "@/lib/drafts/repair";
-import { leaguePosition, leagueSource, type LeagueSource } from "@/lib/positions";
+import { leaguePosition, leagueSource, type LeagueSource } from "@eurovafliai/core/positions";
 
 import { ensureCommissionerMembership } from "./repair";
 import { parseLeagueSettings, type RosterTemplate } from "./settings";

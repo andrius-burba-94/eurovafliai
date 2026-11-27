@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { clearLeagueMemberships } from "@/lib/memberships/store";
 import { getSuperuserClient } from "@/lib/pb/superuser";
-import { isCrestShape, isTeamColor } from "@/lib/teams/identity";
+import { isCrestShape, isTeamColor } from "@eurovafliai/core/teams/identity";
 import {
   generateInviteCode,
   isPlausibleInviteCode,
@@ -32,7 +32,7 @@ import {
 } from "./settings";
 import type { LeagueRecord, MemberRecord } from "./types";
 import { revalidateLeague } from "@/lib/nav/revalidate";
-import { leagueHref } from "@/lib/nav/urls";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 import { newLeagueSlug, newTeamSlug } from "@/lib/slugs/store";
 import { basketNewsTeamId } from "@/lib/basketnews/client";
 import { queueBasketNewsSync } from "@/lib/basketnews/repository";

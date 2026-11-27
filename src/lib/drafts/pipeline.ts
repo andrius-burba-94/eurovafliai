@@ -7,7 +7,7 @@ import {
   type EnginePick,
   type OnClock,
   type Position,
-} from "@/lib/engine";
+} from "@eurovafliai/core/engine";
 
 import { announceComplete, announcePick } from "@/lib/chat/messages";
 import { announce } from "@/lib/chat/store";

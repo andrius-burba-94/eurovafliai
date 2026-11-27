@@ -21,7 +21,7 @@ import {
   whoIsOnClock,
   type EnginePlayer,
   type Position,
-} from "@/lib/engine";
+} from "@eurovafliai/core/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { rankPirFromRecord } from "@/lib/stats/project";
 import { readSheet } from "@/lib/sheets/store";

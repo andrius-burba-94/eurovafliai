@@ -2,7 +2,7 @@ import type PocketBase from "pocketbase";
 
 import { readLeagueMoves } from "@/lib/advisor/read";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
-import { leagueSource } from "@/lib/positions";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 import type { BriefFactsInput } from "./brief-facts";
 import { readRoundFactsInput } from "./round-facts-store";

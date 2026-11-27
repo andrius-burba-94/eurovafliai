@@ -5,7 +5,7 @@ import { readLeagueMoves } from "@/lib/advisor/read";
 import type { ScoutMove } from "@/lib/advisor/scout";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { displayName, surname } from "@/lib/players/name";
-import { leagueSource } from "@/lib/positions";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 /**
  * What the reasons' sheet is built from, read with the worker's client — 7.2 G.

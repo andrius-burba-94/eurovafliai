@@ -12,15 +12,15 @@ import {
   type Position,
   type RadarRow,
   radarSize,
-} from "@/lib/engine";
+} from "@eurovafliai/core/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
-import type { NavLeague } from "@/lib/nav/items";
+import type { NavLeague } from "@eurovafliai/core/nav/items";
 import { createUserClient } from "@/lib/pb/server";
-import { leaguePosition, leagueSource, type LeagueSource } from "@/lib/positions";
+import { leaguePosition, leagueSource, type LeagueSource } from "@eurovafliai/core/positions";
 import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
 import type { PoolPlayer } from "@/lib/pool/search";
 import { rankPirFromRecord } from "@/lib/stats/project";
-import { tierOfRank } from "@/lib/sheets/ranking";
+import { tierOfRank } from "@eurovafliai/core/sheets/ranking";
 import { readSheet } from "@/lib/sheets/store";
 
 import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
@@ -28,7 +28,7 @@ import { DRAFTABLE_PLAYERS_FILTER } from "./pipeline";
 import { reconcileLeagueStatus } from "./repair";
 
 import type { BoardPick, DraftRecord, PickRecord } from "./types";
-import { stylesFromRecords, type TeamStyle } from "@/lib/teams/identity";
+import { stylesFromRecords, type TeamStyle } from "@eurovafliai/core/teams/identity";
 
 /**
  * Reading the draft, as the signed-in member.

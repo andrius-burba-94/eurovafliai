@@ -557,7 +557,7 @@ test("every tier run is named, so three lists are not 'list, 4 items' three time
 
 /* ── slice 3.4b: editing a sheet by acting on it ─────────────────────────────
  *
- * `src/lib/sheets/reorder.test.ts` owns the arithmetic — 23 questions about
+ * `packages/core/src/sheets/reorder.test.ts` owns the arithmetic — 23 questions about
  * moving, removing and breaking that are really about a function, including the
  * one the model exists for: a break is a place, so a player moved past one
  * changes tier and the break stays put.

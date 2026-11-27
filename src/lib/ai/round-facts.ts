@@ -1,4 +1,4 @@
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import type { ScheduleRow } from "@/lib/fixtures/schedule";
 import type { LineupRole, RecordedLineup } from "@/lib/lineups/lineup";
 import type { HistoryRow } from "@/lib/memberships/history";
@@ -6,7 +6,7 @@ import { displayName, surname } from "@/lib/players/name";
 import { memberHonours } from "@/lib/season/badges";
 import { movementOf, ordinal } from "@/lib/season/story";
 import type { RecapWindow } from "@/lib/stats/recap";
-import { formatHundredths, formatSignedHundredths, formatTenths } from "@/lib/stats/scoring";
+import { formatHundredths, formatSignedHundredths, formatTenths } from "@eurovafliai/core/tenths";
 import type { RoundSnapshot } from "@/lib/stats/standings";
 
 import { numbersIn } from "./facts";

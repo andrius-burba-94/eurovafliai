@@ -11,15 +11,15 @@ import { readComparisonPlayers } from "@/lib/stats/comparison-queries";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readLineupLive } from "@/lib/live/queries";
 import { readPanel } from "@/lib/panel/queries";
 import { formatTipOff } from "@/lib/time/local";
 
 import { LineupForm } from "./lineup-form";
-import { leagueHref } from "@/lib/nav/urls";
-import { leagueSource } from "@/lib/positions";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 /**
  * Who started, who was captain, who sat — slice 9.3.

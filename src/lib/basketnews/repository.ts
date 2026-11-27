@@ -5,7 +5,7 @@ import { isUniqueViolation } from "@/lib/drafts/unique";
 import type { SyncQuestion } from "@/lib/fantasy/match";
 import { rostersAgree, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import type { LineupSlots } from "@/lib/lineups/lineup";
 import { readPool } from "@/lib/fantasy/store";
 import { writeLineup } from "@/lib/lineups/store";

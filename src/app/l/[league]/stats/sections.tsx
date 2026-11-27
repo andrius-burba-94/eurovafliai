@@ -22,7 +22,7 @@ import type {
   WaffleBoard,
 } from "@/lib/stats/league-stats";
 import type { StatsPlayer } from "@/lib/stats/league-stats-queries";
-import { formatHundredths, formatTenths } from "@/lib/stats/scoring";
+import { formatHundredths, formatTenths } from "@eurovafliai/core/tenths";
 import { clubLabel } from "@/lib/clubs/labels";
 
 import { MarginStrip } from "./margin-strip";

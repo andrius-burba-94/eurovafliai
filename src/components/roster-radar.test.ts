@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { rowSentence } from "./roster-radar";
-import { buildRadar, type RadarPick, type RosterTemplate } from "@/lib/engine";
+import { buildRadar, type RadarPick, type RosterTemplate } from "@eurovafliai/core/engine";
 
 /**
  * What the radar says out loud.

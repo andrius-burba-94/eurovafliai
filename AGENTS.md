@@ -32,7 +32,7 @@ paid for live in those skills as **Known gotchas** — do not re-debug them.
 
 ```
 src/app/          Next App Router — RSC pages, server actions
-src/lib/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
+packages/core/src/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
                   enforced by purity.test.ts, not just documented. Import
                   from its index.ts, not from the modules directly.
 src/components/   shared UI in the board's vocabulary (board.tsx) — see DESIGN.md
@@ -49,7 +49,7 @@ src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   human pick and an autodraft cannot diverge
 src/lib/sheets/   cheat sheets: pure parse + fuzzy match, stored shape, reorder
                   arithmetic, framework-free `store.ts` (worker autodrafts from a sheet)
-src/lib/cues/     on-the-clock cue decision — pure; fires on turn transition only
+packages/core/src/cues.ts     on-the-clock cue decision — pure; fires on turn transition only
 src/lib/chat/     league chat: pure `messages.ts`, framework-free `store.ts`,
                   `actions.ts`. `announce()` never throws
 src/lib/memberships/  roster windows (5.1) and recorded trades (5.2):
@@ -62,10 +62,10 @@ src/lib/stats/    box scores and scoring; `scoring.ts` is pure; golden fixtures.
                   `recap.ts` is one Euroleague night: rank, best night, swing
 src/lib/pb/browser.ts  the page's ONE shared realtime client
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
-src/lib/positions.ts  position words and the one list-join
-src/lib/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
+packages/core/src/positions.ts  position words and the one list-join
+packages/core/src/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
                   drives the sidebar, the tab bar and More alike
-src/lib/nav/urls.ts  every league, team and player address (S28): /l/<league>,
+packages/core/src/nav/urls.ts  every league, team and player address (S28): /l/<league>,
                   /l/<league>/<team>. Never hand-build a league URL
 src/lib/slugs/    readable address segments: pure `slug.ts`, framework-free
                   `store.ts` (`ensureSlugs`, run by the worker at boot and hourly)
@@ -111,7 +111,7 @@ real unique indexes and throws on a filter it cannot parse.
 ## Non-negotiables
 
 - Draft state is **server-authoritative**. Clients render and request only.
-- `src/lib/engine/` stays **pure** — no PB, no I/O, time passed in as an argument.
+- `packages/core/src/engine/` stays **pure** — no PB, no I/O, time passed in as an argument.
 - PocketBase has **no transactions**: validate-then-write, unique indexes,
   idempotent repair. State the failure-recovery story in the PR.
 - Never trust a client clock. The worker enforces pick deadlines.

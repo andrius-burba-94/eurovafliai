@@ -20,7 +20,7 @@ import {
   type SortKey,
 } from "@/lib/live/game-box";
 import { displayName, surname } from "@/lib/players/name";
-import type { CrestShape, TeamColor } from "@/lib/teams/identity";
+import type { CrestShape, TeamColor } from "@eurovafliai/core/teams/identity";
 
 export type BoxSide = {
   readonly code: string;

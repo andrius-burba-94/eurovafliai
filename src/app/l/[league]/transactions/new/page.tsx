@@ -9,11 +9,11 @@ import { PageHeader } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readTransactionBoard } from "@/lib/memberships/queries";
 
 import { TransactionBuilder } from "./transaction-builder";
-import { leagueHref } from "@/lib/nav/urls";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 
 /**
  * Record a trade, add or drop — slice 5.2.

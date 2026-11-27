@@ -1,6 +1,6 @@
 import type { RecordModel } from "pocketbase";
 
-import type { CrestShape, TeamColor } from "@/lib/teams/identity";
+import type { CrestShape, TeamColor } from "@eurovafliai/core/teams/identity";
 
 import type { LeagueSettings } from "./settings";
 

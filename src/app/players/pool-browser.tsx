@@ -7,9 +7,9 @@ import { Bank, FilterToggle, PositionPatch } from "@/components/board";
 import { StatusBadge, availabilityBadge } from "@/components/broadcast";
 import { ClubCrest, PlayerPortrait } from "@/components/official-media";
 import { PlayerStatsLink } from "@/components/player-stats-link";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import type { PoolPlayer } from "@/lib/rosters/queries";
-import { formatTenths } from "@/lib/stats/scoring";
+import { formatTenths } from "@eurovafliai/core/tenths";
 import { clubLabel } from "@/lib/clubs/labels";
 
 const PAGE_SIZE = 40;

@@ -4,8 +4,8 @@ import { Slot, Slots } from "@/components/board";
 import { TeamCrest } from "@/components/broadcast";
 import { Glyph } from "@/components/glyphs";
 import type { RecapRow } from "@/lib/stats/recap";
-import { formatHundredths } from "@/lib/stats/scoring";
-import type { TeamStyle } from "@/lib/teams/identity";
+import { formatHundredths } from "@eurovafliai/core/tenths";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
 
 /**
  * One round's night as a ladder: every team by its points that round, a bar

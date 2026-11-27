@@ -3,7 +3,7 @@
  *
  * This is the function every number in Phase 4 is built out of: projections
  * (4.4) average it, standings (4.5) sum it. So it is held to the same standard
- * as `src/lib/engine/`: no I/O, no clock, no randomness, and the caller passes
+ * as `packages/core/src/engine/`: no I/O, no clock, no randomness, and the caller passes
  * everything in.
  *
  * ## PIR is not our invention, so it is not ours to get right by reasoning
@@ -224,45 +224,6 @@ export function scoreBasketNewsModern(box: BoxScore, teamWon: boolean): number {
     (doubleDigits >= 4 ? 100 : doubleDigits >= 3 ? 30 : doubleDigits >= 2 ? 10 : 0) +
     (teamWon ? 1.5 : -1.5) - missedFieldGoals - missedFreeThrows -
     box.turnovers * 1.5 - box.blocksAgainst * 0.5 - (box.foulsCommited >= 5 ? 5 : 0);
-}
-
-/**
- * Integer tenths as a human reads them: `33` → `"3.3"`, `-11` → `"-1.1"`.
- *
- * The one place tenths become a decimal, and it happens in a string rather
- * than in a number so nothing downstream can accumulate the error this whole
- * scheme exists to avoid.
- */
-export function formatTenths(tenths: number): string {
-  const sign = tenths < 0 ? "-" : "";
-  const absolute = Math.abs(tenths);
-  return `${sign}${Math.trunc(absolute / 10)}.${absolute % 10}`;
-}
-
-/** A signed fantasy total for deltas. Hyphen, never an em dash. */
-export function formatSignedTenths(tenths: number): string {
-  if (tenths < 0) return formatTenths(tenths);
-  return `+${formatTenths(tenths)}`;
-}
-
-/**
- * A team total in integer hundredths, printed the way the official game prints
- * it: `16460` → `"164.6"`, `12115` → `"121.15"`, `14300` → `"143.0"`. The
- * second decimal appears only when a bench half put something there, so a
- * table of whole tenths reads exactly as it did before hundredths existed.
- */
-export function formatHundredths(hundredths: number): string {
-  const sign = hundredths < 0 ? "-" : "";
-  const absolute = Math.abs(hundredths);
-  const whole = Math.trunc(absolute / 100);
-  const cents = absolute % 100;
-  const decimals = cents % 10 === 0 ? String(cents / 10) : String(cents).padStart(2, "0");
-  return `${sign}${whole}.${decimals}`;
-}
-
-export function formatSignedHundredths(hundredths: number): string {
-  if (hundredths < 0) return formatHundredths(hundredths);
-  return `+${formatHundredths(hundredths)}`;
 }
 
 export function sumHundredths(values: readonly number[]): number {

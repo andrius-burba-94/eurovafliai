@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth/session";
-import type { LeagueSource } from "@/lib/positions";
+import type { LeagueSource } from "@eurovafliai/core/positions";
 import { readPlayerProfile } from "@/lib/stats/queries";
 
 const SOURCES: readonly LeagueSource[] = ["basketnews", "fantasy"];

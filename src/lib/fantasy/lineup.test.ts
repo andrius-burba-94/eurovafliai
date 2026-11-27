@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { DEFAULT_LINEUP_TEMPLATE, multipliersOf, type LineupSquadPlayer } from "@/lib/lineups/lineup";
 
 import lineupsJson from "./fixtures/round-2-lineups.json";

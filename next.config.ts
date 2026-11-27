@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
   // The badge sits where the account menu and the first tab do since 11.1, and
   // takes their taps. Compile and runtime errors still surface without it.
   devIndicators: false,
+  // The shared core ships TypeScript source, read the same way by Metro.
+  transpilePackages: ["@eurovafliai/core"],
   async headers() {
     return [
       {

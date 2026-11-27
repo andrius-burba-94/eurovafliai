@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Ref } from "@/lib/nav/urls";
+import type { Ref } from "@eurovafliai/core/nav/urls";
 import { createUserClient } from "@/lib/pb/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 

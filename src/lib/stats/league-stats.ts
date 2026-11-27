@@ -1,4 +1,4 @@
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { DEFAULT_LINEUP_TEMPLATE, type LineupTemplate, type LineupWeights, type ResolvedLineup } from "@/lib/lineups/lineup";
 import { optimizeLineup } from "@/lib/lineups/optimize";
 import { coversRound } from "@/lib/memberships/from";

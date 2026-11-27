@@ -1,11 +1,11 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
-import { countByPosition, type Position } from "@/lib/engine";
+import { countByPosition, type Position } from "@eurovafliai/core/engine";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { createUserClient } from "@/lib/pb/server";
 
-import { sheetToText, tierOfRank } from "./ranking";
+import { sheetToText, tierOfRank } from "@eurovafliai/core/sheets/ranking";
 import { suggestionsFor } from "./seed";
 import { readRankablePool, readSheet, type PoolPlayer } from "./store";
 

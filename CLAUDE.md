@@ -70,7 +70,7 @@ Non-negotiables (details in the skills below):
 
 1. **Server-authoritative draft state.** Clients render and request; they never
    decide whose turn it is or that a timer expired.
-2. **The engine library is pure.** `src/lib/engine/` has zero PocketBase
+2. **The engine library is pure.** `packages/core/src/engine/` has zero PocketBase
    imports and no I/O — it is shared by server actions and the worker, and it is
    the most heavily tested code in the repo.
 3. **PocketBase has no transactions.** Validate-then-write, unique indexes as

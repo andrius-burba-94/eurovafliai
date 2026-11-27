@@ -1,8 +1,8 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
-import type { Position } from "@/lib/engine";
-import { leaguePosition, type LeagueSource } from "@/lib/positions";
+import type { Position } from "@eurovafliai/core/engine";
+import { leaguePosition, type LeagueSource } from "@eurovafliai/core/positions";
 import { readRoundFixtures } from "@/lib/fixtures/queries";
 import type { PlayerFixture } from "@/lib/fixtures/types";
 import { coversRound } from "@/lib/memberships/from";

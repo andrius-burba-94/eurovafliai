@@ -9,9 +9,9 @@ import { RoundLadder } from "@/components/round-ladder";
 import { announceAdd, announceDrop, announceExchange, announceTrade } from "@/lib/chat/messages";
 import { roundStory } from "@/lib/season/story";
 import type { Recap } from "@/lib/stats/recap";
-import { formatHundredths, formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
-import type { TeamStyle } from "@/lib/teams/identity";
-import type { LeaguePaths } from "@/lib/nav/urls";
+import { formatHundredths, formatSignedTenths, formatTenths } from "@eurovafliai/core/tenths";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
+import type { LeaguePaths } from "@eurovafliai/core/nav/urls";
 
 /**
  * The morning after, as a front page (ADR-0011): a headline written from the

@@ -4,8 +4,8 @@ import { planSync, type SyncSeat, type SyncStep } from "@/lib/fantasy/plan";
 import type { LineupSlots } from "@/lib/lineups/lineup";
 import { roundWindows } from "@/lib/fantasy/windows";
 import { normalizeName } from "@/lib/rosters/normalize";
-import { formatHundredths } from "@/lib/stats/scoring";
-import type { Position } from "@/lib/engine";
+import { formatHundredths } from "@eurovafliai/core/tenths";
+import type { Position } from "@eurovafliai/core/engine";
 
 import {
   BasketNewsSessionExpired, basketNewsPlayer,

@@ -1,5 +1,5 @@
 import { displayName } from "@/lib/players/name";
-import { formatSignedTenths } from "@/lib/stats/scoring";
+import { formatSignedTenths } from "@eurovafliai/core/tenths";
 
 /**
  * What the app says in chat, and nothing about how it is stored.

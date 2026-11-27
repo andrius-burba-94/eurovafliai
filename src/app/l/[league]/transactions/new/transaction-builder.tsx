@@ -20,7 +20,7 @@ import {
   announceDrop,
   announceTrade,
 } from "@/lib/chat/messages";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import {
   recordTransaction,
   type TransactionResult,

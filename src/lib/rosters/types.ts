@@ -11,7 +11,7 @@
  * a member's fantasy squad is a roster — and CLAUDE.md says names in code match
  * that file. The blueprint defines the target; the glossary names it.
  */
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 
 import type { RenameProposal } from "./rename";
 

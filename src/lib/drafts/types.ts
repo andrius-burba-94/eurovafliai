@@ -1,4 +1,4 @@
-import type { DraftFormat, DraftStatus, Position } from "@/lib/engine";
+import type { DraftFormat, DraftStatus, Position } from "@eurovafliai/core/engine";
 
 /**
  * The word a commissioner types to confirm a reset.

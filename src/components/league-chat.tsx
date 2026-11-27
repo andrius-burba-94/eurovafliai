@@ -22,7 +22,7 @@ import {
   type ChatMessage,
 } from "@/lib/chat/store";
 import { TeamCrest } from "@/components/broadcast";
-import type { TeamStyle } from "@/lib/teams/identity";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
 
 /**
  * League chat — slice 3.5.

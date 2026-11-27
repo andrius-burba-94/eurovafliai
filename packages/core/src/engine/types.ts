@@ -1,7 +1,7 @@
 /**
  * The engine's vocabulary.
  *
- * This module — and everything else under `src/lib/engine/` — is **pure**: zero
+ * This module — and everything else under `packages/core/src/engine/` — is **pure**: zero
  * PocketBase imports, zero I/O, and no implicit clock. Time, when it matters,
  * arrives as an argument. That is not stylistic: the same functions are called
  * by server actions and by the PM2 worker, so the engine may not know which one
