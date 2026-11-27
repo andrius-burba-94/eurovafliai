@@ -21,6 +21,26 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Readable at phone width, 27 November 2026
+
+**Fix.** Three surfaces broke at 375–412px. The standings cut team names to
+four letters and laid the viewer's "you" pill over their crown count; the
+draft pool cut a sheet-ranked player's name to two letters ("KY…"); Live's
+team picker and round stepper ran past the screen's right edge
+([story](log/slice-notes.md#readable-at-phone-width)).
+
+| Change | Where |
+|---|---|
+| Below `sm` the standings team cell is two lines: the name, then "you" and the honours; the move sits under the rank. The whole cell is the team link | `standings-table.tsx` |
+| Below `@md` (the row, not the viewport) a pool row's name has its own line, with club, patch and status under it. The pinned shortlist does the same. From `@md` the row is unchanged | `pick-form.tsx` |
+| A page header's action wraps inside the header instead of running past the screen | `PageHeader` (`broadcast.tsx`) |
+
+**Try it on localhost:** `npm run dev`, open a phone-width window (375 or
+412px). On `/l/<league>/standings`, every team name reads whole and "you" sits
+under your name. In a live draft room with a sheet, the pool rows print the
+name in full above the club. On `/l/<league>/matchday`, the picker and the
+round stepper wrap onto two lines with no sideways scroll.
+
 ## Mobile app, M1: the shared core and API v1, 27 November 2026
 
 **The groundwork for the iOS and Android app (blueprint D29).** Nothing a
@@ -850,6 +870,7 @@ one commit per slice. The story is in [log/matchnight.md](log/matchnight.md).
 | S33 Every team from My Team, and a trophy room | Done | The team's name is a button (`TeamSwitcher`, route-local, on `Menu`): it opens the league's teams in table order, each with rank, crest, manager and a **You** pill on yours, and keeps `?season`. The panel drops from under the title on the desktop and spans the hero on a phone (`Menu` gained `headingClassName`, so the button sits inside the page's `h1` and the panel outside it, and `anchored={false}`). It is an opaque panel like the league switcher: DESIGN.md refuses glass in components. The hero lost `overflow-hidden` so the panel can leave it (the lattice carries the corner radius instead). Under **Every round**, a **Trophy room** shelf shows this team's honours from `badgesFrom` (crown ×N, wooden spoon ×N, flame N in a row) in their colours, each flipping in once when newly earned, or "No silverware yet." |
 | S34 A podium that fits | Done | The top three stand on a low stage at the head of **The table**'s own panel, 2-1-3: crest, name, total (and the gap for second and third) over a step in its medal colour with the place as a display numeral. The leader's crest wears a crown that drops in once per viewer when the lead changes hands (`podium-crown:<league>:<member>`). 83px at 1440×900, where S30's removed podium was 130, so the whole table still ends above the fold (the eighth row ends at 697px). A screen reader hears first, second, third; each place links to its team. |
 | S35 Lineups read after every tip-off | Done | The lineup sync reads a frozen round again five minutes after each of its tip-offs (`RoundWindow.tips`, `lineupRoundsDue`), not only hourly, because a manager can move a starter or the captain between a round's game days. The lineup form follows a synced change when nothing is unsaved. See **Fantasy Challenge sync** for the round 3 evidence and the scoring debt it uncovered. |
+| S36 Readable at phone width | Done | S15's container-query sizing reached phones: below `@md` a pool row stacks the name over its club and patch, so a 412px row prints "KYLE LINDSAY" rather than "KY…". Standings' team cell goes two lines below `sm` (name; then "you" and honours), and `PageHeader`'s action wraps instead of overflowing, which fixed Live's picker and stepper at 375px. |
 
 **Try it on localhost.** `npm run dev`, then open any signed-in page with the system in dark and then light mode:
 the ground, headlines and primary buttons change with it. On a lineup, the grid

@@ -2694,3 +2694,37 @@ The crest drew its three-letter fallback under the image, always; an opaque
 crest hid it and a transparent one did not. The fallback now renders only
 when there is no image to draw.
 
+
+## Readable at phone width
+
+Found while photographing the site at Pixel 7 size for the mobile app work:
+three surfaces were unreadable at 412px, and all three were older than that
+work.
+
+**Standings.** On a phone the team cell is a sticky 200px column. One line held
+the rank, the move, the crest, the name, the "you" pill and up to three honour
+marks, all `shrink-0` except the name, so the name gave way: four letters, and
+for the viewer none at all, because the pill overflowed its link into the
+marks. Widening the column would eat the Total and Gap the reader swipes to, so
+below `sm` the cell goes to two lines instead: the name alone on the first,
+"you" and the marks under it, and the move under the rank. The marks are
+buttons and cannot sit inside the team link, so the link's `::after` covers the
+whole cell: the cell is the 44px target, and the marks sit above it.
+
+**Draft pool.** S15 sized the row's extras by the row with container queries,
+which fixed the desktop column. On a phone the row still had to hold the sheet
+rank, PIR, name, club crest and code, the position patch and the Choose button
+on one line, which left the name about 30px. Below `@md` the name and
+everything after it are now a column: the name on its own line, with club,
+patch and status under it. The row was already about 61px tall for the Choose
+button, so two lines grow it to about 78px rather than doubling it. From `@md`
+both wrappers are `display: contents`, so the wide row is the same flex line as
+before. The pinned shortlist follows the same rule.
+
+**Live header.** `PageHeader` wrapped its action in a `shrink-0` box. In a
+wrapping header that box drops to its own line, but at its max-content width,
+so the picker and stepper inside it never wrapped and the whole page scrolled
+sideways at 375px. `max-w-full` caps the box at the header's width (`max-width`
+clamps a flex item's size even when it cannot shrink), so the controls wrap
+inside it. This applies to every page header, including the lineup page, which
+uses the same picker.
