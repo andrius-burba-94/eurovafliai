@@ -13,7 +13,7 @@ import { getSession } from "@/lib/auth/session";
 import { listMyLeagues } from "@/lib/leagues/queries";
 
 import { LeagueForms } from "./league-forms";
-import { leagueHref } from "@/lib/nav/urls";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 
 /**
  * Your leagues: the signed-in home. Create one as commissioner, or join a

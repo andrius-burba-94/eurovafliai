@@ -19,12 +19,12 @@ import { resolveSeason, SeasonControl } from "@/components/season-control";
 import { getSession } from "@/lib/auth/session";
 import { clubShares } from "@/lib/clubs/share";
 import { serverConfig } from "@/lib/config/server";
-import { radarSize } from "@/lib/engine";
+import { radarSize } from "@eurovafliai/core/engine";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readMatchdayData } from "@/lib/live/queries";
-import { formatHundredths, formatSignedTenths, formatTenths } from "@/lib/stats/scoring";
+import { formatHundredths, formatSignedTenths, formatTenths } from "@eurovafliai/core/tenths";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readPanel } from "@/lib/panel/queries";
 import { readMemberDeals, readMemberRoster } from "@/lib/memberships/queries";
 import { badgesFrom, type Badge } from "@/lib/season/badges";
@@ -36,8 +36,8 @@ import { teamSummary } from "@/lib/stats/team-summary";
 
 import { ImpactList } from "./impact-list";
 import { TeamSwitcher } from "./team-switcher";
-import { leagueHref, playerHref, teamHref } from "@/lib/nav/urls";
-import { leagueSource } from "@/lib/positions";
+import { leagueHref, playerHref, teamHref } from "@eurovafliai/core/nav/urls";
+import { leagueSource } from "@eurovafliai/core/positions";
 import { clubLabel } from "@/lib/clubs/labels";
 
 /**

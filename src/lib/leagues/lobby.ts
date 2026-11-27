@@ -12,7 +12,7 @@
  * the door is shut.
  */
 
-import { identityOf } from "@/lib/teams/identity";
+import { identityOf } from "@eurovafliai/core/teams/identity";
 
 import type { Member, MemberRecord } from "./types";
 

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { PoolPage } from "@/app/players/pool-page";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 
 /** The pool without leaving the league: same list, the league's sidebar. */
 export default async function LeaguePoolPage({ params }: PageProps<"/l/[league]/players">) {

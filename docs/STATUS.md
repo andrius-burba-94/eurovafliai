@@ -21,6 +21,39 @@ keeps the tables, the open debt, the next step and the current phase's
 > next merge and then quietly misleads. Live at
 > [eurovafliai.com](https://eurovafliai.com).
 
+## Mobile app, M1: the shared core and API v1, 27 November 2026
+
+**The groundwork for the iOS and Android app (blueprint D29).** Nothing a
+member sees changes. The pure modules the phone needs move into a workspace
+package, and the web gains the first routes of a versioned API that the app
+calls with the member's PocketBase token. The plan, the decisions behind it
+and the slices still to come are in [mobile/plan-step-0.md](mobile/plan-step-0.md)
+([story](log/mobile-2026-11-27.md)).
+
+| Change | Where |
+|---|---|
+| The engine, positions, cues, sheet ranking and reorder, `navFor` and its URLs, team identity, the tenths formatters and the OKLCH converter, moved unchanged | `packages/core` (`@eurovafliai/core`), an npm workspace; `navLeagueFrom` stays in `src/lib/nav/league.ts` |
+| Every file in the package imports only its own files and zod, and does no I/O | `packages/core/src/purity.test.ts` (the engine keeps its stricter test) |
+| The session reads the cookie or an `Authorization: Bearer` token, either verified by `authRefresh` | `getSession`, `bearerToken` (`lib/auth/session.ts`) |
+| An `/api/v1` request without a credential gets 401 JSON, not `/login`; `meta` is public | `src/proxy.ts` |
+| One closed set of API errors, shared with the app | `@eurovafliai/core/api/errors`, `ok` / `refuse` / `withSession` (`lib/api/http.ts`) |
+| `GET /api/v1/meta` (API version, oldest supported app), `/time`, `/me` | `src/app/api/v1/` |
+| Google's code for the app is bounced to `eurovafliai://auth`, statelessly | `/auth/app-callback` |
+| `.impeccable/design.json` describes matchnight in both grounds (it still described the arena) | `.impeccable/design.json` |
+
+**Before the first app sign-in:** add
+`https://eurovafliai.com/auth/app-callback` as an authorised redirect URI on the
+Google Web client that PocketBase's `google` provider uses. Nothing else
+changes on the box.
+
+**Try it on localhost:**
+- `npm run dev`, then `curl -s localhost:3007/api/v1/meta`: `{"apiVersion":1,"minAppVersion":"0.1.0"}`.
+- `curl -s -i localhost:3007/api/v1/me` is a 401 with `{"code":"unauthenticated",…}`.
+  Copy your session cookie's value from the browser and send it as
+  `-H "Authorization: Bearer <value>"`: your id, name and email.
+- `curl -s -i "localhost:3007/auth/app-callback?code=abc&state=s1"`: a 302 to
+  `eurovafliai://auth?code=abc&state=s1`.
+
 ## Live box score and the tonight strip, 19 November 2026
 
 **A game opens its own box score, live.** Tap a game on Live, in the side

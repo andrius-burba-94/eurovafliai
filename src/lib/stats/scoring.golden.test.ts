@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import golden from "./fixtures/e2025-boxscores.json";
-import {
-  type BoxScore,
-  OFFICIAL_WEIGHTS,
-  OFFICIAL_WIN_BONUS,
-  formatTenths,
-  scoreGame,
-} from "./scoring";
+import { type BoxScore, OFFICIAL_WEIGHTS, OFFICIAL_WIN_BONUS, scoreGame } from "./scoring";
+import { formatTenths } from "@eurovafliai/core/tenths";
 
 /**
  * The golden test: our PIR against the Euroleague's own.

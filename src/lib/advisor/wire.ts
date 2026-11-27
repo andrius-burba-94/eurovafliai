@@ -1,5 +1,5 @@
-import type { Position } from "@/lib/engine";
-import { formatTenths } from "@/lib/stats/scoring";
+import type { Position } from "@eurovafliai/core/engine";
+import { formatTenths } from "@eurovafliai/core/tenths";
 
 import { confidenceOf, type BaseSource, type Confidence, type Role, type Run } from "./outlook";
 

@@ -10,10 +10,10 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { readRoundProgress } from "@/lib/fixtures/queries";
 import { readLeagueRecap, readStandingsSnapshots } from "@/lib/stats/queries";
-import { stylesById } from "@/lib/teams/identity";
+import { stylesById } from "@eurovafliai/core/teams/identity";
 
 import { readBriefCount, readRoundBrief, readRoundWriteup } from "@/lib/ai/queries";
 import { briefPlace } from "@/lib/ai/view";
@@ -23,7 +23,7 @@ import { RecapBody } from "./recap-body";
 import { WriteupNote, WriteupSummary, YourRound, type WriteupLinks } from "./writeup";
 import { WriteupStrip } from "./writeup-strip";
 import { RoundPicker } from "./round-picker";
-import { leagueHref, leaguePaths } from "@/lib/nav/urls";
+import { leagueHref, leaguePaths } from "@eurovafliai/core/nav/urls";
 
 /**
  * One Euroleague night — slice 5.4.

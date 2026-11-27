@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { resolveLeagueId } from "@/lib/leagues/queries";
-import { leagueHref } from "@/lib/nav/urls";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 import { notFound, redirect } from "next/navigation";
 
 import {
@@ -20,7 +20,7 @@ import { serverConfig } from "@/lib/config/server";
 import { readPanel } from "@/lib/panel/queries";
 import { getDraftView } from "@/lib/drafts/queries";
 import { isStuckReason, stuckSentence } from "@/lib/drafts/stuck";
-import { buildBoardShape } from "@/lib/engine";
+import { buildBoardShape } from "@eurovafliai/core/engine";
 
 import { ArmedPickProvider } from "./armed-pick";
 import { AutodraftToggle } from "./autodraft-toggle";

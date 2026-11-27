@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 
 /**
  * The official game's league rosters, reduced to what the sync reads.

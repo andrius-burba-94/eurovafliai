@@ -6,7 +6,7 @@ import type { RoundWriteupRead } from "@/lib/ai/queries";
 import type { Segment } from "@/lib/ai/tokens";
 import type { BriefView } from "@/lib/ai/view";
 import type { SectionKey } from "@/lib/ai/voice";
-import { playerHref, type LeaguePaths, type Ref } from "@/lib/nav/urls";
+import { playerHref, type LeaguePaths, type Ref } from "@eurovafliai/core/nav/urls";
 import { ordinal } from "@/lib/season/story";
 
 /**

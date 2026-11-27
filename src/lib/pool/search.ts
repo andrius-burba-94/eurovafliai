@@ -1,14 +1,14 @@
 import Fuse, { type IFuseOptions } from "fuse.js";
 
 import { clubLabel } from "@/lib/clubs/labels";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { MAX_POOL_QUERY_CHARS } from "@/lib/limits";
 import { displayName } from "@/lib/players/name";
 
 /**
  * The pool, filtered and searched — slice 3.3.
  *
- * Pure, and deliberately outside `src/lib/engine/`: it takes a dependency
+ * Pure, and deliberately outside `packages/core/src/engine/`: it takes a dependency
  * (fuse.js), and the engine's purity test forbids any import that is not
  * relative to itself. That boundary is worth keeping. Nothing here decides
  * anything a draft depends on — who may pick, whether a pick is legal, whose

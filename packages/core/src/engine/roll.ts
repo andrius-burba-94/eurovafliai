@@ -1,7 +1,7 @@
 /**
  * The roll: turning a seed into the draft order.
  *
- * Pure and deterministic, like everything else under `src/lib/engine/`. The
+ * Pure and deterministic, like everything else under `packages/core/src/engine/`. The
  * engine may not touch randomness at all — `purity.test.ts` greps for
  * `Math.random` and `crypto.randomUUID` — and the reason is not tidiness: the
  * seed is stored, so a roll replays identically. Months later you can prove who

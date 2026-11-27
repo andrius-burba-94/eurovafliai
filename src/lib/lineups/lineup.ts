@@ -1,9 +1,9 @@
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 
 /**
  * Lineups, the captain, and what a night is actually worth — slice 9.3.
  *
- * Pure, and held to `src/lib/engine/`'s standard: no I/O, no clock, the caller
+ * Pure, and held to `packages/core/src/engine/`'s standard: no I/O, no clock, the caller
  * passes everything in. Three callers share it — the entry form validates
  * before it writes, `computeStandings` weighs a round with it, and the recap
  * and impact pages weigh the same way so no two surfaces disagree.

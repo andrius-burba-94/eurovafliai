@@ -1,7 +1,7 @@
 "use server";
 
 
-import { rollOrder } from "@/lib/engine";
+import { rollOrder } from "@eurovafliai/core/engine";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
 import { requireSession } from "@/lib/auth/session";
@@ -332,7 +332,7 @@ export async function rollDraftOrder(
   }
 
   // Generated here, never in the engine: the engine may not touch randomness,
-  // which is what makes a roll replayable (see src/lib/engine/roll.ts).
+  // which is what makes a roll replayable (see packages/core/src/engine/roll.ts).
   const seed = settings.roll_seed || crypto.randomUUID();
 
   // The first roll also starts the ceremony's clock, in the same write as the

@@ -1,180 +1,543 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-28T17:41:40.985736Z",
-  "title": "Design System: Eurovafliai arena interface",
+  "generatedAt": "2026-11-27T11:53:33.825Z",
+  "title": "Design System: Eurovafliai matchnight",
   "extensions": {
+    "grounds": {
+      "default": "dark",
+      "dark": {
+        "selector": ":root (@theme static)",
+        "colorScheme": "dark",
+        "field": "colorMeta.<token>.canonical / srgbApprox"
+      },
+      "light": {
+        "selector": ":root[data-theme=\"light\"]",
+        "colorScheme": "light",
+        "field": "colorMeta.<token>.light.canonical / light.srgbApprox"
+      },
+      "note": "Schema extension: schemaVersion 2 has no slot for a second ground, so each colorMeta entry carries a `light` sub-object. The 14 team-* tokens are not redeclared in the light block (a crest is a painted object, the same on both grounds) and are marked groundInvariant. data-theme is set before first paint from the reader's choice or the device. srgbApprox is gamut-clamped where the OKLCH value sits just outside sRGB. Source of truth: src/app/globals.css; every pairing on both grounds is measured in src/app/tokens.test.ts."
+    },
     "colorMeta": {
       "stock": {
         "role": "neutral",
-        "displayName": "Canvas",
-        "canonical": "oklch(0.16828 0.01806 263.904)",
-        "srgbApprox": "#0B0F17"
+        "displayName": "Ground",
+        "canonical": "oklch(0.16 0.022 262)",
+        "srgbApprox": "#080D17",
+        "light": {
+          "canonical": "oklch(0.965 0.004 255)",
+          "srgbApprox": "#F2F4F6"
+        }
       },
       "stock-panel": {
         "role": "neutral",
         "displayName": "Panel",
-        "canonical": "oklch(0.23944 0.03538 262.586)",
-        "srgbApprox": "#161F30"
+        "canonical": "oklch(0.205 0.026 262)",
+        "srgbApprox": "#111723",
+        "light": {
+          "canonical": "oklch(0.993 0.002 255)",
+          "srgbApprox": "#FCFDFE"
+        }
+      },
+      "stock-high": {
+        "role": "neutral",
+        "displayName": "Raised control",
+        "canonical": "oklch(0.25 0.03 262)",
+        "srgbApprox": "#1A2230",
+        "light": {
+          "canonical": "oklch(0.93 0.006 255)",
+          "srgbApprox": "#E5E8EC"
+        }
+      },
+      "stock-sunk": {
+        "role": "neutral",
+        "displayName": "Shell layer",
+        "canonical": "oklch(0.135 0.02 262)",
+        "srgbApprox": "#050810",
+        "light": {
+          "canonical": "oklch(0.935 0.006 255)",
+          "srgbApprox": "#E7EAED"
+        }
       },
       "ink": {
         "role": "neutral",
         "displayName": "Primary text",
-        "canonical": "oklch(0.94392 0.00591 239.822)",
-        "srgbApprox": "#EEF2F4"
+        "canonical": "oklch(0.95 0.006 250)",
+        "srgbApprox": "#EBEFF2",
+        "light": {
+          "canonical": "oklch(0.21 0.03 262)",
+          "srgbApprox": "#111826"
+        }
       },
       "ink-soft": {
         "role": "neutral",
         "displayName": "Secondary text",
-        "canonical": "oklch(0.77437 0.01702 245.146)",
-        "srgbApprox": "#B7C1C9"
+        "canonical": "oklch(0.8 0.014 255)",
+        "srgbApprox": "#B8BEC7",
+        "light": {
+          "canonical": "oklch(0.38 0.03 262)",
+          "srgbApprox": "#3A4353"
+        }
       },
       "ink-faint": {
         "role": "neutral",
         "displayName": "Quiet text",
-        "canonical": "oklch(0.74407 0.01579 251.202)",
-        "srgbApprox": "#A9B5BF"
+        "canonical": "oklch(0.72 0.018 258)",
+        "srgbApprox": "#9EA5B0",
+        "light": {
+          "canonical": "oklch(0.47 0.025 262)",
+          "srgbApprox": "#535B69"
+        }
       },
       "rule": {
         "role": "neutral",
-        "displayName": "Boundary",
-        "canonical": "oklch(0.53597 0.03508 245.524)",
-        "srgbApprox": "#657583"
+        "displayName": "Meaningful boundary",
+        "canonical": "oklch(0.52 0.03 262)",
+        "srgbApprox": "#60697B",
+        "light": {
+          "canonical": "oklch(0.6 0.016 255)",
+          "srgbApprox": "#7A818A"
+        }
       },
       "rule-strong": {
         "role": "neutral",
-        "displayName": "Strong boundary",
-        "canonical": "oklch(0.60640 0.03369 242.335)",
-        "srgbApprox": "#798995"
+        "displayName": "Heavy boundary",
+        "canonical": "oklch(0.6 0.03 262)",
+        "srgbApprox": "#778193",
+        "light": {
+          "canonical": "oklch(0.52 0.02 255)",
+          "srgbApprox": "#616A75"
+        }
       },
       "panel-border": {
         "role": "neutral",
-        "displayName": "Panel border",
-        "canonical": "oklch(0.34478 0.02653 255.110)",
-        "srgbApprox": "#344454"
+        "displayName": "Structural border",
+        "canonical": "oklch(0.32 0.028 262)",
+        "srgbApprox": "#2B3341",
+        "light": {
+          "canonical": "oklch(0.87 0.008 255)",
+          "srgbApprox": "#D1D5D9"
+        }
       },
       "rail": {
         "role": "neutral",
-        "displayName": "Rail text",
-        "canonical": "oklch(0.77811 0.02977 238.366)",
-        "srgbApprox": "#B4C5CF"
+        "displayName": "Rail blue (system voice)",
+        "canonical": "oklch(0.78 0.06 240)",
+        "srgbApprox": "#95BDDA",
+        "light": {
+          "canonical": "oklch(0.45 0.09 250)",
+          "srgbApprox": "#2A5885"
+        }
       },
       "live": {
         "role": "primary",
-        "displayName": "Active cyan",
-        "canonical": "oklch(0.75428 0.08630 207.019)",
-        "srgbApprox": "#67BFCB"
+        "displayName": "Tip-off orange",
+        "canonical": "oklch(0.74 0.165 50)",
+        "srgbApprox": "#FB873D",
+        "light": {
+          "canonical": "oklch(0.53 0.17 42)",
+          "srgbApprox": "#B73D00"
+        }
       },
       "live-sunk": {
         "role": "primary",
-        "displayName": "Active tint",
-        "canonical": "oklch(0.33303 0.04280 212.130)",
-        "srgbApprox": "#1B4048"
+        "displayName": "Tip-off field",
+        "canonical": "oklch(0.27 0.055 50)",
+        "srgbApprox": "#3B1D0B",
+        "light": {
+          "canonical": "oklch(0.93 0.035 50)",
+          "srgbApprox": "#FCE2D4"
+        }
+      },
+      "live-ink": {
+        "role": "primary",
+        "displayName": "Text on Tip-off",
+        "canonical": "oklch(0.18 0.03 45)",
+        "srgbApprox": "#1C0D06",
+        "light": {
+          "canonical": "oklch(0.99 0.005 60)",
+          "srgbApprox": "#FEFBF8"
+        }
       },
       "gain": {
         "role": "semantic",
-        "displayName": "Gain emerald",
-        "canonical": "oklch(0.73544 0.10996 161.936)",
-        "srgbApprox": "#62BF94"
+        "displayName": "Gain green",
+        "canonical": "oklch(0.8 0.15 150)",
+        "srgbApprox": "#6ED889",
+        "light": {
+          "canonical": "oklch(0.5 0.13 150)",
+          "srgbApprox": "#137738"
+        }
       },
       "loss": {
         "role": "semantic",
-        "displayName": "Loss crimson",
-        "canonical": "oklch(0.69863 0.12641 14.661)",
-        "srgbApprox": "#E17B85"
+        "displayName": "Loss red",
+        "canonical": "oklch(0.72 0.16 20)",
+        "srgbApprox": "#F8767A",
+        "light": {
+          "canonical": "oklch(0.52 0.19 25)",
+          "srgbApprox": "#BE222A"
+        }
       },
       "gold": {
         "role": "semantic",
-        "displayName": "Captain gold",
-        "canonical": "oklch(0.77767 0.09508 82.098)",
-        "srgbApprox": "#D5B16E"
+        "displayName": "Crown gold",
+        "canonical": "oklch(0.86 0.13 88)",
+        "srgbApprox": "#F4CC64",
+        "light": {
+          "canonical": "oklch(0.52 0.12 75)",
+          "srgbApprox": "#905D00"
+        }
       },
       "pos-g": {
         "role": "position",
-        "displayName": "Guard",
-        "canonical": "oklch(0.75428 0.08630 207.019)",
-        "srgbApprox": "#67BFCB"
+        "displayName": "Guard sky",
+        "canonical": "oklch(0.8 0.11 235)",
+        "srgbApprox": "#71C9FA",
+        "light": {
+          "canonical": "oklch(0.5 0.13 245)",
+          "srgbApprox": "#0068A7"
+        }
       },
       "pos-f": {
         "role": "position",
-        "displayName": "Forward",
-        "canonical": "oklch(0.73544 0.10996 161.936)",
-        "srgbApprox": "#62BF94"
+        "displayName": "Forward mint",
+        "canonical": "oklch(0.83 0.12 180)",
+        "srgbApprox": "#5EE1CA",
+        "light": {
+          "canonical": "oklch(0.48 0.1 180)",
+          "srgbApprox": "#006F60"
+        }
       },
       "pos-c": {
         "role": "position",
-        "displayName": "Center",
-        "canonical": "oklch(0.77767 0.09508 82.098)",
-        "srgbApprox": "#D5B16E"
+        "displayName": "Center violet",
+        "canonical": "oklch(0.78 0.13 305)",
+        "srgbApprox": "#CBA1FA",
+        "light": {
+          "canonical": "oklch(0.5 0.16 305)",
+          "srgbApprox": "#7945AB"
+        }
+      },
+      "on-air": {
+        "role": "semantic",
+        "displayName": "On-air red",
+        "canonical": "oklch(0.56 0.2 27)",
+        "srgbApprox": "#D02C2A",
+        "light": {
+          "canonical": "oklch(0.54 0.2 27)",
+          "srgbApprox": "#C92324"
+        }
+      },
+      "on-air-ink": {
+        "role": "semantic",
+        "displayName": "Text on On-air",
+        "canonical": "oklch(0.99 0.005 30)",
+        "srgbApprox": "#FFFBFA",
+        "light": {
+          "canonical": "oklch(0.99 0.005 30)",
+          "srgbApprox": "#FFFBFA"
+        }
+      },
+      "wood": {
+        "role": "court",
+        "displayName": "Hardwood",
+        "canonical": "oklch(0.56 0.085 60)",
+        "srgbApprox": "#99683F",
+        "light": {
+          "canonical": "oklch(0.66 0.085 64)",
+          "srgbApprox": "#B78759"
+        }
+      },
+      "wood-deep": {
+        "role": "court",
+        "displayName": "Hardwood shade",
+        "canonical": "oklch(0.5 0.08 56)",
+        "srgbApprox": "#865734",
+        "light": {
+          "canonical": "oklch(0.6 0.085 60)",
+          "srgbApprox": "#A6744A"
+        }
+      },
+      "court-line": {
+        "role": "court",
+        "displayName": "Court line",
+        "canonical": "oklch(0.95 0.02 80)",
+        "srgbApprox": "#F6EDE0",
+        "light": {
+          "canonical": "oklch(0.98 0.01 80)",
+          "srgbApprox": "#FCF8F1"
+        }
+      },
+      "team-crimson": {
+        "role": "team",
+        "displayName": "Crimson",
+        "canonical": "oklch(0.55 0.19 25)",
+        "srgbApprox": "#C92F33",
+        "light": {
+          "canonical": "oklch(0.55 0.19 25)",
+          "srgbApprox": "#C92F33",
+          "groundInvariant": true
+        }
+      },
+      "team-ember": {
+        "role": "team",
+        "displayName": "Ember",
+        "canonical": "oklch(0.7 0.17 48)",
+        "srgbApprox": "#F0772D",
+        "light": {
+          "canonical": "oklch(0.7 0.17 48)",
+          "srgbApprox": "#F0772D",
+          "groundInvariant": true
+        }
+      },
+      "team-mustard": {
+        "role": "team",
+        "displayName": "Mustard",
+        "canonical": "oklch(0.82 0.15 90)",
+        "srgbApprox": "#EABF3A",
+        "light": {
+          "canonical": "oklch(0.82 0.15 90)",
+          "srgbApprox": "#EABF3A",
+          "groundInvariant": true
+        }
+      },
+      "team-lime": {
+        "role": "team",
+        "displayName": "Lime",
+        "canonical": "oklch(0.82 0.17 130)",
+        "srgbApprox": "#9FD959",
+        "light": {
+          "canonical": "oklch(0.82 0.17 130)",
+          "srgbApprox": "#9FD959",
+          "groundInvariant": true
+        }
+      },
+      "team-forest": {
+        "role": "team",
+        "displayName": "Forest",
+        "canonical": "oklch(0.52 0.12 155)",
+        "srgbApprox": "#187C49",
+        "light": {
+          "canonical": "oklch(0.52 0.12 155)",
+          "srgbApprox": "#187C49",
+          "groundInvariant": true
+        }
+      },
+      "team-teal": {
+        "role": "team",
+        "displayName": "Teal",
+        "canonical": "oklch(0.66 0.1 195)",
+        "srgbApprox": "#31A5A5",
+        "light": {
+          "canonical": "oklch(0.66 0.1 195)",
+          "srgbApprox": "#31A5A5",
+          "groundInvariant": true
+        }
+      },
+      "team-sky": {
+        "role": "team",
+        "displayName": "Sky",
+        "canonical": "oklch(0.76 0.11 235)",
+        "srgbApprox": "#64BCED",
+        "light": {
+          "canonical": "oklch(0.76 0.11 235)",
+          "srgbApprox": "#64BCED",
+          "groundInvariant": true
+        }
+      },
+      "team-royal": {
+        "role": "team",
+        "displayName": "Royal",
+        "canonical": "oklch(0.5 0.19 265)",
+        "srgbApprox": "#2C57CD",
+        "light": {
+          "canonical": "oklch(0.5 0.19 265)",
+          "srgbApprox": "#2C57CD",
+          "groundInvariant": true
+        }
+      },
+      "team-violet": {
+        "role": "team",
+        "displayName": "Violet",
+        "canonical": "oklch(0.56 0.19 300)",
+        "srgbApprox": "#8851D1",
+        "light": {
+          "canonical": "oklch(0.56 0.19 300)",
+          "srgbApprox": "#8851D1",
+          "groundInvariant": true
+        }
+      },
+      "team-magenta": {
+        "role": "team",
+        "displayName": "Magenta",
+        "canonical": "oklch(0.57 0.21 345)",
+        "srgbApprox": "#C52D93",
+        "light": {
+          "canonical": "oklch(0.57 0.21 345)",
+          "srgbApprox": "#C52D93",
+          "groundInvariant": true
+        }
+      },
+      "team-slate": {
+        "role": "team",
+        "displayName": "Slate",
+        "canonical": "oklch(0.48 0.03 255)",
+        "srgbApprox": "#525F6F",
+        "light": {
+          "canonical": "oklch(0.48 0.03 255)",
+          "srgbApprox": "#525F6F",
+          "groundInvariant": true
+        }
+      },
+      "team-sand": {
+        "role": "team",
+        "displayName": "Sand",
+        "canonical": "oklch(0.8 0.06 75)",
+        "srgbApprox": "#D5B993",
+        "light": {
+          "canonical": "oklch(0.8 0.06 75)",
+          "srgbApprox": "#D5B993",
+          "groundInvariant": true
+        }
+      },
+      "team-ink-dark": {
+        "role": "team",
+        "displayName": "Monogram dark ink",
+        "canonical": "oklch(0.2 0.03 262)",
+        "srgbApprox": "#0E1624",
+        "light": {
+          "canonical": "oklch(0.2 0.03 262)",
+          "srgbApprox": "#0E1624",
+          "groundInvariant": true
+        }
+      },
+      "team-ink-light": {
+        "role": "team",
+        "displayName": "Monogram light ink",
+        "canonical": "oklch(0.98 0.005 250)",
+        "srgbApprox": "#F6F9FC",
+        "light": {
+          "canonical": "oklch(0.98 0.005 250)",
+          "srgbApprox": "#F6F9FC",
+          "groundInvariant": true
+        }
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The one page headline. 1.875rem, stepping to 2.25rem at sm."
+        "purpose": "Barlow Condensed 700, uppercase, 0.95 line-height, 0.005em tracking (the `display` utility). Page titles (PageHeader, text-4xl stepping to text-5xl at sm), section heads (Bank, text-xl to text-2xl), team names on a scoreboard. Never a button label, a form label or a sentence."
       },
-      "code": {
-        "displayName": "Code",
-        "purpose": "The invite code, and only the invite code. Marker red at 0.36em tracking so six characters survive being read aloud across a room."
+      "figure": {
+        "displayName": "Display Figure",
+        "purpose": "Barlow Condensed 800, 0.85 line-height, tabular lining figures (the `display-figure` utility, via ScoreFigure at text-2xl / 4xl / 6xl / 7xl-8xl). The hero figure: rank, total, live score, clock in a band."
       },
-      "wordmark": {
-        "displayName": "Wordmark",
-        "purpose": "\"Eurovafliai\" in the top rail."
-      },
-      "card-name": {
-        "displayName": "Card Name",
-        "purpose": "The name written on a card — the thing that occupies a slot. Never a label about the thing."
+      "section": {
+        "displayName": "Section",
+        "purpose": "The display face at section-head size (1.5rem): the heading of a Bank."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Sentences. Tabular figures inherited from body."
+        "purpose": "Space Grotesk, 400 to 700. Every sentence, label, button and name in a list. Tabular figures from body. Caps at 65 to 75ch."
       },
       "body-small": {
         "displayName": "Body Small",
-        "purpose": "The line under a heading, an empty-state sentence, a correction's message."
+        "purpose": "Space Grotesk at 0.875rem: leads under a title, field labels (500, ink-soft), button text (700), empty-state sentences."
       },
-      "slot-label": {
+      "label": {
         "displayName": "Slot Label",
-        "purpose": "The board's own small caps and the system's workhorse: column heads, section headings, statuses, counts, slot numbers, rail links. Shipped as the slot-label utility."
-      },
-      "field-label": {
-        "displayName": "Field Label",
-        "purpose": "An input's label. Differs from a section heading downward — same ink, lighter weight, tighter tracking — never by contrast."
-      },
-      "action-label": {
-        "displayName": "Action Label",
-        "purpose": "Button text."
+        "purpose": "Space Grotesk 600, 0.75rem, uppercase, 0.06em tracking, ink-soft (the `slot-label` utility). Column heads, statuses, counts and short context lines."
       },
       "stat": {
         "displayName": "Stat",
-        "purpose": "Figures that live in a column — the PIR column, a standings run, the clock, a box score. JetBrains Mono at 500, tabular, slightly tightened. Never prose, and never a name."
+        "purpose": "JetBrains Mono, tabular (the `stat` utility, the only door to the mono face). Figures read down a column. Sets family and figure style only; weight and tracking stay with the caller. Never prose, never a name."
+      },
+      "roll-clock": {
+        "displayName": "Roll Clock",
+        "purpose": "JetBrains Mono 500 at 5rem, line-height 1, -0.03em: the draft roll's countdown only, read from the far end of a sofa."
       }
     },
     "shadows": [],
     "motion": [
       {
+        "name": "ease-broadcast",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "The one curve (ease-out-quint), --ease-broadcast. Every moment and every board event runs on it."
+      },
+      {
         "name": "card-lands",
         "value": "card-lands 260ms cubic-bezier(0.22, 1, 0.36, 1) both",
-        "purpose": "A card landing in its slot: opacity 0 and translateY(-0.375rem) to rest. Plays only on the row that genuinely just arrived, keyed off the ?arrived=1 that the create and join actions set."
-      },
-      {
-        "name": "reduced-motion",
-        "value": "@media (prefers-reduced-motion: reduce) { animation: none }",
-        "purpose": "Guarded inside the card-lands utility itself, not at each call site, so a new caller cannot forget. The state change still lands; only the travel is dropped."
-      },
-      {
-        "name": "transition-colors",
-        "value": "150ms (Tailwind default)",
-        "purpose": "Hover and focus colour changes on interactive elements. Not animation; permitted everywhere interactive."
+        "purpose": "A card landing in its slot: opacity 0 and translateY(-0.375rem) to rest. Guarded for reduced motion inside the utility."
       },
       {
         "name": "rule-advances",
         "value": "rule-advances 260ms cubic-bezier(0.22, 1, 0.36, 1) both, on ::after",
-        "purpose": "The marker rule leaving the slot that was on the clock and drawing itself across the next one. Painted by a pseudo-element because a border cannot be scaled from one end, and from the right on a slot carrying data-reversed, because every even round of a snake draft is drafted right to left. Keyed on data-advanced, set by board-scroll.tsx only when this viewer was watching."
+        "purpose": "The live rule drawing itself across the slot now on the clock; from the right on data-reversed (even snake rounds). Keyed on data-advanced."
       },
       {
         "name": "pick-springs",
-        "value": "pick-springs 320ms cubic-bezier(0.22, 1, 0.36, 1) both — scale 0.86 → 1.04 → 0.99 → 1",
-        "purpose": "Phase 10's third and final animation event: the slot the marker just left, springing shut on the pick it has taken. The same state change as rule-advances seen from the other end, which is why it is not a fourth event. The overshoot is in the keyframes so the app keeps one curve; it is 4% because the board's 1px ruling IS the state language. Only a slot that FILLED (a rollback empties one), only one slot (an autodraft burst moves the marker three places), never on a first paint. Keyed on data-landed, guarded inside the rule."
+        "value": "pick-springs 320ms cubic-bezier(0.22, 1, 0.36, 1) both; scale 0.86 to 1.04 to 0.99 to 1",
+        "purpose": "The slot the marker just left springing shut on its pick. Only a slot that filled, only one slot, never on first paint. Keyed on data-landed."
+      },
+      {
+        "name": "slot-drawn",
+        "value": "slot-drawn 900ms cubic-bezier(0.22, 1, 0.36, 1) both",
+        "purpose": "The roll drawing a draft slot: translateY(0.875rem) and opacity 0 to rest."
+      },
+      {
+        "name": "overtake",
+        "value": "overtake 700ms var(--ease-broadcast) both, overtake-flash 1400ms ease-out 500ms both",
+        "purpose": "Moment: your row slides up past the team you passed, then flashes a gain wash. Keyed on league + round + new rank."
+      },
+      {
+        "name": "crown",
+        "value": "crown-drop 800ms var(--ease-broadcast) both; with sweep: gold-sweep 1100ms var(--ease-broadcast) 350ms both",
+        "purpose": "Moment: the round winner's crest gets a dropped crown and a gold sweep. Keyed on league + round."
+      },
+      {
+        "name": "stamp",
+        "value": "stamp 420ms var(--ease-broadcast) 250ms both",
+        "purpose": "Moment: a deal card stamped WINNING / LOSING (verdict-stamp). Keyed on deal + verdict."
+      },
+      {
+        "name": "spoon",
+        "value": "spoon-swing 1200ms var(--ease-broadcast) 300ms both",
+        "purpose": "Moment: the round's last place gets a swinging wooden spoon. Keyed on league + round."
+      },
+      {
+        "name": "badge",
+        "value": "badge-flip 620ms var(--ease-broadcast) both",
+        "purpose": "Moment: an earned streak badge flips in. Keyed on league + badge + holder."
+      },
+      {
+        "name": "lower-third",
+        "value": "wipe-in 520ms var(--ease-broadcast) both; body rise-in 520ms var(--ease-broadcast) 260ms both",
+        "purpose": "Moment: draft night's 'pick is in' wipe across every screen. Keyed on pick number."
+      },
+      {
+        "name": "stat-tick",
+        "value": "stat-tick 1600ms var(--ease-broadcast) both",
+        "purpose": "A box-score figure the feed just changed: a gain wash that fades, once."
+      },
+      {
+        "name": "on-air-pulse",
+        "value": "on-air-pulse 1.6s ease-in-out infinite",
+        "purpose": "The dot beside the word LIVE on the on-air badge. The one looping animation; off under reduced motion."
+      },
+      {
+        "name": "float-in",
+        "value": "float-in 160ms (tips) / 180ms (popover-rise, popover-drop) var(--ease-broadcast) both",
+        "purpose": "Small things opening over the page settle in from 4 to 6px."
+      },
+      {
+        "name": "transition-colors",
+        "value": "150ms (Tailwind default)",
+        "purpose": "Hover and focus colour changes on interactive elements."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce): every moment to its end state, every named animation none, transition-duration 0.01ms globally",
+        "purpose": "Moments play once per viewer (Moment sets data-playing only when this viewer has not seen the id); the server renders the end state, so a reload and reduced motion are both still."
       }
     ],
     "breakpoints": [
@@ -185,156 +548,232 @@
       {
         "name": "lg",
         "value": "64rem",
-        "purpose": "The draft room only, since 10.9: the measure opens to 80rem and the room splits acting (pool) from watching (radar, board, console, chat). No other surface uses it, and there is no md or xl."
+        "purpose": "The app shell's sidebar (on stock-sunk) replaces the phone tab bar; wide measures open to 80rem."
+      },
+      {
+        "name": "xl",
+        "value": "80rem",
+        "purpose": "The optional side panel."
+      },
+      {
+        "name": "2xl",
+        "value": "96rem",
+        "purpose": "The broad measure only: a game's two box scores side by side up to 110rem."
       }
     ],
     "containers": [
       {
         "name": "column",
         "value": "48rem",
-        "purpose": "Focused forms and reading surfaces."
+        "purpose": "Forms and reading surfaces."
       },
       {
         "name": "wide",
-        "value": "80rem",
-        "purpose": "Lineup, matchday, team, pool, trades, standings, recap and draft beside the sidebar."
+        "value": "48rem, 80rem from lg",
+        "purpose": "League views."
+      },
+      {
+        "name": "broad",
+        "value": "48rem, 80rem from lg, 110rem from 2xl",
+        "purpose": "A game's two box scores side by side."
       }
     ],
     "contrastFloors": [
       {
-        "scope": "text and position colours on the ground (stock)",
+        "scope": "ink, ink-soft, ink-faint, live, gain, loss, gold, pos-g/f/c and rail on stock, stock-panel, stock-high and stock-sunk, on both grounds",
         "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "meaningful non-text boundaries (rule, rail) on the ground",
+        "scope": "rule and rule-strong on every surface, both grounds; rule-strong heavier than rule",
         "floor": "3:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "text and position colours on stock-panel",
+        "scope": "live-ink on live (the primary action's label); on-air-ink on on-air (the LIVE word)",
         "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "rule and rule-strong on stock-panel",
-        "floor": "3:1 (measured 3.15:1 — the panel is LIGHTER than the ground, so it is the binding surface, not the ground)",
+        "scope": "live at 80% as a border on stock",
+        "floor": "3:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "rule-strong versus rule",
-        "floor": "> 1.3x the contrast of rule (measured 1.36x)",
+        "scope": "ink, ink-soft, ink-faint and live on live-sunk; live-sunk a visible step off stock (> 1.1:1)",
+        "floor": "4.5:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "chalk on the live field (live-sunk)",
-        "floor": "4.5:1 (measured 11.93:1)",
+        "scope": "position letters on their own 10% wash; ink and ink-soft on a position slot over stock and panel; rule-strong on a position slot",
+        "floor": "4.5:1 (text), 3:1 (rule)",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "faint chalk on the live field",
-        "floor": "4.5:1 (measured 4.61:1) — this pairing is what FIXES live-sunk's lightness; a lighter bay puts a muted pool row under the floor",
+        "scope": "stock-high against stock-panel",
+        "floor": "> 1.05:1",
         "enforcedBy": "src/app/tokens.test.ts"
       },
       {
-        "scope": "live-sunk itself",
-        "floor": "none, deliberately — a background against a background, where the boundary carries the state",
-        "enforcedBy": "documented in src/app/tokens.test.ts"
+        "scope": "dark ground: ink on stock",
+        "floor": "between 12:1 and 17.5:1 (halation ceiling)",
+        "enforcedBy": "src/app/tokens.test.ts"
+      },
+      {
+        "scope": "team crest monogram ink on every team colour",
+        "floor": "4.5:1",
+        "enforcedBy": "src/app/tokens.test.ts"
+      },
+      {
+        "scope": "both grounds declare every measured token exactly once and their own color-scheme",
+        "floor": "completeness",
+        "enforcedBy": "src/app/tokens.test.ts"
       }
     ]
   },
   "components": [
     {
-      "name": "App shell",
-      "kind": "layout",
-      "refersTo": "AppShell",
-      "description": "Persistent sidebar with distinct League, Drafts, EuroLeague and Manage groups; five mobile destinations.",
-      "html": "<aside aria-label=\"Main navigation\">...</aside><main>...</main>",
-      "css": "background: var(--color-stock);"
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "SubmitButton tone=\"live\": the one filled accent on a surface.",
+      "html": "<button class=\"ds-btn-live\" data-tone=\"live\">Make pick</button>",
+      "css": ".ds-btn-live { min-height: 2.75rem; padding: 0.625rem 1rem; border: 1px solid var(--color-live); border-radius: 0.5rem; background: var(--color-live); color: var(--color-live-ink); font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.25rem; font-weight: 700; cursor: pointer; transition: filter 150ms; } .ds-btn-live:hover { filter: brightness(1.1); } .ds-btn-live:active { filter: brightness(0.95); } .ds-btn-live:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; } .ds-btn-live:disabled { opacity: 0.6; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "SubmitButton tone=\"ink\": outlined, everything that is not the one act.",
+      "html": "<button class=\"ds-btn-ink\" data-tone=\"ink\">Save sheet</button>",
+      "css": ".ds-btn-ink { min-height: 2.75rem; padding: 0.625rem 1rem; border: 1px solid var(--color-rule-strong); border-radius: 0.5rem; background: transparent; color: var(--color-ink); font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.25rem; font-weight: 700; cursor: pointer; transition: border-color 150ms, background-color 150ms; } .ds-btn-ink:hover { border-color: var(--color-ink-soft); } .ds-btn-ink:active { background: color-mix(in oklab, var(--color-ink) 5%, transparent); } .ds-btn-ink:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; } .ds-btn-ink:disabled { opacity: 0.6; cursor: not-allowed; }"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "Field + inputStyles",
+      "description": "A boxed field on stock; label in Space Grotesk 500 ink-soft above it.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Team name</span><input class=\"ds-input\" placeholder=\"Waffle Kings\"></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.375rem; } .ds-field-label { font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; color: var(--color-ink-soft); } .ds-input { min-height: 2.75rem; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--color-rule); border-radius: 0.5rem; background: var(--color-stock); color: var(--color-ink); font-size: 1rem; line-height: 1.5rem; } .ds-input::placeholder { color: var(--color-ink-faint); } .ds-input:focus { border-color: var(--color-live); outline: 2px solid color-mix(in oklab, var(--color-live) 40%, transparent); outline-offset: 0; }"
+    },
+    {
+      "name": "Filter pill",
+      "kind": "chip",
+      "refersTo": "FilterToggle",
+      "description": "A pressed pill fills with ink; an unpressed one is ruled.",
+      "html": "<button class=\"ds-pill\" aria-pressed=\"true\">G</button><button class=\"ds-pill\" aria-pressed=\"false\">F</button>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; min-width: 2.75rem; padding: 0 0.875rem; border: 1px solid var(--color-rule); border-radius: 9999px; background: transparent; color: var(--color-ink-soft); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: color 150ms, border-color 150ms; } .ds-pill:hover { border-color: var(--color-ink-soft); color: var(--color-ink); } .ds-pill[aria-pressed=\"true\"] { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-stock); } .ds-pill:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }"
     },
     {
       "name": "Framed panel",
-      "kind": "container",
-      "refersTo": "Bank",
-      "description": "Quiet slate surface with one panel border and a small corner.",
-      "html": "<section aria-labelledby=\"panel-title\">...</section>",
-      "css": "background: var(--color-stock-panel); border: 1px solid var(--color-panel-border); border-radius: 0.375rem;"
+      "kind": "card",
+      "refersTo": "Bank (bank-framed)",
+      "description": "Level 1 of the depth scale: groups a task. Display-face heading. Never a panel inside a panel.",
+      "html": "<section class=\"ds-bank\"><h2 class=\"ds-bank-title\">Your roster</h2><p class=\"ds-bank-body\">Thirteen places, five guards, five forwards, three centers.</p></section>",
+      "css": ".ds-bank { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 1px solid var(--color-panel-border); border-radius: 0.875rem; background: var(--color-stock-panel); color: var(--color-ink); } .ds-bank-title { margin: 0; font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.005em; line-height: 0.95; font-size: 1.5rem; } .ds-bank-body { margin: 0; font-size: 0.875rem; color: var(--color-ink-soft); }"
     },
     {
-      "name": "Lineup court",
-      "kind": "interactive",
-      "refersTo": "LineupCourt",
-      "description": "Fixed-ratio half court with separate center, forward and guard rows. Tap a player, then a valid place to move or swap.",
-      "html": "<div role=\"group\" aria-label=\"Starting five on a basketball half court\">...</div>",
-      "css": "aspect-ratio: 1.18; max-width: 38rem;"
+      "name": "Card block",
+      "kind": "card",
+      "refersTo": "CardBlock (card-block / card-block-live / card-block-waiting)",
+      "description": "One subject: filled on panel stock, live in a 2px accent border on the accent field, waiting dashed and unfilled.",
+      "html": "<div class=\"ds-block\">Filled</div><div class=\"ds-block ds-block-live\">On the clock</div><div class=\"ds-block ds-block-waiting\">Open place</div>",
+      "css": ".ds-block { padding: 0.75rem; border: 1px solid var(--color-panel-border); border-radius: 0.625rem; background: var(--color-stock-panel); color: var(--color-ink); font-weight: 600; margin-bottom: 0.5rem; } .ds-block-live { padding: calc(0.75rem - 1px); border: 2px solid var(--color-live); background: var(--color-live-sunk); } .ds-block-waiting { border: 1px dashed var(--color-rule); background: transparent; color: var(--color-ink-faint); }"
     },
     {
-      "name": "Player pool browser",
-      "kind": "interactive",
-      "refersTo": "PoolBrowser",
-      "description": "Searchable and filterable player list with visible position, club and availability.",
-      "html": "<section aria-labelledby=\"find-player\">...</section>",
-      "css": "min-height: 44px for controls;"
+      "name": "Board slots",
+      "kind": "custom",
+      "refersTo": "Slot (slot-waiting / slot-filled / slot-live / slot-standing / slot-correction / slot-transit)",
+      "description": "The state language in the row's own ruling: dashed is unsettled, solid is settled, the 2px accent is who is on the clock.",
+      "html": "<ol class=\"ds-slots\"><li class=\"ds-slot ds-slot-filled\">1 · Filled</li><li class=\"ds-slot ds-slot-live\">2 · On the clock</li><li class=\"ds-slot ds-slot-waiting\">3 · Waiting</li><li class=\"ds-slot ds-slot-standing\">4 · Paused</li></ol>",
+      "css": ".ds-slots { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--color-rule-strong); color: var(--color-ink); } .ds-slot { min-height: 2.75rem; padding: 0.75rem; font-size: 0.875rem; } .ds-slot-filled { border-top: 1px solid var(--color-rule-strong); } .ds-slot-live { border-top: 2px solid var(--color-live); background: var(--color-live-sunk); } .ds-slot-waiting { border-top: 1px dashed var(--color-rule); } .ds-slot-standing { border-top: 2px dashed var(--color-live); }"
     },
     {
-      "name": "Comparison drawer",
-      "kind": "dialog",
-      "refersTo": "PlayerComparison",
-      "description": "Keyboard-accessible side drawer with stored game and fixture data. Missing values stay explicit.",
-      "html": "<dialog aria-labelledby=\"comparison-title\">...</dialog>",
-      "css": "background: var(--color-stock-panel); border-left: 1px solid var(--color-panel-border);"
+      "name": "Status badge",
+      "kind": "chip",
+      "refersTo": "StatusBadge",
+      "description": "A state with its word printed on it: OUT, DOUBTFUL, LIVE (on-air with a pulsing dot), FINAL, PROVISIONAL (dashed), SCHEDULED.",
+      "html": "<span class=\"ds-badge ds-badge-live\"><span class=\"ds-dot\"></span>Live</span> <span class=\"ds-badge ds-badge-out\">Out</span> <span class=\"ds-badge ds-badge-provisional\">Provisional</span> <span class=\"ds-badge ds-badge-final\">Final</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-size: 0.6875rem; line-height: 1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; } .ds-badge-live { background: var(--color-on-air); color: var(--color-on-air-ink); } .ds-badge-out { background: color-mix(in oklab, var(--color-loss) 15%, transparent); color: var(--color-loss); } .ds-badge-provisional { border: 1px dashed var(--color-rule-strong); color: var(--color-ink-soft); } .ds-badge-final { background: var(--color-stock-high); color: var(--color-ink-soft); } .ds-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; animation: ds-pulse 1.6s ease-in-out infinite; } @keyframes ds-pulse { 50% { opacity: 0.35; } } @media (prefers-reduced-motion: reduce) { .ds-dot { animation: none; } }"
     },
     {
-      "name": "Matchday status",
-      "kind": "status",
-      "refersTo": "MatchdayLive",
-      "description": "Names provisional, final, stale and unavailable states, with the last official feed check.",
-      "html": "<p role=\"status\">...</p>",
-      "css": "color: var(--color-ink-soft);"
+      "name": "Position patch",
+      "kind": "chip",
+      "refersTo": "PositionPatch",
+      "description": "The letter always printed; an opaque 10% tint mixed into stock, never an alpha wash.",
+      "html": "<span class=\"ds-patch ds-patch-g\">G</span> <span class=\"ds-patch ds-patch-f\">F</span> <span class=\"ds-patch ds-patch-c\">C</span>",
+      "css": ".ds-patch { display: inline-flex; align-items: baseline; padding: 0.125rem 0.375rem; border: 1px solid; border-radius: 0.375rem; font-size: 0.75rem; line-height: 1rem; font-weight: 700; } .ds-patch-g { color: var(--color-pos-g); border-color: color-mix(in oklab, var(--color-pos-g) 80%, transparent); background: color-mix(in oklab, var(--color-pos-g) 10%, var(--color-stock)); } .ds-patch-f { color: var(--color-pos-f); border-color: color-mix(in oklab, var(--color-pos-f) 80%, transparent); background: color-mix(in oklab, var(--color-pos-f) 10%, var(--color-stock)); } .ds-patch-c { color: var(--color-pos-c); border-color: color-mix(in oklab, var(--color-pos-c) 80%, transparent); background: color-mix(in oklab, var(--color-pos-c) 10%, var(--color-stock)); }"
+    },
+    {
+      "name": "Team field with crest and score",
+      "kind": "custom",
+      "refersTo": "TeamCrest + teamFieldStyle + ScoreFigure",
+      "description": "A member's colour fading into the panel, the crest monogram beside the team name, the hero figure in the display face.",
+      "html": "<div class=\"ds-teamfield\"><span class=\"ds-crest\" aria-hidden=\"true\">WK</span><span class=\"ds-teamname\">Waffle Kings</span><span class=\"ds-figure\">412</span></div>",
+      "css": ".ds-teamfield { --team: var(--color-team-ember); display: flex; align-items: center; gap: 0.75rem; padding: 1rem; border-radius: 0.875rem; color: var(--color-ink); background-image: linear-gradient(100deg, color-mix(in oklab, var(--team) 34%, var(--color-stock)) 0%, color-mix(in oklab, var(--team) 12%, var(--color-stock-panel)) 58%, var(--color-stock-panel) 100%); } .ds-crest { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--team); color: var(--color-team-ink-dark); font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; box-shadow: inset 0 0 0 0.175rem color-mix(in oklab, var(--color-team-ink-dark) 35%, transparent); } .ds-teamname { flex: 1; font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 1.5rem; line-height: 0.95; } .ds-figure { font-family: var(--font-display); font-weight: 800; font-size: 3.75rem; line-height: 0.85; font-variant-numeric: tabular-nums lining-nums; }"
     }
   ],
   "narrative": {
-    "northStar": "A slate basketball arena for preparing a five, following a game, and reviewing the league.",
-    "overview": "The approved 2026 arena interface keeps separate sidebar sections and a five-destination phone bar. Structure and typography stay quiet; cyan, emerald, crimson and gold each have a specific state job. See DESIGN.md current contract and ADR-0009.",
+    "northStar": "A matchnight broadcast for one friends' EuroLeague draft league.",
+    "overview": "Friends on a couch at 20:00 CET with the game on the TV, phones in hand; a quick check on the way to work the morning after. The app reads like the scoreboard graphic in the same room: dense where density is honest, calm until something happens, and loud for a moment when something does. Restrained neutrals with one accent, Tip-off orange, plus a full palette of team colours that carry identity, on two grounds (dark default, light) solved against the same floors. The contract is ADR-0011 and DESIGN.md; src/app/globals.css is the source of truth for every rendered value.",
     "keyCharacteristics": [
-      "Slate canvas and framed panels with small control corners, no decorative glow or gradients.",
-      "A fixed-ratio half court with distinct centers, forwards and guards and five legal G/F/C formations.",
-      "Cyan for active state, emerald for gain, crimson for injury or loss, gold for captaincy and caution.",
-      "Sidebar sections remain distinct; phone tabs are Lineup, Players, Matchday, League and More.",
-      "Provisional matchday values display freshness and defer to final stored scores."
+      "Lead with the answer: each page's most important fact is its hero, at scoreboard size, on first load at 390px.",
+      "Teams are people: a member's crest (colour, shape, monogram) sits beside their team name everywhere the name appears.",
+      "Celebrate changes, not pages: a moment plays when something changed that this viewer has not seen, then holds still.",
+      "Colour has a word: no state, position or identity is carried by colour alone.",
+      "Server truth, provisional honesty: live figures say provisional and when they were checked."
     ],
     "rules": [
       {
-        "name": "Color has a job",
-        "body": "Always pair status color with text, numbers, or shapes. Position badges always print G, F, or C.",
+        "name": "The one act",
+        "body": "A surface has at most one filled accent button. Everything else is secondary (outlined) or quiet (text).",
         "section": "colors"
       },
       {
-        "name": "One lineup state",
-        "body": "Court, grid, captain, substitutions and formation controls edit the same lineup. Recording remains an explicit server action.",
-        "section": "components"
+        "name": "Opaque patches",
+        "body": "A position patch mixes its tint into stock rather than using an alpha wash, so its letter reads the same on any row.",
+        "section": "colors"
       },
       {
-        "name": "Live honesty",
-        "body": "Name scheduled, in-play, stale, unavailable, provisional and final states. Finished-game snapshots are authoritative.",
-        "section": "components"
+        "name": "Atmosphere is named",
+        "body": "Gradients and textures exist only as utilities: team-field, lattice, hardwood, waffle-mark. Never a one-off gradient, glow or glass blur in a component.",
+        "section": "colors"
       },
       {
-        "name": "Small corners",
-        "body": "Use small control corners and circular player markers. Avoid decorative shadows, gradients, glows and nested cards.",
+        "name": "No side stripes",
+        "body": "A coloured border-left on a card or row is refused; use the crest, a badge or a patch.",
+        "section": "colors"
+      },
+      {
+        "name": "Display is not a label",
+        "body": "Display type is never a button label, a form label or a sentence. Headlines step 1.25x or more above the next level; body copy caps at 65 to 75ch.",
+        "section": "typography"
+      },
+      {
+        "name": "Never a panel inside a panel",
+        "body": "bank-framed groups a task; card-block groups a subject. Both are level 1; nothing floats, there is no shadow token.",
         "section": "elevation"
+      },
+      {
+        "name": "One curve, end state under reduced motion",
+        "body": "Every moment runs on --ease-broadcast and plays once per viewer; under prefers-reduced-motion every moment is its end state.",
+        "section": "components"
       }
     ],
     "dos": [
-      "Keep 44px touch targets and visible keyboard focus.",
-      "Use a fixed-ratio court and test phone and desktop widths.",
-      "Label locally saved edits and missing comparison data explicitly.",
-      "Respect reduced motion."
+      "Lead with the answer.",
+      "Print the word beside every colour.",
+      "Put the crest beside every team name.",
+      "Keep one filled accent per surface.",
+      "Measure every new colour pair in both grounds."
     ],
     "donts": [
-      "Do not introduce salary-cap credits, vice-captains or a trade cart.",
-      "Do not use E2025 as a selectable fantasy season.",
-      "Do not present an unverified live feed as final."
+      "Don't put a form above a page's content.",
+      "Don't animate on page load.",
+      "Don't use display type for labels.",
+      "Don't add a gradient outside the named utilities.",
+      "Don't use a coloured side stripe.",
+      "Don't call anything final before the finished-game pipeline says so."
     ],
     "openQuestions": []
   }

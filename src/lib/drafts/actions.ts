@@ -17,7 +17,7 @@ import {
   isLegalPick,
   whoIsOnClock,
   type Position,
-} from "@/lib/engine";
+} from "@eurovafliai/core/engine";
 import { isManager } from "@/lib/leagues/lobby";
 import {
   MAX_PICK_SECONDS,

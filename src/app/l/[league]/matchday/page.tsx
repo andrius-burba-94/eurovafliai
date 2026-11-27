@@ -24,13 +24,13 @@ import { ROLE_MULTIPLIERS, ROLE_WORDS } from "@/lib/lineups/lineup";
 import { readLineupBoard } from "@/lib/lineups/queries";
 import { readMatchdayData } from "@/lib/live/queries";
 import { gameStateOf, inLiveWindow, liveCheckedAt, playerRoundOf, statLineOf, type GameState } from "@/lib/live/status";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { ordinal } from "@/lib/season/story";
-import { formatHundredths } from "@/lib/stats/scoring";
-import { stylesById } from "@/lib/teams/identity";
+import { formatHundredths } from "@eurovafliai/core/tenths";
+import { stylesById } from "@eurovafliai/core/teams/identity";
 import { formatClock } from "@/lib/time/local";
-import { gameHref, leagueHref } from "@/lib/nav/urls";
-import { leagueSource } from "@/lib/positions";
+import { gameHref, leagueHref } from "@eurovafliai/core/nav/urls";
+import { leagueSource } from "@eurovafliai/core/positions";
 import { clubLabel } from "@/lib/clubs/labels";
 
 /** The regular season's rounds; the stepper walks them. */

@@ -4,7 +4,7 @@ import { ROLE_MULTIPLIERS } from "@/lib/lineups/lineup";
 import { displayName, surname } from "@/lib/players/name";
 import { memberHonours, ON_FIRE_STREAK, type MemberHonours } from "@/lib/season/badges";
 import { movementOf, neighboursOf, ordinal } from "@/lib/season/story";
-import { formatHundredths, formatSignedHundredths, formatTenths } from "@/lib/stats/scoring";
+import { formatHundredths, formatSignedHundredths, formatTenths } from "@eurovafliai/core/tenths";
 
 import { analyseRound, byId, type Night } from "./round-analysis";
 import { CAPTAIN_REGRET, MOVED_PLACES, type RoundFactsInput } from "./round-facts";

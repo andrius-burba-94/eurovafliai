@@ -4,8 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import { createUserClient } from "@/lib/pb/server";
 
 import type { PlayerSource, PlayerStatus, RosterAuthority } from "./types";
-import type { Position } from "@/lib/engine";
-import { leaguePosition, type LeagueSource } from "@/lib/positions";
+import type { Position } from "@eurovafliai/core/engine";
+import { leaguePosition, type LeagueSource } from "@eurovafliai/core/positions";
 import { averagePirOf, type ProjectionFields } from "@/lib/stats/project";
 
 /**

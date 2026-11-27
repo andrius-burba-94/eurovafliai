@@ -14,11 +14,11 @@ import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
 import { readLeagueDeals, type DealSide, type LeagueDeal } from "@/lib/memberships/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
-import { formatSignedTenths } from "@/lib/stats/scoring";
-import { stylesById } from "@/lib/teams/identity";
-import { leagueHref } from "@/lib/nav/urls";
-import { leagueSource } from "@/lib/positions";
+import { navLeagueFrom } from "@/lib/nav/league";
+import { formatSignedTenths } from "@eurovafliai/core/tenths";
+import { stylesById } from "@eurovafliai/core/teams/identity";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
+import { leagueSource } from "@eurovafliai/core/positions";
 
 /**
  * Trades (ADR-0011): who is winning the market, then every move on a round

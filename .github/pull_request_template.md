@@ -12,7 +12,7 @@
 - [ ] **`docs/STATUS.md` updated** — slice state, and anything this PR deferred
 - [ ] Schema changes are **migration files** in `pb/pb_migrations/`, committed here
 - [ ] Multi-write server actions state their **failure-recovery story** below
-- [ ] Engine code (`src/lib/engine/`) has **zero PocketBase imports** and new tests
+- [ ] Engine code (`packages/core/src/engine/`) has **zero PocketBase imports** and new tests
 - [ ] `.env.example` updated if a new env var was added
 
 ### UI slices only

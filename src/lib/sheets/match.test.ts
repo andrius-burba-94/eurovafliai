@@ -4,7 +4,7 @@ import { normalizeName } from "@/lib/rosters/normalize";
 
 import { matchSheet, resolveSheet, type MatchablePlayer } from "./match";
 import { parseCheatSheet } from "./parse";
-import { tierOfRank } from "./ranking";
+import { tierOfRank } from "@eurovafliai/core/sheets/ranking";
 
 /**
  * The pool these tests match against — real names, because the failure modes

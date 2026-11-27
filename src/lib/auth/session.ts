@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { serverConfig } from "@/lib/config/server";
 import { createUserClient } from "@/lib/pb/server";
@@ -37,10 +37,18 @@ export type Session = {
  * record so pages can render a name without a second fetch. The refreshed token
  * is deliberately discarded — cookies cannot be set during render, and the
  * cookie's own token stays valid until it expires anyway.
+ *
+ * The token comes from the session cookie (the browser) or, failing that, an
+ * `Authorization: Bearer` header (the phone app, which has no cookie). Both are
+ * the same PocketBase user token and get the same `authRefresh()`, so every
+ * read that asks for the session serves `/api/v1` unchanged. A browser never
+ * attaches a bearer header on its own, so accepting one opens no CSRF door.
  */
 export const getSession = cache(async (): Promise<Session | null> => {
   const cookieStore = await cookies();
-  const token = cookieStore.get(serverConfig().SESSION_COOKIE_NAME)?.value;
+  const token =
+    cookieStore.get(serverConfig().SESSION_COOKIE_NAME)?.value ??
+    bearerToken((await headers()).get("authorization"));
   if (!token) return null;
 
   const pb = createUserClient(token);
@@ -71,4 +79,10 @@ export async function requireSession(): Promise<Session> {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized: no valid session");
   return session;
+}
+
+/** The token in an `Authorization: Bearer <token>` header, or undefined. */
+export function bearerToken(header: string | null): string | undefined {
+  const match = /^Bearer\s+(\S+)$/i.exec(header?.trim() ?? "");
+  return match?.[1];
 }

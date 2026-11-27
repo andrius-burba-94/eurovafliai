@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 
 import { RoundLadder } from "@/components/round-ladder";
 import { PositionPatch } from "@/components/board";
-import { countByPosition, type Position } from "@/lib/engine";
-import { navFor } from "@/lib/nav/items";
-import { leaguePosition } from "@/lib/positions";
+import { countByPosition, type Position } from "@eurovafliai/core/engine";
+import { navFor } from "@eurovafliai/core/nav/items";
+import { leaguePosition } from "@eurovafliai/core/positions";
 import { normalizeName } from "@/lib/rosters/normalize";
-import { formatHundredths } from "@/lib/stats/scoring";
+import { formatHundredths } from "@eurovafliai/core/tenths";
 import { snapshotRowsFrom } from "@/lib/stats/standings";
 import { fakePb, type FakeDb } from "../../../tests/unit/helpers/fake-pb";
 

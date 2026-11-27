@@ -60,6 +60,7 @@ is at `http://localhost:3007` — `localhost`, not `127.0.0.1`, for Google's sak
 
 ```
 Browser ──HTTPS──> Nginx ──> Next.js 16 (PM2, :3007)   all WRITES via server actions
+Phone app ─HTTPS──┘           /api/v1 (D29): the same functions, bearer token
                      └──/pb/──> PocketBase (systemd, 127.0.0.1:8095)
                                  realtime SSE ──> browsers subscribe
                           Worker (PM2, same repo): pick timers, autodraft,
@@ -70,7 +71,7 @@ Non-negotiables (details in the skills below):
 
 1. **Server-authoritative draft state.** Clients render and request; they never
    decide whose turn it is or that a timer expired.
-2. **The engine library is pure.** `src/lib/engine/` has zero PocketBase
+2. **The engine library is pure.** `packages/core/src/engine/` has zero PocketBase
    imports and no I/O — it is shared by server actions and the worker, and it is
    the most heavily tested code in the repo.
 3. **PocketBase has no transactions.** Validate-then-write, unique indexes as
@@ -92,6 +93,7 @@ Non-negotiables (details in the skills below):
 | Product intent, users, principles | `PRODUCT.md` |
 | Design system: tokens, components, the state language | `DESIGN.md` (+ `.impeccable/design.json`) |
 | Next.js 16 specifics | `AGENTS.md` → `node_modules/next/dist/docs/` |
+| The phone app: plan, decisions, slices | `docs/mobile/plan-step-0.md` |
 
 ## Skills in this repo
 

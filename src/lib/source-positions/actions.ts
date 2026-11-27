@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/session";
-import { GAME_NAMES, POSITION_WORD } from "@/lib/positions";
+import { GAME_NAMES, POSITION_WORD } from "@eurovafliai/core/positions";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { getSafeActionError } from "@/lib/safe-error";
 import type { MappingResult } from "@/lib/mapping/actions";

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { TeamCrest } from "@/components/broadcast";
 import { Menu } from "@/components/menu";
 import { ordinal } from "@/lib/season/story";
-import type { CrestShape, TeamColor } from "@/lib/teams/identity";
+import type { CrestShape, TeamColor } from "@eurovafliai/core/teams/identity";
 
 export type SwitchTeam = {
   readonly id: string;

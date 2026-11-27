@@ -1,4 +1,4 @@
-import type { Position } from "@/lib/engine";
+import type { Position } from "./engine";
 
 /**
  * Position words, and how to say a run of them.

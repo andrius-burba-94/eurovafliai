@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers, resolveLeagueId } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { getCheatSheetView } from "@/lib/sheets/queries";
 import { SEED_DEPTH } from "@/lib/sheets/seed";
 

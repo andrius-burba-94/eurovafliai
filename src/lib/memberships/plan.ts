@@ -11,7 +11,7 @@ import {
   rosterSize,
   type Position,
   type RosterTemplate,
-} from "@/lib/engine";
+} from "@eurovafliai/core/engine";
 
 export type Seat = {
   readonly id: string;

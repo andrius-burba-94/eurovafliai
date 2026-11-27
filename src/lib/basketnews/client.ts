@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 
 /** BasketNews uses GraphQL, not the Fantaking REST API in `fantasy/client.ts`. */

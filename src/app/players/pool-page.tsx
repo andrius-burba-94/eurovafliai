@@ -12,7 +12,7 @@ import { getSession } from "@/lib/auth/session";
 import { countMappingQueue } from "@/lib/mapping/queries";
 import { EMPTY_QUEUE, queueTotal } from "@/lib/mapping/queue";
 import { canManageRosters } from "@/lib/rosters/actions";
-import type { NavLeague } from "@/lib/nav/items";
+import type { NavLeague } from "@eurovafliai/core/nav/items";
 import { getPool } from "@/lib/rosters/queries";
 
 import { PoolBrowser } from "./pool-browser";

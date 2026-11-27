@@ -4,11 +4,11 @@ import {
   DRAFTABLE_PLAYERS_FILTER,
   isUniqueViolation,
 } from "@/lib/drafts/pipeline";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { averagePirOf, type ProjectionFields } from "@/lib/stats/project";
 
 import type { MatchablePlayer } from "./match";
-import type { SheetRanking } from "./ranking";
+import type { SheetRanking } from "@eurovafliai/core/sheets/ranking";
 import type { RankablePlayer } from "./seed";
 
 /**

@@ -26,6 +26,6 @@ fi
 npx eslint -- "${files[@]}"
 
 if git diff --cached --name-only --diff-filter=ACMR |
-  grep -Eq '^(src/lib/engine|src/lib/drafts|src/worker)/'; then
-  npm test -- src/lib/engine src/lib/drafts src/worker
+  grep -Eq '^(packages/core/src|src/lib/drafts|src/worker)/'; then
+  npm test -- packages/core/src src/lib/drafts src/worker
 fi

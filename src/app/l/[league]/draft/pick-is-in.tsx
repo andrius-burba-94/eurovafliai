@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { PositionPatch } from "@/components/board";
 import { TeamCrest } from "@/components/broadcast";
-import { CUE_KEY, PICK_STING, cuesEnabled } from "@/lib/cues/cues";
-import type { Position } from "@/lib/engine";
-import type { TeamStyle } from "@/lib/teams/identity";
+import { CUE_KEY, PICK_STING, cuesEnabled } from "@eurovafliai/core/cues";
+import type { Position } from "@eurovafliai/core/engine";
+import type { TeamStyle } from "@eurovafliai/core/teams/identity";
 
 export type LandedPick = {
   readonly overallNo: number;

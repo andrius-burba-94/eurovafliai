@@ -1,10 +1,10 @@
 import Fuse, { type IFuseOptions } from "fuse.js";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { normalizeName } from "@/lib/rosters/normalize";
 
 import type { SheetLine } from "./parse";
-import type { SheetRanking } from "./ranking";
+import type { SheetRanking } from "@eurovafliai/core/sheets/ranking";
 
 /**
  * Matching a pasted cheat sheet to the pool — slice 3.4.
@@ -29,7 +29,7 @@ import type { SheetRanking } from "./ranking";
  * Deterministic, like everything a draft leans on: fuse scores are stable, and
  * every tie past them is broken by player id.
  *
- * It is not in `src/lib/engine/` for the same reason `src/lib/pool/search.ts`
+ * It is not in `packages/core/src/engine/` for the same reason `src/lib/pool/search.ts`
  * is not — it takes a dependency, and the engine's purity test forbids any
  * import that is not relative to itself. Nothing here decides anything a draft
  * depends on either: it proposes a ranking, a person confirms it, and

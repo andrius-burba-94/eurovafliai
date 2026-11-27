@@ -10,7 +10,7 @@
  * bucket** is one of G/F/C, a **person code** is the Euroleague external id, and
  * a **normalized name** is the diacritics-folded key.
  */
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 
 import type { NormalizedPlayer } from "./types";
 

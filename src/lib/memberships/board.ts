@@ -1,7 +1,7 @@
 import type PocketBase from "pocketbase";
 
-import type { Position } from "@/lib/engine";
-import { leaguePosition, leagueSource } from "@/lib/positions";
+import type { Position } from "@eurovafliai/core/engine";
+import { leaguePosition, leagueSource } from "@eurovafliai/core/positions";
 import { signableIn } from "@/lib/source-positions/plan";
 
 import type { Seat } from "./plan";

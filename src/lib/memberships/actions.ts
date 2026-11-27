@@ -9,7 +9,7 @@ import {
   announceTrade,
 } from "@/lib/chat/messages";
 import { serverConfig } from "@/lib/config/server";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { isManager } from "@/lib/leagues/lobby";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import type { LeagueRecord, MemberRecord } from "@/lib/leagues/types";
@@ -21,7 +21,7 @@ import { planTransaction, type Proposal, type Seat } from "./plan";
 import { applyTransaction, listActiveMemberships } from "./store";
 import { revalidateLeague } from "@/lib/nav/revalidate";
 import { leaguePathOf } from "@/lib/slugs/store";
-import { leaguePosition, leagueSource } from "@/lib/positions";
+import { leaguePosition, leagueSource } from "@eurovafliai/core/positions";
 
 /**
  * Record a trade, add or drop.

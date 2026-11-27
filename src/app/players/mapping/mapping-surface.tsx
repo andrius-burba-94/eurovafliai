@@ -18,10 +18,10 @@ import type {
   UnmatchedCode,
   UnmatchedNews,
 } from "@/lib/mapping/queries";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { useHydrated } from "@/lib/hydrated";
 import { attachNewsName, type NewsResult } from "@/lib/news/actions";
-import { GAME_NAMES, POSITION_WORD, positionSentence } from "@/lib/positions";
+import { GAME_NAMES, POSITION_WORD, positionSentence } from "@eurovafliai/core/positions";
 import { answerPositionQuestion } from "@/lib/source-positions/actions";
 import type { PositionQuestionView } from "@/lib/source-positions/queries";
 import { clubLabel } from "@/lib/clubs/labels";

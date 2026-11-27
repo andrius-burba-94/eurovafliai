@@ -10,7 +10,7 @@ import {
   clockSentence,
   CUE_KEY,
   cuesEnabled,
-} from "@/lib/cues/cues";
+} from "@eurovafliai/core/cues";
 
 /**
  * "You are on the clock", made perceivable without looking at the screen.

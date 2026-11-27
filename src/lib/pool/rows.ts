@@ -1,5 +1,5 @@
-import type { Position } from "@/lib/engine";
-import { leaguePosition, type LeagueSource } from "@/lib/positions";
+import type { Position } from "@eurovafliai/core/engine";
+import { leaguePosition, type LeagueSource } from "@eurovafliai/core/positions";
 import {
   averageFantasyOf,
   averagePirOf,

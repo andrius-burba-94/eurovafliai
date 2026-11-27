@@ -16,7 +16,7 @@ import {
   inputStyles,
 } from "@/components/board";
 import type { PlayerFixture } from "@/lib/fixtures/types";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import {
   NO_FILTERS,
   narrowedBy,
@@ -24,7 +24,7 @@ import {
   selectPool,
   type PoolPlayer,
 } from "@/lib/pool/search";
-import { formatTenths } from "@/lib/stats/scoring";
+import { formatTenths } from "@eurovafliai/core/tenths";
 import { clubLabel } from "@/lib/clubs/labels";
 
 /**

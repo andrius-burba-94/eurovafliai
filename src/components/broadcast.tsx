@@ -12,7 +12,7 @@ import {
   crestMonogram,
   type CrestShape,
   type TeamColor,
-} from "@/lib/teams/identity";
+} from "@eurovafliai/core/teams/identity";
 
 /**
  * The top of a page: a small context line, the display headline, one line of

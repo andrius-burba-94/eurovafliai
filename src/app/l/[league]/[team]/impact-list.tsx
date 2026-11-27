@@ -7,7 +7,7 @@ import {
   Slots,
 } from "@/components/board";
 import type { DealView } from "@/lib/memberships/queries";
-import { formatSignedTenths } from "@/lib/stats/scoring";
+import { formatSignedTenths } from "@eurovafliai/core/tenths";
 
 function signedPir(value: number): string {
   if (value < 0) return String(value);

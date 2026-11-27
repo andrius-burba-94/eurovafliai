@@ -7,7 +7,7 @@ import { availabilityBadge, StatusBadge } from "@/components/broadcast";
 import { PlayerStatsLink } from "@/components/player-stats-link";
 import type { Confidence, Run } from "@/lib/advisor/outlook";
 import { formatOutlook, type WireRow } from "@/lib/advisor/wire";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { displayName } from "@/lib/players/name";
 import { clubLabel } from "@/lib/clubs/labels";
 

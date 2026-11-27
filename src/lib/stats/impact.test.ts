@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSignedTenths } from "./scoring";
+import { formatSignedTenths } from "@eurovafliai/core/tenths";
 import { impactForMember, type ImpactLine, type ImpactTransaction } from "./impact";
 
 const trade: ImpactTransaction = {

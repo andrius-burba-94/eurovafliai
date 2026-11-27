@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
  * The worker is plain Node under tsx. Nothing in what it imports — however
  * deep — may reach for the framework: `next/*`, `server-only` and `react`
  * either throw outside a request graph or drag one in. `pipeline.ts` says so in
- * a comment, and `src/lib/engine/purity.test.ts` exists because a comment has
+ * a comment, and `packages/core/src/engine/purity.test.ts` exists because a comment has
  * never stopped anybody.
  *
  * The breach is silent, which is the whole point of testing it. Adding

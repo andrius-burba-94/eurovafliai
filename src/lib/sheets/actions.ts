@@ -2,7 +2,7 @@
 
 
 import { requireSession } from "@/lib/auth/session";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 
 import {
@@ -12,7 +12,7 @@ import {
   type SheetEntryStatus,
 } from "./match";
 import { parseCheatSheet } from "./parse";
-import { applyOperation, type SheetOperation } from "./reorder";
+import { applyOperation, type SheetOperation } from "@eurovafliai/core/sheets/reorder";
 import { rankByAveragePir, SEED_DEPTH } from "./seed";
 import {
   deleteSheet,

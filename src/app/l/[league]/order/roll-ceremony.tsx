@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Bank, CardName, Door, Slot, Slots } from "@/components/board";
 import { TeamCrest } from "@/components/broadcast";
-import type { CrestShape, TeamColor } from "@/lib/teams/identity";
+import type { CrestShape, TeamColor } from "@eurovafliai/core/teams/identity";
 import {
   COUNTDOWN_MS,
   isDrawn,

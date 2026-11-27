@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/session";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { createUserClient } from "@/lib/pb/server";
 import { getSuperuserClient } from "@/lib/pb/superuser";
 import { displayName } from "@/lib/players/name";

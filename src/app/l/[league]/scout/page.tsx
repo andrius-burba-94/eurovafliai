@@ -12,9 +12,9 @@ import { renderPlain } from "@/lib/ai/tokens";
 import { getSession } from "@/lib/auth/session";
 import { serverConfig } from "@/lib/config/server";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 import { createUserClient } from "@/lib/pb/server";
-import { GAME_NAMES, leagueSource, positionSentence } from "@/lib/positions";
+import { GAME_NAMES, leagueSource, positionSentence } from "@eurovafliai/core/positions";
 
 import { ScoutDesk } from "./scout-desk";
 import { WaiverWire } from "./waiver-wire";

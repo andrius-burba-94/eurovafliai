@@ -2,8 +2,8 @@
 
 import type { MouseEvent, ReactNode } from "react";
 
-import type { Position, RadarRow, RadarSlot } from "@/lib/engine";
-import { positionSentence } from "@/lib/positions";
+import type { Position, RadarRow, RadarSlot } from "@eurovafliai/core/engine";
+import { positionSentence } from "@eurovafliai/core/positions";
 
 import type { BoardColumn } from "./draft-board";
 import { TeamCrest } from "@/components/broadcast";

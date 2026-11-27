@@ -16,8 +16,8 @@ import {
   EXPORT_LABEL,
 } from "@/lib/exports/tables";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
-import { leagueHref } from "@/lib/nav/urls";
+import { navLeagueFrom } from "@/lib/nav/league";
+import { leagueHref } from "@eurovafliai/core/nav/urls";
 
 /**
  * Take the draft away with you.

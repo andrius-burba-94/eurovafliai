@@ -15,7 +15,7 @@ import {
 /**
  * The roster radar — slice 3.2.
  *
- * `src/lib/engine/radar.test.ts` owns the arithmetic: templates that are not
+ * `packages/core/src/engine/radar.test.ts` owns the arithmetic: templates that are not
  * 5/5/3, a full bucket beside empty ones, the surplus that should never exist.
  * What only a browser can answer is that the radar names the right member
  * against the right roster, fills in as picks land, and says out loud what its

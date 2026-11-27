@@ -29,6 +29,7 @@ disagrees with STATUS.md, STATUS.md is right and the line is history.
 | [served-lineup-2026-11-11.md](served-lineup-2026-11-11.md) | Why frozen roles were removed: the production comparison against both official games, round by round |
 | [live-box-score-2026-11-19.md](live-box-score-2026-11-19.md) | The live box score and the tonight strip: which feed is truest to live, the cache-buster, the 20-second read, the page and the strip, and what was checked during round 13 |
 | [sync-audit-2026-10-26.md](sync-audit-2026-10-26.md) | The sync and automation audit of 26 October: what each fix slice changed in the worker, the feeds, the roster syncs, realtime and the code that was merged or deleted |
+| [mobile-2026-11-27.md](mobile-2026-11-27.md) | The phone app, M1: why the shared modules moved rather than being copied, the bearer session, the proxy branch, and the Metro proof |
 
 Append to these when a slice's narrative would otherwise go into STATUS.md.
 The rule for what goes where: a **table row, a Next-up line, an open debt

@@ -29,7 +29,7 @@ import {
   whoIsOnClock,
   type EnginePick,
   type Position,
-} from "../src/lib/engine";
+} from "@eurovafliai/core/engine";
 import { DEFAULT_ROSTER_TEMPLATE } from "../src/lib/leagues/settings";
 import { sweepOnce } from "../src/worker/sweep";
 import {

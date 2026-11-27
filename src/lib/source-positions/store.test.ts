@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import type { FantasyPlayer } from "@/lib/fantasy/parse";
 import { fakePb, type FakeRecord } from "../../../tests/unit/helpers/fake-pb";
 

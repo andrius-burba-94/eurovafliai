@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth/session";
-import { leagueHref, teamHref } from "@/lib/nav/urls";
+import { leagueHref, teamHref } from "@eurovafliai/core/nav/urls";
 import { createUserClient } from "@/lib/pb/server";
 
 /**

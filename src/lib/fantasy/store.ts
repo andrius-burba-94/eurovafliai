@@ -2,7 +2,7 @@ import { displayName } from "@/lib/players/name";
 import type PocketBase from "pocketbase";
 
 import { describeError } from "@/lib/drafts/pipeline";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { readStoredFixtures } from "@/lib/fixtures/store";
 import { parseLeagueSettings } from "@/lib/leagues/settings";
 import { formationName, type LineupSlots, type LineupSquadPlayer } from "@/lib/lineups/lineup";

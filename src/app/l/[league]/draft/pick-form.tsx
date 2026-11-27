@@ -19,9 +19,9 @@ import {
 
 import { useArmedPick } from "./armed-pick";
 import type { DraftView } from "@/lib/drafts/queries";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { useHydrated } from "@/lib/hydrated";
-import { formatTenths } from "@/lib/stats/scoring";
+import { formatTenths } from "@eurovafliai/core/tenths";
 import { clubLabel } from "@/lib/clubs/labels";
 import {
   NO_FILTERS,

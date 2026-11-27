@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { formatSignedTenths } from "@/lib/stats/scoring";
+import { formatSignedTenths } from "@eurovafliai/core/tenths";
 
 export type MarketRow = readonly [memberId: string, entry: { readonly netTenths: number; readonly deals: number }];
 

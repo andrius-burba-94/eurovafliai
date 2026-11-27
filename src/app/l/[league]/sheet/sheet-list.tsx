@@ -19,12 +19,12 @@ import {
   Slot,
   Slots,
 } from "@/components/board";
-import type { Position } from "@/lib/engine";
+import type { Position } from "@eurovafliai/core/engine";
 import { useHydrated } from "@/lib/hydrated";
-import { positionSentence } from "@/lib/positions";
+import { positionSentence } from "@eurovafliai/core/positions";
 import { editCheatSheet } from "@/lib/sheets/actions";
-import { tierOfRank } from "@/lib/sheets/ranking";
-import { applyOperation, type SheetOperation } from "@/lib/sheets/reorder";
+import { tierOfRank } from "@eurovafliai/core/sheets/ranking";
+import { applyOperation, type SheetOperation } from "@eurovafliai/core/sheets/reorder";
 import type { CheatSheetView, SheetPlayerRow } from "@/lib/sheets/queries";
 import { clubLabel } from "@/lib/clubs/labels";
 

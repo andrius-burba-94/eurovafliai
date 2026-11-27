@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { matchSheet, resolveSheet, type MatchablePlayer } from "./match";
 import { parseCheatSheet } from "./parse";
-import { sheetToText, tierOfRank } from "./ranking";
+import { sheetToText, tierOfRank } from "@eurovafliai/core/sheets/ranking";
 
 /**
  * Writing a sheet back out, and reading it in again.

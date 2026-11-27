@@ -10,7 +10,7 @@ import { readLiveSnapshots } from "@/lib/live/store";
 import { readNews } from "@/lib/news/queries";
 import { createUserClient } from "@/lib/pb/server";
 import { toPoolPlayer, type PoolPlayerRecord } from "@/lib/pool/rows";
-import type { LeagueSource } from "@/lib/positions";
+import type { LeagueSource } from "@eurovafliai/core/positions";
 import type { PoolPlayer } from "@/lib/pool/search";
 
 import type { PanelData } from "./types";

@@ -5,7 +5,7 @@ import { Bank, CardName, Slot, Slots } from "@/components/board";
 import { PageHeader, TeamCrest } from "@/components/broadcast";
 import { getSession } from "@/lib/auth/session";
 import { getLeagueWithMembers } from "@/lib/leagues/queries";
-import { navLeagueFrom } from "@/lib/nav/items";
+import { navLeagueFrom } from "@/lib/nav/league";
 
 import { DeleteLeague } from "../delete-league";
 import { MemberControls } from "../member-controls";
