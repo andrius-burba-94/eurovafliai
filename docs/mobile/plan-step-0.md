@@ -406,3 +406,26 @@ Your order is unchanged. Two notes:
 
 `docs/mobile/` holds this plan. The app's own `STATUS.md` starts in slice 2, and
 the web `docs/STATUS.md` gains an "API v1" table in slice 1.
+
+### What you can see, and when
+
+| Slice | First thing on a phone |
+|---|---|
+| 1 | Nothing native: API and shared code only |
+| 2 | The app itself: sign-in, your leagues, create and join, the tab bar from `navFor`, light and dark |
+| 3 | The lobby updating live, and chat |
+| 4 | The draft room, watching |
+| 5 | Drafting from the phone, beside a browser in the same draft |
+
+**Visual proof is part of "done" for every slice from 2 on.** Each one ends
+with screenshots from the iOS Simulator and the Android emulator on a small
+phone (iPhone SE, 375pt) and a large one. Every screen it adds is captured in
+both grounds and at the largest accessibility text size, plus one short screen
+recording of its critical flow. They are captured by the Maestro flows, so
+they are repeatable rather than hand-taken. Native patterns are the
+baseline rather than a web layout squeezed into a phone:
+- a native tab bar and stack, with sheets for chat and create/join
+- safe areas respected
+- 44pt targets
+- one-handed reach for the draft room's act (the band sits at the bottom
+  edge, not the top)
