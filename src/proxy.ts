@@ -28,6 +28,21 @@ export default function proxy(request: NextRequest): NextResponse {
     return NextResponse.next();
   }
 
+  // The phone app's API. It carries its token in a header rather than a
+  // cookie, and a refusal is JSON rather than a trip to /login. The same
+  // optimism applies: a bearer header's presence is checked here, its worth in
+  // the handler. `meta` stays open so an old build can learn it must update.
+  if (pathname.startsWith("/api/v1/")) {
+    const presented =
+      request.cookies.has(SESSION_COOKIE) ||
+      /^Bearer\s+\S+$/i.test(request.headers.get("authorization")?.trim() ?? "");
+    if (presented || pathname === "/api/v1/meta") return NextResponse.next();
+    return NextResponse.json(
+      { code: "unauthenticated", message: "Sign in again." },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   if (!request.cookies.has(SESSION_COOKIE)) {
     const url = new URL("/login", request.url);
     // Opening the site is not an error, so the front door gets no message.
