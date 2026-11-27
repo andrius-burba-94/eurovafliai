@@ -206,37 +206,52 @@ export function StandingsTable({
                       className={`grid items-center border-b border-rule/60 ${mine ? "bg-live-sunk" : ""}`}
                       style={{ gridTemplateColumns: template }}
                     >
-                      <span role="rowheader" className={`sticky left-0 z-10 flex min-w-0 items-center self-stretch border-r border-rule-strong ${mine ? "bg-live-sunk" : "bg-stock-panel"}`}>
-                        <span
-                          className={`stat ml-1.5 grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${MEDAL[index] ?? "text-ink-faint"}`}
-                        >
-                          {index + 1}
+                      {/* On a phone the team cell is two lines (the name, then
+                          "you" and the honours), and the move sits under the
+                          rank: one line of all of them left the name four
+                          letters at 412px. The link's ::after covers the whole
+                          cell, so the cell is the 44px target and the marks sit
+                          above it as their own buttons. */}
+                      <span
+                        role="rowheader"
+                        className={`sticky left-0 z-10 flex min-h-11 min-w-0 items-center gap-1.5 self-stretch border-r border-rule-strong pr-1.5 pl-1.5 sm:gap-2 ${mine ? "bg-live-sunk" : "bg-stock-panel"}`}
+                      >
+                        <span className="flex shrink-0 flex-col items-center sm:flex-row">
+                          <span className={`stat grid size-6 place-items-center rounded-full text-xs font-bold ${MEDAL[index] ?? "text-ink-faint"}`}>
+                            {index + 1}
+                          </span>
+                          {previousOrder.length > 0 ? (
+                            <span
+                              className={`stat text-center text-[0.6875rem] leading-4 font-bold sm:w-7 ${moved > 0 ? "text-gain" : moved < 0 ? "text-loss" : "text-ink-faint"}`}
+                              aria-label={moved > 0 ? `Up ${moved} places` : moved < 0 ? `Down ${-moved} places` : "No rank change"}
+                            >
+                              {moved > 0 ? `▲${moved}` : moved < 0 ? `▼${-moved}` : "·"}
+                            </span>
+                          ) : null}
                         </span>
-                        {previousOrder.length > 0 ? (
-                          <span
-                            className={`stat w-7 shrink-0 text-center text-[0.6875rem] font-bold ${moved > 0 ? "text-gain" : moved < 0 ? "text-loss" : "text-ink-faint"}`}
-                            aria-label={moved > 0 ? `Up ${moved} places` : moved < 0 ? `Down ${-moved} places` : "No rank change"}
+                        <span className="shrink-0">{crest(row.memberId, 22)}</span>
+                        <span className="flex min-w-0 flex-1 flex-col py-1 sm:flex-row sm:items-center sm:gap-2">
+                          <Link
+                            href={teamHref(row.memberId)}
+                            data-testid="standings-team"
+                            title={nameOf(row.memberId)}
+                            className="block min-w-0 truncate text-sm font-semibold transition-colors after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-live"
                           >
-                            {moved > 0 ? `▲${moved}` : moved < 0 ? `▼${-moved}` : "·"}
-                          </span>
-                        ) : null}
-                        <Link
-                          href={teamHref(row.memberId)}
-                          data-testid="standings-team"
-                          title={nameOf(row.memberId)}
-                          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-1 pr-1 transition-colors hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-live"
-                        >
-                          {crest(row.memberId, 22)}
-                          <span className="min-w-0 truncate text-sm font-semibold">{nameOf(row.memberId)}</span>
-                          {mine ? <span className="shrink-0 rounded-full bg-live px-1.5 text-[0.6875rem] leading-4 font-bold text-live-ink">you</span> : null}
-                        </Link>
-                        {marks.length > 0 ? (
-                          <span className="flex shrink-0 items-center gap-0.5 pr-1.5" data-testid="standings-marks">
-                            {marks.map((badge) => (
-                              <HonourMark key={badge.id} badge={badge} leagueId={leagueId} />
-                            ))}
-                          </span>
-                        ) : null}
+                            {nameOf(row.memberId)}
+                          </Link>
+                          {mine || marks.length > 0 ? (
+                            <span className="relative flex items-center gap-1 sm:flex-1">
+                              {mine ? <span className="shrink-0 rounded-full bg-live px-1.5 text-[0.6875rem] leading-4 font-bold text-live-ink">you</span> : null}
+                              {marks.length > 0 ? (
+                                <span className={`flex shrink-0 items-center gap-0.5 sm:ml-auto ${mine ? "" : "-ml-1"}`} data-testid="standings-marks">
+                                  {marks.map((badge) => (
+                                    <HonourMark key={badge.id} badge={badge} leagueId={leagueId} />
+                                  ))}
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : null}
+                        </span>
                       </span>
                       <span role="cell" className="overflow-hidden lg:px-2" aria-hidden="true">
                         <span className="hidden h-1.5 overflow-hidden rounded-full bg-stock-high lg:block">
