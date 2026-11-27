@@ -598,11 +598,16 @@ export function PickForm({
                       #{player.rank}
                     </span>
                     <PlayerPortrait personCode={view.pool.find((row) => row.id === player.id)?.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
-                    <span className="min-w-0 truncate" title={displayName(player.name)}>
-                      <CardName scale="slot">{displayName(player.name)}</CardName>
+                    {/* Two lines below `@md`, as the pool row below. */}
+                    <span className="flex min-w-0 flex-1 flex-col @md:contents">
+                      <span className="min-w-0 truncate" title={displayName(player.name)}>
+                        <CardName scale="slot">{displayName(player.name)}</CardName>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-x-2 @md:contents">
+                        <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{clubLabel(player.club)}</span>
+                        <PositionPatch position={player.position} />
+                      </span>
                     </span>
-                    <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{clubLabel(player.club)}</span>
-                    <PositionPatch position={player.position} />
                   </span>
                   {canPick ? (
                     <ChooseButton
@@ -947,6 +952,13 @@ export function PickForm({
                 {/* `CardName scale="slot"`, not a bespoke class. The board
                     already made this mistake once — a one-off `text-xs` at
                     *display* tracking — and DESIGN.md records fixing it. */}
+                {/* Below `@md` the name gets a line of its own and everything
+                    after it drops to a second line under it: on one line a
+                    phone row left the name two letters ("KY…"). The row is
+                    already tall enough for two lines, so it does not grow. From
+                    `@md` both wrappers are `contents` and the row is one line
+                    exactly as before. */}
+                <span className="flex min-w-0 flex-1 flex-col @md:contents">
                 <span
                   className={`min-w-0 truncate ${
                     player.drafted ? "line-through decoration-1" : ""
@@ -955,6 +967,7 @@ export function PickForm({
                 >
                   <CardName scale="slot">{displayName(player.name)}</CardName>
                 </span>
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 @md:contents" data-testid="pool-row-meta">
                 <PlayerPortrait personCode={player.personCode} name={player.name} className="hidden @3xl:inline-grid !h-8 !w-7" />
                 <span className="slot-label inline-flex items-center gap-1"><ClubCrest clubCode={player.club} />{clubLabel(player.club)}</span>
                 {/* Fantasy points are what the standings actually sum, so they
@@ -1020,6 +1033,8 @@ export function PickForm({
                     No room
                   </span>
                 ) : null}
+                </span>
+                </span>
               </span>
               {canPick && !player.drafted ? (
                 /* **Arms. Does not pick.** A tap here used to submit
