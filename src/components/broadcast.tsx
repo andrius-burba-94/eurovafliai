@@ -39,7 +39,10 @@ export function PageHeader({
         <h1 className="display min-w-0 text-4xl break-words sm:text-5xl">{title}</h1>
         {lead ? <p className="max-w-[62ch] text-sm text-ink-soft sm:text-base">{lead}</p> : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {/* `max-w-full` caps the action's flex basis at the header's width, so a
+          row of controls wraps inside it on a phone instead of running past
+          the screen's edge; `shrink-0` alone sized it to one unbroken line. */}
+      {action ? <div className="max-w-full shrink-0">{action}</div> : null}
     </header>
   );
 }
