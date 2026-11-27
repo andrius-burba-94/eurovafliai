@@ -31,10 +31,22 @@ paid for live in those skills as **Known gotchas** — do not re-debug them.
 ## Layout
 
 ```
-src/app/          Next App Router — RSC pages, server actions
-packages/core/src/engine/   PURE draft logic. Zero PocketBase imports, zero I/O —
+src/app/          Next App Router — RSC pages, server actions, /api/v1
+packages/core/    @eurovafliai/core: the pure code the web, the worker and the
+                  phone app share (D29). Relative imports and zod only —
+                  enforced by src/purity.test.ts
+  src/engine/     PURE draft logic. Zero PocketBase imports, zero I/O —
                   enforced by purity.test.ts, not just documented. Import
-                  from its index.ts, not from the modules directly.
+                  from its index.ts (`@eurovafliai/core/engine`)
+  src/cues.ts     on-the-clock cue decision — fires on turn transition only
+  src/positions.ts  position words and the one list-join
+  src/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
+                  drives the sidebar, the tab bar and More alike
+  src/nav/urls.ts every league, team and player address (S28): /l/<league>,
+                  /l/<league>/<team>. Never hand-build a league URL
+  src/tenths.ts   the one place tenths and hundredths become a string
+  src/color.ts    the one OKLCH converter
+  src/api/        the API contract: zod schemas and the closed error set
 src/components/   shared UI in the board's vocabulary (board.tsx) — see DESIGN.md
 src/lib/rosters/  roster ingestion: pure normalize/diff + the API front door.
                   `rename.ts` (4.2) decides whether an arrival is a rename —
@@ -49,7 +61,6 @@ src/lib/drafts/   the pick pipeline. `pipeline.ts` is framework-free and shared
                   human pick and an autodraft cannot diverge
 src/lib/sheets/   cheat sheets: pure parse + fuzzy match, stored shape, reorder
                   arithmetic, framework-free `store.ts` (worker autodrafts from a sheet)
-packages/core/src/cues.ts     on-the-clock cue decision — pure; fires on turn transition only
 src/lib/chat/     league chat: pure `messages.ts`, framework-free `store.ts`,
                   `actions.ts`. `announce()` never throws
 src/lib/memberships/  roster windows (5.1) and recorded trades (5.2):
@@ -62,11 +73,10 @@ src/lib/stats/    box scores and scoring; `scoring.ts` is pure; golden fixtures.
                   `recap.ts` is one Euroleague night: rank, best night, swing
 src/lib/pb/browser.ts  the page's ONE shared realtime client
 src/lib/csv/      one CSV line splitter, shared by both paste-a-sheet doors
-packages/core/src/positions.ts  position words and the one list-join
-packages/core/src/nav/items.ts  what the shell's nav holds (11.1). `navFor` is pure and
-                  drives the sidebar, the tab bar and More alike
-packages/core/src/nav/urls.ts  every league, team and player address (S28): /l/<league>,
-                  /l/<league>/<team>. Never hand-build a league URL
+src/lib/nav/league.ts  `navLeagueFrom`: a league page's data as the nav's `NavLeague`
+src/lib/api/      `/api/v1`'s request-facing half (D29): `withSession`, `ok`,
+                  `refuse`. Routes in src/app/api/v1/ wrap the same functions
+                  the server actions call — never a second implementation
 src/lib/slugs/    readable address segments: pure `slug.ts`, framework-free
                   `store.ts` (`ensureSlugs`, run by the worker at boot and hourly)
 src/lib/panel/    the side panel's one read (11.2): pool, a round's games, news
@@ -111,7 +121,7 @@ real unique indexes and throws on a filter it cannot parse.
 ## Non-negotiables
 
 - Draft state is **server-authoritative**. Clients render and request only.
-- `packages/core/src/engine/` stays **pure** — no PB, no I/O, time passed in as an argument.
+- `packages/core/` stays **pure** (the engine strictest of all) — no PB, no I/O, time passed in as an argument.
 - PocketBase has **no transactions**: validate-then-write, unique indexes,
   idempotent repair. State the failure-recovery story in the PR.
 - Never trust a client clock. The worker enforces pick deadlines.
